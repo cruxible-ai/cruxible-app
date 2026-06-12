@@ -12,7 +12,7 @@ page.on("console", (msg) => {
 });
 page.on("pageerror", (err) => errors.push(String(err)));
 
-await page.goto(`http://localhost:5173${urlPath}`, { waitUntil: "networkidle" });
+await page.goto(`http://localhost:${process.env.UI_PORT ?? "5173"}${urlPath}`, { waitUntil: "networkidle" });
 await page.waitForTimeout(400);
 await page.screenshot({ path: outfile, fullPage: false });
 console.log(`saved ${outfile}`);

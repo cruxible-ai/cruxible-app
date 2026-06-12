@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/test/msw-server";
-import { entityQueryResult, errorEnvelope } from "@/test/fixtures";
+import { entityQueryResult, errorEnvelope } from "@/fixtures/envelopes";
 import { ApiError, createApiClient, unwrap } from "./data-source";
 
 const BASE = "https://cloud.example";

@@ -1,27 +1,80 @@
 import { useParams, useSearchParams } from "react-router-dom";
-import { useEntityList } from "@/api/hooks";
+import { useEntityList, useInstanceSchema } from "@/api/hooks";
+import { statusEnumValues } from "@/api/schema-info";
+import { Chip } from "@/components/Chip";
 import { EntityTable } from "@/components/EntityTable";
 import { Panel, LoadState } from "@/components/Panel";
 import { isEntityRef } from "@/api/items";
 
 const PAGE_SIZE = 100;
 
-/** Raw entity listing per type — the database-console view of the state. */
+/**
+ * Raw entity listing per type — the database-console view of the state.
+ * Status filtering is schema-driven (the type's own enum vocabulary) and
+ * lives in the URL. List reads carry no receipt today; the footer says so
+ * rather than implying parity with receipted query surfaces.
+ */
 export function BrowseScreen() {
   const { entityType = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const schema = useInstanceSchema();
   const offset = Number(searchParams.get("offset") ?? 0);
-  const list = useEntityList(entityType, PAGE_SIZE, offset);
+  const status = searchParams.get("status") ?? undefined;
+  const list = useEntityList(
+    entityType,
+    PAGE_SIZE,
+    offset,
+    status ? { status } : undefined,
+  );
 
+  const statuses = statusEnumValues(schema.data, entityType) ?? [];
   const items = ((list.data as { items?: unknown[] } | undefined)?.items ?? []).filter(isEntityRef);
   const total = (list.data as { total?: number } | undefined)?.total ?? 0;
+
+  function setStatus(next: string | undefined) {
+    const sp = new URLSearchParams(searchParams);
+    if (next) sp.set("status", next);
+    else sp.delete("status");
+    sp.delete("offset");
+    setSearchParams(sp);
+  }
 
   return (
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">{entityType}</h1>
+        {statuses.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => setStatus(undefined)}
+              className={`rounded border px-1.5 py-px text-[11px] ${
+                !status
+                  ? "border-zinc-600 bg-zinc-800 text-zinc-200"
+                  : "border-zinc-800 text-zinc-500 hover:bg-zinc-900"
+              }`}
+            >
+              all
+            </button>
+            {statuses.map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatus(s === status ? undefined : s)}
+                className={s === status ? "rounded ring-1 ring-zinc-400" : "opacity-80 hover:opacity-100"}
+              >
+                <Chip value={s} />
+              </button>
+            ))}
+          </div>
+        )}
       </header>
-      <Panel title="Entities" meta={<span className="font-mono">{total} total</span>}>
+      <Panel
+        title="Entities"
+        meta={
+          <span>
+            <span className="font-mono">{total}</span> total · unreceipted list read
+          </span>
+        }
+      >
         {list.isPending && <LoadState />}
         {list.error && <LoadState error={list.error} />}
         {list.data && (

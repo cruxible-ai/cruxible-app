@@ -38,5 +38,10 @@
     "typescript": "^5",
     "vite": "^6",
     "vitest": "^3"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }

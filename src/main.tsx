@@ -14,6 +14,17 @@ const queryClient = new QueryClient({
   },
 });
 
+// Dev fixtures mode: serve the miniature fixture instance through an MSW
+// worker at the network layer. The app still goes through the same
+// data-source boundary; nothing else changes.
+if (import.meta.env.DEV && import.meta.env.VITE_CRUXIBLE_FIXTURES === "1") {
+  const [{ setupWorker }, { buildHandlers }] = await Promise.all([
+    import("msw/browser"),
+    import("./fixtures/handlers"),
+  ]);
+  await setupWorker(...buildHandlers()).start({ onUnhandledRequest: "bypass" });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

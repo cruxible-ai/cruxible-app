@@ -15,6 +15,11 @@ const TONES = {
 
 type Tone = keyof typeof TONES;
 
+// STOPGAP (approved as such in rr-ui-v1-walking-skeleton-checkpoint): this
+// value→tone map hardcodes the project-state kit vocabulary. The structural
+// fix — presentation semantics carried by the config's enum definitions — is
+// oq-enum-presentation-semantics (owner robert). Unknown values fall back to
+// neutral, so other kits render legibly but uncolored.
 const VALUE_TONES: Record<string, Tone> = {
   // status
   closed: "green",

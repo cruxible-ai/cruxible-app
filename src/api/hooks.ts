@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { useApiClient } from "./DataSourceContext";
 import { unwrap } from "./data-source";
@@ -112,19 +112,60 @@ export function useReceipt(receiptId: string) {
   });
 }
 
-export function useEntityList(entityType: string, limit = 100, offset = 0) {
+export function useEntityList(
+  entityType: string,
+  limit = 100,
+  offset = 0,
+  propertyFilter?: Record<string, string>,
+) {
   const client = useApiClient();
   const instanceId = useInstanceId();
   return useQuery({
-    queryKey: ["entity-list", instanceId, entityType, limit, offset],
+    queryKey: ["entity-list", instanceId, entityType, limit, offset, propertyFilter ?? null],
     queryFn: async () =>
       unwrap(
         await client.GET("/api/v1/{instance_id}/list/{resource_type}", {
           params: {
             path: { instance_id: instanceId, resource_type: "entities" },
-            query: { entity_type: entityType, limit, offset },
+            query: {
+              entity_type: entityType,
+              limit,
+              offset,
+              ...(propertyFilter ? { property_filter: JSON.stringify(propertyFilter) } : {}),
+            },
           },
         }),
       ),
+  });
+}
+
+/**
+ * Server-computed totals per status value for one entity type — one filtered
+ * list call per value (`limit: 1`; only `total` is consumed). The daemon has
+ * no group-by surface yet (reported as friction), so orientation counts cost
+ * one round trip per cell.
+ */
+export function useStatusTotals(entityType: string, statusValues: string[]) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQueries({
+    queries: statusValues.map((status) => ({
+      queryKey: ["status-total", instanceId, entityType, status],
+      queryFn: async () => {
+        const data = unwrap(
+          await client.GET("/api/v1/{instance_id}/list/{resource_type}", {
+            params: {
+              path: { instance_id: instanceId, resource_type: "entities" },
+              query: {
+                entity_type: entityType,
+                limit: 1,
+                property_filter: JSON.stringify({ status }),
+              },
+            },
+          }),
+        );
+        return { status, total: (data as { total?: number }).total ?? 0 };
+      },
+    })),
   });
 }

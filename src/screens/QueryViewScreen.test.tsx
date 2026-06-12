@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { http, HttpResponse } from "msw";
 import { server } from "@/test/msw-server";
-import { entityQueryResult } from "@/test/fixtures";
+import { entityQueryResult } from "@/fixtures/envelopes";
 import { DataSourceProvider } from "@/api/DataSourceContext";
 import { createApiClient } from "@/api/data-source";
 import { QueryViewScreen } from "./QueryViewScreen";
