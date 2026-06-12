@@ -85,8 +85,9 @@ export function BrowseScreen() {
                 <button
                   disabled={offset <= 0}
                   onClick={() => {
-                    searchParams.set("offset", String(Math.max(0, offset - PAGE_SIZE)));
-                    setSearchParams(searchParams);
+                    const sp = new URLSearchParams(searchParams);
+                    sp.set("offset", String(Math.max(0, offset - PAGE_SIZE)));
+                    setSearchParams(sp);
                   }}
                   className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
                 >
@@ -95,8 +96,9 @@ export function BrowseScreen() {
                 <button
                   disabled={offset + PAGE_SIZE >= total}
                   onClick={() => {
-                    searchParams.set("offset", String(offset + PAGE_SIZE));
-                    setSearchParams(searchParams);
+                    const sp = new URLSearchParams(searchParams);
+                    sp.set("offset", String(offset + PAGE_SIZE));
+                    setSearchParams(sp);
                   }}
                   className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
                 >
