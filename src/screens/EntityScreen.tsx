@@ -2,22 +2,9 @@ import { Link, useParams } from "react-router-dom";
 import { useInspectEntity, useInstanceId, useQueryCatalog } from "@/api/hooks";
 import { Chip } from "@/components/Chip";
 import { EntityLink } from "@/components/EntityLink";
+import { EvidenceRef, type EvidenceRefData } from "@/components/EvidenceRef";
 import { Panel, LoadState } from "@/components/Panel";
 import { isEntityRef } from "@/api/items";
-
-interface EvidenceRef {
-  source?: string;
-  source_record_id?: string;
-  artifact_id?: string;
-  label?: string;
-  metadata?: {
-    heading_path?: string[];
-    line_start?: number;
-    line_end?: number;
-    chunk_id?: string;
-    content_hash?: string;
-  };
-}
 
 interface NeighborEdge {
   direction: "incoming" | "outgoing";
@@ -28,7 +15,7 @@ interface NeighborEdge {
     provenance?: { source?: string; source_ref?: string; created_at?: string };
     assertion?: { review?: { status?: string; source?: string }; lifecycle?: { status?: string } };
     evidence?: {
-      evidence_refs?: EvidenceRef[];
+      evidence_refs?: EvidenceRefData[];
       rationale?: string;
       source_receipt_ids?: string[];
     };
@@ -90,6 +77,12 @@ export function EntityScreen() {
         <div className="flex items-center gap-2 text-[12px] text-zinc-500">
           <span>{data.entity_type}</span>
           <span className="font-mono text-zinc-400">{data.entity_id}</span>
+          <Link
+            to={`/i/${instanceId}/g/${data.entity_type}/${data.entity_id}`}
+            className="text-zinc-400 hover:underline"
+          >
+            graph →
+          </Link>
         </div>
         <h1 className="mt-1 text-[17px] font-semibold text-zinc-100">{title ?? data.entity_id}</h1>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -139,17 +132,18 @@ export function EntityScreen() {
       >
         <div className="space-y-3">
           {[...grouped.entries()].map(([key, edges]) => (
-            <div key={key}>
-              <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-600">
+            <details key={key} open={edges.length <= 8}>
+              <summary className="mb-1 cursor-pointer list-none text-[11px] uppercase tracking-wide text-zinc-600 hover:text-zinc-400">
                 {edges[0]!.direction === "outgoing" ? "→" : "←"}{" "}
-                {edges[0]!.relationship_type.replaceAll("_", " ")}
-              </div>
+                {edges[0]!.relationship_type.replaceAll("_", " ")}{" "}
+                <span className="font-mono normal-case">({edges.length})</span>
+              </summary>
               <div className="space-y-1.5">
                 {edges.map((n) => (
                   <NeighborRow key={n.edge_key} edge={n} />
                 ))}
               </div>
-            </div>
+            </details>
           ))}
           {data.neighbors.length === 0 && (
             <div className="text-[13px] text-zinc-600">No relationships.</div>
@@ -196,15 +190,7 @@ function NeighborRow({ edge }: { edge: NeighborEdge }) {
         <div className="mt-1 border-t border-zinc-800/50 pt-1 text-[12px] text-zinc-500">
           {evidence?.rationale && <p className="italic">{evidence.rationale}</p>}
           {(evidence?.evidence_refs ?? []).map((ref, i) => (
-            <div key={i} className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[11px]">
-              <span className="text-zinc-400">{ref.artifact_id}</span>
-              {ref.metadata?.line_start != null && (
-                <span>
-                  L{ref.metadata.line_start}–{ref.metadata.line_end}
-                </span>
-              )}
-              {ref.label && <span className="font-sans italic">“{ref.label}”</span>}
-            </div>
+            <EvidenceRef key={i} refData={ref} />
           ))}
           {(evidence?.source_receipt_ids ?? []).map((rid) => (
             <Link

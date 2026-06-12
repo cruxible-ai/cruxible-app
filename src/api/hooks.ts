@@ -112,6 +112,38 @@ export function useReceipt(receiptId: string) {
   });
 }
 
+export interface EvidenceLocator {
+  source_artifact_id: string;
+  chunk_id?: string | undefined;
+  expected_content_hash?: string | undefined;
+}
+
+/**
+ * Dereference a source-evidence locator to its markdown body. The endpoint is
+ * a POST for locator-payload reasons but is semantically a read — the only
+ * non-GET call in the app, cached like any query.
+ */
+export function useDereferenceEvidence(locator: EvidenceLocator | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["dereference", instanceId, locator],
+    enabled: locator !== null,
+    staleTime: 5 * 60_000,
+    queryFn: async () =>
+      unwrap(
+        await client.POST("/api/v1/{instance_id}/source-evidence/dereference", {
+          params: { path: { instance_id: instanceId } },
+          body: {
+            source_artifact_id: locator!.source_artifact_id,
+            chunk_id: locator!.chunk_id ?? null,
+            expected_content_hash: locator!.expected_content_hash ?? null,
+          },
+        }),
+      ),
+  });
+}
+
 export function useEntityList(
   entityType: string,
   limit = 100,

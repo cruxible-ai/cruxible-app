@@ -46,5 +46,14 @@ describe("fixture handler set", () => {
     ) as { found: boolean; neighbors: unknown[] };
     expect(inspect.found).toBe(true);
     expect(inspect.neighbors).toHaveLength(1);
+
+    const deref = unwrap(
+      await client.POST("/api/v1/{instance_id}/source-evidence/dereference", {
+        params: { path },
+        body: { source_artifact_id: "SRC-fixture00001", chunk_id: null, expected_content_hash: null },
+      }),
+    ) as { status: string; body?: string | null };
+    expect(deref.status).toBe("available");
+    expect(deref.body).toContain("Fixture source text");
   });
 });

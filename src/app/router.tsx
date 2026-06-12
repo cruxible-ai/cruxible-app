@@ -3,6 +3,7 @@ import { AppShell } from "./AppShell";
 import { OverviewScreen } from "@/screens/OverviewScreen";
 import { QueryViewScreen } from "@/screens/QueryViewScreen";
 import { EntityScreen } from "@/screens/EntityScreen";
+import { GraphScreen } from "@/screens/GraphScreen";
 import { ReceiptScreen } from "@/screens/ReceiptScreen";
 import { BrowseScreen } from "@/screens/BrowseScreen";
 import { loadConfig } from "@/config";
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
       { index: true, element: <OverviewScreen /> },
       { path: "views/:queryName", element: <QueryViewScreen /> },
       { path: "e/:entityType/:entityId", element: <EntityScreen /> },
+      { path: "g/:entityType/:entityId", element: <GraphScreen /> },
       { path: "receipts/:receiptId", element: <ReceiptScreen /> },
       { path: "browse/:entityType", element: <BrowseScreen /> },
     ],

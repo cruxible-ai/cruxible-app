@@ -221,6 +221,27 @@ export function buildHandlers(baseUrl = "") {
           : [];
       return HttpResponse.json({ ...found, found: true, neighbors, total_neighbors: neighbors.length });
     }),
+    http.post(api("/source-evidence/dereference"), async ({ request }) => {
+      const body = (await request.json()) as { source_artifact_id: string; chunk_id?: string };
+      if (body.source_artifact_id !== "SRC-fixture00001") {
+        return HttpResponse.json(
+          errorEnvelope("NotFoundError", `Unknown artifact ${body.source_artifact_id}`),
+          { status: 404 },
+        );
+      }
+      return HttpResponse.json({
+        status: "available",
+        source_artifact_id: body.source_artifact_id,
+        chunk_id: body.chunk_id ?? "mdchunk_fixture1",
+        content_hash: "sha256:fixture",
+        expected_artifact_hash: "sha256:fixture",
+        current_artifact_hash: "sha256:fixture",
+        body_origin: "local_path",
+        body: "Fixture source text:\nthe evidence behind the fixture edge.",
+        reason: null,
+        chunk: null,
+      });
+    }),
     http.get(api("/receipts/:receiptId"), ({ params }) =>
       HttpResponse.json({
         receipt_id: params.receiptId,
