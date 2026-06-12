@@ -1,0 +1,222 @@
+import { Link, useParams } from "react-router-dom";
+import { useInspectEntity, useInstanceId, useQueryCatalog } from "@/api/hooks";
+import { Chip } from "@/components/Chip";
+import { EntityLink } from "@/components/EntityLink";
+import { Panel, LoadState } from "@/components/Panel";
+import { isEntityRef } from "@/api/items";
+
+interface EvidenceRef {
+  source?: string;
+  source_record_id?: string;
+  artifact_id?: string;
+  label?: string;
+  metadata?: {
+    heading_path?: string[];
+    line_start?: number;
+    line_end?: number;
+    chunk_id?: string;
+    content_hash?: string;
+  };
+}
+
+interface NeighborEdge {
+  direction: "incoming" | "outgoing";
+  relationship_type: string;
+  edge_key: number;
+  properties: Record<string, unknown>;
+  metadata: {
+    provenance?: { source?: string; source_ref?: string; created_at?: string };
+    assertion?: { review?: { status?: string; source?: string }; lifecycle?: { status?: string } };
+    evidence?: {
+      evidence_refs?: EvidenceRef[];
+      rationale?: string;
+      source_receipt_ids?: string[];
+    };
+  };
+  entity: unknown;
+}
+
+/**
+ * Entity context panel: identity + properties, then every relationship with
+ * its trust metadata (who wrote it, review state, evidence refs) rendered
+ * inline — edges are never unexplained memory.
+ */
+export function EntityScreen() {
+  const { entityType = "", entityId = "" } = useParams();
+  const instanceId = useInstanceId();
+  const inspect = useInspectEntity(entityType, entityId);
+  const catalog = useQueryCatalog();
+
+  if (inspect.isPending) return <LoadState />;
+  if (inspect.error) return <LoadState error={inspect.error} />;
+  const data = inspect.data as {
+    found: boolean;
+    entity_type: string;
+    entity_id: string;
+    properties: Record<string, unknown>;
+    neighbors: NeighborEdge[];
+    total_neighbors: number;
+  };
+  if (!data.found) {
+    return <div className="text-[13px] text-zinc-500">Entity not found.</div>;
+  }
+
+  const { properties } = data;
+  const title = typeof properties.title === "string" ? properties.title : undefined;
+  const summary = typeof properties.summary === "string" ? properties.summary : undefined;
+  const chipKeys = ["status", "priority", "type"].filter(
+    (k) => typeof properties[k] === "string",
+  );
+  const restProps = Object.entries(properties).filter(
+    ([k, v]) =>
+      !["title", "summary", ...chipKeys].includes(k) && (typeof v !== "string" || v.length < 200),
+  );
+
+  // Context queries whose entry point is this entity type, e.g.
+  // work_item_change_context for a WorkItem — linked, not duplicated here.
+  const contextQueries = (catalog.data?.items ?? []).filter(
+    (q) => q.entry_point === data.entity_type && (q.required_params ?? []).length > 0,
+  );
+
+  const grouped = new Map<string, NeighborEdge[]>();
+  for (const n of data.neighbors) {
+    const key = `${n.direction}:${n.relationship_type}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), n]);
+  }
+
+  return (
+    <div className="space-y-3">
+      <header>
+        <div className="flex items-center gap-2 text-[12px] text-zinc-500">
+          <span>{data.entity_type}</span>
+          <span className="font-mono text-zinc-400">{data.entity_id}</span>
+        </div>
+        <h1 className="mt-1 text-[17px] font-semibold text-zinc-100">{title ?? data.entity_id}</h1>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {chipKeys.map((k) => (
+            <span key={k} className="inline-flex items-center gap-1 text-[11px] text-zinc-600">
+              {k}
+              <Chip value={String(properties[k])} />
+            </span>
+          ))}
+        </div>
+        {summary && <p className="mt-2 max-w-3xl text-[13px] leading-5 text-zinc-400">{summary}</p>}
+      </header>
+
+      {contextQueries.length > 0 && (
+        <div className="flex flex-wrap gap-2 text-[12px]">
+          {contextQueries.map((q) => {
+            const param = (q.required_params ?? [])[0];
+            return (
+              <Link
+                key={q.name}
+                to={`/i/${instanceId}/views/${q.name}?${param}=${encodeURIComponent(data.entity_id)}`}
+                className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+              >
+                {(q.name ?? "").replaceAll("_", " ")} →
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {restProps.length > 0 && (
+        <Panel title="Properties">
+          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
+            {restProps.map(([k, v]) => (
+              <div key={k} className="contents">
+                <dt className="text-zinc-500">{k}</dt>
+                <dd className="font-mono text-[12px] text-zinc-300 break-all">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        </Panel>
+      )}
+
+      <Panel
+        title="Relationships"
+        meta={<span className="font-mono">{data.total_neighbors}</span>}
+      >
+        <div className="space-y-3">
+          {[...grouped.entries()].map(([key, edges]) => (
+            <div key={key}>
+              <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-600">
+                {edges[0]!.direction === "outgoing" ? "→" : "←"}{" "}
+                {edges[0]!.relationship_type.replaceAll("_", " ")}
+              </div>
+              <div className="space-y-1.5">
+                {edges.map((n) => (
+                  <NeighborRow key={n.edge_key} edge={n} />
+                ))}
+              </div>
+            </div>
+          ))}
+          {data.neighbors.length === 0 && (
+            <div className="text-[13px] text-zinc-600">No relationships.</div>
+          )}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function NeighborRow({ edge }: { edge: NeighborEdge }) {
+  const instanceId = useInstanceId();
+  const e = edge.entity;
+  const review = edge.metadata.assertion?.review?.status;
+  const provenance = edge.metadata.provenance;
+  const evidence = edge.metadata.evidence;
+
+  return (
+    <div className="rounded border border-zinc-800/70 bg-zinc-900/30 px-2.5 py-1.5">
+      <div className="flex flex-wrap items-center gap-2 text-[13px]">
+        {isEntityRef(e) ? (
+          <>
+            <span className="text-[11px] text-zinc-600">{e.entity_type}</span>
+            <EntityLink entityType={e.entity_type} entityId={e.entity_id}>
+              <span>
+                {typeof e.properties.title === "string" ? e.properties.title : e.entity_id}
+              </span>
+            </EntityLink>
+            {typeof e.properties.status === "string" && <Chip value={e.properties.status} />}
+          </>
+        ) : (
+          <span className="text-zinc-500">(entity unavailable)</span>
+        )}
+        <span className="ml-auto flex items-center gap-2 text-[11px] text-zinc-500">
+          {review && <Chip value={review} />}
+          {provenance?.source && (
+            <span title={provenance.created_at}>
+              via <span className="font-mono">{provenance.source_ref ?? provenance.source}</span>
+            </span>
+          )}
+        </span>
+      </div>
+      {(evidence?.rationale || (evidence?.evidence_refs ?? []).length > 0) && (
+        <div className="mt-1 border-t border-zinc-800/50 pt-1 text-[12px] text-zinc-500">
+          {evidence?.rationale && <p className="italic">{evidence.rationale}</p>}
+          {(evidence?.evidence_refs ?? []).map((ref, i) => (
+            <div key={i} className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[11px]">
+              <span className="text-zinc-400">{ref.artifact_id}</span>
+              {ref.metadata?.line_start != null && (
+                <span>
+                  L{ref.metadata.line_start}–{ref.metadata.line_end}
+                </span>
+              )}
+              {ref.label && <span className="font-sans italic">“{ref.label}”</span>}
+            </div>
+          ))}
+          {(evidence?.source_receipt_ids ?? []).map((rid) => (
+            <Link
+              key={rid}
+              to={`/i/${instanceId}/receipts/${rid}`}
+              className="mr-2 font-mono text-[11px] text-zinc-400 hover:underline"
+            >
+              {rid}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
