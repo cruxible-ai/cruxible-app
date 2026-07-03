@@ -140,7 +140,21 @@ export function buildHandlers(baseUrl = "") {
           entityQueryResult({
             result_shape: "path",
             items: [
-              { entry: WORK_ITEMS[0], result: ROADMAP_ITEM, entities: [WORK_ITEMS[0], ROADMAP_ITEM] },
+              {
+                entry: WORK_ITEMS[0]!,
+                result: ROADMAP_ITEM,
+                entities: [WORK_ITEMS[0]!, ROADMAP_ITEM],
+                path: [
+                  {
+                    relationship_type: "work_item_implements_roadmap_item",
+                    from_type: "WorkItem",
+                    from_id: "wi-fixture-1",
+                    to_type: "RoadmapItem",
+                    to_id: "ri-fixture-1",
+                    edge_key: 1,
+                  },
+                ],
+              },
             ],
             total: 1,
           }),

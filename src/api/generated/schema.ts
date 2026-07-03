@@ -78,6 +78,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/instances/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Instance
+         * @description Restore a same-identity daemon-backed instance from a local artifact path.
+         */
+        post: operations["restore_instance_api_v1_instances_restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/{instance_id}/runtime/bootstrap/claim": {
         parameters: {
             query?: never;
@@ -112,6 +132,26 @@ export interface paths {
         get: operations["server_info_api_v1_server_info_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/server/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Server Restart
+         * @description Schedule an in-place daemon re-exec, preserving port, state dir, and env.
+         */
+        post: operations["server_restart_api_v1_server_restart_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -198,6 +238,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/{instance_id}/state/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * State Health
+         * @description Read deterministic, read-only state-health maintenance signals.
+         */
+        get: operations["state_health_api_v1__instance_id__state_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/{instance_id}/state/pull/preview": {
         parameters: {
             query?: never;
@@ -269,6 +329,9 @@ export interface paths {
          *     Non-reserved query-string keys are forwarded to the named query as
          *     string-valued parameters; results use the standard list envelope with
          *     deterministic ordering, so ``offset`` windows are stable per snapshot.
+         *     Use GET ``/api/v1/{instance_id}/queries/{query_name}`` (describe_query)
+         *     to inspect per-query parameter metadata such as required parameters,
+         *     primary key hints, and example IDs.
          */
         get: operations["view_api_v1__instance_id__views__query_name__get"];
         put?: never;
@@ -296,23 +359,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/{instance_id}/wiki/render": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Render Wiki */
-        post: operations["render_wiki_api_v1__instance_id__wiki_render_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/{instance_id}/receipts/{receipt_id}": {
         parameters: {
             query?: never;
@@ -322,6 +368,23 @@ export interface paths {
         };
         /** Receipt */
         get: operations["receipt_api_v1__instance_id__receipts__receipt_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/{instance_id}/receipts/{receipt_id}/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Explain Receipt */
+        get: operations["explain_receipt_api_v1__instance_id__receipts__receipt_id__explain_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -526,6 +589,23 @@ export interface paths {
         };
         /** Inspect Entity */
         get: operations["inspect_entity_api_v1__instance_id__inspect_entity__entity_type___entity_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/{instance_id}/inspect/entity-history/{entity_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect Entity History */
+        get: operations["inspect_entity_history_api_v1__instance_id__inspect_entity_history__entity_type__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1217,6 +1297,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/{instance_id}/instance/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Backup Instance */
+        post: operations["backup_instance_api_v1__instance_id__instance_backup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/{instance_id}/instance/relocate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Relocate Instance */
+        post: operations["relocate_instance_api_v1__instance_id__instance_relocate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/{instance_id}/snapshots/clone": {
         parameters: {
             query?: never;
@@ -1286,7 +1400,7 @@ export interface components {
             severity: "warning" | "error";
             /** Description */
             description?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** AddConstraintResult */
         AddConstraintResult: {
@@ -1329,7 +1443,7 @@ export interface components {
             workflow_name?: string | null;
             /** Expires At */
             expires_at?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** AddDecisionPolicyResult */
         AddDecisionPolicyResult: {
@@ -1351,7 +1465,7 @@ export interface components {
              * @default false
              */
             dry_run: boolean;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** AddEntityResult */
         AddEntityResult: {
@@ -1368,6 +1482,10 @@ export interface components {
             added: number;
             /** Updated */
             updated: number;
+            /** Pending Conflicts */
+            pending_conflicts?: components["schemas"]["DirectWriteGroupInteraction"][];
+            /** Updated Group Backed Edges */
+            updated_group_backed_edges?: components["schemas"]["DirectWriteGroupInteraction"][];
             /** Receipt Id */
             receipt_id?: string | null;
         };
@@ -1380,7 +1498,7 @@ export interface components {
              * @default false
              */
             dry_run: boolean;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** AnalyzeFeedbackRequest */
         AnalyzeFeedbackRequest: {
@@ -1512,11 +1630,20 @@ export interface components {
         };
         /** BatchDirectWritePayload */
         BatchDirectWritePayload: {
-            /** Entities */
+            /**
+             * Entities
+             * @description Entities to add or upsert in this batch.
+             */
             entities?: components["schemas"]["EntityInput"][];
-            /** Relationships */
+            /**
+             * Relationships
+             * @description Relationships to add or upsert; endpoint entities must exist.
+             */
             relationships?: components["schemas"]["BatchRelationshipInput"][];
-            /** Shared Evidence */
+            /**
+             * Shared Evidence
+             * @description Named evidence bundles referenced by relationships via shared_evidence_keys.
+             */
             shared_evidence?: {
                 [key: string]: components["schemas"]["SharedEvidenceInput"];
             };
@@ -1529,7 +1656,7 @@ export interface components {
              * @default false
              */
             dry_run: boolean;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** BatchDirectWriteResult */
         BatchDirectWriteResult: {
@@ -1563,32 +1690,74 @@ export interface components {
             validation_warnings?: string[];
             /** Evidence Sources Used */
             evidence_sources_used?: string[];
+            /** Pending Conflicts */
+            pending_conflicts?: components["schemas"]["DirectWriteGroupInteraction"][];
+            /** Updated Group Backed Edges */
+            updated_group_backed_edges?: components["schemas"]["DirectWriteGroupInteraction"][];
             /** Receipt Id */
             receipt_id?: string | null;
         };
         /** BatchRelationshipInput */
         BatchRelationshipInput: {
-            /** From Type */
+            /**
+             * From Type
+             * @description Entity type of the source endpoint.
+             */
             from_type: string;
-            /** From Id */
+            /**
+             * From Id
+             * @description Entity id of the source endpoint; must already exist.
+             */
             from_id: string;
-            /** Relationship Type */
+            /**
+             * Relationship Type
+             * @description Edge type as declared in the config schema.
+             */
             relationship_type: string;
-            /** To Type */
+            /**
+             * To Type
+             * @description Entity type of the target endpoint.
+             */
             to_type: string;
-            /** To Id */
+            /**
+             * To Id
+             * @description Entity id of the target endpoint; must already exist.
+             */
             to_id: string;
-            /** Properties */
+            /**
+             * Properties
+             * @description Edge properties; keys must be declared by the relationship schema.
+             */
             properties?: {
                 [key: string]: unknown;
             };
-            /** Evidence Refs */
+            /**
+             * Pending
+             * @description If true, stage the edge as pending review instead of live state.
+             * @default false
+             */
+            pending: boolean;
+            /**
+             * Evidence Refs
+             * @description External provenance references attached to this edge.
+             */
             evidence_refs?: components["schemas"]["EvidenceRef"][];
-            /** Source Evidence */
+            /**
+             * Source Evidence
+             * @description Locators into registered source artifacts backing this edge.
+             */
             source_evidence?: components["schemas"]["SourceEvidenceInput"][];
-            /** Evidence Rationale */
+            /**
+             * Evidence Rationale
+             * @description Free-text explanation of why the attached evidence supports the edge.
+             */
             evidence_rationale?: string | null;
-            /** Shared Evidence Keys */
+            /** @description Typed, review-safe lifecycle write. Sets only the edge's lifecycle status/reason; cannot touch its review or group-override state. */
+            lifecycle?: components["schemas"]["RelationshipLifecycleInput"] | null;
+            /**
+             * Shared Evidence Keys
+             * @description Keys into the payload's top-level shared_evidence map to attach here.
+             */
             shared_evidence_keys?: string[];
         };
         /** BootstrapClaimRequest */
@@ -1690,19 +1859,31 @@ export interface components {
         };
         /** DecisionPolicyMatchInput */
         DecisionPolicyMatchInput: {
-            /** From */
+            /**
+             * From
+             * @description Property matchers applied to the source endpoint.
+             */
             from?: {
                 [key: string]: unknown;
             };
-            /** To */
+            /**
+             * To
+             * @description Property matchers applied to the target endpoint.
+             */
             to?: {
                 [key: string]: unknown;
             };
-            /** Edge */
+            /**
+             * Edge
+             * @description Property matchers applied to the edge itself.
+             */
             edge?: {
                 [key: string]: unknown;
             };
-            /** Context */
+            /**
+             * Context
+             * @description Property matchers applied to the surrounding decision context.
+             */
             context?: {
                 [key: string]: unknown;
             };
@@ -1747,7 +1928,7 @@ export interface components {
              * @default
              */
             reason: string;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** DecisionRecordCreateRequest */
         DecisionRecordCreateRequest: {
@@ -1763,7 +1944,7 @@ export interface components {
              * @enum {string}
              */
             opened_by: "human" | "agent" | "service";
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** DecisionRecordFinalizeRequest */
         DecisionRecordFinalizeRequest: {
@@ -1779,7 +1960,7 @@ export interface components {
              * @default
              */
             rationale: string;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** DecisionRecordListResult */
         DecisionRecordListResult: {
@@ -1851,35 +2032,191 @@ export interface components {
             reason?: string | null;
             chunk?: components["schemas"]["SourceArtifactChunk"] | null;
         };
-        /** EdgeTargetInput */
-        EdgeTargetInput: {
+        /** DirectWriteGroupInteraction */
+        DirectWriteGroupInteraction: {
+            /** Relationship Type */
+            relationship_type: string;
             /** From Type */
             from_type: string;
             /** From Id */
             from_id: string;
-            /** Relationship Type */
-            relationship_type: string;
             /** To Type */
             to_type: string;
             /** To Id */
             to_id: string;
+            /** Group Id */
+            group_id: string;
+            /** Group Status */
+            group_status?: string | null;
+            /** Group Signature */
+            group_signature?: string | null;
+            /** Source Workflow Name */
+            source_workflow_name?: string | null;
             /** Edge Key */
             edge_key?: number | null;
         };
-        /** EntityInput */
-        EntityInput: {
+        /** EdgeTargetInput */
+        EdgeTargetInput: {
+            /**
+             * From Type
+             * @description Entity type of the edge's source endpoint.
+             */
+            from_type: string;
+            /**
+             * From Id
+             * @description Entity id of the edge's source endpoint.
+             */
+            from_id: string;
+            /**
+             * Relationship Type
+             * @description Edge type identifying the relationship.
+             */
+            relationship_type: string;
+            /**
+             * To Type
+             * @description Entity type of the edge's target endpoint.
+             */
+            to_type: string;
+            /**
+             * To Id
+             * @description Entity id of the edge's target endpoint.
+             */
+            to_id: string;
+            /**
+             * Edge Key
+             * @description Disambiguator when multiple edges share the same endpoints.
+             */
+            edge_key?: number | null;
+        };
+        /** EntityChangeHistoryItem */
+        EntityChangeHistoryItem: {
             /** Entity Type */
             entity_type: string;
             /** Entity Id */
             entity_id: string;
-            /** Properties */
+            /**
+             * Change Kind
+             * @enum {string}
+             */
+            change_kind: "created" | "updated";
+            /** Property Changes */
+            property_changes?: components["schemas"]["PropertyChangeItem"][];
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+            /** Receipt Id */
+            receipt_id: string;
+            /** Operation Type */
+            operation_type: string;
+            /** Actor Context */
+            actor_context?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** EntityChangeHistoryResult */
+        EntityChangeHistoryResult: {
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /** Limit */
+            limit?: number | null;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /** Entity Type */
+            entity_type: string;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Items */
+            items?: components["schemas"]["EntityChangeHistoryItem"][];
+            /**
+             * Legacy Entity Write Count
+             * @default 0
+             */
+            legacy_entity_write_count: number;
+            /** Warnings */
+            warnings?: string[];
+        };
+        /** EntityInput */
+        EntityInput: {
+            /**
+             * Entity Type
+             * @description Entity type as declared in the config schema.
+             */
+            entity_type: string;
+            /**
+             * Entity Id
+             * @description Unique id for the entity; re-using an id upserts it.
+             */
+            entity_id: string;
+            /**
+             * Properties
+             * @description Entity properties; keys must be declared by the entity schema.
+             */
             properties?: {
                 [key: string]: unknown;
             };
-            /** Metadata */
+            /**
+             * Metadata
+             * @description Free-form non-schema metadata stored alongside the entity. It is carried verbatim as free-form data (nested under the entity's typed metadata envelope); it cannot set the entity's lifecycle. Set lifecycle via the typed `lifecycle` field, which is the only channel for it.
+             */
             metadata?: {
                 [key: string]: unknown;
             };
+            /** @description Typed entity lifecycle write. Sets the entity's lifecycle status/reason (the canonical soft-delete / supersession axis), validated and stored as typed lifecycle state. This is the ONLY channel for entity lifecycle; free-form `metadata` cannot touch it. */
+            lifecycle?: components["schemas"]["EntityLifecycleInput"] | null;
+        };
+        /**
+         * EntityLifecycleInput
+         * @description Typed, review-SAFE lifecycle write for an entity.
+         *
+         *     Carries ONLY the entity lifecycle axis. Entities have no review axis, so there
+         *     is nothing else this could touch. The server validates ``status`` against the
+         *     entity lifecycle vocabulary and stores it as the typed entity lifecycle state.
+         */
+        EntityLifecycleInput: {
+            /**
+             * Status
+             * @description Entity lifecycle status: live, superseded, or retired.
+             * @enum {string}
+             */
+            status: "live" | "superseded" | "retired";
+            /**
+             * Reason
+             * @description Optional human-readable reason for the lifecycle change.
+             */
+            reason?: string | null;
+        };
+        /**
+         * ErrorResponse
+         * @description Structured error payload returned by the HTTP server.
+         */
+        ErrorResponse: {
+            /** Error Type */
+            error_type: string;
+            /** Message */
+            message: string;
+            /** Error Code */
+            error_code?: string | null;
+            /** Errors */
+            errors?: string[];
+            /** Context */
+            context?: {
+                [key: string]: unknown;
+            };
+            /** Mutation Receipt Id */
+            mutation_receipt_id?: string | null;
         };
         /** EvaluateRequest */
         EvaluateRequest: {
@@ -1890,6 +2227,10 @@ export interface components {
             max_findings: number;
             /** Exclude Orphan Types */
             exclude_orphan_types?: string[] | null;
+            /** Severity Filter */
+            severity_filter?: ("error" | "warning" | "info")[] | null;
+            /** Category Filter */
+            category_filter?: ("orphan_entity" | "coverage_gap" | "constraint_violation" | "governed_support_relationship" | "unreviewed_co_member" | "quality_check_failed")[] | null;
         };
         /** EvaluateResult */
         EvaluateResult: {
@@ -1914,52 +2255,104 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /**
+         * EvidenceEdge
+         * @description A directed edge in the receipt DAG connecting two nodes.
+         */
+        EvidenceEdge: {
+            /** From Node */
+            from_node: string;
+            /** To Node */
+            to_node: string;
+            /**
+             * Edge Type
+             * @enum {string}
+             */
+            edge_type: "consulted" | "traversed" | "filtered" | "evaluated" | "produced" | "validated" | "mutated" | "applied";
+        };
         /** EvidenceRef */
         EvidenceRef: {
-            /** Source */
+            /**
+             * Source
+             * @description Origin system or dataset of the referenced record.
+             */
             source: string;
-            /** Source Record Id */
+            /**
+             * Source Record Id
+             * @description Identifier of the record within that source.
+             */
             source_record_id: string;
-            /** Artifact Id */
+            /**
+             * Artifact Id
+             * @description Optional registered source-artifact id.
+             */
             artifact_id?: string | null;
-            /** Table */
+            /**
+             * Table
+             * @description Optional table name when the source is tabular.
+             */
             table?: string | null;
-            /** Row Index */
+            /**
+             * Row Index
+             * @description Optional zero-based row index within the table.
+             */
             row_index?: number | null;
-            /** Label */
+            /**
+             * Label
+             * @description Optional human-readable label for this reference.
+             */
             label?: string | null;
-            /** Metadata */
+            /**
+             * Metadata
+             * @description Extra key/values; unknown top-level keys are folded in here.
+             */
             metadata?: {
                 [key: string]: unknown;
             };
         };
         /** FeedbackBatchItemInput */
         FeedbackBatchItemInput: {
-            /** Receipt Id */
+            /**
+             * Receipt Id
+             * @description Receipt id the feedback is anchored to.
+             */
             receipt_id: string;
             /**
              * Action
+             * @description Adjudication: approve, reject, correct, or flag the edge.
              * @enum {string}
              */
             action: "approve" | "reject" | "correct" | "flag";
+            /** @description Coordinates of the edge being adjudicated. */
             target: components["schemas"]["EdgeTargetInput"];
             /**
              * Reason
+             * @description Free-text reason for the feedback.
              * @default
              */
             reason: string;
-            /** Reason Code */
+            /**
+             * Reason Code
+             * @description Optional coded reason for analytics/remediation.
+             */
             reason_code?: string | null;
-            /** Scope Hints */
+            /**
+             * Scope Hints
+             * @description Optional hints scoping how broadly the feedback should generalize.
+             */
             scope_hints?: {
                 [key: string]: unknown;
             };
-            /** Corrections */
+            /**
+             * Corrections
+             * @description Corrected property values, used with action='correct'.
+             */
             corrections?: {
                 [key: string]: unknown;
             } | null;
             /**
              * Group Override
+             * @description If true, mark the edge assertion as a group-resolve override.
              * @default false
              */
             group_override: boolean;
@@ -1973,7 +2366,7 @@ export interface components {
             source: "human" | "agent";
             /** Items */
             items: components["schemas"]["FeedbackBatchItemInput"][];
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** FeedbackBatchResult */
         FeedbackBatchResult: {
@@ -1988,46 +2381,71 @@ export interface components {
         };
         /** FeedbackFromQueryRequest */
         FeedbackFromQueryRequest: {
-            /** Receipt Id */
+            /**
+             * Receipt Id
+             * @description Query receipt id whose row is being adjudicated.
+             */
             receipt_id: string;
-            /** Result Index */
+            /**
+             * Result Index
+             * @description Zero-based index of the result row in the receipt.
+             */
             result_index: number;
             /**
              * Action
+             * @description Adjudication: approve, reject, correct, or flag the edge.
              * @enum {string}
              */
             action: "approve" | "reject" | "correct" | "flag";
             /**
              * Source
+             * @description Who produced the feedback: human or agent.
              * @default human
              * @enum {string}
              */
             source: "human" | "agent";
             /**
              * Reason
+             * @description Free-text reason for the feedback.
              * @default
              */
             reason: string;
-            /** Reason Code */
+            /**
+             * Reason Code
+             * @description Optional coded reason for analytics/remediation.
+             */
             reason_code?: string | null;
-            /** Scope Hints */
+            /**
+             * Scope Hints
+             * @description Optional hints scoping how broadly the feedback should generalize.
+             */
             scope_hints?: {
                 [key: string]: unknown;
             } | null;
-            /** Corrections */
+            /**
+             * Corrections
+             * @description Corrected property values, used with action='correct'.
+             */
             corrections?: {
                 [key: string]: unknown;
             } | null;
             /**
              * Group Override
+             * @description If true, mark the edge assertion as a group-resolve override.
              * @default false
              */
             group_override: boolean;
-            /** Path Index */
+            /**
+             * Path Index
+             * @description For path rows, which path to select within the result.
+             */
             path_index?: number | null;
-            /** Path Alias */
+            /**
+             * Path Alias
+             * @description For path rows, the segment alias identifying the edge to adjudicate.
+             */
             path_alias?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** FeedbackGroupSummary */
         FeedbackGroupSummary: {
@@ -2066,7 +2484,7 @@ export interface components {
         /** FeedbackRequest */
         FeedbackRequest: {
             /** Receipt Id */
-            receipt_id: string;
+            receipt_id?: string | null;
             /**
              * Action
              * @enum {string}
@@ -2109,7 +2527,7 @@ export interface components {
              * @default false
              */
             group_override: boolean;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** FeedbackResult */
         FeedbackResult: {
@@ -2186,7 +2604,44 @@ export interface components {
             };
         };
         /** GovernedActorContext */
-        GovernedActorContext: {
+        "GovernedActorContext-Input": {
+            /**
+             * Actor Type
+             * @description Whether the acting principal is a human_user, service_account, or system.
+             * @enum {string}
+             */
+            actor_type: "human_user" | "service_account" | "system";
+            /**
+             * Actor Id
+             * @description Stable id of the acting principal.
+             */
+            actor_id: string;
+            /**
+             * Org Id
+             * @description Org/tenant the operation runs under.
+             */
+            org_id: string;
+            /**
+             * Operation Id
+             * @description Unique id for this operation, stamped into provenance.
+             */
+            operation_id: string;
+            /**
+             * Timestamp
+             * @description ISO-8601 timestamp of when the operation was issued.
+             */
+            timestamp: string;
+            /**
+             * Request Id
+             * @description Optional client request id for correlation.
+             */
+            request_id?: string | null;
+        };
+        /**
+         * GovernedActorContext
+         * @description Product actor context supplied by Cloud/API for hosted governed writes.
+         */
+        "GovernedActorContext-Output": {
             /**
              * Actor Type
              * @enum {string}
@@ -2199,7 +2654,7 @@ export interface components {
             /** Operation Id */
             operation_id: string;
             /** Timestamp */
-            timestamp: string;
+            timestamp: string | null;
             /** Request Id */
             request_id?: string | null;
         };
@@ -2244,11 +2699,6 @@ export interface components {
             resolved_at: string;
             /** Tuple Count */
             tuple_count: number;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
         };
         /** HostedInstanceInitRequest */
         HostedInstanceInitRequest: {
@@ -2321,65 +2771,108 @@ export interface components {
         };
         /** InlineQueryDefinition */
         InlineQueryDefinition: {
-            /** Name */
+            /**
+             * Name
+             * @description Name for this one-off query; must be non-empty.
+             */
             name: string;
             /**
              * Mode
+             * @description 'collection' to scan one entity type, 'traversal' to walk relationships.
              * @enum {string}
              */
             mode: "collection" | "traversal";
-            /** Description */
+            /**
+             * Description
+             * @description Optional human-readable description of the query.
+             */
             description?: string | null;
-            /** Entry Point */
+            /**
+             * Entry Point
+             * @description Entity type to start from; forbidden in collection mode.
+             */
             entry_point?: string | null;
-            /** Traversal */
+            /**
+             * Traversal
+             * @description Ordered relationship steps to walk in traversal mode.
+             */
             traversal?: {
                 [key: string]: unknown;
             }[];
-            /** Returns */
+            /**
+             * Returns
+             * @description Alias of the entity/relationship the query returns.
+             */
             returns: string;
             /**
              * Result Shape
+             * @description Row shape to return: entity, path, or relationship.
              * @default path
              * @enum {string}
              */
             result_shape: "entity" | "path" | "relationship";
-            /** Dedupe */
+            /**
+             * Dedupe
+             * @description Deduplicate rows by entity, path, or none.
+             */
             dedupe?: ("entity" | "path" | "none") | null;
             /**
              * Relationship State
+             * @description Default read-visibility state for this query: live, accepted, all, not-live, pending, or reviewable.
              * @default live
              * @enum {string}
              */
-            relationship_state: "live" | "accepted" | "pending" | "reviewable";
+            relationship_state: "live" | "accepted" | "all" | "not-live" | "pending" | "reviewable";
             /**
              * Allow Relationship State Override
+             * @description Permit callers to override the visibility state at run time.
              * @default false
              */
             allow_relationship_state_override: boolean;
-            /** Where */
+            /**
+             * Where
+             * @description Filter predicates applied to matched rows.
+             */
             where?: {
                 [key: string]: unknown;
             } | null;
-            /** Select */
+            /**
+             * Select
+             * @description Projection of fields to return per row.
+             */
             select?: {
                 [key: string]: unknown;
             } | null;
-            /** Order By */
+            /**
+             * Order By
+             * @description Ordering keys for deterministic paging.
+             */
             order_by?: {
                 [key: string]: unknown;
             }[];
-            /** Include */
+            /**
+             * Include
+             * @description One-hop side-context relationships to attach per row.
+             */
             include?: {
                 [key: string]: {
                     [key: string]: unknown;
                 };
             };
-            /** Limit */
+            /**
+             * Limit
+             * @description Maximum rows to return.
+             */
             limit?: number | null;
-            /** Max Paths */
+            /**
+             * Max Paths
+             * @description Cap on total traversal paths explored.
+             */
             max_paths?: number | null;
-            /** Max Paths Per Result */
+            /**
+             * Max Paths Per Result
+             * @description Cap on retained paths per result entity.
+             */
             max_paths_per_result?: number | null;
         };
         /** InlineQueryRequest */
@@ -2392,7 +2885,7 @@ export interface components {
             /** Limit */
             limit?: number | null;
             /** Relationship State */
-            relationship_state?: ("live" | "accepted" | "pending" | "reviewable") | null;
+            relationship_state?: ("live" | "accepted" | "all" | "not-live" | "pending" | "reviewable") | null;
             /** Decision Record Id */
             decision_record_id?: string | null;
         };
@@ -2443,6 +2936,103 @@ export interface components {
             entity: {
                 [key: string]: unknown;
             };
+        };
+        /** InstanceBackupManifest */
+        InstanceBackupManifest: {
+            /**
+             * Format Version
+             * @default 1
+             */
+            format_version: number;
+            /** Instance Id */
+            instance_id: string;
+            /** Created At */
+            created_at: string;
+            /** Cruxible Version */
+            cruxible_version: string;
+            /** Label */
+            label?: string | null;
+            /** Original Config Path */
+            original_config_path: string;
+            /**
+             * Restored Config Path
+             * @default config.yaml
+             */
+            restored_config_path: string;
+            /** Instance Mode */
+            instance_mode: string;
+            /** Artifacts */
+            artifacts?: {
+                [key: string]: string;
+            };
+        };
+        /** InstanceBackupRequest */
+        InstanceBackupRequest: {
+            /** Artifact Path */
+            artifact_path: string;
+            /** Label */
+            label?: string | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
+        };
+        /** InstanceBackupResult */
+        InstanceBackupResult: {
+            /** Instance Id */
+            instance_id: string;
+            /** Artifact Path */
+            artifact_path: string;
+            manifest: components["schemas"]["InstanceBackupManifest"];
+        };
+        /** InstanceRelocateRequest */
+        InstanceRelocateRequest: {
+            /** To Dir */
+            to_dir: string;
+            /**
+             * Remove Source
+             * @default false
+             */
+            remove_source: boolean;
+        };
+        /** InstanceRelocateResult */
+        InstanceRelocateResult: {
+            /** Instance Id */
+            instance_id: string;
+            /** From Dir */
+            from_dir: string;
+            /** To Dir */
+            to_dir: string;
+            manifest: components["schemas"]["InstanceBackupManifest"];
+            /**
+             * Source Removed
+             * @default false
+             */
+            source_removed: boolean;
+            /**
+             * Registry Status
+             * @default registered
+             * @enum {string}
+             */
+            registry_status: "registered" | "repaired" | "unchanged";
+        };
+        /** InstanceRestoreRequest */
+        InstanceRestoreRequest: {
+            /** Artifact Path */
+            artifact_path: string;
+            /** Root Dir */
+            root_dir?: string | null;
+        };
+        /** InstanceRestoreResult */
+        InstanceRestoreResult: {
+            /** Instance Id */
+            instance_id: string;
+            /** Root Dir */
+            root_dir: string;
+            manifest: components["schemas"]["InstanceBackupManifest"];
+            /**
+             * Registry Status
+             * @default registered
+             * @enum {string}
+             */
+            registry_status: "registered" | "repaired" | "unchanged";
         };
         /** LintRequest */
         LintRequest: {
@@ -2587,30 +3177,89 @@ export interface components {
         };
         /** MemberInput */
         MemberInput: {
-            /** From Type */
+            /**
+             * From Type
+             * @description Entity type of the member edge's source endpoint.
+             */
             from_type: string;
-            /** From Id */
+            /**
+             * From Id
+             * @description Entity id of the member edge's source endpoint.
+             */
             from_id: string;
-            /** To Type */
+            /**
+             * To Type
+             * @description Entity type of the member edge's target endpoint.
+             */
             to_type: string;
-            /** To Id */
+            /**
+             * To Id
+             * @description Entity id of the member edge's target endpoint.
+             */
             to_id: string;
-            /** Relationship Type */
+            /**
+             * Relationship Type
+             * @description Edge type proposed for this member.
+             */
             relationship_type: string;
-            /** Signals */
+            /**
+             * Signals
+             * @description Tri-state signals from declared sources supporting or contradicting the edge.
+             */
             signals?: components["schemas"]["SignalInput"][];
-            /** Properties */
+            /**
+             * Properties
+             * @description Edge properties to set when the group is approved.
+             */
             properties?: {
                 [key: string]: unknown;
             };
-            /** Evidence Refs */
+            /**
+             * Evidence Refs
+             * @description External provenance references for this member edge.
+             */
             evidence_refs?: (components["schemas"]["EvidenceRef"] | {
                 [key: string]: unknown;
             })[];
-            /** Source Evidence */
+            /**
+             * Source Evidence
+             * @description Registered source-artifact locators for this member edge.
+             */
             source_evidence?: components["schemas"]["SourceEvidenceInput"][];
-            /** Evidence Rationale */
+            /**
+             * Evidence Rationale
+             * @description Free-text explanation of why the evidence supports this member.
+             */
             evidence_rationale?: string | null;
+        };
+        /**
+         * MutationPayloadMetadata
+         * @description Metadata describing a persisted mutation payload field.
+         *
+         *     ``payload_digest`` is a ``sha256:``-prefixed content address of the
+         *     canonical JSON encoding of the mutation payload, and ``byte_count`` is the
+         *     length of that canonical encoding in bytes. Both are stamped for every
+         *     retention mode.
+         */
+        MutationPayloadMetadata: {
+            /**
+             * Retention
+             * @default metadata
+             * @enum {string}
+             */
+            retention: "full" | "preview" | "metadata";
+            /** Stored Inline */
+            stored_inline: boolean;
+            /** Byte Count */
+            byte_count: number;
+            /** Payload Digest */
+            payload_digest: string;
+            /** Truncated */
+            truncated: boolean;
+            /** Preview */
+            preview?: {
+                [key: string]: unknown;
+            };
         };
         /** NamedQueryInfoResult */
         NamedQueryInfoResult: {
@@ -2644,7 +3293,7 @@ export interface components {
              * @default live
              * @enum {string}
              */
-            relationship_state: "live" | "accepted" | "pending" | "reviewable";
+            relationship_state: "live" | "accepted" | "all" | "not-live" | "pending" | "reviewable";
             /**
              * Allow Relationship State Override
              * @default false
@@ -2805,18 +3454,33 @@ export interface components {
             detail?: {
                 [key: string]: unknown;
             } | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** OutcomeResult */
         OutcomeResult: {
             /** Outcome Id */
             outcome_id: string;
         };
+        /** PropertyChangeItem */
+        PropertyChangeItem: {
+            /** Property */
+            property: string;
+            /** From Value */
+            from_value?: unknown | null;
+            /** To Value */
+            to_value?: unknown | null;
+        };
         /** PropertyPairInput */
         PropertyPairInput: {
-            /** From Property */
+            /**
+             * From Property
+             * @description Source-endpoint property to compare.
+             */
             from_property: string;
-            /** To Property */
+            /**
+             * To Property
+             * @description Target-endpoint property to compare against.
+             */
             to_property: string;
         };
         /** ProposeGroupRequest */
@@ -2848,7 +3512,7 @@ export interface components {
             proposed_by: "human" | "agent";
             /** Suggested Priority */
             suggested_priority?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** ProposeGroupToolResult */
         ProposeGroupToolResult: {
@@ -2928,6 +3592,65 @@ export interface components {
             /** Feedback Ids */
             feedback_ids?: string[];
         };
+        /**
+         * QueryEntityItem
+         * @description Entity-shaped row returned by entity result queries.
+         */
+        QueryEntityItem: {
+            /** Entity Type */
+            entity_type: string;
+            /** Entity Id */
+            entity_id: string;
+            /** Properties */
+            properties: {
+                [key: string]: unknown;
+            };
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * QueryIncludeItem
+         * @description One included one-hop side-context relationship.
+         */
+        QueryIncludeItem: {
+            edge: components["schemas"]["QueryPathSegmentItem"];
+            source: components["schemas"]["QueryEntityItem"];
+            target: components["schemas"]["QueryEntityItem"];
+        };
+        /**
+         * QueryIncludeResult
+         * @description Side-context attached to a primary query row.
+         */
+        QueryIncludeResult: {
+            /** Alias */
+            alias: string;
+            /**
+             * Many
+             * @default false
+             */
+            many: boolean;
+            /**
+             * Exists
+             * @default false
+             */
+            exists: boolean;
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+            /** Limit */
+            limit?: number | null;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /** Items */
+            items?: components["schemas"]["QueryIncludeItem"][];
+        };
         /** QueryListResult */
         QueryListResult: {
             /** Total */
@@ -2958,6 +3681,50 @@ export interface components {
             /** Example Ids */
             example_ids?: string[];
         };
+        /**
+         * QueryPathItem
+         * @description Path-shaped row returned by traversal queries.
+         */
+        QueryPathItem: {
+            entry: components["schemas"]["QueryEntityItem"];
+            result: components["schemas"]["QueryEntityItem"];
+            /** Entities */
+            entities: components["schemas"]["QueryEntityItem"][];
+            /** Path */
+            path: components["schemas"]["QueryPathSegmentItem"][];
+            /** Includes */
+            includes?: {
+                [key: string]: components["schemas"]["QueryIncludeResult"];
+            };
+        };
+        /**
+         * QueryPathSegmentItem
+         * @description One relationship segment in a path-shaped query row.
+         */
+        QueryPathSegmentItem: {
+            /** Relationship Type */
+            relationship_type: string;
+            /** From Type */
+            from_type: string;
+            /** From Id */
+            from_id: string;
+            /** To Type */
+            to_type: string;
+            /** To Id */
+            to_id: string;
+            /** Edge Key */
+            edge_key?: number | null;
+            /** Properties */
+            properties?: {
+                [key: string]: unknown;
+            };
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Alias */
+            alias?: string | null;
+        };
         /** QueryPolicySuggestion */
         QueryPolicySuggestion: {
             /** Surface Name */
@@ -2970,6 +3737,51 @@ export interface components {
             description: string;
             /** Outcome Ids */
             outcome_ids?: string[];
+        };
+        /**
+         * QueryProjectedItem
+         * @description Projected query row with selected values and optional source evidence.
+         */
+        QueryProjectedItem: {
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            };
+            /** Source */
+            source?: components["schemas"]["QueryEntityItem"] | components["schemas"]["QueryPathItem"] | components["schemas"]["QueryRelationshipItem"] | null;
+        };
+        /**
+         * QueryRelationshipItem
+         * @description Relationship-shaped row returned by relationship result queries.
+         */
+        QueryRelationshipItem: {
+            /** Relationship Type */
+            relationship_type: string;
+            /** From Type */
+            from_type: string;
+            /** From Id */
+            from_id: string;
+            /** To Type */
+            to_type: string;
+            /** To Id */
+            to_id: string;
+            /** Edge Key */
+            edge_key?: number | null;
+            /** Properties */
+            properties?: {
+                [key: string]: unknown;
+            };
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            entry: components["schemas"]["QueryEntityItem"];
+            from_entity?: components["schemas"]["QueryEntityItem"] | null;
+            to_entity?: components["schemas"]["QueryEntityItem"] | null;
+            /** Includes */
+            includes?: {
+                [key: string]: components["schemas"]["QueryIncludeResult"];
+            };
         };
         /** QueryRequest */
         QueryRequest: {
@@ -2987,16 +3799,14 @@ export interface components {
              */
             offset: number;
             /** Relationship State */
-            relationship_state?: ("live" | "accepted" | "pending" | "reviewable") | null;
+            relationship_state?: ("live" | "accepted" | "all" | "not-live" | "pending" | "reviewable") | null;
             /** Decision Record Id */
             decision_record_id?: string | null;
         };
         /** QueryToolResult */
         QueryToolResult: {
             /** Items */
-            items: {
-                [key: string]: unknown;
-            }[];
+            items: (components["schemas"]["QueryEntityItem"] | components["schemas"]["QueryPathItem"] | components["schemas"]["QueryRelationshipItem"] | components["schemas"]["QueryProjectedItem"])[];
             /** Receipt Id */
             receipt_id: string | null;
             /** Receipt */
@@ -3056,12 +3866,117 @@ export interface components {
              * @default live
              * @enum {string}
              */
-            relationship_state: "live" | "accepted" | "pending" | "reviewable";
+            relationship_state: "live" | "accepted" | "all" | "not-live" | "pending" | "reviewable";
             param_hints?: components["schemas"]["QueryParamHints"] | null;
             /** Policy Summary */
             policy_summary?: {
                 [key: string]: number;
             };
+        };
+        /**
+         * Receipt
+         * @description A complete receipt for a Cruxible operation.
+         */
+        Receipt: {
+            /** Receipt Id */
+            receipt_id?: string;
+            /**
+             * Query Name
+             * @default
+             */
+            query_name: string;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /** Execution Options */
+            execution_options?: {
+                [key: string]: unknown;
+            };
+            /** Nodes */
+            nodes: components["schemas"]["ReceiptNode"][];
+            /** Edges */
+            edges: components["schemas"]["EvidenceEdge"][];
+            /** Results */
+            results?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /**
+             * Duration Ms
+             * @default 0
+             */
+            duration_ms: number;
+            /**
+             * Operation Type
+             * @default query
+             * @enum {string}
+             */
+            operation_type: "query" | "workflow" | "add_entity" | "add_relationship" | "batch_direct_write" | "feedback" | "feedback_batch" | "group_propose" | "group_rewrite" | "group_clear" | "group_resolve" | "group_trust_update";
+            /**
+             * Head Snapshot Id
+             * @description Instance head snapshot observed when the operation began, if available.
+             */
+            head_snapshot_id?: string | null;
+            /**
+             * Workflow Mode
+             * @description Workflow result mode; unset for non-workflow receipts.
+             */
+            workflow_mode?: ("run" | "preview" | "apply" | "proposal") | null;
+            /**
+             * Committed
+             * @description Whether the operation reached its Cruxible durability boundary. For read-only operations this is normally false and does not indicate failure.
+             * @default false
+             */
+            committed: boolean;
+            /** @description Token-derived actor identity for the operation that produced this receipt, when available (hosted/governed writes carry it; auth-off local writes leave it null). Receipts predating this field load with a null actor_context and remain valid. */
+            actor_context?: components["schemas"]["GovernedActorContext-Output"] | null;
+        };
+        /** ReceiptExplanationResult */
+        ReceiptExplanationResult: {
+            /** Receipt Id */
+            receipt_id: string;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "json" | "markdown" | "mermaid";
+            /** Content */
+            content: string;
+        };
+        /**
+         * ReceiptNode
+         * @description A single node in the receipt DAG.
+         */
+        ReceiptNode: {
+            /** Node Id */
+            node_id: string;
+            /**
+             * Node Type
+             * @enum {string}
+             */
+            node_type: "query" | "workflow" | "entity_lookup" | "edge_traversal" | "filter_applied" | "constraint_check" | "result" | "plan_step" | "mutation" | "validation" | "entity_write" | "relationship_write" | "feedback_applied";
+            /** Entity Type */
+            entity_type?: string | null;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Relationship */
+            relationship?: string | null;
+            /** Detail */
+            detail?: {
+                [key: string]: unknown;
+            };
+            /** @description Retention metadata (content-addressed payload_digest + byte_count) for the mutation payload, stamped on the root mutation node. Unset for non-mutation nodes. */
+            payload_metadata?: components["schemas"]["MutationPayloadMetadata"] | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp?: string;
         };
         /** RegisterSourceArtifactRequest */
         RegisterSourceArtifactRequest: {
@@ -3083,7 +3998,7 @@ export interface components {
             original_uri?: string | null;
             /** Label */
             label?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** RegisterSourceArtifactResult */
         RegisterSourceArtifactResult: {
@@ -3121,26 +4036,84 @@ export interface components {
         };
         /** RelationshipInput */
         RelationshipInput: {
-            /** From Type */
+            /**
+             * From Type
+             * @description Entity type of the source endpoint.
+             */
             from_type: string;
-            /** From Id */
+            /**
+             * From Id
+             * @description Entity id of the source endpoint; must already exist.
+             */
             from_id: string;
-            /** Relationship Type */
+            /**
+             * Relationship Type
+             * @description Edge type as declared in the config schema.
+             */
             relationship_type: string;
-            /** To Type */
+            /**
+             * To Type
+             * @description Entity type of the target endpoint.
+             */
             to_type: string;
-            /** To Id */
+            /**
+             * To Id
+             * @description Entity id of the target endpoint; must already exist.
+             */
             to_id: string;
-            /** Properties */
+            /**
+             * Properties
+             * @description Edge properties; keys must be declared by the relationship schema.
+             */
             properties?: {
                 [key: string]: unknown;
             };
-            /** Evidence Refs */
+            /**
+             * Pending
+             * @description If true, stage the edge as pending review instead of live state.
+             * @default false
+             */
+            pending: boolean;
+            /**
+             * Evidence Refs
+             * @description External provenance references attached to this edge.
+             */
             evidence_refs?: components["schemas"]["EvidenceRef"][];
-            /** Source Evidence */
+            /**
+             * Source Evidence
+             * @description Locators into registered source artifacts backing this edge.
+             */
             source_evidence?: components["schemas"]["SourceEvidenceInput"][];
-            /** Evidence Rationale */
+            /**
+             * Evidence Rationale
+             * @description Free-text explanation of why the attached evidence supports the edge.
+             */
             evidence_rationale?: string | null;
+            /** @description Typed, review-safe lifecycle write. Sets only the edge's lifecycle status/reason; cannot touch its review or group-override state. */
+            lifecycle?: components["schemas"]["RelationshipLifecycleInput"] | null;
+        };
+        /**
+         * RelationshipLifecycleInput
+         * @description Typed, review-SAFE lifecycle write for a relationship edge.
+         *
+         *     Carries ONLY the lifecycle axis (``status`` + ``reason``). It deliberately has
+         *     NO ``review`` or ``group_override`` field: a lifecycle write through this
+         *     channel is structurally incapable of approving/rejecting an edge or flipping
+         *     the group override -- those stay exclusive to the governed feedback / group
+         *     paths. The server sets only ``assertion.lifecycle`` from this input.
+         */
+        RelationshipLifecycleInput: {
+            /**
+             * Status
+             * @description Relationship lifecycle status: active, inactive, superseded, or retracted.
+             * @enum {string}
+             */
+            status: "active" | "inactive" | "superseded" | "retracted";
+            /**
+             * Reason
+             * @description Optional human-readable reason for the lifecycle change.
+             */
+            reason?: string | null;
         };
         /** RelationshipLineageResult */
         RelationshipLineageResult: {
@@ -3185,25 +4158,6 @@ export interface components {
             /** Warnings */
             warnings?: string[];
         };
-        /** RenderWikiRequest */
-        RenderWikiRequest: {
-            /** Focus */
-            focus?: string[];
-            /** Include Types */
-            include_types?: string[];
-            /** Scope */
-            scope?: ("local" | "evidence" | "all") | null;
-            /**
-             * Max Per Type
-             * @default 50
-             */
-            max_per_type: number;
-            /**
-             * All Subjects
-             * @default false
-             */
-            all_subjects: boolean;
-        };
         /** ResolveGroupRequest */
         ResolveGroupRequest: {
             /**
@@ -3224,7 +4178,12 @@ export interface components {
             resolved_by: "human" | "agent";
             /** Expected Pending Version */
             expected_pending_version: number;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
+            /**
+             * Stamp Existing
+             * @default false
+             */
+            stamp_existing: boolean;
         };
         /** ResolveGroupToolResult */
         ResolveGroupToolResult: {
@@ -3240,6 +4199,15 @@ export interface components {
             resolution_id?: string | null;
             /** Receipt Id */
             receipt_id?: string | null;
+            /** Skipped Members */
+            skipped_members?: {
+                [key: string]: string;
+            }[];
+            /**
+             * Edges Stamped
+             * @default 0
+             */
+            edges_stamped: number;
         };
         /** RuntimeCredentialBootstrapResult */
         RuntimeCredentialBootstrapResult: {
@@ -3330,55 +4298,99 @@ export interface components {
             version: string;
             /** Instance Count */
             instance_count: number;
+            /** Auth Enabled */
+            auth_enabled: boolean;
+            /** Auth Required */
+            auth_required: boolean;
+        };
+        /**
+         * ServerRestartResult
+         * @description Acknowledgement that an in-place daemon re-exec has been scheduled.
+         */
+        ServerRestartResult: {
+            /** Scheduled */
+            scheduled: boolean;
+            /** Version */
+            version: string;
+            /** State Dir */
+            state_dir: string;
         };
         /** SharedEvidenceInput */
         SharedEvidenceInput: {
-            /** Evidence Refs */
+            /**
+             * Evidence Refs
+             * @description External provenance references shared by multiple relationships.
+             */
             evidence_refs?: components["schemas"]["EvidenceRef"][];
-            /** Source Evidence */
+            /**
+             * Source Evidence
+             * @description Source-artifact locators shared by multiple relationships.
+             */
             source_evidence?: components["schemas"]["SourceEvidenceInput"][];
         };
         /** SignalBucketBasis */
         SignalBucketBasis: {
             /**
              * Mode
+             * @description Whether the signal was bucketed by numeric score or enum match.
              * @enum {string}
              */
             mode: "score" | "enum";
-            /** Path */
+            /**
+             * Path
+             * @description Dotted path to the field the basis was read from.
+             */
             path: string;
-            /** Value */
+            /**
+             * Value
+             * @description Raw value observed at the path.
+             */
             value: string | number;
-            /** Matched */
+            /**
+             * Matched
+             * @description Bucket/category the value was matched to.
+             */
             matched: string;
         };
         /** SignalInput */
         SignalInput: {
-            /** Signal Source */
+            /**
+             * Signal Source
+             * @description Name of the declared signal source producing this signal.
+             */
             signal_source: string;
             /**
              * Signal
+             * @description Tri-state stance of the source toward the proposed edge.
              * @enum {string}
              */
             signal: "support" | "contradict" | "unsure";
             /**
              * Evidence
+             * @description Free-text evidence or rationale for the signal.
              * @default
              */
             evidence: string;
-            /** Evidence Refs */
+            /**
+             * Evidence Refs
+             * @description External provenance references backing the signal.
+             */
             evidence_refs?: (components["schemas"]["EvidenceRef"] | {
                 [key: string]: unknown;
             })[];
-            /** Source Evidence */
+            /**
+             * Source Evidence
+             * @description Registered source-artifact locators backing the signal.
+             */
             source_evidence?: components["schemas"]["SourceEvidenceInput"][];
+            /** @description Optional structured basis explaining how the signal was bucketed. */
             basis?: components["schemas"]["SignalBucketBasis"] | null;
         };
         /** SnapshotCreateRequest */
         SnapshotCreateRequest: {
             /** Label */
             label?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** SnapshotCreateResult */
         SnapshotCreateResult: {
@@ -3445,18 +4457,162 @@ export interface components {
         };
         /** SourceEvidenceInput */
         SourceEvidenceInput: {
-            /** Source Artifact Id */
+            /**
+             * Source Artifact Id
+             * @description Id of the registered source artifact this evidence points into.
+             */
             source_artifact_id: string;
-            /** Chunk Id */
+            /**
+             * Chunk Id
+             * @description Chunk id within the artifact; provide this or heading_path+block_selector.
+             */
             chunk_id?: string | null;
-            /** Heading Path */
+            /**
+             * Heading Path
+             * @description Heading breadcrumb locating the block when no chunk_id is given.
+             */
             heading_path?: string[] | null;
-            /** Block Selector */
+            /**
+             * Block Selector
+             * @description Block selector (e.g. 'paragraph:1') used with heading_path.
+             */
             block_selector?: string | null;
-            /** Label */
+            /**
+             * Label
+             * @description Optional human-readable label for this locator.
+             */
             label?: string | null;
-            /** Expected Content Hash */
+            /**
+             * Expected Content Hash
+             * @description Expected content hash to detect drift when dereferenced later.
+             */
             expected_content_hash?: string | null;
+        };
+        /**
+         * StateHealthFreshnessSection
+         * @description Source-artifact / provider-trace recency plus config-compatibility facts.
+         */
+        StateHealthFreshnessSection: {
+            /**
+             * Source Artifact Count
+             * @default 0
+             */
+            source_artifact_count: number;
+            /** Oldest Source Artifact Age Seconds */
+            oldest_source_artifact_age_seconds?: number | null;
+            /**
+             * Provider Trace Count
+             * @default 0
+             */
+            provider_trace_count: number;
+            /** Oldest Provider Trace Age Seconds */
+            oldest_provider_trace_age_seconds?: number | null;
+            /**
+             * Config Compatible
+             * @default true
+             */
+            config_compatible: boolean;
+            /** Config Warnings */
+            config_warnings?: string[];
+        };
+        /**
+         * StateHealthGroupsSection
+         * @description Candidate-group lifecycle counts plus the unresolved-backlog age span.
+         *
+         *     Age is scoped to unresolved (pending_review + applying) groups; resolved
+         *     groups only accumulate age and are not an actionable maintenance signal.
+         */
+        StateHealthGroupsSection: {
+            /**
+             * Pending Review Count
+             * @default 0
+             */
+            pending_review_count: number;
+            /**
+             * Applying Count
+             * @default 0
+             */
+            applying_count: number;
+            /**
+             * Auto Resolved Count
+             * @default 0
+             */
+            auto_resolved_count: number;
+            /**
+             * Resolved Count
+             * @default 0
+             */
+            resolved_count: number;
+            /**
+             * Total Count
+             * @default 0
+             */
+            total_count: number;
+            /** Oldest Unresolved Age Seconds */
+            oldest_unresolved_age_seconds?: number | null;
+            /** Newest Unresolved Age Seconds */
+            newest_unresolved_age_seconds?: number | null;
+        };
+        /**
+         * StateHealthIntegritySection
+         * @description Graph-integrity counts reused from the deterministic evaluate findings.
+         */
+        StateHealthIntegritySection: {
+            /**
+             * Orphan Entity Count
+             * @default 0
+             */
+            orphan_entity_count: number;
+            /** Unused Entity Types */
+            unused_entity_types?: string[];
+            /** Unused Relationship Types */
+            unused_relationship_types?: string[];
+            /** Configuration Locked */
+            configuration_locked?: boolean | null;
+        };
+        /**
+         * StateHealthProvenanceSection
+         * @description Edge provenance tally by source_ref class.
+         */
+        StateHealthProvenanceSection: {
+            /**
+             * Direct Write Edge Count
+             * @default 0
+             */
+            direct_write_edge_count: number;
+            /**
+             * Group Backed Edge Count
+             * @default 0
+             */
+            group_backed_edge_count: number;
+            /**
+             * Other Source Edge Count
+             * @default 0
+             */
+            other_source_edge_count: number;
+            /**
+             * Total Edge Count
+             * @default 0
+             */
+            total_edge_count: number;
+        };
+        /**
+         * StateHealthResult
+         * @description Read-only deterministic state-health report.
+         *
+         *     Aggregates raw maintenance metrics (counts, ages, timestamps) and binary
+         *     deterministic facts only. Carries NO scoring, ranking, severity, or
+         *     threshold-derived statuses — agents interpret; core reports defensible facts.
+         */
+        StateHealthResult: {
+            /** Captured At */
+            captured_at: string;
+            /** Head Snapshot Id */
+            head_snapshot_id?: string | null;
+            groups?: components["schemas"]["StateHealthGroupsSection"];
+            provenance?: components["schemas"]["StateHealthProvenanceSection"];
+            freshness?: components["schemas"]["StateHealthFreshnessSection"];
+            integrity?: components["schemas"]["StateHealthIntegritySection"];
         };
         /** StateOverlayRequest */
         StateOverlayRequest: {
@@ -3502,7 +4658,7 @@ export interface components {
         StatePullApplyRequest: {
             /** Expected Apply Digest */
             expected_apply_digest: string;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** StatePullApplyResult */
         StatePullApplyResult: {
@@ -3563,6 +4719,12 @@ export interface components {
             /** Relationship Counts */
             relationship_counts?: {
                 [key: string]: number;
+            };
+            /** Status Counts */
+            status_counts?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
             };
             /** Head Snapshot Id */
             head_snapshot_id?: string | null;
@@ -3701,7 +4863,7 @@ export interface components {
              * @default
              */
             reason: string;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** UpdateTrustStatusToolResult */
         UpdateTrustStatusToolResult: {
@@ -3772,36 +4934,6 @@ export interface components {
             /** Warnings */
             warnings: string[];
         };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
-        /** WikiPageResult */
-        WikiPageResult: {
-            /** Path */
-            path: string;
-            /** Content */
-            content: string;
-        };
-        /** WikiRenderResult */
-        WikiRenderResult: {
-            /** Pages */
-            pages?: components["schemas"]["WikiPageResult"][];
-            /**
-             * Page Count
-             * @default 0
-             */
-            page_count: number;
-        };
         /** WorkflowApplyRequest */
         WorkflowApplyRequest: {
             /** Workflow Name */
@@ -3816,7 +4948,7 @@ export interface components {
             expected_head_snapshot_id?: string | null;
             /** Decision Record Id */
             decision_record_id?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** WorkflowApplyResult */
         WorkflowApplyResult: {
@@ -3880,7 +5012,7 @@ export interface components {
             } | null;
             /** Decision Record Id */
             decision_record_id?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** WorkflowLockRequest */
         WorkflowLockRequest: {
@@ -4042,7 +5174,7 @@ export interface components {
         WorkflowTestRequest: {
             /** Name */
             name?: string | null;
-            actor_context?: components["schemas"]["GovernedActorContext"] | null;
+            actor_context?: components["schemas"]["GovernedActorContext-Input"] | null;
         };
         /** WorkflowTestResult */
         WorkflowTestResult: {
@@ -4084,6 +5216,69 @@ export interface operations {
                     };
                 };
             };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     version_version_get: {
@@ -4104,6 +5299,69 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4130,13 +5388,67 @@ export interface operations {
                     "application/json": components["schemas"]["InitResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4163,13 +5475,154 @@ export interface operations {
                     "application/json": components["schemas"]["ValidateResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    restore_instance_api_v1_instances_restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstanceRestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceRestoreResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4198,13 +5651,67 @@ export interface operations {
                     "application/json": components["schemas"]["RuntimeCredentialBootstrapResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4225,6 +5732,152 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServerInfoResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    server_restart_api_v1_server_restart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerRestartResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4251,13 +5904,67 @@ export interface operations {
                     "application/json": components["schemas"]["HostedInstanceInitResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4284,13 +5991,67 @@ export interface operations {
                     "application/json": components["schemas"]["StateOverlayResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4319,13 +6080,67 @@ export interface operations {
                     "application/json": components["schemas"]["StatePublishResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4350,13 +6165,152 @@ export interface operations {
                     "application/json": components["schemas"]["StateStatusResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    state_health_api_v1__instance_id__state_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StateHealthResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4381,13 +6335,67 @@ export interface operations {
                     "application/json": components["schemas"]["StatePullPreviewResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4416,13 +6424,67 @@ export interface operations {
                     "application/json": components["schemas"]["StatePullApplyResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4451,13 +6513,67 @@ export interface operations {
                     "application/json": components["schemas"]["QueryToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4467,7 +6583,7 @@ export interface operations {
             query?: {
                 limit?: number | null;
                 offset?: number;
-                relationship_state?: ("live" | "accepted" | "pending" | "reviewable") | null;
+                relationship_state?: ("live" | "accepted" | "all" | "not-live" | "pending" | "reviewable") | null;
             };
             header?: never;
             path: {
@@ -4487,13 +6603,67 @@ export interface operations {
                     "application/json": components["schemas"]["QueryToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4522,48 +6692,67 @@ export interface operations {
                     "application/json": components["schemas"]["QueryToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-        };
-    };
-    render_wiki_api_v1__instance_id__wiki_render_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                instance_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RenderWikiRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Internal server error envelope */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WikiRenderResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4586,18 +6775,158 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Receipt"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    explain_receipt_api_v1__instance_id__receipts__receipt_id__explain_get: {
+        parameters: {
+            query?: {
+                format?: "json" | "markdown" | "mermaid";
+            };
+            header?: never;
+            path: {
+                instance_id: string;
+                receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptExplanationResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4625,13 +6954,67 @@ export interface operations {
                     };
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4661,13 +7044,67 @@ export interface operations {
                     "application/json": components["schemas"]["TraceListResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4682,7 +7119,10 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 property_filter?: string | null;
+                where?: string | null;
                 operation_type?: string | null;
+                fields?: string[] | null;
+                relationship_state?: ("live" | "accepted" | "all" | "not-live" | "pending" | "reviewable") | null;
             };
             header?: never;
             path: {
@@ -4702,13 +7142,67 @@ export interface operations {
                     "application/json": components["schemas"]["ListResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4735,13 +7229,67 @@ export interface operations {
                     };
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4769,13 +7317,67 @@ export interface operations {
                     "application/json": components["schemas"]["QueryListResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4801,13 +7403,67 @@ export interface operations {
                     "application/json": components["schemas"]["NamedQueryInfoResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4832,13 +7488,67 @@ export interface operations {
                     "application/json": components["schemas"]["StatsResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4847,6 +7557,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                fields?: string[] | null;
             };
             header?: never;
             path: {
@@ -4866,13 +7577,67 @@ export interface operations {
                     "application/json": components["schemas"]["SampleResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4901,13 +7666,67 @@ export interface operations {
                     "application/json": components["schemas"]["EvaluateResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4936,13 +7755,67 @@ export interface operations {
                     "application/json": components["schemas"]["LintResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -4969,13 +7842,67 @@ export interface operations {
                     "application/json": components["schemas"]["GetEntityResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5006,13 +7933,157 @@ export interface operations {
                     "application/json": components["schemas"]["InspectEntityResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    inspect_entity_history_api_v1__instance_id__inspect_entity_history__entity_type__get: {
+        parameters: {
+            query?: {
+                entity_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                instance_id: string;
+                entity_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityChangeHistoryResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5040,13 +8111,67 @@ export interface operations {
                     "application/json": components["schemas"]["CanonicalViewResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5078,13 +8203,67 @@ export interface operations {
                     "application/json": components["schemas"]["RelationshipLineageResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5116,13 +8295,67 @@ export interface operations {
                     "application/json": components["schemas"]["GetRelationshipResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5148,13 +8381,67 @@ export interface operations {
                     "application/json": components["schemas"]["GetGroupToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5180,13 +8467,67 @@ export interface operations {
                     "application/json": components["schemas"]["GroupBucketStatusToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5212,13 +8553,67 @@ export interface operations {
                     "application/json": components["schemas"]["GroupBucketStatusToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5248,13 +8643,67 @@ export interface operations {
                     "application/json": components["schemas"]["ListGroupsToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5284,13 +8733,67 @@ export interface operations {
                     "application/json": components["schemas"]["ListResolutionsToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5315,13 +8818,67 @@ export interface operations {
                     "application/json": components["schemas"]["RuntimeCredentialListResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5350,13 +8907,67 @@ export interface operations {
                     "application/json": components["schemas"]["RuntimeCredentialResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5382,13 +8993,67 @@ export interface operations {
                     "application/json": components["schemas"]["RuntimeCredentialResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5414,13 +9079,67 @@ export interface operations {
                     "application/json": components["schemas"]["RuntimeCredentialResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5452,13 +9171,67 @@ export interface operations {
                     "application/json": components["schemas"]["DecisionRecordListResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5487,13 +9260,67 @@ export interface operations {
                     "application/json": components["schemas"]["DecisionRecordResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5525,13 +9352,67 @@ export interface operations {
                     "application/json": components["schemas"]["DecisionEventListResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5559,13 +9440,67 @@ export interface operations {
                     "application/json": components["schemas"]["DecisionRecordResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5595,13 +9530,67 @@ export interface operations {
                     "application/json": components["schemas"]["DecisionRecordResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5631,13 +9620,67 @@ export interface operations {
                     "application/json": components["schemas"]["DecisionRecordResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5666,13 +9709,67 @@ export interface operations {
                     "application/json": components["schemas"]["AddEntityResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5701,13 +9798,67 @@ export interface operations {
                     "application/json": components["schemas"]["AddRelationshipResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5736,13 +9887,67 @@ export interface operations {
                     "application/json": components["schemas"]["BatchDirectWriteResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5771,13 +9976,67 @@ export interface operations {
                     "application/json": components["schemas"]["AddConstraintResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5806,13 +10065,67 @@ export interface operations {
                     "application/json": components["schemas"]["AddDecisionPolicyResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5841,13 +10154,67 @@ export interface operations {
                     "application/json": components["schemas"]["ReloadConfigResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5876,13 +10243,67 @@ export interface operations {
                     "application/json": components["schemas"]["FeedbackResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5911,13 +10332,67 @@ export interface operations {
                     "application/json": components["schemas"]["FeedbackBatchResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5946,13 +10421,67 @@ export interface operations {
                     "application/json": components["schemas"]["FeedbackResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -5981,13 +10510,67 @@ export interface operations {
                     "application/json": components["schemas"]["AnalyzeFeedbackResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6013,13 +10596,67 @@ export interface operations {
                     "application/json": components["schemas"]["FeedbackProfileResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6048,13 +10685,67 @@ export interface operations {
                     "application/json": components["schemas"]["OutcomeResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6085,13 +10776,67 @@ export interface operations {
                     "application/json": components["schemas"]["OutcomeProfileResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6120,13 +10865,67 @@ export interface operations {
                     "application/json": components["schemas"]["AnalyzeOutcomesResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6155,13 +10954,67 @@ export interface operations {
                     "application/json": components["schemas"]["ProposeGroupToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6191,13 +11044,67 @@ export interface operations {
                     "application/json": components["schemas"]["ResolveGroupToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6227,13 +11134,67 @@ export interface operations {
                     "application/json": components["schemas"]["UpdateTrustStatusToolResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6262,13 +11223,67 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowLockResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6297,13 +11312,67 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowPlanResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6332,13 +11401,67 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowRunResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6367,13 +11490,67 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowApplyResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6402,13 +11579,67 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowTestResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6437,13 +11668,67 @@ export interface operations {
                     "application/json": components["schemas"]["WorkflowProposeResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6471,13 +11756,67 @@ export interface operations {
                     "application/json": components["schemas"]["SnapshotListResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6506,13 +11845,245 @@ export interface operations {
                     "application/json": components["schemas"]["SnapshotCreateResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    backup_instance_api_v1__instance_id__instance_backup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstanceBackupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceBackupResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    relocate_instance_api_v1__instance_id__instance_relocate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstanceRelocateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstanceRelocateResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6541,13 +12112,67 @@ export interface operations {
                     "application/json": components["schemas"]["CloneSnapshotResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6576,13 +12201,67 @@ export interface operations {
                     "application/json": components["schemas"]["RegisterSourceArtifactResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6611,13 +12290,67 @@ export interface operations {
                     "application/json": components["schemas"]["DereferenceSourceEvidenceResult"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

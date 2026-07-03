@@ -1,27 +1,15 @@
 /**
  * Item shapes inside the QueryToolResult envelope.
  *
- * The OpenAPI contract types `items` as `object[]`; the concrete shapes below
- * (entity-shaped for `result_shape: "entity"`, path-shaped for
- * `result_shape: "path"`) are observed from the live daemon and guarded at
- * runtime. Reported as contract friction — these should eventually be spec'd.
+ * The generated OpenAPI schema now defines the concrete query item variants.
+ * These guards keep rendering defensive when result shapes and item payloads
+ * disagree at runtime.
  */
 
-// Type aliases (not interfaces) so they're assignable from the envelope's
-// `{ [key: string]: unknown }` items via the runtime guards below.
-export type EntityRef = {
-  entity_type: string;
-  entity_id: string;
-  properties: Record<string, unknown>;
-  metadata: Record<string, unknown>;
-};
+import type { components } from "./generated/schema";
 
-export type PathItem = {
-  entry: EntityRef;
-  result: EntityRef;
-  entities: EntityRef[];
-  relationships?: unknown[];
-};
+export type EntityRef = components["schemas"]["QueryEntityItem"];
+export type PathItem = components["schemas"]["QueryPathItem"];
 
 export type QueryItem = EntityRef | PathItem;
 
