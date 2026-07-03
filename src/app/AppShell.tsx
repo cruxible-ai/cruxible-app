@@ -50,7 +50,7 @@ export function AppShell() {
           <nav className="space-y-0.5">
             {queues.map((q) => (
               <NavLink key={q.name} to={`/i/${instanceId}/views/${q.name}`} className={navClass}>
-                {(q.name ?? "").replaceAll("_", " ")}
+                {humanize(q.name ?? "")}
               </NavLink>
             ))}
           </nav>

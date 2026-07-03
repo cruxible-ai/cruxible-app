@@ -69,6 +69,24 @@ const DOTS: Record<Tone, string> = {
 // in a row of dots is a signal.
 const EMPHATIC = new Set(["blocked", "critical", "changes_requested"]);
 
+/** Semantic tone for an enum value (shared by chips and the status bars). */
+export function toneFor(value: string): Tone {
+  return VALUE_TONES[value] ?? "zinc";
+}
+
+/** Solid segment fills for the status meter; cold uses zinc-500 so every
+ * segment clears 3:1 on the dark surface (validated). */
+export const SEGMENT_FILLS: Record<Tone, string> = {
+  green: "bg-emerald-500",
+  amber: "bg-amber-400",
+  blue: "bg-sky-500",
+  red: "bg-red-500",
+  violet: "bg-violet-400",
+  zinc: "bg-zinc-500",
+};
+
+export const TONE_ORDER: Tone[] = ["green", "amber", "blue", "red", "violet", "zinc"];
+
 export function Chip({ value, tone }: { value: string; tone?: Tone }) {
   const resolved = tone ?? VALUE_TONES[value] ?? "zinc";
   if (EMPHATIC.has(value)) {

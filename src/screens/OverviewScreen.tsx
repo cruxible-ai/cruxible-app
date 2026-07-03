@@ -5,7 +5,7 @@ import {
   useStats,
   useView,
 } from "@/api/hooks";
-import { Chip } from "@/components/Chip";
+import { SEGMENT_FILLS, TONE_ORDER, toneFor } from "@/components/Chip";
 import { Panel, LoadState } from "@/components/Panel";
 import { humanize } from "@/lib/text";
 import { QueryItems } from "@/components/QueryItems";
@@ -71,9 +71,10 @@ export function OverviewScreen() {
 }
 
 /**
- * Orientation matrix straight from the stats aggregate: one row per entity
- * type, one server-computed total per status value — a single request, no
- * per-cell fan-out. Cells link to the filtered browse view.
+ * State by status as one aligned meter per entity type: a segmented bar
+ * (proportions at a glance, 2px gaps, per-segment tooltip + click-through)
+ * with the total at a fixed right edge. Segments order by semantic phase:
+ * alive, awaiting, planned, attention, cold. One legend explains the tones.
  */
 function StatusMatrix() {
   const stats = useStats();
@@ -84,38 +85,58 @@ function StatusMatrix() {
     string,
     Record<string, number>
   >;
-  const rows = Object.entries(statusCounts).filter(([, counts]) =>
-    Object.values(counts).some((n) => n > 0),
-  );
+  const rows = Object.entries(statusCounts)
+    .map(([type, counts]) => {
+      const present = Object.entries(counts)
+        .filter(([, n]) => n > 0)
+        .sort(
+          (a, b) => TONE_ORDER.indexOf(toneFor(a[0])) - TONE_ORDER.indexOf(toneFor(b[0])),
+        );
+      return { type, present, total: present.reduce((s, [, n]) => s + n, 0) };
+    })
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total);
+  const max = rows[0]?.total ?? 1;
 
   return (
-    <Panel title="State by status" meta={<span>from stats aggregate</span>}>
-      <div className="space-y-1">
-        {rows.map(([entityType, counts]) => (
-          <div
-            key={entityType}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"
-          >
+    <Panel title="State by status">
+      <div className="space-y-2">
+        {rows.map(({ type, present, total }) => (
+          <div key={type} className="flex items-center gap-3 text-[13px]">
             <Link
-              to={`/i/${instanceId}/browse/${entityType}`}
+              to={`/i/${instanceId}/browse/${type}`}
               className="w-32 shrink-0 text-zinc-300 hover:underline"
             >
-              {entityType}
+              {type}
             </Link>
-            {Object.entries(counts).map(([status, total]) =>
-              total === 0 ? null : (
+            <div className="flex-1">
+              <div
+                className="flex h-2 overflow-hidden rounded-full"
+                style={{ width: `${Math.max((total / max) * 100, 3)}%` }}
+              >
+              {present.map(([status, n]) => (
                 <Link
                   key={status}
-                  to={`/i/${instanceId}/browse/${entityType}?status=${encodeURIComponent(status)}`}
-                  className="inline-flex items-center gap-1 hover:opacity-80"
-                >
-                  <Chip value={status} />
-                  <span className="font-mono text-[12px] text-zinc-400">{total}</span>
-                </Link>
-              ),
-            )}
+                  to={`/i/${instanceId}/browse/${type}?status=${encodeURIComponent(status)}`}
+                  title={`${humanize(status)} · ${n}`}
+                  style={{ flexGrow: n }}
+                  className={`${SEGMENT_FILLS[toneFor(status)]} min-w-[6px] border-r-2 border-zinc-950 last:border-r-0 hover:opacity-80`}
+                />
+              ))}
+              </div>
+            </div>
+            <span className="w-8 shrink-0 text-right font-mono text-[12px] text-zinc-400">
+              {total}
+            </span>
           </div>
         ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> active / approved</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> awaiting review</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> planned</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> needs attention</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> cold</span>
       </div>
     </Panel>
   );
