@@ -178,7 +178,9 @@ export function GraphScreen() {
         id: `e${nb.edge_key}`,
         source: nb.direction === "outgoing" ? center.id : nodeId,
         target: nb.direction === "outgoing" ? nodeId : center.id,
-        label: nb.relationship_type.replaceAll("_", " "),
+        // On dense rings the repeated labels turn to noise; the relationship
+        // filter chips above the canvas already name every edge type.
+        label: n > 12 ? undefined : nb.relationship_type.replaceAll("_", " "),
         labelStyle: { fill: "#71717a", fontSize: 9 },
         labelBgStyle: { fill: "#09090b", fillOpacity: 0.85 },
         style: {
