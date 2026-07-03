@@ -31,7 +31,7 @@ export function AppShell() {
     <div className="flex min-h-screen">
       <aside className="w-60 shrink-0 border-r border-zinc-800 px-3 py-4">
         <div className="mb-4 px-2">
-          <div className="text-[15px] font-semibold tracking-tight text-zinc-100">cruxible</div>
+          <div className="text-[16px] font-normal text-zinc-100" style={{ fontFamily: "Merriweather, serif" }}>Cruxible</div>
           {instanceName && (
             <div className="mt-0.5 text-[12px] text-zinc-400">{instanceName}</div>
           )}

@@ -5,6 +5,7 @@ import { RouterProvider } from "react-router-dom";
 import { DataSourceProvider } from "./api/DataSourceContext";
 import { loadConfig } from "./config";
 import { router } from "./app/router";
+import "@fontsource/merriweather/400.css";
 import "./index.css";
 
 const config = loadConfig();
