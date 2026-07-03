@@ -51,7 +51,7 @@ export function OverviewScreen() {
       {catalog.isPending && <LoadState />}
       {catalog.error && <LoadState error={catalog.error} />}
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
         {queues.map((q) => (
           <QueueCard
             key={q.name}
@@ -60,6 +60,11 @@ export function OverviewScreen() {
             description={q.description ?? undefined}
             returnsType={q.returns ?? undefined}
           />
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {queues.map((q) => (
+          <EmptyQueueChip key={q.name} instanceId={instanceId} name={q.name ?? ""} />
         ))}
       </div>
     </div>
@@ -117,6 +122,19 @@ function StatusMatrix() {
   );
 }
 
+function EmptyQueueChip({ instanceId, name }: { instanceId: string; name: string }) {
+  const view = useView(name, { limit: PREVIEW_LIMIT });
+  if (!view.data || view.data.total !== 0) return null;
+  return (
+    <Link
+      to={`/i/${instanceId}/views/${name}`}
+      className="inline-flex items-center gap-1.5 rounded border border-zinc-800/60 px-2 py-0.5 text-[11px] text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+    >
+      {name.replaceAll("_", " ")} <span className="font-mono text-zinc-600">0</span>
+    </Link>
+  );
+}
+
 function QueueCard({
   instanceId,
   name,
@@ -129,6 +147,9 @@ function QueueCard({
   returnsType?: string | undefined;
 }) {
   const view = useView(name, { limit: PREVIEW_LIMIT });
+  // Empty queues render nothing here; the EmptyQueueStrip below the grid
+  // shows them as one compact row so vertical space goes to actual work.
+  if (view.data && view.data.total === 0) return null;
   return (
     <Panel
       title={

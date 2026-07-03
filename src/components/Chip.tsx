@@ -48,12 +48,35 @@ const VALUE_TONES: Record<string, Tone> = {
   low: "zinc",
 };
 
+// Dot hues for the quiet default treatment.
+const DOTS: Record<Tone, string> = {
+  green: "bg-emerald-500",
+  red: "bg-red-500",
+  amber: "bg-amber-400",
+  blue: "bg-sky-500",
+  violet: "bg-violet-400",
+  zinc: "bg-zinc-600",
+};
+
+// States that warrant a filled pill; everything else stays quiet. Color is
+// scarce on purpose -- a wall of tinted pills is noise, a single filled chip
+// in a row of dots is a signal.
+const EMPHATIC = new Set(["blocked", "critical", "changes_requested"]);
+
 export function Chip({ value, tone }: { value: string; tone?: Tone }) {
   const resolved = tone ?? VALUE_TONES[value] ?? "zinc";
+  if (EMPHATIC.has(value)) {
+    return (
+      <span
+        className={`inline-flex items-center rounded border px-1.5 py-px text-[11px] leading-4 whitespace-nowrap ${TONES[resolved]}`}
+      >
+        {value}
+      </span>
+    );
+  }
   return (
-    <span
-      className={`inline-flex items-center rounded border px-1.5 py-px text-[11px] leading-4 whitespace-nowrap ${TONES[resolved]}`}
-    >
+    <span className="inline-flex items-center gap-1.5 text-[11px] leading-4 whitespace-nowrap text-zinc-400">
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOTS[resolved]}`} />
       {value}
     </span>
   );
