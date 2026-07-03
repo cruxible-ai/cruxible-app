@@ -36,3 +36,21 @@ export function prop(ref: EntityRef, key: string): string | undefined {
   const v = ref.properties[key];
   return typeof v === "string" ? v : undefined;
 }
+
+/**
+ * Select-projected row: queries with a `select:` block return flat
+ * `{ values, source? }` rows regardless of declared result_shape.
+ */
+export interface ValuesItem {
+  values: Record<string, unknown>;
+  source?: EntityRef | null;
+}
+
+export function isValuesItem(item: unknown): item is ValuesItem {
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    typeof (item as ValuesItem).values === "object" &&
+    (item as ValuesItem).values !== null
+  );
+}

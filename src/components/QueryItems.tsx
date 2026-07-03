@@ -1,20 +1,35 @@
 import { Chip } from "./Chip";
 import { EntityLink } from "./EntityLink";
 import { EntityTable } from "./EntityTable";
-import { isEntityRef, isPathItem, prop, type EntityRef } from "@/api/items";
+import {
+  isEntityRef,
+  isPathItem,
+  isValuesItem,
+  prop,
+  type EntityRef,
+  type ValuesItem,
+} from "@/api/items";
 import type { QueryToolResult } from "@/api/data-source";
 
 /**
  * Renders the items of a QueryToolResult according to its result_shape:
  * entity-shaped results as a dense table, path-shaped results as
- * entry → context groups (the shape of the *_context queries).
+ * entry → context groups (the shape of the *_context queries). Queries with a
+ * `select:` block return flat values rows under either shape — those render
+ * as a projected-values table.
  */
 export function QueryItems({ result }: { result: QueryToolResult }) {
   if (result.result_shape === "entity") {
-    return <EntityTable entities={result.items.filter(isEntityRef)} />;
+    const refs = result.items.filter(isEntityRef);
+    if (refs.length > 0) return <EntityTable entities={refs} />;
+    const values = result.items.filter(isValuesItem);
+    if (values.length > 0) return <ValuesTable rows={values} />;
+    return <EntityTable entities={[]} />;
   }
   const paths = result.items.filter(isPathItem);
   if (paths.length === 0) {
+    const values = result.items.filter(isValuesItem);
+    if (values.length > 0) return <ValuesTable rows={values} />;
     return <div className="py-3 text-[13px] text-zinc-600">No items.</div>;
   }
   return (
@@ -39,6 +54,45 @@ export function QueryItems({ result }: { result: QueryToolResult }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Dense table for select-projected values rows. Columns come from the first
+ * row's keys (selects are uniform); long text truncates, counts stay narrow.
+ */
+function ValuesTable({ rows }: { rows: ValuesItem[] }) {
+  const columns = Object.keys(rows[0]?.values ?? {});
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-[13px]">
+        <thead>
+          <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+            {columns.map((c) => (
+              <th key={c} className="py-1 pr-3 font-medium">
+                {c.replaceAll("_", " ")}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="border-b border-zinc-900 align-top">
+              {columns.map((c) => {
+                const v = row.values[c];
+                const text = v == null ? "—" : String(v);
+                const isStatus = c === "status" && typeof v === "string";
+                return (
+                  <td key={c} className="max-w-[28rem] truncate py-1 pr-3 text-zinc-300">
+                    {isStatus ? <Chip value={v as string} /> : text}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

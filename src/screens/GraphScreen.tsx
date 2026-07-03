@@ -2,7 +2,9 @@ import { useMemo } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Background,
+  Controls,
   Handle,
+  MiniMap,
   Position,
   ReactFlow,
   type Edge,
@@ -150,8 +152,11 @@ export function GraphScreen() {
       const e = nb.entity;
       const nodeId = `${e.entity_type}:${e.entity_id}`;
       const angle = (2 * Math.PI * i) / Math.max(n, 1) - Math.PI / 2;
-      // Alternate two radii so adjacent labels don't collide on dense rings.
-      const radius = n > 14 && i % 2 === 1 ? 470 : 330;
+      // Ring tightens for small neighborhoods so sparse graphs don't read as
+      // three nodes lost on an empty canvas; alternate two radii on dense
+      // rings so adjacent labels don't collide.
+      const baseRadius = Math.min(330, 150 + n * 30);
+      const radius = n > 14 && i % 2 === 1 ? baseRadius + 140 : baseRadius;
       if (!seen.has(nodeId)) {
         seen.add(nodeId);
         nodes.push({
@@ -235,6 +240,7 @@ export function GraphScreen() {
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
+          fitViewOptions={{ padding: 0.18, maxZoom: 1.15 }}
           colorMode="dark"
           nodesDraggable
           nodesConnectable={false}
@@ -246,6 +252,10 @@ export function GraphScreen() {
           }}
         >
           <Background color="#27272a" gap={24} />
+          <Controls showInteractive={false} className="!shadow-none" />
+          {nodes.length > 9 && (
+            <MiniMap pannable zoomable className="!h-24 !w-36" bgColor="#09090b" maskColor="rgba(24,24,27,0.7)" nodeColor="#3f3f46" />
+          )}
         </ReactFlow>
       </div>
     </div>
