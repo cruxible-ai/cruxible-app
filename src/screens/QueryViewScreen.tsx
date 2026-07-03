@@ -49,7 +49,7 @@ export function QueryViewScreen() {
         {view.error && <LoadState error={view.error} />}
         {view.data && (
           <>
-            <QueryItems result={view.data} />
+            <QueryItems result={view.data} linkType={info?.returns ?? undefined} />
             <div className="mt-2 flex items-center gap-2 text-[12px]">
               <button
                 disabled={offset <= 0}

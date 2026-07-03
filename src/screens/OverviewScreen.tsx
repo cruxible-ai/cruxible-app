@@ -61,6 +61,7 @@ export function OverviewScreen() {
             instanceId={instanceId}
             name={q.name ?? ""}
             description={q.description ?? undefined}
+            returnsType={q.returns ?? undefined}
           />
         ))}
       </div>
@@ -127,10 +128,12 @@ function QueueCard({
   instanceId,
   name,
   description,
+  returnsType,
 }: {
   instanceId: string;
   name: string;
   description?: string | undefined;
+  returnsType?: string | undefined;
 }) {
   const view = useView(name, { limit: PREVIEW_LIMIT });
   return (
@@ -151,7 +154,7 @@ function QueueCard({
       {view.error && <LoadState error={view.error} />}
       {view.data && (
         <>
-          <QueryItems result={view.data} />
+          <QueryItems result={view.data} linkType={returnsType} />
           <ReceiptBar result={view.data} />
         </>
       )}
