@@ -191,10 +191,13 @@ export function GraphScreen() {
 
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
-      <header className="mb-3 flex items-baseline gap-3">
+      <header className="mb-3 flex items-center gap-3">
         <h1 className="text-[17px] font-semibold text-zinc-100">Graph</h1>
         <span className="font-mono text-[12px] text-zinc-500">
           {entityType}/{entityId}
+        </span>
+        <span className="ml-auto text-[11px] text-zinc-600">
+          1-hop neighborhood · {edges.length} edges · grey edge = unreviewed, green = accepted
         </span>
         <Link
           to={entityPath(instanceId, entityType, entityId)}
@@ -203,9 +206,6 @@ export function GraphScreen() {
           <PanelRight className="h-3 w-3" />
           Context panel
         </Link>
-        <span className="ml-auto text-[11px] text-zinc-600">
-          1-hop neighborhood · {edges.length} edges · grey edge = unreviewed, green = accepted
-        </span>
       </header>
       {relCounts.length > 1 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
