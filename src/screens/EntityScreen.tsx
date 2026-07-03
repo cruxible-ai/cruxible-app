@@ -4,6 +4,7 @@ import { Chip } from "@/components/Chip";
 import { EntityLink } from "@/components/EntityLink";
 import { EvidenceRef, type EvidenceRefData } from "@/components/EvidenceRef";
 import { Panel, LoadState } from "@/components/Panel";
+import { Prose } from "@/components/Prose";
 import { isEntityRef } from "@/api/items";
 
 interface NeighborEdge {
@@ -54,9 +55,15 @@ export function EntityScreen() {
   const chipKeys = ["status", "priority", "type"].filter(
     (k) => typeof properties[k] === "string",
   );
+  const hidden = ["title", "summary", ...chipKeys];
   const restProps = Object.entries(properties).filter(
-    ([k, v]) =>
-      !["title", "summary", ...chipKeys].includes(k) && (typeof v !== "string" || v.length < 200),
+    ([k, v]) => !hidden.includes(k) && (typeof v !== "string" || v.length < 200),
+  );
+  // Long prose fields (note bodies, descriptions, rationale) get their own
+  // markdown blocks instead of being dropped from the panel.
+  const proseProps = Object.entries(properties).filter(
+    (e): e is [string, string] =>
+      !hidden.includes(e[0]) && typeof e[1] === "string" && e[1].length >= 200,
   );
 
   // Context queries whose entry point is this entity type, e.g.
@@ -93,7 +100,7 @@ export function EntityScreen() {
             </span>
           ))}
         </div>
-        {summary && <p className="mt-2 max-w-3xl text-[13px] leading-5 text-zinc-400">{summary}</p>}
+        {summary && <div className="mt-2"><Prose text={summary} /></div>}
       </header>
 
       {contextQueries.length > 0 && (
@@ -125,6 +132,12 @@ export function EntityScreen() {
           </dl>
         </Panel>
       )}
+
+      {proseProps.map(([k, v]) => (
+        <Panel key={k} title={k.replaceAll("_", " ")}>
+          <Prose text={v} />
+        </Panel>
+      ))}
 
       <Panel
         title="Relationships"

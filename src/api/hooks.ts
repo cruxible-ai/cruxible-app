@@ -21,11 +21,20 @@ export type ViewParams = Record<string, string | number | undefined>;
 export function useView(queryName: string, params?: ViewParams) {
   const client = useApiClient();
   const instanceId = useInstanceId();
+  // Receipted query runs are cached hard and keyed on graph structure: a
+  // changed entity/edge count busts the cache immediately, otherwise results
+  // stay fresh for 5 minutes. Keeps the UI current without a receipt per
+  // navigation (receipts stay ON for every run that actually executes).
+  const stats = useStats();
+  const structureKey = stats.data
+    ? `${stats.data.entity_count}:${stats.data.edge_count}`
+    : "pending";
   // Forwarded (non-reserved) params aren't expressible in the generated
   // contract type, hence the cast — contract friction, reported upstream.
   const query = params as { limit?: number | null; offset?: number } | undefined;
   return useQuery({
-    queryKey: ["view", instanceId, queryName, params ?? {}],
+    queryKey: ["view", instanceId, queryName, params ?? {}, structureKey],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () =>
       unwrap(
         await client.GET("/api/v1/{instance_id}/views/{query_name}", {
@@ -64,7 +73,10 @@ export function useStats() {
           params: { path: { instance_id: instanceId } },
         }),
       ),
-    staleTime: 5 * 60_000,
+    // Stats is the cheap unreceipted freshness signal the view cache keys on,
+    // so it polls; everything downstream refetches only when structure moves.
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 }
 

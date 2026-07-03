@@ -1,13 +1,10 @@
 import { Link } from "react-router-dom";
 import {
   useInstanceId,
-  useInstanceSchema,
   useQueryCatalog,
   useStats,
-  useStatusTotals,
   useView,
 } from "@/api/hooks";
-import { statusEnumValues } from "@/api/schema-info";
 import { Chip } from "@/components/Chip";
 import { Panel, LoadState } from "@/components/Panel";
 import { QueryItems } from "@/components/QueryItems";
@@ -70,57 +67,53 @@ export function OverviewScreen() {
 }
 
 /**
- * Schema-driven orientation matrix: one row per entity type that declares a
- * status property, one server-computed total per status value (filtered list
- * queries — no client-side aggregation). Cells link to the filtered browse
- * view. List reads are unreceipted by the daemon today (reported as friction).
+ * Orientation matrix straight from the stats aggregate: one row per entity
+ * type, one server-computed total per status value — a single request, no
+ * per-cell fan-out. Cells link to the filtered browse view.
  */
 function StatusMatrix() {
   const stats = useStats();
-  const schema = useInstanceSchema();
+  const instanceId = useInstanceId();
 
-  if (!stats.data || !schema.data) return null;
-  const rows = Object.keys(stats.data.entity_counts ?? {})
-    .map((type) => ({ type, statuses: statusEnumValues(schema.data, type) }))
-    .filter((r): r is { type: string; statuses: string[] } => r.statuses !== null);
+  if (!stats.data) return null;
+  const statusCounts = (stats.data.status_counts ?? {}) as Record<
+    string,
+    Record<string, number>
+  >;
+  const rows = Object.entries(statusCounts).filter(([, counts]) =>
+    Object.values(counts).some((n) => n > 0),
+  );
 
   return (
-    <Panel title="State by status" meta={<span>unreceipted list reads</span>}>
+    <Panel title="State by status" meta={<span>from stats aggregate</span>}>
       <div className="space-y-1">
-        {rows.map((r) => (
-          <StatusMatrixRow key={r.type} entityType={r.type} statuses={r.statuses} />
+        {rows.map(([entityType, counts]) => (
+          <div
+            key={entityType}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"
+          >
+            <Link
+              to={`/i/${instanceId}/browse/${entityType}`}
+              className="w-32 shrink-0 text-zinc-300 hover:underline"
+            >
+              {entityType}
+            </Link>
+            {Object.entries(counts).map(([status, total]) =>
+              total === 0 ? null : (
+                <Link
+                  key={status}
+                  to={`/i/${instanceId}/browse/${entityType}?status=${encodeURIComponent(status)}`}
+                  className="inline-flex items-center gap-1 hover:opacity-80"
+                >
+                  <Chip value={status} />
+                  <span className="font-mono text-[12px] text-zinc-400">{total}</span>
+                </Link>
+              ),
+            )}
+          </div>
         ))}
       </div>
     </Panel>
-  );
-}
-
-function StatusMatrixRow({ entityType, statuses }: { entityType: string; statuses: string[] }) {
-  const instanceId = useInstanceId();
-  const totals = useStatusTotals(entityType, statuses);
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
-      <Link
-        to={`/i/${instanceId}/browse/${entityType}`}
-        className="w-32 shrink-0 text-zinc-300 hover:underline"
-      >
-        {entityType}
-      </Link>
-      {totals.map((t, i) => {
-        const status = statuses[i]!;
-        if (!t.data || t.data.total === 0) return null;
-        return (
-          <Link
-            key={status}
-            to={`/i/${instanceId}/browse/${entityType}?status=${encodeURIComponent(status)}`}
-            className="inline-flex items-center gap-1 hover:opacity-80"
-          >
-            <Chip value={status} />
-            <span className="font-mono text-[12px] text-zinc-400">{t.data.total}</span>
-          </Link>
-        );
-      })}
-    </div>
   );
 }
 
