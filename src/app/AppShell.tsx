@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useInstanceId, useInstanceSchema, useQueryCatalog, useStats } from "@/api/hooks";
 import { humanize } from "@/lib/text";
+import { LayoutDashboard } from "lucide-react";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return `block rounded px-2 py-1 text-[13px] ${
@@ -39,7 +40,10 @@ export function AppShell() {
 
         <nav className="space-y-0.5">
           <NavLink to={`/i/${instanceId}`} end className={navClass}>
-            Overview
+            <span className="inline-flex items-center gap-2">
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              Overview
+            </span>
           </NavLink>
         </nav>
 

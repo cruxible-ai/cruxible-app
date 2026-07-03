@@ -15,7 +15,9 @@ import "@xyflow/react/dist/style.css";
 import { useInspectEntity, useInstanceId } from "@/api/hooks";
 import { entityPath } from "@/components/EntityLink";
 import { LoadState } from "@/components/Panel";
+import { PanelRight } from "lucide-react";
 import { isEntityRef } from "@/api/items";
+import { SEGMENT_FILLS, toneFor } from "@/components/Chip";
 
 interface NeighborForGraph {
   direction: "incoming" | "outgoing";
@@ -34,16 +36,7 @@ type EntityNodeData = {
   [key: string]: unknown;
 };
 
-const STATUS_DOT: Record<string, string> = {
-  closed: "bg-emerald-500",
-  approved: "bg-emerald-500",
-  accepted: "bg-emerald-500",
-  active: "bg-amber-400",
-  requested: "bg-violet-400",
-  planned: "bg-sky-500",
-  blocked: "bg-red-500",
-  changes_requested: "bg-red-500",
-};
+
 
 function EntityNode({ data }: NodeProps<Node<EntityNodeData>>) {
   return (
@@ -60,7 +53,7 @@ function EntityNode({ data }: NodeProps<Node<EntityNodeData>>) {
         {data.status && (
           <span
             title={data.status}
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[data.status] ?? "bg-zinc-600"}`}
+            className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEGMENT_FILLS[toneFor(data.status)]}`}
           />
         )}
         <span className="truncate text-[11px] leading-4 text-zinc-200">{data.title}</span>
@@ -205,9 +198,10 @@ export function GraphScreen() {
         </span>
         <Link
           to={entityPath(instanceId, entityType, entityId)}
-          className="text-[12px] text-zinc-400 hover:underline"
+          className="inline-flex items-center gap-1.5 rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
         >
-          context panel →
+          <PanelRight className="h-3 w-3" />
+          Context panel
         </Link>
         <span className="ml-auto text-[11px] text-zinc-600">
           1-hop neighborhood · {edges.length} edges · grey edge = unreviewed, green = accepted

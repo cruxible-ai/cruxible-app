@@ -7,6 +7,7 @@ import {
   useView,
 } from "@/api/hooks";
 import { SEGMENT_FILLS, TONE_ORDER, toneFor } from "@/components/Chip";
+import { EyeOff } from "lucide-react";
 import { Panel, LoadState } from "@/components/Panel";
 import { humanize } from "@/lib/text";
 import { QueryItems } from "@/components/QueryItems";
@@ -119,6 +120,7 @@ function StatusMatrix() {
               : "border-zinc-800 text-zinc-500 hover:text-zinc-300"
           }`}
         >
+          <EyeOff className="mr-1 inline h-3 w-3" />
           Hide cold
         </button>
       }

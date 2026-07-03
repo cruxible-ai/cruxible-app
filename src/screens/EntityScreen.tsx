@@ -6,6 +6,7 @@ import { EvidenceRef, type EvidenceRefData } from "@/components/EvidenceRef";
 import { Panel, LoadState } from "@/components/Panel";
 import { Prose } from "@/components/Prose";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
+import { ArrowRight, Waypoints } from "lucide-react";
 import { isEntityRef } from "@/api/items";
 
 interface NeighborEdge {
@@ -90,8 +91,9 @@ export function EntityScreen() {
           <span className="font-mono text-[11px] text-zinc-600">{data.entity_id}</span>
           <Link
             to={`/i/${instanceId}/g/${data.entity_type}/${data.entity_id}`}
-            className="ml-auto rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
+            className="ml-auto inline-flex items-center gap-1.5 rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
           >
+            <Waypoints className="h-3 w-3" />
             View graph
           </Link>
         </div>
@@ -117,7 +119,8 @@ export function EntityScreen() {
                 to={`/i/${instanceId}/views/${q.name}?${param}=${encodeURIComponent(data.entity_id)}`}
                 className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
               >
-                {(q.name ?? "").replaceAll("_", " ")} →
+                {humanize(q.name ?? "")}
+                <ArrowRight className="ml-1 inline h-3 w-3" />
               </Link>
             );
           })}

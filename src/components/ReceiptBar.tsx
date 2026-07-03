@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { ReceiptText } from "lucide-react";
 import { useInstanceId } from "@/api/hooks";
 import type { QueryToolResult } from "@/api/data-source";
 
@@ -13,7 +14,8 @@ export function ReceiptBar({ result }: { result: QueryToolResult }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-800/80 pt-2 mt-3 text-[11px] text-zinc-500">
       {result.receipt_id ? (
-        <span>
+        <span className="inline-flex items-center gap-1">
+          <ReceiptText className="h-3 w-3" />
           receipt{" "}
           <Link
             to={`/i/${instanceId}/receipts/${result.receipt_id}`}
