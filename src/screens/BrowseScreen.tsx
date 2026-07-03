@@ -2,7 +2,6 @@ import { humanize } from "@/lib/text";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useEntityList, useInstanceSchema } from "@/api/hooks";
 import { statusEnumValues } from "@/api/schema-info";
-import { Chip } from "@/components/Chip";
 import { EntityTable } from "@/components/EntityTable";
 import { Panel, LoadState } from "@/components/Panel";
 import { isEntityRef } from "@/api/items";
@@ -60,9 +59,13 @@ export function BrowseScreen() {
               <button
                 key={s}
                 onClick={() => setStatus(s === status ? undefined : s)}
-                className={s === status ? "rounded ring-1 ring-zinc-400" : "opacity-80 hover:opacity-100"}
+                className={`rounded border px-1.5 py-px text-[11px] ${
+                  s === status
+                    ? "border-zinc-600 bg-zinc-800 text-zinc-200"
+                    : "border-zinc-800 text-zinc-500 hover:bg-zinc-900"
+                }`}
               >
-                <Chip value={s} />
+                {humanize(s)}
               </button>
             ))}
           </div>

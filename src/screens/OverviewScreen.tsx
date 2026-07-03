@@ -80,7 +80,9 @@ export function OverviewScreen() {
 function StatusMatrix() {
   const stats = useStats();
   const instanceId = useInstanceId();
-  const [hideCold, setHideCold] = useState(false);
+  const [hideCold, setHideCold] = useState(
+    () => localStorage.getItem("cruxible.hideCold") === "1",
+  );
 
   if (!stats.data) return null;
   const statusCounts = (stats.data.status_counts ?? {}) as Record<
@@ -105,7 +107,12 @@ function StatusMatrix() {
       title="State by status"
       meta={
         <button
-          onClick={() => setHideCold((v) => !v)}
+          onClick={() =>
+            setHideCold((v) => {
+              localStorage.setItem("cruxible.hideCold", v ? "0" : "1");
+              return !v;
+            })
+          }
           className={`rounded border px-1.5 py-px text-[11px] ${
             hideCold
               ? "border-zinc-600 bg-zinc-800 text-zinc-200"
@@ -188,7 +195,7 @@ function QueueCard({
       {view.error && <LoadState error={view.error} />}
       {view.data && (
         <>
-          <QueryItems result={view.data} linkType={returnsType} />
+          <QueryItems result={view.data} linkType={returnsType} compact />
           <ReceiptBar result={view.data} />
         </>
       )}

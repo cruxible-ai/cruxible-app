@@ -12,7 +12,7 @@ export function Panel({
   return (
     <section className="rounded-md border border-zinc-800 bg-zinc-900/20 p-3">
       <header className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-[13px] font-semibold text-zinc-200">{title}</h2>
+        <h2 className="text-[14px] font-semibold text-zinc-100">{title}</h2>
         {meta && <div className="text-[11px] text-zinc-500">{meta}</div>}
       </header>
       {children}

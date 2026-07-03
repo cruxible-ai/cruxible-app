@@ -33,7 +33,6 @@ export function ReceiptBar({ result }: { result: QueryToolResult }) {
       <span>
         {result.items.length} of {result.total} · {result.relationship_state} edges
       </span>
-      {result.truncated && <span className="text-amber-500">truncated</span>}
       {typeof receipt?.duration_ms === "number" && <span>{receipt.duration_ms.toFixed(1)} ms</span>}
     </div>
   );

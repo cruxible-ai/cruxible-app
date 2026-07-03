@@ -5,6 +5,7 @@ import { EntityLink } from "@/components/EntityLink";
 import { EvidenceRef, type EvidenceRefData } from "@/components/EvidenceRef";
 import { Panel, LoadState } from "@/components/Panel";
 import { Prose } from "@/components/Prose";
+import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
 import { isEntityRef } from "@/api/items";
 
 interface NeighborEdge {
@@ -57,7 +58,10 @@ export function EntityScreen() {
   );
   const hidden = ["title", "summary", ...chipKeys];
   const restProps = Object.entries(properties).filter(
-    ([k, v]) => !hidden.includes(k) && (typeof v !== "string" || v.length < 200),
+    ([k, v]) =>
+      !hidden.includes(k) &&
+      v !== data.entity_id &&
+      (typeof v !== "string" || v.length < 200),
   );
   // Long prose fields (note bodies, descriptions, rationale) get their own
   // markdown blocks instead of being dropped from the panel.
@@ -126,7 +130,12 @@ export function EntityScreen() {
             {restProps.map(([k, v]) => (
               <div key={k} className="contents">
                 <dt className="text-zinc-500">{k}</dt>
-                <dd className="font-mono text-[12px] text-zinc-300 break-all">{String(v)}</dd>
+                <dd
+                  className="font-mono text-[12px] text-zinc-300 break-all"
+                  title={looksLikeDateTime(v) ? String(v) : undefined}
+                >
+                  {looksLikeDateTime(v) ? formatDateTime(v) : String(v)}
+                </dd>
               </div>
             ))}
           </dl>
@@ -145,18 +154,7 @@ export function EntityScreen() {
       >
         <div className="space-y-3">
           {[...grouped.entries()].map(([key, edges]) => (
-            <details key={key} open={edges.length <= 8}>
-              <summary className="mb-1 cursor-pointer list-none text-[11px] uppercase tracking-wide text-zinc-600 hover:text-zinc-400">
-                {edges[0]!.direction === "outgoing" ? "→" : "←"}{" "}
-                {edges[0]!.relationship_type.replaceAll("_", " ")}{" "}
-                <span className="font-mono normal-case">({edges.length})</span>
-              </summary>
-              <div className="space-y-1.5">
-                {edges.map((n) => (
-                  <NeighborRow key={n.edge_key} edge={n} />
-                ))}
-              </div>
-            </details>
+            <GroupedEdges key={key} edges={edges} />
           ))}
           {data.neighbors.length === 0 && (
             <div className="text-[13px] text-zinc-600">No relationships.</div>
@@ -167,7 +165,54 @@ export function EntityScreen() {
   );
 }
 
-function NeighborRow({ edge }: { edge: NeighborEdge }) {
+/**
+ * One relationship group. When review status and provenance are uniform
+ * across the group (the common case for direct-written state), they are
+ * stated once in the group header instead of repeated on every row.
+ */
+function GroupedEdges({ edges }: { edges: NeighborEdge[] }) {
+  const reviews = new Set(edges.map((n) => n.metadata.assertion?.review?.status ?? ""));
+  const sources = new Set(
+    edges.map((n) => n.metadata.provenance?.source_ref ?? n.metadata.provenance?.source ?? ""),
+  );
+  const uniformReview = reviews.size === 1 ? [...reviews][0] : null;
+  const uniformSource = sources.size === 1 ? [...sources][0] : null;
+  return (
+    <details open={edges.length <= 8}>
+      <summary className="mb-1 cursor-pointer list-none text-[11px] uppercase tracking-wide text-zinc-600 hover:text-zinc-400">
+        {edges[0]!.direction === "outgoing" ? "→" : "←"}{" "}
+        {edges[0]!.relationship_type.replaceAll("_", " ")}{" "}
+        <span className="font-mono normal-case">({edges.length})</span>
+        {uniformReview && (
+          <span className="ml-2 normal-case tracking-normal text-zinc-600">
+            {humanize(uniformReview)}
+            {uniformSource && ` · via ${uniformSource}`}
+          </span>
+        )}
+      </summary>
+      <div className="space-y-1.5">
+        {edges.map((n) => (
+          <NeighborRow
+            key={n.edge_key}
+            edge={n}
+            hideReview={uniformReview !== null}
+            hideProvenance={uniformSource !== null}
+          />
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function NeighborRow({
+  edge,
+  hideReview = false,
+  hideProvenance = false,
+}: {
+  edge: NeighborEdge;
+  hideReview?: boolean;
+  hideProvenance?: boolean;
+}) {
   const instanceId = useInstanceId();
   const e = edge.entity;
   const review = edge.metadata.assertion?.review?.status;
@@ -191,8 +236,8 @@ function NeighborRow({ edge }: { edge: NeighborEdge }) {
           <span className="text-zinc-500">(entity unavailable)</span>
         )}
         <span className="ml-auto flex items-center gap-2 text-[11px] text-zinc-500">
-          {review && <Chip value={review} />}
-          {provenance?.source && (
+          {review && !hideReview && <Chip value={review} />}
+          {provenance?.source && !hideProvenance && (
             <span title={provenance.created_at}>
               via <span className="font-mono">{provenance.source_ref ?? provenance.source}</span>
             </span>
