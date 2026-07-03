@@ -64,6 +64,7 @@ export function useStats() {
           params: { path: { instance_id: instanceId } },
         }),
       ),
+    staleTime: 5 * 60_000,
   });
 }
 
