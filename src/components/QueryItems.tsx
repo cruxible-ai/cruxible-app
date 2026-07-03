@@ -10,6 +10,7 @@ import {
   type ValuesItem,
 } from "@/api/items";
 import type { QueryToolResult } from "@/api/data-source";
+import { humanize } from "@/lib/text";
 
 /**
  * Renders the items of a QueryToolResult according to its result_shape:
@@ -84,7 +85,7 @@ function ValuesTable({ rows, linkType }: { rows: ValuesItem[]; linkType?: string
           <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
             {columns.map((c) => (
               <th key={c} className="py-1 pr-3 font-medium">
-                {c.replaceAll("_", " ")}
+                {humanize(c)}
               </th>
             ))}
           </tr>

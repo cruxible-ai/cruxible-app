@@ -86,9 +86,9 @@ export function EntityScreen() {
           <span className="font-mono text-zinc-400">{data.entity_id}</span>
           <Link
             to={`/i/${instanceId}/g/${data.entity_type}/${data.entity_id}`}
-            className="text-zinc-400 hover:underline"
+            className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
           >
-            graph →
+            View graph
           </Link>
         </div>
         <h1 className="mt-1 text-[17px] font-semibold text-zinc-100">{title ?? data.entity_id}</h1>

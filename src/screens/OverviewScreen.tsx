@@ -7,6 +7,7 @@ import {
 } from "@/api/hooks";
 import { Chip } from "@/components/Chip";
 import { Panel, LoadState } from "@/components/Panel";
+import { humanize } from "@/lib/text";
 import { QueryItems } from "@/components/QueryItems";
 import { ReceiptBar } from "@/components/ReceiptBar";
 
@@ -35,10 +36,12 @@ export function OverviewScreen() {
             <>
               <span>{stats.data.entity_count} entities</span>
               <span>{stats.data.edge_count} edges</span>
-              <span>
-                head snapshot{" "}
-                <span className="font-mono">{stats.data.head_snapshot_id ?? "—"}</span>
-              </span>
+              {stats.data.head_snapshot_id && (
+                <span>
+                  head snapshot{" "}
+                  <span className="font-mono">{stats.data.head_snapshot_id}</span>
+                </span>
+              )}
             </>
           )}
         </div>
@@ -62,11 +65,7 @@ export function OverviewScreen() {
           />
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {queues.map((q) => (
-          <EmptyQueueChip key={q.name} instanceId={instanceId} name={q.name ?? ""} />
-        ))}
-      </div>
+
     </div>
   );
 }
@@ -122,19 +121,6 @@ function StatusMatrix() {
   );
 }
 
-function EmptyQueueChip({ instanceId, name }: { instanceId: string; name: string }) {
-  const view = useView(name, { limit: PREVIEW_LIMIT });
-  if (!view.data || view.data.total !== 0) return null;
-  return (
-    <Link
-      to={`/i/${instanceId}/views/${name}`}
-      className="inline-flex items-center gap-1.5 rounded border border-zinc-800/60 px-2 py-0.5 text-[11px] text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
-    >
-      {name.replaceAll("_", " ")} <span className="font-mono text-zinc-600">0</span>
-    </Link>
-  );
-}
-
 function QueueCard({
   instanceId,
   name,
@@ -147,14 +133,11 @@ function QueueCard({
   returnsType?: string | undefined;
 }) {
   const view = useView(name, { limit: PREVIEW_LIMIT });
-  // Empty queues render nothing here; the EmptyQueueStrip below the grid
-  // shows them as one compact row so vertical space goes to actual work.
-  if (view.data && view.data.total === 0) return null;
   return (
     <Panel
       title={
         <Link to={`/i/${instanceId}/views/${name}`} className="hover:underline">
-          {name.replaceAll("_", " ")}
+          {humanize(name)}
         </Link>
       }
       meta={

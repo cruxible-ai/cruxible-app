@@ -20,31 +20,37 @@ type Tone = keyof typeof TONES;
 // fix — presentation semantics carried by the config's enum definitions — is
 // oq-enum-presentation-semantics (owner robert). Unknown values fall back to
 // neutral, so other kits render legibly but uncolored.
+// Green = currently alive or a positive verdict; amber = awaiting someone;
+// blue = scheduled future; red = needs attention; zinc = cold/inert. Closed
+// work is cold, not a success signal.
 const VALUE_TONES: Record<string, Tone> = {
   // status
-  closed: "green",
-  done: "green",
+  active: "green",
+  in_progress: "green",
   approved: "green",
   accepted: "green",
   resolved: "green",
   answered: "green",
   mitigated: "green",
-  active: "amber",
-  in_progress: "amber",
-  requested: "violet",
-  open: "violet",
+  done: "zinc",
+  closed: "zinc",
+  requested: "amber",
+  in_review: "amber",
+  open: "amber",
   planned: "blue",
   blocked: "red",
   changes_requested: "red",
+  watching: "zinc",
   deferred: "zinc",
   superseded: "zinc",
   abandoned: "zinc",
   draft: "zinc",
+  withdrawn: "zinc",
   unreviewed: "zinc",
   // priority
   critical: "red",
   high: "amber",
-  medium: "blue",
+  medium: "zinc",
   low: "zinc",
 };
 

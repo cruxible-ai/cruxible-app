@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { useInstanceId, useQueryCatalog, useStats } from "@/api/hooks";
+import { useInstanceId, useInstanceSchema, useQueryCatalog, useStats } from "@/api/hooks";
+import { humanize } from "@/lib/text";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return `block rounded px-2 py-1 text-[13px] ${
@@ -15,6 +16,11 @@ export function AppShell() {
   const instanceId = useInstanceId();
   const catalog = useQueryCatalog();
   const stats = useStats();
+  const schema = useInstanceSchema();
+  const instanceName =
+    typeof (schema.data as { name?: unknown } | undefined)?.name === "string"
+      ? humanize((schema.data as { name: string }).name)
+      : null;
 
   const queues = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
@@ -26,7 +32,9 @@ export function AppShell() {
       <aside className="w-60 shrink-0 border-r border-zinc-800 px-3 py-4">
         <div className="mb-4 px-2">
           <div className="text-[15px] font-semibold tracking-tight text-zinc-100">cruxible</div>
-          <div className="mt-0.5 font-mono text-[11px] text-zinc-500 break-all">{instanceId}</div>
+          {instanceName && (
+            <div className="mt-0.5 text-[12px] text-zinc-400">{instanceName}</div>
+          )}
         </div>
 
         <nav className="space-y-0.5">
