@@ -85,12 +85,12 @@ export function EntityScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <div className="flex items-center gap-2 text-[12px] text-zinc-500">
-          <span>{data.entity_type}</span>
-          <span className="font-mono text-zinc-400">{data.entity_id}</span>
+        <div className="flex items-center gap-3 text-[12px]">
+          <span className="text-zinc-400">{humanize(data.entity_type)}</span>
+          <span className="font-mono text-[11px] text-zinc-600">{data.entity_id}</span>
           <Link
             to={`/i/${instanceId}/g/${data.entity_type}/${data.entity_id}`}
-            className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
+            className="ml-auto rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
           >
             View graph
           </Link>
@@ -99,7 +99,7 @@ export function EntityScreen() {
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {chipKeys.map((k) => (
             <span key={k} className="inline-flex items-center gap-1 text-[11px] text-zinc-600">
-              {k}
+              {k !== "status" && k}
               <Chip value={String(properties[k])} />
             </span>
           ))}
