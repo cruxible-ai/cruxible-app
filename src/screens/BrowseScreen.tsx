@@ -1,3 +1,4 @@
+import { humanize } from "@/lib/text";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useEntityList, useInstanceSchema } from "@/api/hooks";
 import { statusEnumValues } from "@/api/schema-info";
@@ -42,7 +43,7 @@ export function BrowseScreen() {
   return (
     <div>
       <header className="mb-4">
-        <h1 className="text-[17px] font-semibold text-zinc-100">{entityType}</h1>
+        <h1 className="text-[17px] font-semibold text-zinc-100">{humanize(entityType)}</h1>
         {statuses.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <button

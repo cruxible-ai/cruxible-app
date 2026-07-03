@@ -67,7 +67,7 @@ export function AppShell() {
                 to={`/i/${instanceId}/browse/${type}`}
                 className={(s) => `${navClass(s)} flex items-center justify-between`}
               >
-                <span>{type}</span>
+                <span>{humanize(type)}</span>
                 <span className="font-mono text-[11px] text-zinc-600">{count}</span>
               </NavLink>
             ))}

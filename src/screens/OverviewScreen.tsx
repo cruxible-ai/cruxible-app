@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   useInstanceId,
@@ -79,6 +80,7 @@ export function OverviewScreen() {
 function StatusMatrix() {
   const stats = useStats();
   const instanceId = useInstanceId();
+  const [hideCold, setHideCold] = useState(false);
 
   if (!stats.data) return null;
   const statusCounts = (stats.data.status_counts ?? {}) as Record<
@@ -88,7 +90,7 @@ function StatusMatrix() {
   const rows = Object.entries(statusCounts)
     .map(([type, counts]) => {
       const present = Object.entries(counts)
-        .filter(([, n]) => n > 0)
+        .filter(([status, n]) => n > 0 && !(hideCold && toneFor(status) === "zinc"))
         .sort(
           (a, b) => TONE_ORDER.indexOf(toneFor(a[0])) - TONE_ORDER.indexOf(toneFor(b[0])),
         );
@@ -99,7 +101,21 @@ function StatusMatrix() {
   const max = rows[0]?.total ?? 1;
 
   return (
-    <Panel title="State by status">
+    <Panel
+      title="State by status"
+      meta={
+        <button
+          onClick={() => setHideCold((v) => !v)}
+          className={`rounded border px-1.5 py-px text-[11px] ${
+            hideCold
+              ? "border-zinc-600 bg-zinc-800 text-zinc-200"
+              : "border-zinc-800 text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          Hide cold
+        </button>
+      }
+    >
       <div className="space-y-2">
         {rows.map(({ type, present, total }) => (
           <div key={type} className="flex items-center gap-3 text-[13px]">
@@ -107,7 +123,7 @@ function StatusMatrix() {
               to={`/i/${instanceId}/browse/${type}`}
               className="w-32 shrink-0 text-zinc-300 hover:underline"
             >
-              {type}
+              {humanize(type)}
             </Link>
             <div className="flex-1">
               <div
@@ -135,8 +151,8 @@ function StatusMatrix() {
         <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> active / approved</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> awaiting review</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> planned</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> needs attention</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> cold</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> blocked / changes requested</span>
+        {!hideCold && (<span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> cold</span>)}
       </div>
     </Panel>
   );
