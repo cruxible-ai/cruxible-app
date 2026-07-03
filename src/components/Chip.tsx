@@ -64,9 +64,8 @@ const DOTS: Record<Tone, string> = {
   zinc: "bg-zinc-600",
 };
 
-// States that warrant a filled pill; everything else stays quiet. Color is
-// scarce on purpose -- a wall of tinted pills is noise, a single filled chip
-// in a row of dots is a signal.
+// Attention states share the dot shape but carry their tone in the text too,
+// so they pop without breaking the one-chip-shape rule.
 const EMPHATIC = new Set(["blocked", "critical", "changes_requested"]);
 
 /** Semantic tone for an enum value (shared by chips and the status bars). */
@@ -89,17 +88,11 @@ export const TONE_ORDER: Tone[] = ["green", "amber", "blue", "red", "violet", "z
 
 export function Chip({ value, tone }: { value: string; tone?: Tone }) {
   const resolved = tone ?? VALUE_TONES[value] ?? "zinc";
-  if (EMPHATIC.has(value)) {
-    return (
-      <span
-        className={`inline-flex items-center rounded border px-1.5 py-px text-[11px] leading-4 whitespace-nowrap ${TONES[resolved]}`}
-      >
-        {value}
-      </span>
-    );
-  }
+  const textClass = EMPHATIC.has(value) ? "text-red-400" : "text-zinc-400";
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] leading-4 whitespace-nowrap text-zinc-400">
+    <span
+      className={`inline-flex items-center gap-1.5 text-[11px] leading-4 whitespace-nowrap ${textClass}`}
+    >
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOTS[resolved]}`} />
       {value}
     </span>
