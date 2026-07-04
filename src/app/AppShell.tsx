@@ -18,6 +18,9 @@ export function AppShell() {
   const catalog = useQueryCatalog();
   const stats = useStats();
   const schema = useInstanceSchema();
+  const workflowCount = Object.keys(
+    (schema.data as { workflows?: Record<string, unknown> } | undefined)?.workflows ?? {},
+  ).length;
   const instanceName =
     typeof (schema.data as { name?: unknown } | undefined)?.name === "string"
       ? humanize((schema.data as { name: string }).name)
@@ -48,6 +51,11 @@ export function AppShell() {
           <NavLink to={`/i/${instanceId}/map`} className={navClass}>
             Type map
           </NavLink>
+          {workflowCount > 0 && (
+            <NavLink to={`/i/${instanceId}/workflows`} className={navClass}>
+              Workflows
+            </NavLink>
+          )}
         </nav>
 
         <div className="mt-4">

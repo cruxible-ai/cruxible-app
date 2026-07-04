@@ -1,17 +1,17 @@
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Background,
-  Handle,
-  Position,
-  ReactFlow,
-  type Edge,
-  type Node,
-  type NodeProps,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import { Link } from "react-router-dom";
+import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId, useInstanceSchema, useStats } from "@/api/hooks";
 import { LoadState } from "@/components/Panel";
+import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
+import {
+  ConnectionList,
+  PanelActions,
+  PanelHeading,
+  PanelSection,
+  panelActionClass,
+} from "@/components/graph/PanelBits";
+import { humanize } from "@/lib/text";
 
 type TypeNodeData = {
   typeName: string;
@@ -33,14 +33,24 @@ interface SchemaForMap {
   relationships?: SchemaRelationship[] | Record<string, SchemaRelationship>;
 }
 
-function relationshipList(schema: SchemaForMap): Array<Required<Pick<SchemaRelationship, "name" | "from_entity" | "to_entity">>> {
+function relationshipList(schema: SchemaForMap): Array<{
+  name: string;
+  from_entity: string;
+  to_entity: string;
+  description?: string | null;
+}> {
   const raw = schema.relationships ?? [];
   const entries = Array.isArray(raw)
     ? raw.map((r) => [r.name ?? "", r] as const)
     : Object.entries(raw).map(([name, r]) => [r.name ?? name, r] as const);
   return entries
     .filter(([name, r]) => name !== "" && !!r.from_entity && !!r.to_entity)
-    .map(([name, r]) => ({ name, from_entity: r.from_entity!, to_entity: r.to_entity! }));
+    .map(([name, r]) => ({
+      name,
+      from_entity: r.from_entity!,
+      to_entity: r.to_entity!,
+      description: r.description ?? null,
+    }));
 }
 
 function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
@@ -53,14 +63,14 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
           : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
       }`}
     >
-      <Handle type="target" position={Position.Top} className="!bg-zinc-600" />
+      <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
       <div className={`text-[12px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-200"}`}>
         {data.typeName}
       </div>
       <div className={`font-mono text-[10px] ${empty ? "text-zinc-700" : "text-zinc-500"}`}>
         {data.count}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-zinc-600" />
+      <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
     </div>
   );
 }
@@ -107,22 +117,27 @@ function orderByAdjacency(types: string[], pairs: Array<[string, string]>): stri
 /**
  * Type-level instance map: entity types as nodes with live counts,
  * relationship types as labeled edges with edge counts. The orientation view
- * for an unfamiliar instance — click a type to browse its rows. Types with
- * zero rows render dashed/dim so the populated shape of the state stands out
- * against the declared ontology.
+ * for an unfamiliar instance. Types with zero rows render dashed/dim so the
+ * populated shape of the state stands out against the declared ontology.
+ * Selection follows the shared GraphCanvas model; browsing happens from the
+ * context panel.
  */
 export function TypeMapScreen() {
   const instanceId = useInstanceId();
-  const navigate = useNavigate();
   const schema = useInstanceSchema();
   const stats = useStats();
 
-  const { nodes, edges } = useMemo(() => {
+  const { nodes, edges, counts } = useMemo(() => {
     const s = schema.data as SchemaForMap | undefined;
     const st = stats.data as
       | { entity_counts?: Record<string, number>; relationship_counts?: Record<string, number> }
       | undefined;
-    if (!s?.entity_types) return { nodes: [] as Node<TypeNodeData>[], edges: [] as Edge[] };
+    if (!s?.entity_types)
+      return {
+        nodes: [] as Node<TypeNodeData>[],
+        edges: [] as Edge[],
+        counts: {} as Record<string, number>,
+      };
 
     const typeNames = Object.keys(s.entity_types);
     const rels = relationshipList(s);
@@ -144,37 +159,88 @@ export function TypeMapScreen() {
       };
     });
 
+    // Empty relationships stay as unlabeled dashed strokes: the declared
+    // shape reads without dozens of labels of noise on a dense ontology.
     const edges: Edge[] = rels.map((r) => {
-        const relName = r.name;
-        const count = st?.relationship_counts?.[relName] ?? 0;
-        // Empty relationships stay as unlabeled dashed strokes: the declared
-        // shape reads without 52 labels of noise on a dense ontology.
-        return {
-          id: relName,
-          source: r.from_entity,
-          target: r.to_entity,
-          ...(count > 0
-            ? {
-                label: `${relName.replaceAll("_", " ")} · ${count}`,
-                labelStyle: { fill: "#d4d4d8", fontSize: 10 },
-                labelBgStyle: { fill: "#09090b", fillOpacity: 0.85 },
-              }
-            : {}),
-          style: {
-            stroke: count > 0 ? "#6b7280" : "#27272a",
-            strokeWidth: count > 0 ? 1.5 : 1,
-            ...(count === 0 ? { strokeDasharray: "4 3" } : {}),
-          },
-          animated: false,
-        };
-      });
+      const count = st?.relationship_counts?.[r.name] ?? 0;
+      const stroke = count > 0 ? "#6b7280" : "#27272a";
+      return {
+        id: r.name,
+        source: r.from_entity,
+        target: r.to_entity,
+        ...(count > 0 ? { label: `${r.name.replaceAll("_", " ")} · ${count}` } : {}),
+        data: { labelClass: "text-zinc-300", count, description: r.description ?? null },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
+        style: {
+          stroke,
+          strokeWidth: count > 0 ? 1.5 : 1,
+          ...(count === 0 ? { strokeDasharray: "4 3" } : {}),
+        },
+        animated: false,
+      };
+    });
 
-    return { nodes, edges };
+    return { nodes, edges, counts: st?.entity_counts ?? {} };
   }, [schema.data, stats.data]);
 
   if (schema.isPending || stats.isPending) return <LoadState />;
   if (schema.error) return <LoadState error={schema.error} />;
   if (stats.error) return <LoadState error={stats.error} />;
+
+  function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
+    if (selection.kind === "node") {
+      const count = counts[selection.id] ?? 0;
+      return (
+        <div>
+          <PanelHeading kicker="Entity type" title={humanize(selection.id)} />
+          <div className="text-[12px] text-zinc-400">
+            <span className="font-mono text-zinc-200">{count}</span> live{" "}
+            {count === 1 ? "row" : "rows"}
+          </div>
+          <PanelActions>
+            <Link to={`/i/${instanceId}/browse/${selection.id}`} className={panelActionClass}>
+              Browse rows →
+            </Link>
+          </PanelActions>
+          <PanelSection title="Relationships">
+            <ConnectionList nodeId={selection.id} edges={edges} api={api} labelFor={humanize} />
+          </PanelSection>
+        </div>
+      );
+    }
+    const edge = edges.find((e) => e.id === selection.id);
+    if (!edge) return null;
+    const data = edge.data as { count?: number; description?: string | null } | undefined;
+    return (
+      <div>
+        <PanelHeading kicker="Relationship type" title={selection.id.replaceAll("_", " ")} />
+        <div className="flex items-baseline gap-1.5 text-[12px]">
+          <button onClick={() => api.select(edge.source)} className="text-zinc-300 hover:underline">
+            {humanize(edge.source)}
+          </button>
+          <span className="text-zinc-600">→</span>
+          <button onClick={() => api.select(edge.target)} className="text-zinc-300 hover:underline">
+            {humanize(edge.target)}
+          </button>
+        </div>
+        <div className="mt-1 text-[12px] text-zinc-400">
+          {(data?.count ?? 0) > 0 ? (
+            <>
+              <span className="font-mono text-zinc-200">{data?.count}</span> live{" "}
+              {data?.count === 1 ? "edge" : "edges"}
+            </>
+          ) : (
+            "Declared but empty."
+          )}
+        </div>
+        {data?.description && (
+          <PanelSection title="Description">
+            <div className="text-[12px] leading-4 text-zinc-400">{data.description}</div>
+          </PanelSection>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
@@ -182,28 +248,16 @@ export function TypeMapScreen() {
         <h1 className="text-[17px] font-semibold text-zinc-100">Type map</h1>
         <span className="text-[11px] text-zinc-600">
           {nodes.length} types · {edges.length} relationship types · dashed = declared but empty ·
-          click a type to browse
+          click anything for context
         </span>
       </header>
-      <div className="min-h-0 flex-1 rounded-md border border-zinc-800">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          fitView
-        fitViewOptions={{ maxZoom: 1.1, padding: 0.1 }}
-          colorMode="dark"
-          nodesDraggable
-          nodesConnectable={false}
-          edgesFocusable={false}
-          proOptions={{ hideAttribution: true }}
-          onNodeClick={(_, node) => {
-            navigate(`/i/${instanceId}/browse/${(node.data as TypeNodeData).typeName}`);
-          }}
-        >
-          <Background color="#27272a" gap={24} />
-        </ReactFlow>
-      </div>
+      <GraphCanvas
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        renderPanel={renderPanel}
+        className="min-h-0 flex-1"
+      />
     </div>
   );
 }

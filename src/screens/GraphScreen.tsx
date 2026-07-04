@@ -1,23 +1,29 @@
 import { useMemo } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
-  Background,
   Controls,
   Handle,
+  MarkerType,
   MiniMap,
   Position,
-  ReactFlow,
   type Edge,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import { useInspectEntity, useInstanceId } from "@/api/hooks";
 import { entityPath } from "@/components/EntityLink";
 import { LoadState } from "@/components/Panel";
 import { PanelRight } from "lucide-react";
 import { isEntityRef } from "@/api/items";
-import { SEGMENT_FILLS, toneFor } from "@/components/Chip";
+import { Chip, SEGMENT_FILLS, toneFor } from "@/components/Chip";
+import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
+import {
+  ConnectionList,
+  PanelActions,
+  PanelHeading,
+  PanelSection,
+  panelActionClass,
+} from "@/components/graph/PanelBits";
 
 interface NeighborForGraph {
   direction: "incoming" | "outgoing";
@@ -36,8 +42,6 @@ type EntityNodeData = {
   [key: string]: unknown;
 };
 
-
-
 function EntityNode({ data }: NodeProps<Node<EntityNodeData>>) {
   return (
     <div
@@ -47,7 +51,7 @@ function EntityNode({ data }: NodeProps<Node<EntityNodeData>>) {
           : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
       }`}
     >
-      <Handle type="target" position={Position.Top} className="!bg-zinc-600" />
+      <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
       <div className="text-[9px] uppercase tracking-wide text-zinc-500">{data.entityType}</div>
       <div className="flex items-center gap-1.5">
         {data.status && (
@@ -58,7 +62,7 @@ function EntityNode({ data }: NodeProps<Node<EntityNodeData>>) {
         )}
         <span className="truncate text-[11px] leading-4 text-zinc-200">{data.title}</span>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-zinc-600" />
+      <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
     </div>
   );
 }
@@ -67,14 +71,15 @@ const nodeTypes = { entity: EntityNode };
 
 /**
  * Focused 1-hop neighborhood around one entity, radially laid out with
- * neighbors clustered by relationship type. Clicking a neighbor re-centers
- * the graph on it; the URL is the selection. Deliberately not a whole-graph
- * view — legibility over analytics, per the work item.
+ * neighbors clustered by relationship type. Selection follows the shared
+ * GraphCanvas model: click highlights and opens the context panel; moving the
+ * graph's center to another entity is an explicit panel action, so the URL
+ * stays the coarse selection. Deliberately not a whole-graph view —
+ * legibility over analytics, per the work item.
  */
 export function GraphScreen() {
   const { entityType = "", entityId = "" } = useParams();
   const instanceId = useInstanceId();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const inspect = useInspectEntity(entityType, entityId);
 
@@ -167,6 +172,7 @@ export function GraphScreen() {
         });
       }
       const reviewStatus = nb.metadata.assertion?.review?.status;
+      const stroke = reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981";
       edges.push({
         id: `e${nb.edge_key}`,
         source: nb.direction === "outgoing" ? center.id : nodeId,
@@ -174,12 +180,13 @@ export function GraphScreen() {
         // On dense rings the repeated labels turn to noise; the relationship
         // filter chips above the canvas already name every edge type.
         label: n > 12 ? undefined : nb.relationship_type.replaceAll("_", " "),
-        labelStyle: { fill: "#71717a", fontSize: 9 },
-        labelBgStyle: { fill: "#09090b", fillOpacity: 0.85 },
-        style: {
-          stroke: reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981",
-          strokeWidth: 1,
+        data: {
+          labelClass: "text-zinc-500",
+          relationshipType: nb.relationship_type,
+          reviewStatus: reviewStatus ?? null,
         },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
+        style: { stroke, strokeWidth: 1.25 },
         animated: false,
       });
     });
@@ -188,6 +195,88 @@ export function GraphScreen() {
 
   if (inspect.isPending) return <LoadState />;
   if (inspect.error) return <LoadState error={inspect.error} />;
+
+  const labelFor = (id: string) =>
+    (nodes.find((n) => n.id === id)?.data as EntityNodeData | undefined)?.title ?? id;
+
+  function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
+    if (selection.kind === "node") {
+      const node = nodes.find((n) => n.id === selection.id);
+      if (!node) return null;
+      const d = node.data as EntityNodeData;
+      return (
+        <div>
+          <PanelHeading kicker={d.entityType} title={d.title} />
+          <div className="break-all font-mono text-[11px] text-zinc-500">{d.entityId}</div>
+          {d.status && (
+            <div className="mt-1">
+              <Chip value={d.status} />
+            </div>
+          )}
+          <PanelActions>
+            <Link
+              to={entityPath(instanceId, d.entityType, d.entityId)}
+              className={panelActionClass}
+            >
+              Open entity →
+            </Link>
+            {!d.isCenter && (
+              <Link
+                to={`/i/${instanceId}/g/${d.entityType}/${d.entityId}`}
+                className={panelActionClass}
+              >
+                Center graph here →
+              </Link>
+            )}
+          </PanelActions>
+          <PanelSection title="Connections in view">
+            <ConnectionList
+              nodeId={selection.id}
+              edges={edges.map((e) => ({
+                ...e,
+                label:
+                  e.label ??
+                  (e.data as { relationshipType?: string } | undefined)?.relationshipType,
+              }))}
+              api={api}
+              labelFor={labelFor}
+            />
+          </PanelSection>
+        </div>
+      );
+    }
+    const edge = edges.find((e) => e.id === selection.id);
+    if (!edge) return null;
+    const data = edge.data as
+      | { relationshipType?: string; reviewStatus?: string | null }
+      | undefined;
+    return (
+      <div>
+        <PanelHeading
+          kicker="Relationship"
+          title={(data?.relationshipType ?? String(edge.label ?? "")).replaceAll("_", " ")}
+        />
+        <div className="flex flex-col gap-0.5 text-[12px]">
+          <button
+            onClick={() => api.select(edge.source)}
+            className="text-left text-zinc-300 hover:underline"
+          >
+            {labelFor(edge.source)}
+          </button>
+          <span className="text-zinc-600">↓</span>
+          <button
+            onClick={() => api.select(edge.target)}
+            className="text-left text-zinc-300 hover:underline"
+          >
+            {labelFor(edge.target)}
+          </button>
+        </div>
+        <PanelSection title="Review status">
+          <Chip value={data?.reviewStatus ?? "live"} />
+        </PanelSection>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
@@ -230,30 +319,25 @@ export function GraphScreen() {
           })}
         </div>
       )}
-      <div className="min-h-0 flex-1 rounded-md border border-zinc-800">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.18, maxZoom: 1.15 }}
-          colorMode="dark"
-          nodesDraggable
-          nodesConnectable={false}
-          edgesFocusable={false}
-          proOptions={{ hideAttribution: true }}
-          onNodeClick={(_, node) => {
-            const d = node.data as EntityNodeData;
-            if (!d.isCenter) navigate(`/i/${instanceId}/g/${d.entityType}/${d.entityId}`);
-          }}
-        >
-          <Background color="#27272a" gap={24} />
-          <Controls showInteractive={false} className="!shadow-none" />
-          {nodes.length > 9 && (
-            <MiniMap pannable zoomable className="!h-24 !w-36" bgColor="#09090b" maskColor="rgba(24,24,27,0.7)" nodeColor="#3f3f46" />
-          )}
-        </ReactFlow>
-      </div>
+      <GraphCanvas
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        renderPanel={renderPanel}
+        className="min-h-0 flex-1"
+      >
+        <Controls showInteractive={false} className="!shadow-none" />
+        {nodes.length > 9 && (
+          <MiniMap
+            pannable
+            zoomable
+            className="!h-24 !w-36"
+            bgColor="#09090b"
+            maskColor="rgba(24,24,27,0.7)"
+            nodeColor="#3f3f46"
+          />
+        )}
+      </GraphCanvas>
     </div>
   );
 }

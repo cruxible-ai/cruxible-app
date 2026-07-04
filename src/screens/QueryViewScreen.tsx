@@ -1,6 +1,7 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQueryCatalog, useView, type ViewParams } from "@/api/hooks";
 import { isPathItem } from "@/api/items";
+import { QueryDefinition } from "@/components/QueryDefinition";
 import { Panel, LoadState } from "@/components/Panel";
 import { PathGraph } from "@/components/PathGraph";
 import { QueryItems } from "@/components/QueryItems";
@@ -29,8 +30,10 @@ export function QueryViewScreen() {
 
   // ?view=graph renders path-shaped results as one merged subgraph. URL is
   // state, so the graph rendering of a blast radius is a shareable link.
-  const isPathShaped = view.data?.result_shape === "path";
-  const asGraph = isPathShaped && searchParams.get("view") === "graph";
+  // Select-projected queries return flat values rows even under a path
+  // shape, so the toggle keys off actual hop data in the items.
+  const hasPaths = (view.data?.items ?? []).some(isPathItem);
+  const asGraph = hasPaths && searchParams.get("view") === "graph";
   function setViewMode(mode: "rows" | "graph") {
     const sp = new URLSearchParams(searchParams);
     if (mode === "graph") sp.set("view", "graph");
@@ -45,16 +48,7 @@ export function QueryViewScreen() {
           {queryName.replaceAll("_", " ")}
         </h1>
         {info?.description && <p className="mt-1 text-[12px] text-zinc-500">{info.description}</p>}
-        {info && (info.required_params ?? []).length > 0 && (
-          <p className="mt-1 text-[12px] text-zinc-500">
-            requires{" "}
-            {(info.required_params ?? []).map((p) => (
-              <code key={p} className="mr-1 font-mono text-zinc-400">
-                {p}={String(params[p] ?? "?")}
-              </code>
-            ))}
-          </p>
-        )}
+        <QueryDefinition queryName={queryName} params={params} />
       </header>
 
       <Panel
@@ -62,7 +56,7 @@ export function QueryViewScreen() {
         meta={
           view.data && (
             <span className="inline-flex items-center gap-2">
-              {isPathShaped && (
+              {hasPaths && (
                 <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[11px]">
                   {(["rows", "graph"] as const).map((mode) => (
                     <button

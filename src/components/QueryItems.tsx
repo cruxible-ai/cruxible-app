@@ -5,7 +5,6 @@ import {
   isEntityRef,
   isPathItem,
   isValuesItem,
-  prop,
   type EntityRef,
   type ValuesItem,
 } from "@/api/items";
@@ -14,10 +13,12 @@ import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
 
 /**
  * Renders the items of a QueryToolResult according to its result_shape:
- * entity-shaped results as a dense table, path-shaped results as
- * entry → context groups (the shape of the *_context queries). Queries with a
- * `select:` block return flat values rows under either shape — those render
- * as a projected-values table.
+ * entity-shaped results as a dense table, and path-shaped results as the SAME
+ * dense table over the result entities (grouped by type when a context query
+ * returns several) — a work queue reads exactly like the work-item browse
+ * view, with the graph toggle carrying the topology. Queries with a `select:`
+ * block return flat values rows under either shape — those render as a
+ * projected-values table.
  */
 export function QueryItems({
   result,
@@ -43,26 +44,25 @@ export function QueryItems({
     if (values.length > 0) return <ValuesTable rows={values} linkType={linkType} compact={compact} />;
     return <div className="py-3 text-[13px] text-zinc-600">No items.</div>;
   }
+  const byType = new Map<string, EntityRef[]>();
+  const seen = new Set<string>();
+  for (const p of paths) {
+    const key = `${p.result.entity_type}:${p.result.entity_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!byType.has(p.result.entity_type)) byType.set(p.result.entity_type, []);
+    byType.get(p.result.entity_type)!.push(p.result);
+  }
   return (
-    <div className="space-y-2">
-      {paths.map((p, i) => (
-        <div key={i} className="rounded border border-zinc-800/80 bg-zinc-900/30 px-3 py-2">
-          <div className="flex flex-wrap items-center gap-2 text-[13px]">
-            <EntityRow e={p.entry} />
-            <span className="text-zinc-600">→</span>
-            <EntityRow e={p.result} />
-          </div>
-          {p.entities.length > 2 && (
-            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-zinc-500">
-              {p.entities.map((e) => (
-                <EntityLink
-                  key={`${e.entity_type}:${e.entity_id}`}
-                  entityType={e.entity_type}
-                  entityId={e.entity_id}
-                />
-              ))}
+    <div className="space-y-3">
+      {[...byType.entries()].map(([type, ents]) => (
+        <div key={type}>
+          {byType.size > 1 && (
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+              {humanize(type)}
             </div>
           )}
+          <EntityTable entities={ents} />
         </div>
       ))}
     </div>
@@ -136,17 +136,5 @@ function ValuesTable({
         </tbody>
       </table>
     </div>
-  );
-}
-
-function EntityRow({ e }: { e: EntityRef }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="text-[11px] text-zinc-600">{e.entity_type}</span>
-      <EntityLink entityType={e.entity_type} entityId={e.entity_id}>
-        <span className="text-zinc-200">{prop(e, "title") ?? e.entity_id}</span>
-      </EntityLink>
-      {prop(e, "status") && <Chip value={prop(e, "status")!} />}
-    </span>
   );
 }

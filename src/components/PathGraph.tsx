@@ -1,17 +1,16 @@
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Background,
-  Handle,
-  Position,
-  ReactFlow,
-  type Edge,
-  type Node,
-  type NodeProps,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import { Link } from "react-router-dom";
+import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId } from "@/api/hooks";
 import { prop, type EntityRef, type PathItem, type PathSegment } from "@/api/items";
+import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
+import {
+  ConnectionList,
+  PanelActions,
+  PanelHeading,
+  PanelSection,
+  panelActionClass,
+} from "@/components/graph/PanelBits";
+import { Chip } from "@/components/Chip";
 
 export type PathNodeData = {
   entityType: string;
@@ -32,10 +31,10 @@ function PathNode({ data }: NodeProps<Node<PathNodeData>>) {
     <div
       className={`max-w-52 rounded border px-2 py-1 text-left hover:border-zinc-400 ${ROLE_CLASS[data.role]}`}
     >
-      <Handle type="target" position={Position.Left} className="!bg-zinc-600" />
+      <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
       <div className="text-[9px] uppercase tracking-wide text-zinc-500">{data.entityType}</div>
       <div className="truncate text-[11px] leading-4 text-zinc-200">{data.title}</div>
-      <Handle type="source" position={Position.Right} className="!bg-zinc-600" />
+      <Handle type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
   );
 }
@@ -146,27 +145,32 @@ export function buildPathGraph(items: PathItem[]): {
       });
     }
 
-    const edges: Edge[] = [...edgeById.entries()].map(([id, agg]) => ({
-      id,
-      source: agg.source,
-      target: agg.target,
-      label: agg.relationship_type.replaceAll("_", " "),
-      labelStyle: { fill: "#71717a", fontSize: 9 },
-      labelBgStyle: { fill: "#09090b", fillOpacity: 0.85 },
-      style: {
-        stroke: agg.reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981",
-        strokeWidth: 1,
-      },
-      animated: false,
-    }));
+    const edges: Edge[] = [...edgeById.entries()].map(([id, agg]) => {
+      const stroke = agg.reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981";
+      return {
+        id,
+        source: agg.source,
+        target: agg.target,
+        label: agg.relationship_type.replaceAll("_", " "),
+        data: { labelClass: "text-zinc-500", reviewStatus: agg.reviewStatus ?? null },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
+        style: { stroke, strokeWidth: 1.25 },
+        animated: false,
+      };
+    });
 
     return { nodes, edges };
 }
 
+const ROLE_LABEL: Record<PathNodeData["role"], string> = {
+  entry: "entry",
+  result: "result",
+  hop: "via",
+};
+
 export function PathGraph({ items }: { items: PathItem[] }) {
   const instanceId = useInstanceId();
-  const navigate = useNavigate();
-  const { nodes, edges } = useMemo(() => buildPathGraph(items), [items]);
+  const { nodes, edges } = buildPathGraph(items);
 
   if (nodes.length === 0) {
     return (
@@ -176,26 +180,76 @@ export function PathGraph({ items }: { items: PathItem[] }) {
     );
   }
 
+  const labelFor = (id: string) =>
+    (nodes.find((n) => n.id === id)?.data as PathNodeData | undefined)?.title ?? id;
+
+  function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
+    if (selection.kind === "node") {
+      const node = nodes.find((n) => n.id === selection.id);
+      if (!node) return null;
+      const d = node.data as PathNodeData;
+      return (
+        <div>
+          <PanelHeading kicker={`${d.entityType} · ${ROLE_LABEL[d.role]}`} title={d.title} />
+          <div className="break-all font-mono text-[11px] text-zinc-500">{d.entityId}</div>
+          <PanelActions>
+            <Link
+              to={`/i/${instanceId}/e/${d.entityType}/${d.entityId}`}
+              className={panelActionClass}
+            >
+              Open entity →
+            </Link>
+            <Link
+              to={`/i/${instanceId}/g/${d.entityType}/${d.entityId}`}
+              className={panelActionClass}
+            >
+              Entity graph →
+            </Link>
+          </PanelActions>
+          <PanelSection title="Connections here">
+            <ConnectionList nodeId={selection.id} edges={edges} api={api} labelFor={labelFor} />
+          </PanelSection>
+        </div>
+      );
+    }
+    const edge = edges.find((e) => e.id === selection.id);
+    if (!edge) return null;
+    const reviewStatus = (edge.data as { reviewStatus?: string | null } | undefined)?.reviewStatus;
+    return (
+      <div>
+        <PanelHeading
+          kicker="Relationship"
+          title={String(edge.label ?? edge.id).replaceAll("_", " ")}
+        />
+        <div className="flex flex-col gap-0.5 text-[12px]">
+          <button
+            onClick={() => api.select(edge.source)}
+            className="text-left text-zinc-300 hover:underline"
+          >
+            {labelFor(edge.source)}
+          </button>
+          <span className="text-zinc-600">↓</span>
+          <button
+            onClick={() => api.select(edge.target)}
+            className="text-left text-zinc-300 hover:underline"
+          >
+            {labelFor(edge.target)}
+          </button>
+        </div>
+        <PanelSection title="Review status">
+          <Chip value={reviewStatus ?? "live"} />
+        </PanelSection>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-[70vh] rounded-md border border-zinc-800">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ maxZoom: 1.2, padding: 0.15 }}
-        colorMode="dark"
-        nodesDraggable
-        nodesConnectable={false}
-        edgesFocusable={false}
-        proOptions={{ hideAttribution: true }}
-        onNodeClick={(_, node) => {
-          const d = node.data as PathNodeData;
-          navigate(`/i/${instanceId}/g/${d.entityType}/${d.entityId}`);
-        }}
-      >
-        <Background color="#27272a" gap={24} />
-      </ReactFlow>
-    </div>
+    <GraphCanvas
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      renderPanel={renderPanel}
+      className="h-[70vh]"
+    />
   );
 }
