@@ -1,6 +1,8 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQueryCatalog, useView, type ViewParams } from "@/api/hooks";
+import { isPathItem } from "@/api/items";
 import { Panel, LoadState } from "@/components/Panel";
+import { PathGraph } from "@/components/PathGraph";
 import { QueryItems } from "@/components/QueryItems";
 import { ReceiptBar } from "@/components/ReceiptBar";
 
@@ -19,11 +21,22 @@ export function QueryViewScreen() {
   const offset = Number(searchParams.get("offset") ?? 0);
   const params: ViewParams = { limit: PAGE_SIZE, offset };
   for (const [k, v] of searchParams.entries()) {
-    if (k !== "offset" && k !== "limit") params[k] = v;
+    if (k !== "offset" && k !== "limit" && k !== "view") params[k] = v;
   }
 
   const view = useView(queryName, params);
   const info = catalog.data?.items?.find((q) => q.name === queryName);
+
+  // ?view=graph renders path-shaped results as one merged subgraph. URL is
+  // state, so the graph rendering of a blast radius is a shareable link.
+  const isPathShaped = view.data?.result_shape === "path";
+  const asGraph = isPathShaped && searchParams.get("view") === "graph";
+  function setViewMode(mode: "rows" | "graph") {
+    const sp = new URLSearchParams(searchParams);
+    if (mode === "graph") sp.set("view", "graph");
+    else sp.delete("view");
+    setSearchParams(sp);
+  }
 
   return (
     <div>
@@ -44,12 +57,42 @@ export function QueryViewScreen() {
         )}
       </header>
 
-      <Panel title="Results" meta={view.data && <span className="font-mono">{view.data.total} total</span>}>
+      <Panel
+        title="Results"
+        meta={
+          view.data && (
+            <span className="inline-flex items-center gap-2">
+              {isPathShaped && (
+                <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[11px]">
+                  {(["rows", "graph"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setViewMode(mode)}
+                      className={`px-2 py-px ${
+                        (mode === "graph") === asGraph
+                          ? "bg-zinc-800 text-zinc-100"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </span>
+              )}
+              <span className="font-mono">{view.data.total} total</span>
+            </span>
+          )
+        }
+      >
         {view.isPending && <LoadState />}
         {view.error && <LoadState error={view.error} />}
         {view.data && (
           <>
-            <QueryItems result={view.data} linkType={info?.returns ?? undefined} />
+            {asGraph ? (
+              <PathGraph items={view.data.items.filter(isPathItem)} />
+            ) : (
+              <QueryItems result={view.data} linkType={info?.returns ?? undefined} />
+            )}
             <div className="mt-2 flex items-center gap-2 text-[12px]">
               <button
                 disabled={offset <= 0}

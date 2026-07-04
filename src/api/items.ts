@@ -10,6 +10,7 @@ import type { components } from "./generated/schema";
 
 export type EntityRef = components["schemas"]["QueryEntityItem"];
 export type PathItem = components["schemas"]["QueryPathItem"];
+export type PathSegment = components["schemas"]["QueryPathSegmentItem"];
 
 export type QueryItem = EntityRef | PathItem;
 

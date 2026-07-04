@@ -45,6 +45,9 @@ export function AppShell() {
               Overview
             </span>
           </NavLink>
+          <NavLink to={`/i/${instanceId}/map`} className={navClass}>
+            Type map
+          </NavLink>
         </nav>
 
         <div className="mt-4">
