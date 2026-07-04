@@ -33,7 +33,7 @@ export function QueryItems({
 }) {
   if (result.result_shape === "entity") {
     const refs = result.items.filter(isEntityRef);
-    if (refs.length > 0) return <EntityTable entities={refs} />;
+    if (refs.length > 0) return <EntityTable entities={refs} compact={compact} />;
     const values = result.items.filter(isValuesItem);
     if (values.length > 0) return <ValuesTable rows={values} linkType={linkType} compact={compact} />;
     return <EntityTable entities={[]} />;
@@ -62,7 +62,7 @@ export function QueryItems({
               {humanize(type)}
             </div>
           )}
-          <EntityTable entities={ents} />
+          <EntityTable entities={ents} compact={compact} />
         </div>
       ))}
     </div>
