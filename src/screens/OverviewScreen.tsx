@@ -58,13 +58,14 @@ export function OverviewScreen() {
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
         {queues.map((q) => (
-          <QueueCard
-            key={q.name}
-            instanceId={instanceId}
-            name={q.name ?? ""}
-            description={q.description ?? undefined}
-            returnsType={q.returns ?? undefined}
-          />
+          <div key={q.name} className="min-w-0">
+            <QueueCard
+              instanceId={instanceId}
+              name={q.name ?? ""}
+              description={q.description ?? undefined}
+              returnsType={q.returns ?? undefined}
+            />
+          </div>
         ))}
       </div>
 

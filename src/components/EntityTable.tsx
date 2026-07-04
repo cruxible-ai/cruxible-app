@@ -85,12 +85,12 @@ export function EntityTable({
     return <div className="py-3 text-[13px] text-zinc-600">No items.</div>;
   }
   return (
-    <div className={compact ? "" : "overflow-x-auto"}>
-      <table className="w-full text-left text-[13px]">
+    <div className={compact ? "overflow-hidden" : "overflow-x-auto"}>
+      <table className={`w-full text-left text-[13px] ${compact ? "table-fixed" : ""}`}>
         <thead>
           <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
             {columns.map((c) => (
-              <th key={c} className={`py-1 pr-3 font-medium ${c === "id" ? "w-64" : ""}`}>
+              <th key={c} className={`py-1 pr-3 font-medium ${c === "id" ? (compact ? "w-[38%]" : "w-64") : ""}`}>
                 <button onClick={() => setSort(nextSort(sort, c))} className="hover:text-zinc-300">
                   {c === "id" ? "Id" : humanize(c)}
                   {sort?.column === c && (sort.dir === -1 ? " ↓" : " ↑")}
@@ -108,7 +108,7 @@ export function EntityTable({
               <td className="max-w-64 truncate py-1.5 pr-3">
                 <EntityLink entityType={e.entity_type} entityId={e.entity_id} />
               </td>
-              <td className="min-w-48 py-1.5 pr-3 text-zinc-300">
+              <td className={`py-1.5 pr-3 text-zinc-300 ${compact ? "truncate whitespace-nowrap" : "min-w-48"}`}>
                 {prop(e, "title") ?? prop(e, "name") ?? "—"}
               </td>
               {propColumns.map((c) => (

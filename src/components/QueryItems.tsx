@@ -96,12 +96,15 @@ function ValuesTable({
     ? allColumns.filter((c) => c === idColumn || COMPACT_COLUMNS.includes(c))
     : allColumns;
   return (
-    <div className={compact ? "" : "overflow-x-auto"}>
-      <table className="w-full text-left text-[13px]">
+    <div className={compact ? "overflow-hidden" : "overflow-x-auto"}>
+      <table className={`w-full text-left text-[13px] ${compact ? "table-fixed" : ""}`}>
         <thead>
           <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
             {columns.map((c) => (
-              <th key={c} className="py-1 pr-3 font-medium">
+              <th
+                key={c}
+                className={`py-1 pr-3 font-medium ${compact && c === idColumn ? "w-[38%]" : ""}`}
+              >
                 {humanize(c)}
               </th>
             ))}
@@ -119,7 +122,7 @@ function ValuesTable({
                   <td
                     key={c}
                     title={looksLikeDateTime(v) ? String(v) : undefined}
-                    className="max-w-[28rem] truncate py-1 pr-3 text-zinc-300"
+                    className="max-w-[28rem] truncate whitespace-nowrap py-1 pr-3 text-zinc-300"
                   >
                     {isLink ? (
                       <EntityLink entityType={linkType} entityId={v as string} />
