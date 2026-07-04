@@ -1,5 +1,6 @@
 import Markdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 
 /**
  * Sanitized markdown for prose authored into state (note bodies, descriptions,
@@ -14,7 +15,7 @@ export function Prose({ text }: { text: string }) {
   return (
     <div className="max-w-3xl space-y-2 text-[13px] leading-5 text-zinc-400">
       <Markdown
-        remarkPlugins={[remarkBreaks]}
+        remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
           h1: (p) => <h3 className="text-[14px] font-semibold text-zinc-200" {...p} />,
           h2: (p) => <h4 className="text-[13px] font-semibold text-zinc-200" {...p} />,
@@ -33,6 +34,14 @@ export function Prose({ text }: { text: string }) {
           blockquote: (p) => (
             <blockquote className="my-1.5 border-l-2 border-zinc-700 pl-3 text-zinc-500" {...p} />
           ),
+          table: (p) => (
+            <div className="my-1.5 overflow-x-auto">
+              <table className="w-full text-left text-[12px]" {...p} />
+            </div>
+          ),
+          thead: (p) => <thead className="border-b border-zinc-800 text-[11px] text-zinc-500" {...p} />,
+          th: (p) => <th className="py-1 pr-3 font-medium" {...p} />,
+          td: (p) => <td className="border-t border-zinc-900 py-1 pr-3 align-top text-zinc-300" {...p} />,
         }}
       >
         {text}
