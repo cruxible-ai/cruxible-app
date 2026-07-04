@@ -22,6 +22,7 @@ import {
   PanelActions,
   PanelHeading,
   PanelSection,
+  PropertyList,
   panelActionClass,
 } from "@/components/graph/PanelBits";
 
@@ -39,6 +40,7 @@ type EntityNodeData = {
   title: string;
   status: string | undefined;
   isCenter: boolean;
+  properties: Record<string, unknown>;
   [key: string]: unknown;
 };
 
@@ -129,6 +131,7 @@ export function GraphScreen() {
         title: typeof data.properties.title === "string" ? data.properties.title : entityId,
         status: typeof data.properties.status === "string" ? data.properties.status : undefined,
         isCenter: true,
+        properties: data.properties,
       },
     };
 
@@ -168,6 +171,7 @@ export function GraphScreen() {
             status:
               typeof e.properties.status === "string" ? e.properties.status : undefined,
             isCenter: false,
+            properties: e.properties,
           },
         });
       }
@@ -229,6 +233,9 @@ export function GraphScreen() {
               </Link>
             )}
           </PanelActions>
+          <PanelSection title="Properties">
+            <PropertyList properties={d.properties} omit={["title", "status"]} />
+          </PanelSection>
           <PanelSection title="Connections in view">
             <ConnectionList
               nodeId={selection.id}

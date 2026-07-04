@@ -26,8 +26,16 @@ interface SchemaRelationship {
   description?: string | null;
 }
 
+interface SchemaPropertyDef {
+  type?: string;
+  primary_key?: boolean;
+  optional?: boolean;
+  enum_ref?: string | null;
+  enum?: string[] | null;
+}
+
 interface SchemaForMap {
-  entity_types?: Record<string, unknown>;
+  entity_types?: Record<string, { properties?: Record<string, SchemaPropertyDef> }>;
   // The live daemon serves relationships as a list of named specs; older
   // payloads used a name-keyed dict. Normalize both.
   relationships?: SchemaRelationship[] | Record<string, SchemaRelationship>;
@@ -190,6 +198,9 @@ export function TypeMapScreen() {
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
     if (selection.kind === "node") {
       const count = counts[selection.id] ?? 0;
+      const propDefs = Object.entries(
+        (schema.data as SchemaForMap | undefined)?.entity_types?.[selection.id]?.properties ?? {},
+      );
       return (
         <div>
           <PanelHeading kicker="Entity type" title={humanize(selection.id)} />
@@ -202,6 +213,21 @@ export function TypeMapScreen() {
               Browse rows →
             </Link>
           </PanelActions>
+          {propDefs.length > 0 && (
+            <PanelSection title="Properties">
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[11px]">
+                {propDefs.map(([name, def]) => (
+                  <div key={name} className="contents">
+                    <dt className="font-mono text-zinc-400">{name}</dt>
+                    <dd className="text-zinc-600">
+                      {def.enum_ref ?? (def.enum ? "enum" : (def.type ?? "string"))}
+                      {def.primary_key ? " · pk" : def.optional === false ? " · required" : ""}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </PanelSection>
+          )}
           <PanelSection title="Relationships">
             <ConnectionList nodeId={selection.id} edges={edges} api={api} labelFor={humanize} />
           </PanelSection>

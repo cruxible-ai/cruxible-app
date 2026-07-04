@@ -8,6 +8,7 @@ import {
   PanelActions,
   PanelHeading,
   PanelSection,
+  PropertyList,
   panelActionClass,
 } from "@/components/graph/PanelBits";
 import { Chip } from "@/components/Chip";
@@ -17,6 +18,7 @@ export type PathNodeData = {
   entityId: string;
   title: string;
   role: "entry" | "result" | "hop";
+  properties: Record<string, unknown>;
   [key: string]: unknown;
 };
 
@@ -140,6 +142,7 @@ export function buildPathGraph(items: PathItem[]): {
             entityId: e.entity_id,
             title: prop(e, "title") ?? prop(e, "name") ?? e.entity_id,
             role: roleById.get(id) ?? "hop",
+            properties: e.properties ?? {},
           },
         });
       });
@@ -206,6 +209,9 @@ export function PathGraph({ items }: { items: PathItem[] }) {
               Entity graph →
             </Link>
           </PanelActions>
+          <PanelSection title="Properties">
+            <PropertyList properties={d.properties} omit={["title", "status"]} />
+          </PanelSection>
           <PanelSection title="Connections here">
             <ConnectionList nodeId={selection.id} edges={edges} api={api} labelFor={labelFor} />
           </PanelSection>
