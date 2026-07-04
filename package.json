@@ -25,7 +25,8 @@
     "react": "^19",
     "react-dom": "^19",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7"
+    "react-router-dom": "^7",
+    "remark-breaks": "^4.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

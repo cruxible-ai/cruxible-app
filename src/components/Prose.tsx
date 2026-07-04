@@ -1,15 +1,20 @@
 import Markdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
 
 /**
  * Sanitized markdown for prose authored into state (note bodies, descriptions,
  * summaries). react-markdown never injects raw HTML, so agent-authored text is
  * safe to render; styling is inlined per element since the app doesn't use the
- * typography plugin.
+ * typography plugin. remark-breaks treats single newlines as hard breaks
+ * (GitHub style) — agent-authored bodies are newline-separated plain text far
+ * more often than strict markdown, and standard markdown would collapse them
+ * into one paragraph.
  */
 export function Prose({ text }: { text: string }) {
   return (
     <div className="max-w-3xl space-y-2 text-[13px] leading-5 text-zinc-400">
       <Markdown
+        remarkPlugins={[remarkBreaks]}
         components={{
           h1: (p) => <h3 className="text-[14px] font-semibold text-zinc-200" {...p} />,
           h2: (p) => <h4 className="text-[13px] font-semibold text-zinc-200" {...p} />,
