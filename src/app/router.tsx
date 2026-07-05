@@ -8,6 +8,8 @@ import { TypeMapScreen } from "@/screens/TypeMapScreen";
 import { WorkflowsScreen } from "@/screens/WorkflowsScreen";
 import { ReceiptScreen } from "@/screens/ReceiptScreen";
 import { BrowseScreen } from "@/screens/BrowseScreen";
+import { SourcesScreen } from "@/screens/SourcesScreen";
+import { SourceArtifactScreen } from "@/screens/SourceArtifactScreen";
 import { loadConfig } from "@/config";
 
 function RootRedirect() {
@@ -35,6 +37,8 @@ export const router = createBrowserRouter([
       { path: "g/:entityType/:entityId", element: <GraphScreen /> },
       { path: "receipts/:receiptId", element: <ReceiptScreen /> },
       { path: "browse/:entityType", element: <BrowseScreen /> },
+      { path: "sources", element: <SourcesScreen /> },
+      { path: "sources/:artifactId", element: <SourceArtifactScreen /> },
     ],
   },
 ]);
