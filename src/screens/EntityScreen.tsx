@@ -8,6 +8,8 @@ import { Prose } from "@/components/Prose";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
 import { ArrowRight, Waypoints } from "lucide-react";
 import { isEntityRef } from "@/api/items";
+import { isColdEntity } from "@/lib/cold";
+import { useSettings } from "@/lib/settings";
 
 interface NeighborEdge {
   direction: "incoming" | "outgoing";
@@ -36,6 +38,7 @@ export function EntityScreen() {
   const instanceId = useInstanceId();
   const inspect = useInspectEntity(entityType, entityId);
   const catalog = useQueryCatalog();
+  const { settings } = useSettings();
 
   if (inspect.isPending) return <LoadState />;
   if (inspect.error) return <LoadState error={inspect.error} />;
@@ -77,8 +80,13 @@ export function EntityScreen() {
     (q) => q.entry_point === data.entity_type && (q.required_params ?? []).length > 0,
   );
 
+  const visibleNeighbors = settings.hideCold
+    ? data.neighbors.filter((n) => !isColdEntity(n.entity))
+    : data.neighbors;
+  const hiddenNeighbors = data.neighbors.length - visibleNeighbors.length;
+
   const grouped = new Map<string, NeighborEdge[]>();
-  for (const n of data.neighbors) {
+  for (const n of visibleNeighbors) {
     const key = `${n.direction}:${n.relationship_type}`;
     grouped.set(key, [...(grouped.get(key) ?? []), n]);
   }
@@ -153,7 +161,12 @@ export function EntityScreen() {
 
       <Panel
         title="Relationships"
-        meta={<span className="font-mono">{data.total_neighbors}</span>}
+        meta={
+          <span>
+            <span className="font-mono">{data.total_neighbors}</span>
+            {hiddenNeighbors > 0 && <> · {hiddenNeighbors} cold hidden</>}
+          </span>
+        }
       >
         <div className="space-y-3">
           {[...grouped.entries()].map(([key, edges]) => (
@@ -161,6 +174,12 @@ export function EntityScreen() {
           ))}
           {data.neighbors.length === 0 && (
             <div className="text-[13px] text-zinc-600">No relationships.</div>
+          )}
+          {data.neighbors.length > 0 && visibleNeighbors.length === 0 && (
+            <div className="text-[13px] text-zinc-600">
+              All {data.neighbors.length} relationships point at cold entities
+              (hidden by settings).
+            </div>
           )}
         </div>
       </Panel>

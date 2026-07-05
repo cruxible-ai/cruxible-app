@@ -5,6 +5,8 @@ import { statusEnumValues } from "@/api/schema-info";
 import { EntityTable } from "@/components/EntityTable";
 import { Panel, LoadState } from "@/components/Panel";
 import { isEntityRef } from "@/api/items";
+import { isColdEntity } from "@/lib/cold";
+import { useSettings } from "@/lib/settings";
 
 const PAGE_SIZE = 100;
 
@@ -28,8 +30,15 @@ export function BrowseScreen() {
   );
 
   const statuses = statusEnumValues(schema.data, entityType) ?? [];
-  const items = ((list.data as { items?: unknown[] } | undefined)?.items ?? []).filter(isEntityRef);
+  const allItems = ((list.data as { items?: unknown[] } | undefined)?.items ?? []).filter(isEntityRef);
   const total = (list.data as { total?: number } | undefined)?.total ?? 0;
+
+  // Hide-cold is a display preference and yields to explicit intent: picking
+  // a status chip (even a cold one) always shows exactly that status.
+  const { settings } = useSettings();
+  const hideCold = settings.hideCold && !status;
+  const items = hideCold ? allItems.filter((e) => !isColdEntity(e)) : allItems;
+  const hiddenCount = allItems.length - items.length;
 
   function setStatus(next: string | undefined) {
     const sp = new URLSearchParams(searchParams);
@@ -76,6 +85,7 @@ export function BrowseScreen() {
         meta={
           <span>
             <span className="font-mono">{total}</span> total · unreceipted list read
+            {hiddenCount > 0 && <> · {hiddenCount} cold hidden on this page</>}
           </span>
         }
       >

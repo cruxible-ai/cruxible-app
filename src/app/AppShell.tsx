@@ -2,6 +2,9 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useInstanceId, useInstanceSchema, useQueryCatalog, useStats } from "@/api/hooks";
 import { humanize } from "@/lib/text";
 import { LayoutDashboard } from "lucide-react";
+import { SettingsMenu } from "@/components/SettingsMenu";
+import { isColdStatus } from "@/lib/cold";
+import { useSettings } from "@/lib/settings";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return `block rounded px-2 py-1 text-[13px] ${
@@ -29,11 +32,24 @@ export function AppShell() {
   const queues = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
   );
-  const entityCounts = Object.entries(stats.data?.entity_counts ?? {});
+
+  // With hide-cold on, sidebar counts show what's actually viewable: the
+  // type total minus its cold-status buckets from the stats breakdown.
+  const { settings } = useSettings();
+  const statusCounts = stats.data?.status_counts ?? {};
+  const entityCounts = Object.entries(stats.data?.entity_counts ?? {}).map(
+    ([type, count]): [string, number] => {
+      if (!settings.hideCold) return [type, count];
+      const coldTotal = Object.entries(statusCounts[type] ?? {})
+        .filter(([status]) => isColdStatus(status))
+        .reduce((sum, [, n]) => sum + n, 0);
+      return [type, Math.max(0, count - coldTotal)];
+    },
+  );
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-60 shrink-0 border-r border-zinc-800 px-3 py-4">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-800 px-3 py-4">
         <div className="mb-4 px-2">
           <div className="text-[26px] font-normal text-zinc-100" style={{ fontFamily: "Merriweather, serif" }}>Cruxible</div>
           {instanceName && (
@@ -87,6 +103,10 @@ export function AppShell() {
               </NavLink>
             ))}
           </nav>
+        </div>
+
+        <div className="mt-auto pt-6">
+          <SettingsMenu />
         </div>
       </aside>
 

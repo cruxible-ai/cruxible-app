@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { DataSourceProvider } from "./api/DataSourceContext";
+import { SettingsProvider } from "./lib/settings";
 import { loadConfig } from "./config";
 import { router } from "./app/router";
 import "@fontsource/merriweather/400.css";
@@ -30,7 +31,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <DataSourceProvider config={{ baseUrl: config.apiBaseUrl, token: config.apiToken }}>
-        <RouterProvider router={router} />
+        <SettingsProvider>
+          <RouterProvider router={router} />
+        </SettingsProvider>
       </DataSourceProvider>
     </QueryClientProvider>
   </StrictMode>,
