@@ -1,5 +1,6 @@
 import { useInstanceSchema } from "@/api/hooks";
 import type { ViewParams } from "@/api/hooks";
+import { defChipClass } from "@/components/Chip";
 import { humanize } from "@/lib/text";
 
 interface TraversalStep {
@@ -37,9 +38,6 @@ function summarizeWhere(where: Record<string, unknown> | null | undefined): stri
     return `${shortField(field)} = ${String(cond)}`;
   });
 }
-
-const chipClass =
-  "inline-flex items-center gap-1 rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-px";
 
 /**
  * How this view is computed, always visible: the entry point with the live
@@ -79,7 +77,7 @@ export function QueryDefinition({
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-zinc-500">
-      <span className={chipClass}>
+      <span className={defChipClass}>
         <span className="text-zinc-300">{humanize(def.entry_point ?? "?")}</span>
         {paramText && <span className="font-mono text-[10px] text-zinc-500">{paramText}</span>}
       </span>
@@ -90,7 +88,7 @@ export function QueryDefinition({
             <span className="font-mono text-zinc-600">
               {step.direction === "incoming" ? "←" : "→"}
             </span>
-            <span className={chipClass}>
+            <span className={defChipClass}>
               <span>{(step.relationship ?? "?").replaceAll("_", " ")}</span>
               {(step.max_depth ?? 1) > 1 && (
                 <span className="font-mono text-[10px] text-zinc-600">×{step.max_depth}</span>
@@ -103,7 +101,7 @@ export function QueryDefinition({
         );
       })}
       <span className="font-mono text-zinc-600">⇒</span>
-      <span className={chipClass}>
+      <span className={defChipClass}>
         <span className="text-zinc-300">{humanize(def.returns ?? "?")}</span>
         {rootFilters.length > 0 && (
           <span className="text-[10px] text-zinc-600">[{rootFilters.join("; ")}]</span>

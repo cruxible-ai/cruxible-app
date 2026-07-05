@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Chip } from "./Chip";
 import { EntityLink } from "./EntityLink";
+import { EmptyState } from "./Panel";
 import { prop, type EntityRef } from "@/api/items";
 import { compareCells, nextSort, type SortState } from "@/lib/sort";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
@@ -82,7 +83,7 @@ export function EntityTable({
   }, [entities, sort]);
 
   if (entities.length === 0) {
-    return <div className="py-3 text-[13px] text-zinc-600">No items.</div>;
+    return <EmptyState>No items.</EmptyState>;
   }
   return (
     <div className={compact ? "overflow-hidden" : "overflow-x-auto"}>

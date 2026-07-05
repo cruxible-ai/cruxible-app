@@ -20,6 +20,14 @@ export function Panel({
   );
 }
 
+/**
+ * Standard empty-state line for content surfaces ("No items.",
+ * "No relationships."). One phrasing style, one treatment.
+ */
+export function EmptyState({ children }: { children: ReactNode }) {
+  return <div className="py-3 text-[13px] text-zinc-600">{children}</div>;
+}
+
 export function LoadState({ error }: { error?: unknown }) {
   if (error) {
     const message = error instanceof Error ? error.message : String(error);

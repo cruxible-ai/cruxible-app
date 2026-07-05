@@ -9,9 +9,10 @@ import {
   PanelHeading,
   PanelSection,
   PropertyList,
-  panelActionClass,
 } from "@/components/graph/PanelBits";
-import { Chip } from "@/components/Chip";
+import { actionChipClass, Chip } from "@/components/Chip";
+import { MonoId } from "@/components/MonoId";
+import { EmptyState } from "@/components/Panel";
 
 export type PathNodeData = {
   entityType: string;
@@ -177,9 +178,7 @@ export function PathGraph({ items }: { items: PathItem[] }) {
 
   if (nodes.length === 0) {
     return (
-      <div className="py-3 text-[13px] text-zinc-600">
-        No path segments to draw — this query's results carry no hop data.
-      </div>
+      <EmptyState>No path segments to draw — this query's results carry no hop data.</EmptyState>
     );
   }
 
@@ -194,17 +193,19 @@ export function PathGraph({ items }: { items: PathItem[] }) {
       return (
         <div>
           <PanelHeading kicker={`${d.entityType} · ${ROLE_LABEL[d.role]}`} title={d.title} />
-          <div className="break-all font-mono text-[11px] text-zinc-500">{d.entityId}</div>
+          <div className="break-all">
+            <MonoId id={d.entityId} />
+          </div>
           <PanelActions>
             <Link
               to={`/i/${instanceId}/e/${d.entityType}/${d.entityId}`}
-              className={panelActionClass}
+              className={actionChipClass}
             >
               Open entity →
             </Link>
             <Link
               to={`/i/${instanceId}/g/${d.entityType}/${d.entityId}`}
-              className={panelActionClass}
+              className={actionChipClass}
             >
               Entity graph →
             </Link>

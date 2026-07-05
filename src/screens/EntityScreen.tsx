@@ -1,11 +1,13 @@
 import { Link, useParams } from "react-router-dom";
 import { useInspectEntity, useInstanceId, useQueryCatalog } from "@/api/hooks";
-import { Chip } from "@/components/Chip";
+import { actionChipClass, Chip } from "@/components/Chip";
 import { EntityLink } from "@/components/EntityLink";
 import { EvidenceRef, type EvidenceRefData } from "@/components/EvidenceRef";
-import { Panel, LoadState } from "@/components/Panel";
+import { MonoId } from "@/components/MonoId";
+import { Panel, LoadState, EmptyState } from "@/components/Panel";
 import { Prose } from "@/components/Prose";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { ArrowRight, Waypoints } from "lucide-react";
 import { isEntityRef } from "@/api/items";
 import { isColdEntity } from "@/lib/cold";
@@ -39,6 +41,9 @@ export function EntityScreen() {
   const inspect = useInspectEntity(entityType, entityId);
   const catalog = useQueryCatalog();
   const { settings } = useSettings();
+  const loadedTitle = (inspect.data as { properties?: { title?: unknown } } | undefined)
+    ?.properties?.title;
+  usePageTitle(typeof loadedTitle === "string" ? loadedTitle : entityId);
 
   if (inspect.isPending) return <LoadState />;
   if (inspect.error) return <LoadState error={inspect.error} />;
@@ -51,7 +56,7 @@ export function EntityScreen() {
     total_neighbors: number;
   };
   if (!data.found) {
-    return <div className="text-[13px] text-zinc-500">Entity not found.</div>;
+    return <EmptyState>Entity not found.</EmptyState>;
   }
 
   const { properties } = data;
@@ -96,10 +101,10 @@ export function EntityScreen() {
       <header>
         <div className="flex items-center gap-3 text-[12px]">
           <span className="text-zinc-400">{humanize(data.entity_type)}</span>
-          <span className="font-mono text-[11px] text-zinc-600">{data.entity_id}</span>
+          <MonoId id={data.entity_id} />
           <Link
             to={`/i/${instanceId}/g/${data.entity_type}/${data.entity_id}`}
-            className="ml-auto inline-flex items-center gap-1.5 rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
+            className={`ml-auto inline-flex items-center gap-1.5 ${actionChipClass}`}
           >
             <Waypoints className="h-3 w-3" />
             View graph
@@ -125,7 +130,7 @@ export function EntityScreen() {
               <Link
                 key={q.name}
                 to={`/i/${instanceId}/views/${q.name}?${param}=${encodeURIComponent(data.entity_id)}`}
-                className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+                className={actionChipClass}
               >
                 {humanize(q.name ?? "")}
                 <ArrowRight className="ml-1 inline h-3 w-3" />
@@ -172,14 +177,12 @@ export function EntityScreen() {
           {[...grouped.entries()].map(([key, edges]) => (
             <GroupedEdges key={key} edges={edges} />
           ))}
-          {data.neighbors.length === 0 && (
-            <div className="text-[13px] text-zinc-600">No relationships.</div>
-          )}
+          {data.neighbors.length === 0 && <EmptyState>No relationships.</EmptyState>}
           {data.neighbors.length > 0 && visibleNeighbors.length === 0 && (
-            <div className="text-[13px] text-zinc-600">
-              All {data.neighbors.length} relationships point at cold entities
-              (hidden by settings).
-            </div>
+            <EmptyState>
+              All {data.neighbors.length} relationships point at cold entities (hidden by
+              settings).
+            </EmptyState>
           )}
         </div>
       </Panel>
@@ -242,7 +245,7 @@ function NeighborRow({
   const evidence = edge.metadata.evidence;
 
   return (
-    <div className="rounded border border-zinc-800/70 bg-zinc-900/30 px-2.5 py-1.5">
+    <div className="rounded border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-1.5">
       <div className="flex flex-wrap items-center gap-2 text-[13px]">
         {isEntityRef(e) ? (
           <>

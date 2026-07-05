@@ -1,7 +1,8 @@
 import { useInstanceSchema } from "@/api/hooks";
-import { Chip } from "@/components/Chip";
-import { LoadState, Panel } from "@/components/Panel";
+import { Chip, defChipClass } from "@/components/Chip";
+import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { humanize } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 interface WorkflowStep {
   id?: string;
@@ -47,6 +48,7 @@ function stepDetail(step: WorkflowStep): string | null {
  */
 export function WorkflowsScreen() {
   const schema = useInstanceSchema();
+  usePageTitle("Workflows");
   if (schema.isPending) return <LoadState />;
   if (schema.error) return <LoadState error={schema.error} />;
 
@@ -64,10 +66,10 @@ export function WorkflowsScreen() {
         </p>
       </header>
       {workflows.length === 0 && (
-        <div className="text-[13px] text-zinc-600">
-          This instance's config declares no workflows — its state is built through direct
-          governed writes.
-        </div>
+        <EmptyState>
+          No workflows declared — this instance's state is built through direct governed
+          writes.
+        </EmptyState>
       )}
       <div className="space-y-3">
         {workflows.map(([name, wf]) => (
@@ -86,7 +88,7 @@ export function WorkflowsScreen() {
                 return (
                   <span key={step.id ?? i} className="inline-flex items-center gap-1.5">
                     {i > 0 && <span className="font-mono text-zinc-700">→</span>}
-                    <span className="inline-flex items-center gap-1 rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-px">
+                    <span className={defChipClass}>
                       <span className="text-zinc-400">
                         {(step.kind ?? "step").replaceAll("_", " ")}
                       </span>
