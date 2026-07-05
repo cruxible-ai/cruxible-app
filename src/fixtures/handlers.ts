@@ -53,7 +53,34 @@ const ROADMAP_ITEM = {
   metadata: {},
 };
 
-const ALL_ENTITIES = [...WORK_ITEMS, ROADMAP_ITEM];
+/**
+ * Agent-briefing demo note: the body exercises every cruxible:// ref form the
+ * UI hydrates (bare + labeled entity refs, a query ref, a receipt ref, and an
+ * unresolved ref). Open /e/StateNote/note-briefing-1 in fixtures mode — this
+ * is the launch screenshot.
+ */
+const BRIEFING_BODY = `## Review briefing: unblock the fixture queue
+
+Two items need a decision this morning.
+
+The blocker: [Blocked fixture work item](cruxible://entity/WorkItem/wi-fixture-2) is critical and gates the roadmap slice cruxible://entity/RoadmapItem/ri-fixture-1.
+
+Full queue: [blocked work items](cruxible://query/blocked_work_items). The run that produced this briefing is receipted: cruxible://receipt/RCP-fixture0001.
+
+A ref the state layer no longer knows: cruxible://entity/WorkItem/wi-gone-1 (rendered unresolved, never trusted silently).`;
+
+const BRIEFING_NOTE = {
+  entity_type: "StateNote",
+  entity_id: "note-briefing-1",
+  properties: {
+    note_id: "note-briefing-1",
+    title: "Morning review briefing",
+    body: BRIEFING_BODY,
+  },
+  metadata: {},
+};
+
+const ALL_ENTITIES = [...WORK_ITEMS, ROADMAP_ITEM, BRIEFING_NOTE];
 
 const SCHEMA = {
   name: "fixture",
@@ -78,6 +105,13 @@ const SCHEMA = {
         roadmap_item_id: { type: "string", primary_key: true },
         title: { type: "string" },
         status: { type: "string", enum_ref: "lifecycle_status" },
+      },
+    },
+    StateNote: {
+      properties: {
+        note_id: { type: "string", primary_key: true },
+        title: { type: "string" },
+        body: { type: "string" },
       },
     },
   },
@@ -124,7 +158,7 @@ export function buildHandlers(baseUrl = "") {
       HttpResponse.json({
         entity_count: ALL_ENTITIES.length,
         edge_count: 2,
-        entity_counts: { WorkItem: WORK_ITEMS.length, RoadmapItem: 1 },
+        entity_counts: { WorkItem: WORK_ITEMS.length, RoadmapItem: 1, StateNote: 1 },
         relationship_counts: { work_item_implements_roadmap_item: 2 },
         head_snapshot_id: "snap_fixture",
       }),
