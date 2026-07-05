@@ -4,6 +4,7 @@ import { humanize } from "@/lib/text";
 import { LayoutDashboard } from "lucide-react";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { isColdStatus } from "@/lib/cold";
+import { LAYER_META, useLayerColoring } from "@/lib/kit-layer";
 import { useSettings } from "@/lib/settings";
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -36,6 +37,7 @@ export function AppShell() {
   // With hide-cold on, sidebar counts show what's actually viewable: the
   // type total minus its cold-status buckets from the stats breakdown.
   const { settings } = useSettings();
+  const layerColoring = useLayerColoring();
   const statusCounts = stats.data?.status_counts ?? {};
   const entityCounts = Object.entries(stats.data?.entity_counts ?? {}).map(
     ([type, count]): [string, number] => {
@@ -98,7 +100,15 @@ export function AppShell() {
                 to={`/i/${instanceId}/browse/${type}`}
                 className={(s) => `${navClass(s)} flex items-center justify-between`}
               >
-                <span>{humanize(type)}</span>
+                <span className="flex items-center gap-1.5">
+                  {layerColoring.enabled && (
+                    <span
+                      title={LAYER_META[layerColoring.layerFor(type)].label}
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${LAYER_META[layerColoring.layerFor(type)].dot}`}
+                    />
+                  )}
+                  {humanize(type)}
+                </span>
                 <span className="font-mono text-[11px] text-zinc-600">{count}</span>
               </NavLink>
             ))}

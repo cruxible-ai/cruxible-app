@@ -11,11 +11,15 @@ import {
   PanelSection,
   panelActionClass,
 } from "@/components/graph/PanelBits";
+import { LayerLegend } from "@/components/graph/LayerLegend";
+import { LAYER_META, useLayerColoring, type KitLayer } from "@/lib/kit-layer";
 import { humanize } from "@/lib/text";
 
 type TypeNodeData = {
   typeName: string;
   count: number;
+  /** Owning kit layer; null when layer coloring is off. */
+  layer: KitLayer | null;
   [key: string]: unknown;
 };
 
@@ -63,17 +67,28 @@ function relationshipList(schema: SchemaForMap): Array<{
 
 function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
   const empty = data.count === 0;
+  const accent = data.layer ? LAYER_META[data.layer] : null;
   return (
     <div
       className={`rounded border px-2.5 py-1.5 text-center ${
         empty
           ? "border-dashed border-zinc-800 bg-zinc-950"
-          : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
+          : accent
+            ? `${accent.border} ${accent.borderHover} bg-zinc-900`
+            : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
       }`}
     >
       <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
-      <div className={`text-[12px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-200"}`}>
-        {data.typeName}
+      <div className="flex items-center justify-center gap-1.5">
+        {accent && (
+          <span
+            title={accent.label}
+            className={`h-1.5 w-1.5 shrink-0 rounded-full ${accent.dot} ${empty ? "opacity-40" : ""}`}
+          />
+        )}
+        <span className={`text-[12px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-200"}`}>
+          {data.typeName}
+        </span>
       </div>
       <div className={`font-mono text-[10px] ${empty ? "text-zinc-700" : "text-zinc-500"}`}>
         {data.count}
@@ -134,6 +149,7 @@ export function TypeMapScreen() {
   const instanceId = useInstanceId();
   const schema = useInstanceSchema();
   const stats = useStats();
+  const layerColoring = useLayerColoring();
 
   const { nodes, edges, counts } = useMemo(() => {
     const s = schema.data as SchemaForMap | undefined;
@@ -163,7 +179,11 @@ export function TypeMapScreen() {
         id: typeName,
         type: "typeNode",
         position: { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius },
-        data: { typeName, count: st?.entity_counts?.[typeName] ?? 0 },
+        data: {
+          typeName,
+          count: st?.entity_counts?.[typeName] ?? 0,
+          layer: layerColoring.enabled ? layerColoring.layerFor(typeName) : null,
+        },
       };
     });
 
@@ -189,7 +209,7 @@ export function TypeMapScreen() {
     });
 
     return { nodes, edges, counts: st?.entity_counts ?? {} };
-  }, [schema.data, stats.data]);
+  }, [schema.data, stats.data, layerColoring]);
 
   if (schema.isPending || stats.isPending) return <LoadState />;
   if (schema.error) return <LoadState error={schema.error} />;
@@ -208,6 +228,14 @@ export function TypeMapScreen() {
             <span className="font-mono text-zinc-200">{count}</span> live{" "}
             {count === 1 ? "row" : "rows"}
           </div>
+          {layerColoring.enabled && (
+            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${LAYER_META[layerColoring.layerFor(selection.id)].dot}`}
+              />
+              {LAYER_META[layerColoring.layerFor(selection.id)].label}
+            </div>
+          )}
           <PanelActions>
             <Link to={`/i/${instanceId}/browse/${selection.id}`} className={panelActionClass}>
               Browse rows →
@@ -283,6 +311,7 @@ export function TypeMapScreen() {
         nodeTypes={nodeTypes}
         renderPanel={renderPanel}
         className="min-h-0 flex-1"
+        overlay={layerColoring.enabled ? <LayerLegend /> : undefined}
       />
     </div>
   );
