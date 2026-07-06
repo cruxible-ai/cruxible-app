@@ -1,5 +1,10 @@
 import { http, HttpResponse } from "msw";
 import { entityQueryResult, errorEnvelope } from "./envelopes";
+import type {
+  SourceArtifactListItem,
+  SourceArtifactReadChunk,
+  SourceArtifactReadResult,
+} from "@/api/artifact-types";
 
 /**
  * A coherent miniature instance served entirely through MSW, used by the dev
@@ -114,6 +119,210 @@ const SCHEMA = {
         body: { type: "string" },
       },
     },
+  },
+};
+
+/**
+ * Source-artifact fixtures. Note the chunk manifest overlaps by construction
+ * (matching the core markdown parser): "section" chunks span their whole
+ * section while paragraph/list_item/code_fence chunks re-cover the same
+ * lines — the viewer reconstructs a non-overlapping document from this.
+ */
+const RUNBOOK_DOC = [
+  "# Deploy runbook",
+  "",
+  "Every production deploy goes through the pinned pipeline; manual pushes",
+  "are prohibited outside a declared incident.",
+  "",
+  "## Rollback",
+  "",
+  "- Freeze the deploy queue before rolling back.",
+  "- Roll back one release at a time; never skip versions.",
+  "",
+  "```bash",
+  "cruxible deploy rollback --steps 1",
+  "```",
+].join("\n");
+
+const RUNBOOK_CHUNKS: SourceArtifactReadChunk[] = [
+  {
+    chunk_id: "mdchunk_5f1e9a2c03b4d876",
+    heading_path: ["Deploy runbook"],
+    block_selector: "section",
+    block_type: "section",
+    line_start: 1,
+    line_end: 13,
+    content_hash: "sha256:runbook-s1",
+    text: RUNBOOK_DOC,
+  },
+  {
+    chunk_id: "mdchunk_9a8b7c6d5e4f3a21",
+    heading_path: ["Deploy runbook"],
+    block_selector: "paragraph:1",
+    block_type: "paragraph",
+    line_start: 3,
+    line_end: 4,
+    content_hash: "sha256:runbook-p1",
+    text: "Every production deploy goes through the pinned pipeline; manual pushes\nare prohibited outside a declared incident.",
+  },
+  {
+    chunk_id: "mdchunk_2b3c4d5e6f708192",
+    heading_path: ["Deploy runbook", "Rollback"],
+    block_selector: "section",
+    block_type: "section",
+    line_start: 6,
+    line_end: 13,
+    content_hash: "sha256:runbook-s2",
+    text: RUNBOOK_DOC.split("\n").slice(5).join("\n"),
+  },
+  {
+    chunk_id: "mdchunk_c1d2e3f405a6b789",
+    heading_path: ["Deploy runbook", "Rollback"],
+    block_selector: "list_item:1",
+    block_type: "list_item",
+    line_start: 8,
+    line_end: 8,
+    content_hash: "sha256:runbook-li1",
+    text: "- Freeze the deploy queue before rolling back.",
+  },
+  {
+    chunk_id: "mdchunk_d4e5f60718293a4b",
+    heading_path: ["Deploy runbook", "Rollback"],
+    block_selector: "list_item:2",
+    block_type: "list_item",
+    line_start: 9,
+    line_end: 9,
+    content_hash: "sha256:runbook-li2",
+    text: "- Roll back one release at a time; never skip versions.",
+  },
+  {
+    chunk_id: "mdchunk_e7f8091a2b3c4d5e",
+    heading_path: ["Deploy runbook", "Rollback"],
+    block_selector: "code_fence:1",
+    block_type: "code_fence",
+    line_start: 11,
+    line_end: 13,
+    content_hash: "sha256:runbook-cf1",
+    text: "```bash\ncruxible deploy rollback --steps 1\n```",
+  },
+];
+
+const OPINION_CHUNKS: SourceArtifactReadChunk[] = [
+  {
+    chunk_id: "mdchunk_0a1b2c3d4e5f6071",
+    heading_path: ["Smith v. Jones", "Holding"],
+    block_selector: "section",
+    block_type: "section",
+    line_start: 3,
+    line_end: 6,
+    content_hash: "sha256:opinion-s1",
+    text: "## Holding\n\nWe hold that digest-pinned records satisfy the authenticity\nrequirement of Rule 901(b)(9).",
+  },
+  {
+    chunk_id: "mdchunk_1c2d3e4f50617283",
+    heading_path: ["Smith v. Jones", "Holding"],
+    block_selector: "paragraph:1",
+    block_type: "paragraph",
+    line_start: 5,
+    line_end: 6,
+    content_hash: "sha256:opinion-p1",
+    text: "We hold that digest-pinned records satisfy the authenticity\nrequirement of Rule 901(b)(9).",
+  },
+];
+
+const SOURCE_ARTIFACT_ITEMS: SourceArtifactListItem[] = [
+  {
+    source_artifact_id: "SRC-fixture00001",
+    kind: "markdown",
+    retention: "archive",
+    original_uri: "https://wiki.example.com/ops/deploy-runbook",
+    label: "Deploy runbook (ops wiki)",
+    content_hash: "sha256:fixture",
+    registered_at: "2026-06-12T00:00:00Z",
+    chunk_count: RUNBOOK_CHUNKS.length,
+    byte_count: RUNBOOK_DOC.length,
+  },
+  {
+    source_artifact_id: "SRC-fixture00002",
+    kind: "markdown",
+    retention: "manifest_only",
+    original_uri: "file:///Users/ops/notes/incident-2026-06.md",
+    label: "Incident 2026-06 postmortem",
+    content_hash: "sha256:postmortem",
+    registered_at: "2026-06-20T14:30:00Z",
+    chunk_count: 3,
+    byte_count: 2210,
+  },
+  {
+    source_artifact_id: "SRC-fixture00003",
+    kind: "markdown",
+    retention: "archive",
+    original_uri: "https://law.example.com/opinions/smith-v-jones.md",
+    label: "Smith v. Jones, No. 24-1837 (9th Cir. 2026)",
+    content_hash: "sha256:opinion",
+    registered_at: "2026-06-28T09:15:00Z",
+    chunk_count: OPINION_CHUNKS.length,
+    byte_count: 148,
+  },
+];
+
+const SOURCE_ARTIFACT_READS: Record<string, SourceArtifactReadResult> = {
+  "SRC-fixture00001": {
+    ...SOURCE_ARTIFACT_ITEMS[0]!,
+    parser_version: "markdown_chunks_v1",
+    archived: true,
+    archive_content_hash: "sha256:fixture",
+    content_available: true,
+    body_origin: "archive",
+    current_artifact_hash: "sha256:fixture",
+    chunks: RUNBOOK_CHUNKS,
+  },
+  "SRC-fixture00002": {
+    ...SOURCE_ARTIFACT_ITEMS[1]!,
+    parser_version: "markdown_chunks_v1",
+    archived: false,
+    content_available: false,
+    content_unavailable_reason:
+      "manifest_only artifact: original file no longer present at /Users/ops/notes/incident-2026-06.md",
+    chunks: [
+      {
+        chunk_id: "mdchunk_aa11bb22cc33dd44",
+        heading_path: ["Incident 2026-06"],
+        block_selector: "section",
+        block_type: "section",
+        line_start: 1,
+        line_end: 40,
+        content_hash: "sha256:postmortem-s1",
+      },
+      {
+        chunk_id: "mdchunk_ee55ff6607718829",
+        heading_path: ["Incident 2026-06", "Timeline"],
+        block_selector: "section",
+        block_type: "section",
+        line_start: 5,
+        line_end: 22,
+        content_hash: "sha256:postmortem-s2",
+      },
+      {
+        chunk_id: "mdchunk_93a4b5c6d7e8f901",
+        heading_path: ["Incident 2026-06", "Timeline"],
+        block_selector: "paragraph:1",
+        block_type: "paragraph",
+        line_start: 7,
+        line_end: 9,
+        content_hash: "sha256:postmortem-p1",
+      },
+    ],
+  },
+  "SRC-fixture00003": {
+    ...SOURCE_ARTIFACT_ITEMS[2]!,
+    parser_version: "markdown_chunks_v1",
+    archived: true,
+    archive_content_hash: "sha256:opinion",
+    content_available: true,
+    body_origin: "archive",
+    current_artifact_hash: "sha256:opinion",
+    chunks: OPINION_CHUNKS,
   },
 };
 
@@ -256,7 +465,8 @@ export function buildHandlers(baseUrl = "") {
                       {
                         source: "source_artifact",
                         artifact_id: "SRC-fixture00001",
-                        metadata: { line_start: 1, line_end: 2 },
+                        source_record_id: "mdchunk_9a8b7c6d5e4f3a21",
+                        metadata: { line_start: 3, line_end: 4 },
                       },
                     ],
                     rationale: "Fixture rationale for the edge.",
@@ -268,6 +478,33 @@ export function buildHandlers(baseUrl = "") {
             ]
           : [];
       return HttpResponse.json({ ...found, found: true, neighbors, total_neighbors: neighbors.length });
+    }),
+    http.get(api("/source-artifacts"), ({ request }) => {
+      const url = new URL(request.url);
+      const limitRaw = url.searchParams.get("limit");
+      const limit = limitRaw === null ? null : Number(limitRaw);
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      const items = SOURCE_ARTIFACT_ITEMS.slice(
+        offset,
+        limit === null ? undefined : offset + limit,
+      );
+      return HttpResponse.json({
+        total: SOURCE_ARTIFACT_ITEMS.length,
+        limit,
+        offset,
+        truncated: offset + items.length < SOURCE_ARTIFACT_ITEMS.length,
+        items,
+      });
+    }),
+    http.get(api("/source-artifacts/:artifactId"), ({ params }) => {
+      const read = SOURCE_ARTIFACT_READS[String(params.artifactId)];
+      if (!read) {
+        return HttpResponse.json(
+          errorEnvelope("NotFoundError", `Unknown source artifact ${String(params.artifactId)}`),
+          { status: 404 },
+        );
+      }
+      return HttpResponse.json(read);
     }),
     http.post(api("/source-evidence/dereference"), async ({ request }) => {
       const body = (await request.json()) as { source_artifact_id: string; chunk_id?: string };

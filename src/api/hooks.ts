@@ -1,7 +1,8 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { useApiClient } from "./DataSourceContext";
-import { unwrap } from "./data-source";
+import { ApiError, unwrap } from "./data-source";
+import type { SourceArtifactListResult, SourceArtifactReadResult } from "./artifact-types";
 
 /** Instance id from the /i/:instanceId route segment. */
 export function useInstanceId(): string {
@@ -154,6 +155,79 @@ export function useDereferenceEvidence(locator: EvidenceLocator | null) {
           },
         }),
       ),
+  });
+}
+
+/**
+ * The source-artifact read endpoints are not in the generated OpenAPI schema
+ * yet (the serving daemon branch merges after this one), so these hooks call
+ * through a loosened GET signature against hand-written response types
+ * (src/api/artifact-types.ts). Delete the cast when `pnpm gen:api` picks the
+ * routes up.
+ */
+type UntypedGet = (
+  path: string,
+  init: { params: { path: Record<string, string>; query?: Record<string, number> } },
+) => Promise<{ data?: unknown; error?: unknown; response: Response }>;
+
+function useUntypedGet(): UntypedGet {
+  const client = useApiClient();
+  return client.GET as unknown as UntypedGet;
+}
+
+export function useSourceArtifacts(limit: number, offset: number) {
+  const get = useUntypedGet();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["source-artifacts", instanceId, limit, offset],
+    queryFn: async () =>
+      unwrap(
+        await get("/api/v1/{instance_id}/source-artifacts", {
+          params: { path: { instance_id: instanceId }, query: { limit, offset } },
+        }),
+      ) as SourceArtifactListResult,
+  });
+}
+
+export function useSourceArtifact(artifactId: string) {
+  const get = useUntypedGet();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["source-artifact", instanceId, artifactId],
+    queryFn: async () =>
+      unwrap(
+        await get("/api/v1/{instance_id}/source-artifacts/{artifact_id}", {
+          params: { path: { instance_id: instanceId, artifact_id: artifactId } },
+        }),
+      ) as SourceArtifactReadResult,
+  });
+}
+
+/**
+ * Cheap sidebar probe: limit=1 list, returning the artifact total. Pre-merge
+ * daemons 404 the route — that means "feature absent" (null), not an error,
+ * so the nav entry simply never renders against an older daemon.
+ */
+export function useSourceArtifactsProbe() {
+  const get = useUntypedGet();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["source-artifacts-probe", instanceId],
+    retry: false,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<number | null> => {
+      try {
+        const data = unwrap(
+          await get("/api/v1/{instance_id}/source-artifacts", {
+            params: { path: { instance_id: instanceId }, query: { limit: 1, offset: 0 } },
+          }),
+        ) as SourceArtifactListResult;
+        return data.total;
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
+    },
   });
 }
 

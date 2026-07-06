@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useDereferenceEvidence } from "@/api/hooks";
+import { Link } from "react-router-dom";
+import { useDereferenceEvidence, useInstanceId } from "@/api/hooks";
 import { Chip } from "./Chip";
 import { LoadState } from "./Panel";
 
@@ -28,6 +29,7 @@ const STATUS_TONE = { available: "green", drifted: "amber", unavailable: "red" }
  */
 export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
   const [open, setOpen] = useState(false);
+  const instanceId = useInstanceId();
   const meta = refData.metadata ?? {};
   const locator =
     open && refData.artifact_id
@@ -68,6 +70,15 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
           </span>
         )}
         {refData.label && <span className="font-sans italic text-zinc-500">“{refData.label}”</span>}
+        {refData.artifact_id && refData.source_record_id && (
+          // Deep link into the artifact viewer, anchored on the cited chunk.
+          <Link
+            to={`/i/${instanceId}/sources/${refData.artifact_id}#${refData.source_record_id}`}
+            className="font-sans text-[11px] text-zinc-500 underline decoration-zinc-700 hover:text-zinc-300"
+          >
+            open in source
+          </Link>
+        )}
       </div>
       {open && (
         <div className="mt-1 ml-4 rounded border border-zinc-800 bg-zinc-950 p-2">

@@ -1,5 +1,11 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { useInstanceId, useInstanceSchema, useQueryCatalog, useStats } from "@/api/hooks";
+import {
+  useInstanceId,
+  useInstanceSchema,
+  useQueryCatalog,
+  useSourceArtifactsProbe,
+  useStats,
+} from "@/api/hooks";
 import { humanize } from "@/lib/text";
 import { LayoutDashboard } from "lucide-react";
 import { SettingsMenu } from "@/components/SettingsMenu";
@@ -29,6 +35,9 @@ export function AppShell() {
     typeof (schema.data as { name?: unknown } | undefined)?.name === "string"
       ? humanize((schema.data as { name: string }).name)
       : null;
+  // Sources shows only when the daemon serves the route AND artifacts exist
+  // (probe returns null on 404 so the UI stays clean against older daemons).
+  const sourceCount = useSourceArtifactsProbe().data ?? 0;
 
   const queues = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
@@ -72,6 +81,11 @@ export function AppShell() {
           {workflowCount > 0 && (
             <NavLink to={`/i/${instanceId}/workflows`} className={navClass}>
               Workflows
+            </NavLink>
+          )}
+          {sourceCount > 0 && (
+            <NavLink to={`/i/${instanceId}/sources`} className={navClass}>
+              Sources
             </NavLink>
           )}
         </nav>
