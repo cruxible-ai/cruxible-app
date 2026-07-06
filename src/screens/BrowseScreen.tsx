@@ -1,7 +1,9 @@
 import { humanize } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useEntityList, useInstanceSchema } from "@/api/hooks";
 import { statusEnumValues } from "@/api/schema-info";
+import { toggleChipClass } from "@/components/Chip";
 import { EntityTable } from "@/components/EntityTable";
 import { Panel, LoadState } from "@/components/Panel";
 import { isEntityRef } from "@/api/items";
@@ -18,6 +20,7 @@ const PAGE_SIZE = 100;
  */
 export function BrowseScreen() {
   const { entityType = "" } = useParams();
+  usePageTitle(humanize(entityType));
   const [searchParams, setSearchParams] = useSearchParams();
   const schema = useInstanceSchema();
   const offset = Number(searchParams.get("offset") ?? 0);
@@ -54,25 +57,14 @@ export function BrowseScreen() {
         <h1 className="text-[17px] font-semibold text-zinc-100">{humanize(entityType)}</h1>
         {statuses.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <button
-              onClick={() => setStatus(undefined)}
-              className={`rounded border px-1.5 py-px text-[11px] ${
-                !status
-                  ? "border-zinc-600 bg-zinc-800 text-zinc-200"
-                  : "border-zinc-800 text-zinc-500 hover:bg-zinc-900"
-              }`}
-            >
+            <button onClick={() => setStatus(undefined)} className={toggleChipClass(!status)}>
               all
             </button>
             {statuses.map((s) => (
               <button
                 key={s}
                 onClick={() => setStatus(s === status ? undefined : s)}
-                className={`rounded border px-1.5 py-px text-[11px] ${
-                  s === status
-                    ? "border-zinc-600 bg-zinc-800 text-zinc-200"
-                    : "border-zinc-800 text-zinc-500 hover:bg-zinc-900"
-                }`}
+                className={toggleChipClass(s === status)}
               >
                 {humanize(s)}
               </button>

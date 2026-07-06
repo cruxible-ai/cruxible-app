@@ -3,15 +3,16 @@ import { Link } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId, useInstanceSchema, useStats } from "@/api/hooks";
 import { LoadState } from "@/components/Panel";
+import { actionChipClass } from "@/components/Chip";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import {
   ConnectionList,
   PanelActions,
   PanelHeading,
   PanelSection,
-  panelActionClass,
 } from "@/components/graph/PanelBits";
 import { humanize } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 type TypeNodeData = {
   typeName: string;
@@ -134,6 +135,7 @@ export function TypeMapScreen() {
   const instanceId = useInstanceId();
   const schema = useInstanceSchema();
   const stats = useStats();
+  usePageTitle("Type map");
 
   const { nodes, edges, counts } = useMemo(() => {
     const s = schema.data as SchemaForMap | undefined;
@@ -209,7 +211,7 @@ export function TypeMapScreen() {
             {count === 1 ? "row" : "rows"}
           </div>
           <PanelActions>
-            <Link to={`/i/${instanceId}/browse/${selection.id}`} className={panelActionClass}>
+            <Link to={`/i/${instanceId}/browse/${selection.id}`} className={actionChipClass}>
               Browse rows →
             </Link>
           </PanelActions>

@@ -1,5 +1,7 @@
 {
   "name": "cruxible-ui",
+  "description": "Read-only inspection console for a local Cruxible daemon (alpha)",
+  "license": "Apache-2.0",
   "private": true,
   "version": "0.1.0",
   "type": "module",

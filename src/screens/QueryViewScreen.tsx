@@ -6,6 +6,8 @@ import { Panel, LoadState } from "@/components/Panel";
 import { PathGraph } from "@/components/PathGraph";
 import { QueryItems } from "@/components/QueryItems";
 import { ReceiptBar } from "@/components/ReceiptBar";
+import { humanize } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const PAGE_SIZE = 50;
 
@@ -16,6 +18,7 @@ const PAGE_SIZE = 50;
  */
 export function QueryViewScreen() {
   const { queryName = "" } = useParams();
+  usePageTitle(humanize(queryName));
   const [searchParams, setSearchParams] = useSearchParams();
   const catalog = useQueryCatalog();
 
@@ -44,9 +47,7 @@ export function QueryViewScreen() {
   return (
     <div>
       <header className="mb-4">
-        <h1 className="text-[17px] font-semibold text-zinc-100">
-          {queryName.replaceAll("_", " ")}
-        </h1>
+        <h1 className="text-[17px] font-semibold text-zinc-100">{humanize(queryName)}</h1>
         {info?.description && <p className="mt-1 text-[12px] text-zinc-500">{info.description}</p>}
         <QueryDefinition queryName={queryName} params={params} />
       </header>

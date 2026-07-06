@@ -8,7 +8,7 @@ import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
 export function PanelHeading({ kicker, title }: { kicker: string; title: string }) {
   return (
     <div className="mb-2 pr-6">
-      <div className="text-[9px] uppercase tracking-wide text-zinc-500">{kicker}</div>
+      <div className="text-[10px] uppercase tracking-wide text-zinc-500">{kicker}</div>
       <div className="text-[13px] font-medium leading-4 text-zinc-100">{title}</div>
     </div>
   );
@@ -28,9 +28,6 @@ export function PanelSection({ title, children }: { title: string; children: Rea
 export function PanelActions({ children }: { children: ReactNode }) {
   return <div className="mt-3 flex flex-wrap gap-1.5">{children}</div>;
 }
-
-export const panelActionClass =
-  "rounded border border-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900";
 
 /**
  * The selected node's 1-hop connections, one row per edge: direction glyph,

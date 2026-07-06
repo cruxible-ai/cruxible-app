@@ -1,6 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useReceipt } from "@/api/hooks";
 import { Panel, LoadState } from "@/components/Panel";
+import { formatDateTime } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 interface ReceiptNode {
   node_id: string;
@@ -19,6 +21,7 @@ interface ReceiptNode {
 export function ReceiptScreen() {
   const { receiptId = "" } = useParams();
   const receipt = useReceipt(receiptId);
+  usePageTitle(`Receipt ${receiptId}`);
 
   if (receipt.isPending) return <LoadState />;
   if (receipt.error) return <LoadState error={receipt.error} />;
@@ -38,8 +41,8 @@ export function ReceiptScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <div className="text-[12px] text-zinc-500">receipt</div>
-        <h1 className="font-mono text-[15px] font-semibold text-zinc-100">{receiptId}</h1>
+        <div className="text-[12px] text-zinc-400">Receipt</div>
+        <h1 className="font-mono text-[17px] font-semibold text-zinc-100">{receiptId}</h1>
       </header>
 
       <Panel title="Summary">
@@ -76,7 +79,11 @@ export function ReceiptScreen() {
                     {n.entity_type}/{n.entity_id}
                   </span>
                 )}
-                {n.timestamp && <span className="ml-auto text-zinc-600">{n.timestamp}</span>}
+                {n.timestamp && (
+                  <span className="ml-auto text-zinc-600" title={n.timestamp}>
+                    {formatDateTime(n.timestamp)}
+                  </span>
+                )}
               </div>
             ))}
           </div>

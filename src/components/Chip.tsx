@@ -86,6 +86,26 @@ export const SEGMENT_FILLS: Record<Tone, string> = {
 
 export const TONE_ORDER: Tone[] = ["green", "amber", "blue", "red", "violet", "zinc"];
 
+/**
+ * Toggle/filter chip buttons (status filters, hide-cold, relationship
+ * filters): one active/inactive treatment everywhere.
+ */
+export function toggleChipClass(active: boolean): string {
+  return `rounded border px-1.5 py-px text-[11px] ${
+    active
+      ? "border-zinc-600 bg-zinc-800 text-zinc-200"
+      : "border-zinc-800 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
+  }`;
+}
+
+/** Bordered definition chip for query/workflow structure readouts. */
+export const defChipClass =
+  "inline-flex items-center gap-1 rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-px";
+
+/** Bordered secondary action (header buttons, context-query links). */
+export const actionChipClass =
+  "rounded border border-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900";
+
 export function Chip({ value, tone }: { value: string; tone?: Tone }) {
   const resolved = tone ?? VALUE_TONES[value] ?? "zinc";
   const textClass = EMPHATIC.has(value) ? "text-red-400" : "text-zinc-400";

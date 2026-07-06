@@ -12,10 +12,17 @@ import {
 } from "@xyflow/react";
 import { useInspectEntity, useInstanceId } from "@/api/hooks";
 import { entityPath } from "@/components/EntityLink";
+import { MonoId } from "@/components/MonoId";
 import { LoadState } from "@/components/Panel";
 import { PanelRight } from "lucide-react";
 import { isEntityRef } from "@/api/items";
-import { Chip, SEGMENT_FILLS, toneFor } from "@/components/Chip";
+import {
+  actionChipClass,
+  Chip,
+  SEGMENT_FILLS,
+  toggleChipClass,
+  toneFor,
+} from "@/components/Chip";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import {
   ConnectionList,
@@ -23,8 +30,8 @@ import {
   PanelHeading,
   PanelSection,
   PropertyList,
-  panelActionClass,
 } from "@/components/graph/PanelBits";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 interface NeighborForGraph {
   direction: "incoming" | "outgoing";
@@ -84,6 +91,7 @@ export function GraphScreen() {
   const instanceId = useInstanceId();
   const [searchParams, setSearchParams] = useSearchParams();
   const inspect = useInspectEntity(entityType, entityId);
+  usePageTitle(`Graph — ${entityId}`);
 
   // Relationship-type filter lives in the URL (?rel=a,b) so a filtered
   // neighborhood is a shareable view.
@@ -211,7 +219,9 @@ export function GraphScreen() {
       return (
         <div>
           <PanelHeading kicker={d.entityType} title={d.title} />
-          <div className="break-all font-mono text-[11px] text-zinc-500">{d.entityId}</div>
+          <div className="break-all">
+            <MonoId id={d.entityId} />
+          </div>
           {d.status && (
             <div className="mt-1">
               <Chip value={d.status} />
@@ -220,14 +230,14 @@ export function GraphScreen() {
           <PanelActions>
             <Link
               to={entityPath(instanceId, d.entityType, d.entityId)}
-              className={panelActionClass}
+              className={actionChipClass}
             >
               Open entity →
             </Link>
             {!d.isCenter && (
               <Link
                 to={`/i/${instanceId}/g/${d.entityType}/${d.entityId}`}
-                className={panelActionClass}
+                className={actionChipClass}
               >
                 Center graph here →
               </Link>
@@ -289,15 +299,13 @@ export function GraphScreen() {
     <div className="flex h-full min-h-[80vh] flex-col">
       <header className="mb-3 flex items-center gap-3">
         <h1 className="text-[17px] font-semibold text-zinc-100">Graph</h1>
-        <span className="font-mono text-[12px] text-zinc-500">
-          {entityType}/{entityId}
-        </span>
+        <MonoId id={`${entityType}/${entityId}`} />
         <span className="ml-auto text-[11px] text-zinc-600">
           1-hop neighborhood · {edges.length} edges · grey edge = unreviewed, green = accepted
         </span>
         <Link
           to={entityPath(instanceId, entityType, entityId)}
-          className="inline-flex items-center gap-1.5 rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
+          className={`inline-flex items-center gap-1.5 ${actionChipClass}`}
         >
           <PanelRight className="h-3 w-3" />
           Context panel
@@ -311,13 +319,7 @@ export function GraphScreen() {
               <button
                 key={rel}
                 onClick={() => toggleRel(rel)}
-                className={`rounded border px-1.5 py-px text-[11px] ${
-                  active
-                    ? "border-zinc-500 bg-zinc-800 text-zinc-100"
-                    : relFilter
-                      ? "border-zinc-800 text-zinc-600 hover:text-zinc-400"
-                      : "border-zinc-800 text-zinc-400 hover:bg-zinc-900"
-                }`}
+                className={toggleChipClass(active)}
               >
                 {rel.replaceAll("_", " ")}{" "}
                 <span className="font-mono text-[10px] text-zinc-500">{count}</span>

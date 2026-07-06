@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   useInstanceId,
@@ -6,10 +5,12 @@ import {
   useStats,
   useView,
 } from "@/api/hooks";
-import { SEGMENT_FILLS, TONE_ORDER, toneFor } from "@/components/Chip";
+import { SEGMENT_FILLS, TONE_ORDER, toggleChipClass, toneFor } from "@/components/Chip";
 import { EyeOff } from "lucide-react";
 import { Panel, LoadState } from "@/components/Panel";
 import { humanize } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
+import { useSettings } from "@/lib/settings";
 import { QueryItems } from "@/components/QueryItems";
 import { ReceiptBar } from "@/components/ReceiptBar";
 
@@ -24,6 +25,7 @@ export function OverviewScreen() {
   const instanceId = useInstanceId();
   const stats = useStats();
   const catalog = useQueryCatalog();
+  usePageTitle("Overview");
 
   const queues = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
@@ -82,9 +84,10 @@ export function OverviewScreen() {
 function StatusMatrix() {
   const stats = useStats();
   const instanceId = useInstanceId();
-  const [hideCold, setHideCold] = useState(
-    () => localStorage.getItem("cruxible.hideCold") === "1",
-  );
+  // Same display preference the sidebar and browse surfaces use — one
+  // hide-cold, not a per-screen toggle.
+  const { settings, update } = useSettings();
+  const hideCold = settings.hideCold;
 
   if (!stats.data) return null;
   const statusCounts = (stats.data.status_counts ?? {}) as Record<
@@ -109,17 +112,8 @@ function StatusMatrix() {
       title="State by status"
       meta={
         <button
-          onClick={() =>
-            setHideCold((v) => {
-              localStorage.setItem("cruxible.hideCold", v ? "0" : "1");
-              return !v;
-            })
-          }
-          className={`rounded border px-1.5 py-px text-[11px] ${
-            hideCold
-              ? "border-zinc-600 bg-zinc-800 text-zinc-200"
-              : "border-zinc-800 text-zinc-500 hover:text-zinc-300"
-          }`}
+          onClick={() => update({ hideCold: !hideCold })}
+          className={toggleChipClass(hideCold)}
         >
           <EyeOff className="mr-1 inline h-3 w-3" />
           Hide cold

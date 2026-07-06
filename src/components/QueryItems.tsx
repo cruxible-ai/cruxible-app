@@ -1,6 +1,7 @@
 import { Chip } from "./Chip";
 import { EntityLink } from "./EntityLink";
 import { EntityTable } from "./EntityTable";
+import { EmptyState } from "./Panel";
 import {
   isEntityRef,
   isPathItem,
@@ -42,7 +43,7 @@ export function QueryItems({
   if (paths.length === 0) {
     const values = result.items.filter(isValuesItem);
     if (values.length > 0) return <ValuesTable rows={values} linkType={linkType} compact={compact} />;
-    return <div className="py-3 text-[13px] text-zinc-600">No items.</div>;
+    return <EmptyState>No items.</EmptyState>;
   }
   const byType = new Map<string, EntityRef[]>();
   const seen = new Set<string>();
@@ -112,7 +113,7 @@ function ValuesTable({
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-zinc-900 align-top">
+            <tr key={i} className="border-t border-zinc-800/60 align-top">
               {columns.map((c) => {
                 const v = row.values[c];
                 const text = v == null ? "—" : looksLikeDateTime(v) ? formatDateTime(v) : String(v);
