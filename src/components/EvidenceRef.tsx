@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDereferenceEvidence, useInstanceId } from "@/api/hooks";
-import { Chip } from "./Chip";
+import { actionChipClass, Chip } from "./Chip";
 import { LoadState } from "./Panel";
 
 export interface EvidenceRefData {
@@ -74,7 +74,7 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
           // Deep link into the artifact viewer, anchored on the cited chunk.
           <Link
             to={`/i/${instanceId}/sources/${refData.artifact_id}#${refData.source_record_id}`}
-            className="font-sans text-[11px] text-zinc-500 underline decoration-zinc-700 hover:text-zinc-300"
+            className={`font-sans ${actionChipClass}`}
           >
             open in source
           </Link>

@@ -3,9 +3,10 @@ import { useLocation, useParams } from "react-router-dom";
 import { useSourceArtifact } from "@/api/hooks";
 import { Chip } from "@/components/Chip";
 import { MonoId } from "@/components/MonoId";
-import { Panel, LoadState } from "@/components/Panel";
+import { EmptyState, Panel, LoadState } from "@/components/Panel";
 import { Prose } from "@/components/Prose";
 import { formatDateTime } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 import type { SourceArtifactReadChunk } from "@/api/artifact-types";
 
 interface DocPiece {
@@ -97,6 +98,7 @@ export function SourceArtifactScreen() {
   const location = useLocation();
   const artifact = useSourceArtifact(artifactId);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  usePageTitle(artifact.data?.label ?? artifactId);
 
   useEffect(() => {
     if (!artifact.data || !location.hash) return;
@@ -184,7 +186,7 @@ export function SourceArtifactScreen() {
               }
             >
               {pieces.length === 0 ? (
-                <div className="py-3 text-[13px] text-zinc-600">No chunks in this artifact.</div>
+                <EmptyState>No chunks in this artifact.</EmptyState>
               ) : (
                 <div className="space-y-1 py-1">
                   {pieces.map((piece) => (

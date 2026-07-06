@@ -1,9 +1,10 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useInstanceId, useSourceArtifacts } from "@/api/hooks";
-import { Chip } from "@/components/Chip";
+import { actionChipClass, Chip } from "@/components/Chip";
 import { MonoId } from "@/components/MonoId";
-import { Panel, LoadState } from "@/components/Panel";
+import { EmptyState, Panel, LoadState } from "@/components/Panel";
 import { formatDateTime } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 import type { SourceRetention } from "@/api/artifact-types";
 
 const PAGE_SIZE = 50;
@@ -23,6 +24,7 @@ const RETENTION_TONE: Record<SourceRetention, "green" | "zinc"> = {
 export function SourcesScreen() {
   const instanceId = useInstanceId();
   const [searchParams, setSearchParams] = useSearchParams();
+  usePageTitle("Sources");
   const offset = Number(searchParams.get("offset") ?? 0);
   const list = useSourceArtifacts(PAGE_SIZE, offset);
 
@@ -56,7 +58,7 @@ export function SourcesScreen() {
         {list.error && <LoadState error={list.error} />}
         {list.data &&
           (items.length === 0 ? (
-            <div className="py-3 text-[13px] text-zinc-600">No source artifacts registered.</div>
+            <EmptyState>No source artifacts registered.</EmptyState>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -110,14 +112,14 @@ export function SourcesScreen() {
                   <button
                     disabled={offset <= 0}
                     onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-                    className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                    className={`${actionChipClass} disabled:pointer-events-none disabled:opacity-40`}
                   >
                     prev
                   </button>
                   <button
                     disabled={offset + PAGE_SIZE >= total}
                     onClick={() => setOffset(offset + PAGE_SIZE)}
-                    className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                    className={`${actionChipClass} disabled:pointer-events-none disabled:opacity-40`}
                   >
                     next
                   </button>
