@@ -11,9 +11,13 @@ import {
 export interface UiSettings {
   /** Hide cold (terminal-status) entities on inspection surfaces. */
   hideCold: boolean;
+  /** Accent graph/type views by owning kit layer (base kit vs domain overlay). */
+  colorByLayer: boolean;
 }
 
-const DEFAULTS: UiSettings = { hideCold: false };
+// colorByLayer defaults OFF while layer ownership is heuristic-derived
+// (see lib/kit-layer.ts); flip to true when /schema carries real provenance.
+const DEFAULTS: UiSettings = { hideCold: false, colorByLayer: false };
 const STORAGE_KEY = "cruxible-ui-settings";
 
 interface SettingsValue {

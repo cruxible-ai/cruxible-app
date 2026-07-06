@@ -108,6 +108,17 @@ describe("buildPathGraph", () => {
     );
   });
 
+  it("threads kit-layer classification into node data when layerFor is given", () => {
+    const layerFor = (t: string) => (t === "Incident" ? ("base" as const) : ("domain" as const));
+    const { nodes } = buildPathGraph(ITEMS, layerFor);
+    const layer = Object.fromEntries(nodes.map((n) => [n.id, n.data.layer]));
+    expect(layer["Incident:inc-gd"]).toBe("base");
+    expect(layer["Supplier:s-ldo"]).toBe("domain");
+    // Without layerFor the field stays null so nodes render unaccented.
+    const plain = buildPathGraph(ITEMS);
+    expect(plain.nodes.every((n) => n.data.layer === null)).toBe(true);
+  });
+
   it("returns empty graph for items without path segments", () => {
     const bare = [{ entry: incident, result: site, entities: [incident, site], path: [] }] as PathItem[];
     const { edges, nodes } = buildPathGraph(bare);

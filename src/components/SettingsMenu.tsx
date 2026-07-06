@@ -43,6 +43,22 @@ export function SettingsMenu() {
               </span>
             </span>
           </label>
+          <label className="mt-2.5 flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              checked={settings.colorByLayer}
+              onChange={(e) => update({ colorByLayer: e.target.checked })}
+              className="mt-0.5 accent-zinc-400"
+            />
+            <span>
+              <span className="block text-[13px] text-zinc-200">Color by kit layer</span>
+              <span className="block text-[11px] leading-snug text-zinc-500">
+                Accent graph and type views by which kit layer owns each
+                entity type — base kit vs domain overlay. Only shows on
+                composed instances.
+              </span>
+            </span>
+          </label>
         </div>
       )}
       <button

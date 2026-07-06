@@ -24,6 +24,8 @@ import {
   toneFor,
 } from "@/components/Chip";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
+import { LayerLegend } from "@/components/graph/LayerLegend";
+import { LAYER_META, useLayerColoring, type KitLayer } from "@/lib/kit-layer";
 import {
   ConnectionList,
   PanelActions,
@@ -47,21 +49,36 @@ type EntityNodeData = {
   title: string;
   status: string | undefined;
   isCenter: boolean;
+  /** Owning kit layer; null when layer coloring is off. */
+  layer: KitLayer | null;
   properties: Record<string, unknown>;
   [key: string]: unknown;
 };
 
 function EntityNode({ data }: NodeProps<Node<EntityNodeData>>) {
+  // The center node keeps its emphasis border; layer accents carry via the
+  // kicker dot there and via border tint on neighbors.
+  const accent = data.layer ? LAYER_META[data.layer] : null;
   return (
     <div
       className={`max-w-52 rounded border px-2 py-1 text-left ${
         data.isCenter
           ? "border-zinc-400 bg-zinc-800"
-          : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
+          : accent
+            ? `${accent.border} ${accent.borderHover} bg-zinc-900`
+            : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
       }`}
     >
       <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
-      <div className="text-[9px] uppercase tracking-wide text-zinc-500">{data.entityType}</div>
+      <div className="flex items-center gap-1 text-[9px] uppercase tracking-wide text-zinc-500">
+        {accent && (
+          <span
+            title={accent.label}
+            className={`h-1 w-1 shrink-0 rounded-full ${accent.dot}`}
+          />
+        )}
+        {data.entityType}
+      </div>
       <div className="flex items-center gap-1.5">
         {data.status && (
           <span
@@ -92,6 +109,7 @@ export function GraphScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const inspect = useInspectEntity(entityType, entityId);
   usePageTitle(`Graph — ${entityId}`);
+  const layerColoring = useLayerColoring();
 
   // Relationship-type filter lives in the URL (?rel=a,b) so a filtered
   // neighborhood is a shareable view.
@@ -139,6 +157,7 @@ export function GraphScreen() {
         title: typeof data.properties.title === "string" ? data.properties.title : entityId,
         status: typeof data.properties.status === "string" ? data.properties.status : undefined,
         isCenter: true,
+        layer: layerColoring.enabled ? layerColoring.layerFor(entityType) : null,
         properties: data.properties,
       },
     };
@@ -179,6 +198,7 @@ export function GraphScreen() {
             status:
               typeof e.properties.status === "string" ? e.properties.status : undefined,
             isCenter: false,
+            layer: layerColoring.enabled ? layerColoring.layerFor(e.entity_type) : null,
             properties: e.properties,
           },
         });
@@ -203,7 +223,7 @@ export function GraphScreen() {
       });
     });
     return { nodes, edges };
-  }, [inspect.data, entityType, entityId, relFilter]);
+  }, [inspect.data, entityType, entityId, relFilter, layerColoring]);
 
   if (inspect.isPending) return <LoadState />;
   if (inspect.error) return <LoadState error={inspect.error} />;
@@ -334,6 +354,7 @@ export function GraphScreen() {
         nodeTypes={nodeTypes}
         renderPanel={renderPanel}
         className="min-h-0 flex-1"
+        overlay={layerColoring.enabled ? <LayerLegend /> : undefined}
       >
         <Controls showInteractive={false} className="!shadow-none" />
         {nodes.length > 9 && (
