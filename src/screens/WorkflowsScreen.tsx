@@ -1,4 +1,5 @@
-import { useInstanceSchema } from "@/api/hooks";
+import { Link } from "react-router-dom";
+import { useInstanceId, useInstanceSchema } from "@/api/hooks";
 import { Chip, defChipClass } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { humanize } from "@/lib/text";
@@ -53,6 +54,7 @@ function stepDetail(config: StepConfig | null | undefined): string | null {
  */
 export function WorkflowsScreen() {
   const schema = useInstanceSchema();
+  const instanceId = useInstanceId();
   usePageTitle("Workflows");
   if (schema.isPending) return <LoadState />;
   if (schema.error) return <LoadState error={schema.error} />;
@@ -80,7 +82,11 @@ export function WorkflowsScreen() {
         {workflows.map(([name, wf]) => (
           <Panel
             key={name}
-            title={humanize(name)}
+            title={
+              <Link to={`/i/${instanceId}/workflows/${name}`} className="hover:underline">
+                {humanize(name)}
+              </Link>
+            }
             meta={wf.mode ? <Chip value={wf.mode} /> : undefined}
           >
             {wf.description && (

@@ -7,6 +7,7 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Prose } from "@/components/Prose";
 import { formatDateTime, humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { providersOf, signalWiring, workflowsOf } from "@/lib/workflow-info";
 
 /** Property definitions for one relationship type out of the composed schema. */
 interface SchemaPropertyDef {
@@ -114,6 +115,17 @@ export function GroupScreen() {
   const propDefs = relationshipPropertyDefs(schema.data, group.relationship_type);
   const schemaEnums = (schema.data as { enums?: Record<string, string[]> } | undefined)?.enums;
 
+  // The proposing workflow's config declares how each signal is produced:
+  // which provider feeds it and which output field carries the verdict.
+  const workflowName = origin?.workflow_name ?? group.source_workflow_name;
+  const wiring = new Map(
+    signalWiring(workflowName ? workflowsOf(schema.data)[workflowName] : undefined).map((w) => [
+      w.source,
+      w,
+    ]),
+  );
+  const providerDefs = providersOf(schema.data);
+
   // Signals are the group's evidence structure: aggregate each source's
   // verdicts across members so the review question ("what supports this,
   // what's unsure, what contradicts") reads at a glance.
@@ -170,28 +182,60 @@ export function GroupScreen() {
                     <th className="py-1 pr-3 font-medium">Support</th>
                     <th className="py-1 pr-3 font-medium">Unsure</th>
                     <th className="py-1 pr-3 font-medium">Contradict</th>
+                    <th className="py-1 pr-3 font-medium">Produced by</th>
                     <th className="py-1 pr-3 font-medium">Role</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...signalMatrix.entries()].map(([source, counts]) => (
-                    <tr key={source} className="border-t border-zinc-800/60">
-                      <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-300">{source}</td>
-                      <td className={`py-1.5 pr-3 font-mono ${counts.support ? "text-emerald-400" : "text-zinc-600"}`}>
-                        {counts.support}
-                      </td>
-                      <td className={`py-1.5 pr-3 font-mono ${counts.unsure ? "text-amber-400" : "text-zinc-600"}`}>
-                        {counts.unsure}
-                      </td>
-                      <td className={`py-1.5 pr-3 font-mono ${counts.contradict ? "text-red-400" : "text-zinc-600"}`}>
-                        {counts.contradict}
-                      </td>
-                      <td className="py-1.5 pr-3 text-[11px] text-zinc-500">
-                        {(signals?.required ?? []).includes(source) && "required"}
-                        {(signals?.blocking ?? []).includes(source) && " · blocking"}
-                      </td>
-                    </tr>
-                  ))}
+                  {[...signalMatrix.entries()].map(([source, counts]) => {
+                    const w = wiring.get(source);
+                    const provider = w?.providerName ? providerDefs[w.providerName] : undefined;
+                    return (
+                      <tr key={source} className="border-t border-zinc-800/60 align-top">
+                        <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-300">{source}</td>
+                        <td className={`py-1.5 pr-3 font-mono ${counts.support ? "text-emerald-400" : "text-zinc-600"}`}>
+                          {counts.support}
+                        </td>
+                        <td className={`py-1.5 pr-3 font-mono ${counts.unsure ? "text-amber-400" : "text-zinc-600"}`}>
+                          {counts.unsure}
+                        </td>
+                        <td className={`py-1.5 pr-3 font-mono ${counts.contradict ? "text-red-400" : "text-zinc-600"}`}>
+                          {counts.contradict}
+                        </td>
+                        <td className="py-1.5 pr-3">
+                          {w?.providerName ? (
+                            <span
+                              className="inline-flex items-center gap-1.5"
+                              title={provider?.description ?? undefined}
+                            >
+                              <span className="font-mono text-[11px] text-zinc-400">
+                                {w.providerName}
+                              </span>
+                              {provider && (
+                                <span
+                                  title={provider.deterministic ? "deterministic" : "non-deterministic"}
+                                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                                    provider.deterministic ? "bg-emerald-500" : "bg-amber-400"
+                                  }`}
+                                />
+                              )}
+                              {w.verdictPath && (
+                                <span className="font-mono text-[10px] text-zinc-600">
+                                  .{w.verdictPath}
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-600">—</span>
+                          )}
+                        </td>
+                        <td className="py-1.5 pr-3 text-[11px] text-zinc-500">
+                          {(signals?.required ?? []).includes(source) && "required"}
+                          {(signals?.blocking ?? []).includes(source) && " · blocking"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {group.thesis_facts?.policy?.auto_resolve_when && (
@@ -255,6 +299,9 @@ export function GroupScreen() {
                   )}
                   {(m.signals ?? []).length > 0 && (
                     <div className="mt-1.5 space-y-1 border-t border-zinc-800/50 pt-1.5">
+                      <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">
+                        Signals
+                      </div>
                       {(m.signals ?? []).map((s, si) => (
                         <div
                           key={si}
@@ -293,7 +340,12 @@ export function GroupScreen() {
                 <div className="contents">
                   <dt className="text-zinc-500">Workflow</dt>
                   <dd className="font-mono text-[11px] text-zinc-300 break-all">
-                    {group.source_workflow_name}
+                    <Link
+                      to={`/i/${instanceId}/workflows/${group.source_workflow_name}`}
+                      className="hover:underline"
+                    >
+                      {group.source_workflow_name}
+                    </Link>
                   </dd>
                 </div>
               )}
@@ -350,7 +402,12 @@ export function GroupScreen() {
                   <div className="contents">
                     <dt className="text-zinc-500">Workflow</dt>
                     <dd className="font-mono text-[11px] text-zinc-300 break-all">
-                      {origin.workflow_name}
+                      <Link
+                        to={`/i/${instanceId}/workflows/${origin.workflow_name}`}
+                        className="hover:underline"
+                      >
+                        {origin.workflow_name}
+                      </Link>
                       {origin.step_id && ` · ${origin.step_id}`}
                     </dd>
                   </div>
