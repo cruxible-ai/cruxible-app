@@ -60,9 +60,10 @@ export function useGovernedRelationshipTypes(): Set<string> {
   }, [schema.data]);
 }
 
-/** Review outcomes seen on the wire: group resolve stamps "approved",
- * feedback acceptance stamps "accepted". */
-const POSITIVE_REVIEW = new Set(["accepted", "approved"]);
+/** The authoritative assertion vocabulary is unreviewed|pending|approved|
+ * rejected ("accepted" is the read-FILTER name that maps to approved —
+ * different layer, verified in core). */
+const POSITIVE_REVIEW = new Set(["approved"]);
 const NEGATIVE_REVIEW = new Set(["rejected"]);
 
 export function edgeStroke(

@@ -255,10 +255,10 @@ function GraphLegend({ layersOn }: { layersOn: boolean }) {
     <div className="flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
       <span className={section}>Governed edges — review state</span>
       <span className={row}>
-        <span className="h-px w-3 bg-emerald-500" /> Accepted
+        <span className="h-px w-3 bg-emerald-500" /> Approved
       </span>
       <span className={row}>
-        <span className="h-px w-3 bg-amber-400" /> Unreviewed
+        <span className="h-px w-3 bg-amber-400" /> Unreviewed / pending
       </span>
       <span className={row}>
         <span className="h-px w-3 bg-red-500" /> Rejected

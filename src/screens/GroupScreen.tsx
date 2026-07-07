@@ -43,7 +43,15 @@ interface GroupDetail {
     proposed_actor_context?: { actor_id?: string; actor_type?: string } | null;
     created_at?: string | null;
     thesis_facts?: {
-      policy?: { auto_resolve_when?: string };
+      origin?: {
+        kind?: string;
+        evidence_mode?: string;
+        workflow_name?: string;
+        step_id?: string;
+        proposal_logic_digest?: string;
+      };
+      relationship?: { type?: string; from_type?: string; to_type?: string };
+      policy?: { auto_resolve_when?: string; proposal_identity?: string };
       signals?: { used?: string[]; required?: string[]; blocking?: string[] };
     };
   };
@@ -67,6 +75,8 @@ export function GroupScreen() {
   if (!data?.group) return <EmptyState>Group not found.</EmptyState>;
   const { group, members } = data;
   const signals = group.thesis_facts?.signals;
+  const origin = group.thesis_facts?.origin;
+  const resolved = group.status !== "pending_review";
 
   return (
     <div className="space-y-3">
@@ -101,7 +111,16 @@ export function GroupScreen() {
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-3">
-          <Panel title="Proposed edges">
+          <Panel
+            title="Proposed edges"
+            meta={
+              resolved ? (
+                <span className="text-zinc-500">
+                  Proposal-time snapshot — the resolution wrote the live edges
+                </span>
+              ) : undefined
+            }
+          >
             <div className="space-y-2">
               {members.map((m, i) => (
                 <div key={i} className="rounded border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-2">
@@ -111,7 +130,10 @@ export function GroupScreen() {
                     <span className="text-zinc-600">→</span>
                     <span className="text-[11px] text-zinc-600">{m.to_type}</span>
                     <EntityLink entityType={m.to_type} entityId={m.to_id} />
-                    {m.metadata?.assertion?.review?.status && (
+                    {/* Members are the immutable as-proposed record; showing
+                        their frozen review stamp on a resolved group reads as
+                        current state, which it is not. */}
+                    {!resolved && m.metadata?.assertion?.review?.status && (
                       <span className="ml-auto">
                         <Chip value={m.metadata.assertion.review.status} />
                       </span>
@@ -205,6 +227,54 @@ export function GroupScreen() {
               )}
             </dl>
           </Panel>
+
+          {origin && (
+            <Panel title="Thesis facts">
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
+                {origin.kind && (
+                  <div className="contents">
+                    <dt className="text-zinc-500">Origin</dt>
+                    <dd className="text-zinc-300">{humanize(origin.kind)}</dd>
+                  </div>
+                )}
+                {origin.workflow_name && (
+                  <div className="contents">
+                    <dt className="text-zinc-500">Workflow</dt>
+                    <dd className="font-mono text-[11px] text-zinc-300 break-all">
+                      {origin.workflow_name}
+                      {origin.step_id && ` · ${origin.step_id}`}
+                    </dd>
+                  </div>
+                )}
+                {origin.evidence_mode && (
+                  <div className="contents">
+                    <dt className="text-zinc-500">Evidence mode</dt>
+                    <dd className="text-zinc-300">{humanize(origin.evidence_mode)}</dd>
+                  </div>
+                )}
+                {origin.proposal_logic_digest && (
+                  <div className="contents">
+                    <dt className="text-zinc-500">Logic digest</dt>
+                    <dd
+                      className="truncate font-mono text-[10px] text-zinc-400"
+                      title={origin.proposal_logic_digest}
+                    >
+                      {origin.proposal_logic_digest}
+                    </dd>
+                  </div>
+                )}
+                {group.thesis_facts?.relationship?.from_type && (
+                  <div className="contents">
+                    <dt className="text-zinc-500">Proposes</dt>
+                    <dd className="text-zinc-300">
+                      {group.thesis_facts.relationship.from_type} →{" "}
+                      {group.thesis_facts.relationship.to_type}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </Panel>
+          )}
 
           {(signals || group.thesis_facts?.policy) && (
             <Panel title="Policy">
