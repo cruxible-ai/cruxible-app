@@ -4,9 +4,14 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
+type StepConfig = string | Record<string, unknown>;
+
+/** Discriminated wire shape served by /schema since core adefa83. */
 interface WorkflowStep {
   id?: string;
-  [field: string]: unknown;
+  kind?: string;
+  /** String for provider / named-query references, object for inline specs. */
+  config?: StepConfig | null;
 }
 
 interface WorkflowDef {
@@ -27,33 +32,8 @@ export interface SchemaWithWorkflows {
   providers?: Record<string, ProviderDef>;
 }
 
-/**
- * A composed-config step carries every step-kind field, all null except the
- * one the step performs; these fields are structural, not kinds. The active
- * kind's value is the step config: a string for `provider`, an object (e.g.
- * an inline query definition) elsewhere — never renderable directly.
- */
-const STRUCTURAL_STEP_FIELDS = new Set([
-  "id",
-  "as_",
-  "params",
-  "input",
-  "relationship_state",
-  "include_source",
-]);
-
-type StepConfig = string | Record<string, unknown>;
-
-function stepKind(step: WorkflowStep): { kind: string; config: StepConfig | null } {
-  for (const [field, value] of Object.entries(step)) {
-    if (STRUCTURAL_STEP_FIELDS.has(field) || value == null) continue;
-    return { kind: field, config: value as StepConfig };
-  }
-  return { kind: "step", config: null };
-}
-
 /** One step chip: the most identifying reference the step config carries. */
-function stepDetail(config: StepConfig | null): string | null {
+function stepDetail(config: StepConfig | null | undefined): string | null {
   if (typeof config === "string") return config;
   if (config) {
     for (const key of ["entity_type", "relationship_type", "entry_point", "workflow", "query"]) {
@@ -108,11 +88,11 @@ export function WorkflowsScreen() {
             )}
             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px]">
               {(wf.steps ?? []).map((step, i) => {
-                const { kind, config } = stepKind(step);
-                const detail = stepDetail(config);
+                const kind = step.kind ?? "step";
+                const detail = stepDetail(step.config);
                 const provider =
-                  kind === "provider" && typeof config === "string"
-                    ? providers[config]
+                  kind === "provider" && typeof step.config === "string"
+                    ? providers[step.config]
                     : undefined;
                 return (
                   <span key={step.id ?? i} className="inline-flex items-center gap-1.5">
