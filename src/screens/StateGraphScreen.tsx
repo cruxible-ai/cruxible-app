@@ -190,19 +190,47 @@ export function StateGraphScreen() {
     [stats.data, settings.hideCold, statusCounts],
   );
 
-  const includedTypes = typeCounts
-    .filter(([type]) => !typeFilter || typeFilter.has(type))
-    .map(([type]) => type);
+  // With no explicit selection, auto-fit: include types smallest-first until
+  // the budget is spent, so every instance draws SOMETHING immediately —
+  // the biggest types drop out rather than the whole canvas refusing. An
+  // explicit over-budget selection still gets the refusal message.
+  const { includedTypes, autoExcluded } = useMemo(() => {
+    if (typeFilter) {
+      return {
+        includedTypes: typeCounts.filter(([t]) => typeFilter.has(t)).map(([t]) => t),
+        autoExcluded: [] as string[],
+      };
+    }
+    const ascending = [...typeCounts].sort((a, b) => a[1] - b[1]);
+    const included: string[] = [];
+    let used = 0;
+    for (const [type, count] of ascending) {
+      if (included.length > 0 && used + count > MAX_NODES) continue;
+      included.push(type);
+      used += count;
+    }
+    const order = typeCounts.map(([t]) => t);
+    return {
+      includedTypes: order.filter((t) => included.includes(t)),
+      autoExcluded: order.filter((t) => !included.includes(t)),
+    };
+  }, [typeCounts, typeFilter]);
+
   const projectedNodes = typeCounts
     .filter(([type]) => includedTypes.includes(type))
     .reduce((s, [, n]) => s + n, 0);
-  const withinBudget = projectedNodes > 0 && projectedNodes <= MAX_NODES;
+  // Auto-fit always draws (the per-type fetch cap bounds the pathological
+  // one-giant-type case); only an explicit selection can refuse.
+  const withinBudget =
+    projectedNodes > 0 && (projectedNodes <= MAX_NODES || !typeFilter);
 
   const entityResults = useEntitiesForTypes(includedTypes, MAX_NODES, withinBudget);
   const edgeList = useEdgeList(EDGE_FETCH_LIMIT, withinBudget);
 
   function toggleType(type: string) {
-    const next = new Set(typeFilter ?? typeCounts.map(([t]) => t));
+    // Toggling starts from what is actually drawn, so turning one chip on or
+    // off never silently resurrects the auto-excluded giants.
+    const next = new Set(typeFilter ?? includedTypes);
     if (next.has(type)) next.delete(type);
     else next.add(type);
     const sp = new URLSearchParams(searchParams);
@@ -366,15 +394,21 @@ export function StateGraphScreen() {
         </span>
       </header>
       {typeCounts.length > 1 && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
           {typeCounts.map(([type, count]) => {
-            const active = !typeFilter || typeFilter.has(type);
+            const active = includedTypes.includes(type);
             return (
               <button key={type} onClick={() => toggleType(type)} className={toggleChipClass(active)}>
                 {humanize(type)} <span className="font-mono text-[10px] text-zinc-500">{count}</span>
               </button>
             );
           })}
+          {autoExcluded.length > 0 && (
+            <span className="text-[11px] text-zinc-600">
+              {autoExcluded.map(humanize).join(", ")} left out to fit the {MAX_NODES}-node budget —
+              toggle chips to trade
+            </span>
+          )}
         </div>
       )}
       {!withinBudget && projectedNodes > 0 && (
