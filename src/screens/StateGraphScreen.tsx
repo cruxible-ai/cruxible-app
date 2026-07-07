@@ -46,12 +46,14 @@ import { useSettings } from "@/lib/settings";
 import { humanize, matchesText } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
-/** Dot nodes are cheap: the budget is an order of magnitude past the cards'. */
-const MAX_NODES = 3000;
+/** Dot nodes are cheap; cards carry text and need an order of magnitude less. */
+const MAX_NODES_DOTS = 3000;
+const MAX_NODES_CARDS = 600;
+/** Card mode shows each type's best-connected members and folds the rest
+ * into one overflow card — reading titles is the mode's whole point, so it
+ * shows the members most worth reading. */
+const CARDS_PER_TYPE = 40;
 const EDGE_FETCH_LIMIT = 20000;
-/** Below this many drawn nodes every dot carries its label; above, labels
- * appear on hover, selection, and search matches. */
-const LABELS_ALWAYS_BELOW = 250;
 
 interface DotNodeCore {
   entityType: string;
@@ -69,9 +71,10 @@ type DotNodeData = DotNodeCore & {
 };
 
 function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
-  // Status is the primary signal; entities without one (reference rows,
-  // assessments) take their kit layer's hue so composed instances read as
-  // strata rather than a single undifferentiated cloud.
+  // No always-on text at dot density — identity comes from the legend, the
+  // hover label, search rings, and the context panel. Status is the primary
+  // hue; entities without one (reference rows, assessments) take their kit
+  // layer's hue so composed instances read as strata.
   const accent = data.layer ? LAYER_META[data.layer] : null;
   const fill = data.status
     ? SEGMENT_FILLS[toneFor(data.status)]
@@ -90,7 +93,7 @@ function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
       <div
         className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-300 ${
-          data.showLabel || data.matched ? "" : "opacity-0 group-hover:opacity-100"
+          data.matched ? "" : "opacity-0 group-hover:opacity-100"
         }`}
       >
         {data.title}
@@ -99,7 +102,174 @@ function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
   );
 }
 
-const nodeTypes = { dot: DotNode };
+function CardNode({ data }: NodeProps<Node<DotNodeData>>) {
+  const accent = data.layer ? LAYER_META[data.layer] : null;
+  return (
+    <div
+      className={`max-w-44 rounded border px-2 py-1 text-left ${
+        accent
+          ? `${accent.border} ${accent.borderHover} bg-zinc-900`
+          : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
+      } ${data.matched ? "ring-2 ring-zinc-100" : ""}`}
+    >
+      <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
+      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wide text-zinc-500">
+        {accent && (
+          <span title={accent.label} className={`h-1 w-1 shrink-0 rounded-full ${accent.dot}`} />
+        )}
+        {data.entityType}
+      </div>
+      <div className="flex items-center gap-1.5">
+        {data.status && (
+          <span
+            title={humanize(data.status)}
+            className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEGMENT_FILLS[toneFor(data.status)]}`}
+          />
+        )}
+        <span className="truncate text-[10px] leading-4 text-zinc-200">{data.title}</span>
+      </div>
+      <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
+    </div>
+  );
+}
+
+function ClusterLabelNode({ data }: NodeProps<Node<{ label: string; count: number; [key: string]: unknown }>>) {
+  return (
+    <div className="pointer-events-none text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+      {data.label} <span className="font-mono normal-case text-zinc-600">{data.count}</span>
+    </div>
+  );
+}
+
+function OverflowNode({ data }: NodeProps<Node<{ entityType: string; count: number; [key: string]: unknown }>>) {
+  const instanceId = useInstanceId();
+  return (
+    <Link
+      to={`/i/${instanceId}/browse/${data.entityType}`}
+      className="block max-w-44 rounded border border-dashed border-zinc-700 px-2 py-1 text-[10px] leading-4 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+    >
+      <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
+      +{data.count} more · browse →
+      <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
+    </Link>
+  );
+}
+
+const nodeTypes = {
+  dot: DotNode,
+  card: CardNode,
+  clusterLabel: ClusterLabelNode,
+  overflowCard: OverflowNode,
+};
+
+/**
+ * Card-mode layout: each type is a labeled near-square grid of cards packed
+ * left-to-right into rows of a roughly square canvas, with the type's
+ * overflow card (when capped) as the grid's last cell.
+ */
+function layoutCardClusters(
+  rows: Array<{ id: string; data: DotNodeCore }>,
+  overflow: Map<string, number>,
+  decorate: (row: { id: string; data: DotNodeCore }) => boolean,
+): Node[] {
+  const COL_W = 190;
+  const ROW_H = 48;
+  const GAP_X = 200;
+  const GAP_Y = 170;
+  const LABEL_H = 30;
+
+  const byType = new Map<string, typeof rows>();
+  for (const r of rows) {
+    byType.set(r.data.entityType, [...(byType.get(r.data.entityType) ?? []), r]);
+  }
+  const clusters = [...byType.entries()]
+    .map(([type, members]) => {
+      const cells = members.length + (overflow.has(type) ? 1 : 0);
+      const cols = Math.ceil(Math.sqrt(cells));
+      return {
+        type,
+        members,
+        cols,
+        width: cols * COL_W,
+        height: Math.ceil(cells / cols) * ROW_H + LABEL_H,
+      };
+    })
+    .sort((a, b) => b.members.length - a.members.length);
+
+  const totalArea = clusters.reduce((s, c) => s + (c.width + GAP_X) * (c.height + GAP_Y), 0);
+  const targetRowWidth = Math.max(Math.sqrt(totalArea) * 1.35, ...clusters.map((c) => c.width));
+
+  const nodes: Node[] = [];
+  let x = 0;
+  let y = 0;
+  let rowHeight = 0;
+  for (const cluster of clusters) {
+    if (x > 0 && x + cluster.width > targetRowWidth) {
+      x = 0;
+      y += rowHeight + GAP_Y;
+      rowHeight = 0;
+    }
+    nodes.push({
+      id: `__label:${cluster.type}`,
+      type: "clusterLabel",
+      position: { x, y },
+      selectable: false,
+      draggable: false,
+      data: {
+        label: humanize(cluster.type),
+        count: cluster.members.length + (overflow.get(cluster.type) ?? 0),
+      },
+    });
+    cluster.members.forEach((row, i) => {
+      nodes.push({
+        id: row.id,
+        type: "card",
+        position: {
+          x: x + (i % cluster.cols) * COL_W,
+          y: y + LABEL_H + Math.floor(i / cluster.cols) * ROW_H,
+        },
+        data: { ...row.data, showLabel: true, matched: decorate(row) },
+      });
+    });
+    if (overflow.has(cluster.type)) {
+      const i = cluster.members.length;
+      nodes.push({
+        id: `__more:${cluster.type}`,
+        type: "overflowCard",
+        position: {
+          x: x + (i % cluster.cols) * COL_W,
+          y: y + LABEL_H + Math.floor(i / cluster.cols) * ROW_H,
+        },
+        selectable: false,
+        data: { entityType: cluster.type, count: overflow.get(cluster.type)! },
+      });
+    }
+    x += cluster.width + GAP_X;
+    rowHeight = Math.max(rowHeight, cluster.height);
+  }
+  return nodes;
+}
+
+/** What the dot hues mean; layer hues come from the LayerLegend beside it. */
+function StatusLegend() {
+  const rows: Array<[string, string]> = [
+    ["bg-emerald-500", "Active / approved"],
+    ["bg-amber-400", "Awaiting review"],
+    ["bg-sky-500", "Planned"],
+    ["bg-red-500", "Blocked / attention"],
+    ["bg-zinc-500", "Cold or no status"],
+  ];
+  return (
+    <div className="flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
+      {rows.map(([dot, label]) => (
+        <span key={label} className="inline-flex items-center gap-1.5">
+          <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 interface EdgeRow {
   from_type: string;
@@ -197,6 +367,17 @@ export function StateGraphScreen() {
   }, [searchParams]);
   const focus = searchParams.get("focus");
   const hops = Number(searchParams.get("hops") ?? 1) === 2 ? 2 : 1;
+  // Two explicit renderings of the same graph: text-free dots for the whole
+  // instance, constrained cards when titles should read at a glance.
+  const mode: "dots" | "cards" = searchParams.get("view") === "cards" ? "cards" : "dots";
+  const maxNodes = mode === "cards" ? MAX_NODES_CARDS : MAX_NODES_DOTS;
+
+  function setMode(next: "dots" | "cards") {
+    const sp = new URLSearchParams(searchParams);
+    if (next === "cards") sp.set("view", "cards");
+    else sp.delete("view");
+    setSearchParams(sp);
+  }
 
   const statusCounts = (stats.data?.status_counts ?? {}) as Record<string, Record<string, number>>;
   const typeCounts = useMemo(
@@ -227,24 +408,29 @@ export function StateGraphScreen() {
     const included: string[] = [];
     let used = 0;
     for (const [type, count] of ascending) {
-      if (included.length > 0 && used + count > MAX_NODES) continue;
+      // Card mode's per-type cap means a giant type only costs its cap.
+      const cost = mode === "cards" ? Math.min(count, CARDS_PER_TYPE) : count;
+      if (included.length > 0 && used + cost > maxNodes) continue;
       included.push(type);
-      used += count;
+      used += cost;
     }
     const order = typeCounts.map(([t]) => t);
     return {
       includedTypes: order.filter((t) => included.includes(t)),
       autoExcluded: order.filter((t) => !included.includes(t)),
     };
-  }, [typeCounts, typeFilter]);
+  }, [typeCounts, typeFilter, mode, maxNodes]);
 
   const projectedNodes = typeCounts
     .filter(([type]) => includedTypes.includes(type))
-    .reduce((s, [, n]) => s + n, 0);
+    .reduce(
+      (s, [, n]) => s + (mode === "cards" ? Math.min(n, CARDS_PER_TYPE) : n),
+      0,
+    );
   const withinBudget =
-    projectedNodes > 0 && (projectedNodes <= MAX_NODES || !typeFilter);
+    projectedNodes > 0 && (projectedNodes <= maxNodes || !typeFilter);
 
-  const entityResults = useEntitiesForTypes(includedTypes, MAX_NODES, withinBudget);
+  const entityResults = useEntitiesForTypes(includedTypes, MAX_NODES_DOTS, withinBudget);
   const edgeList = useEdgeList(EDGE_FETCH_LIMIT, withinBudget);
 
   function toggleType(type: string) {
@@ -316,26 +502,66 @@ export function StateGraphScreen() {
       present = new Set([...present].filter((id) => keep.has(id)));
       links = links.filter((l) => present.has(l.source) && present.has(l.target));
     }
-    const drawnRows = rows.filter((r) => present.has(r.id));
+    let drawnRows = rows.filter((r) => present.has(r.id));
 
-    const positions = forceLayout(
-      drawnRows.map((r) => r.id),
-      links.map((l) => ({ source: l.source, target: l.target })),
-    );
+    // Card mode constraint: keep each type's best-connected members (degree
+    // over the drawn edges), fold the rest into one overflow card per type.
+    const overflow = new Map<string, number>();
+    if (mode === "cards") {
+      const degree = new Map<string, number>();
+      for (const l of links) {
+        degree.set(l.source, (degree.get(l.source) ?? 0) + 1);
+        degree.set(l.target, (degree.get(l.target) ?? 0) + 1);
+      }
+      const byType = new Map<string, typeof drawnRows>();
+      for (const r of drawnRows) {
+        byType.set(r.data.entityType, [...(byType.get(r.data.entityType) ?? []), r]);
+      }
+      const kept: typeof drawnRows = [];
+      for (const [type, members] of byType) {
+        // Focused views are already small — never fold a neighborhood member.
+        if (focus || members.length <= CARDS_PER_TYPE) {
+          kept.push(...members);
+          continue;
+        }
+        const sorted = [...members].sort(
+          (a, b) =>
+            (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0) || a.id.localeCompare(b.id),
+        );
+        kept.push(...sorted.slice(0, CARDS_PER_TYPE));
+        overflow.set(type, members.length - CARDS_PER_TYPE);
+      }
+      const keptIds = new Set(kept.map((r) => r.id));
+      dropped += links.filter(
+        (l) => !keptIds.has(l.source) || !keptIds.has(l.target),
+      ).length;
+      links = links.filter((l) => keptIds.has(l.source) && keptIds.has(l.target));
+      drawnRows = kept;
+    }
 
-    const showLabels = drawnRows.length <= LABELS_ALWAYS_BELOW;
     let matches = 0;
-    const nodes: Node<DotNodeData>[] = drawnRows.map((r) => {
+    const decorate = (r: (typeof drawnRows)[number]) => {
       const matched =
         search.trim() !== "" && matchesText([r.data.entityId, r.data.title], search);
       if (matched) matches++;
-      return {
+      return matched;
+    };
+
+    let nodes: Node[];
+    if (mode === "cards") {
+      nodes = layoutCardClusters(drawnRows, overflow, decorate);
+    } else {
+      const positions = forceLayout(
+        drawnRows.map((r) => r.id),
+        links.map((l) => ({ source: l.source, target: l.target })),
+      );
+      nodes = drawnRows.map((r) => ({
         id: r.id,
         type: "dot",
         position: positions.get(r.id) ?? { x: 0, y: 0 },
-        data: { ...r.data, showLabel: showLabels, matched },
-      };
-    });
+        data: { ...r.data, showLabel: false, matched: decorate(r) },
+      }));
+    }
 
     // No arrowheads at dot density — direction lives in the context panel.
     const edges: Edge[] = links.map(({ row, source, target }) => {
@@ -357,7 +583,7 @@ export function StateGraphScreen() {
       };
     });
     return { nodes, edges, droppedEdges: dropped, matchCount: matches };
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, search]);
+  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, search, mode]);
 
   if (stats.isPending) return <LoadState />;
   if (stats.error) return <LoadState error={stats.error} />;
@@ -376,7 +602,9 @@ export function StateGraphScreen() {
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
     if (selection.kind === "node") {
       const node = nodes.find((n) => n.id === selection.id);
-      if (!node) return null;
+      // Synthetic cluster labels / overflow cards carry no entity.
+      if (!node || typeof (node.data as { entityId?: unknown }).entityId !== "string")
+        return null;
       const d = node.data as DotNodeData;
       return (
         <div>
@@ -462,6 +690,19 @@ export function StateGraphScreen() {
           {droppedEdges > 0 && !focus && ` · ${droppedEdges} edges to excluded or hidden entities not drawn`}
         </span>
         <span className="ml-auto flex items-center gap-2">
+          <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[11px]">
+            {(["dots", "cards"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-2 py-px ${
+                  mode === m ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {m === "dots" ? "Dots" : "Cards"}
+              </button>
+            ))}
+          </span>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -514,7 +755,7 @@ export function StateGraphScreen() {
           })}
           {autoExcluded.length > 0 && (
             <span className="text-[11px] text-zinc-600">
-              {autoExcluded.map(humanize).join(", ")} left out to fit the {MAX_NODES}-node budget —
+              {autoExcluded.map(humanize).join(", ")} left out to fit the {maxNodes}-node budget —
               toggle chips to trade
             </span>
           )}
@@ -522,7 +763,7 @@ export function StateGraphScreen() {
       )}
       {!withinBudget && projectedNodes > 0 && (
         <EmptyState>
-          {projectedNodes.toLocaleString()} entities selected — the canvas draws up to {MAX_NODES}.
+          {projectedNodes.toLocaleString()} entities selected — this view draws up to {maxNodes}.
           Narrow the type chips above (or hide cold entities in Settings) to bring the selection
           under budget.
         </EmptyState>
@@ -532,14 +773,19 @@ export function StateGraphScreen() {
       {withinBudget && !loading && (
         <GraphCanvas
           // Remount on graph-identity change so fit-view reframes the new shape
-          // (focus in/out, hop change, type trades).
-          key={`${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
+          // (mode switch, focus in/out, hop change, type trades).
+          key={`${mode}:${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"
-          overlay={layerColoring.enabled ? <LayerLegend /> : undefined}
+          overlay={
+            <div className="flex flex-col gap-2">
+              <StatusLegend />
+              {layerColoring.enabled && <LayerLegend />}
+            </div>
+          }
           selectRequest={selectRequest}
         >
           <Controls showInteractive={false} className="!shadow-none" />
