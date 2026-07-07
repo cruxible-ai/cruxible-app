@@ -226,7 +226,9 @@ export function PathGraph({ items }: { items: PathItem[] }) {
               Open entity →
             </Link>
             <Link
-              to={`/i/${instanceId}/g/${d.entityType}/${d.entityId}`}
+              to={`/i/${instanceId}/graph?focus=${encodeURIComponent(
+                `${d.entityType}:${d.entityId}`,
+              )}`}
               className={actionChipClass}
             >
               Entity graph →

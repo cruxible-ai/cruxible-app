@@ -103,7 +103,9 @@ export function EntityScreen() {
           <span className="text-zinc-400">{humanize(data.entity_type)}</span>
           <MonoId id={data.entity_id} />
           <Link
-            to={`/i/${instanceId}/g/${data.entity_type}/${data.entity_id}`}
+            to={`/i/${instanceId}/graph?focus=${encodeURIComponent(
+              `${data.entity_type}:${data.entity_id}`,
+            )}`}
             className={`ml-auto inline-flex items-center gap-1.5 ${actionChipClass}`}
           >
             <Waypoints className="h-3 w-3" />

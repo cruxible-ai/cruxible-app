@@ -84,7 +84,7 @@ export function WorkflowScreen() {
                       {(step.kind ?? "step").replaceAll("_", " ")}
                       {provider && (
                         <span
-                          title={provider.deterministic ? "deterministic" : "non-deterministic"}
+                          title={provider.deterministic ? "Deterministic" : "Non-deterministic"}
                           className={`h-1.5 w-1.5 rounded-full ${
                             provider.deterministic ? "bg-emerald-500" : "bg-amber-400"
                           }`}
@@ -128,6 +128,9 @@ export function WorkflowScreen() {
                         </td>
                         <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-400">
                           {s.verdictPath ?? "—"}
+                          {s.verdictRule && (
+                            <div className="text-[10px] text-zinc-600">{s.verdictRule}</div>
+                          )}
                         </td>
                         <td className="py-1.5 pr-3 font-mono text-[10px] text-zinc-500">
                           {s.evidenceExpr ?? "—"}
@@ -160,7 +163,7 @@ export function WorkflowScreen() {
                         p.deterministic ? "bg-emerald-500" : "bg-amber-400"
                       }`}
                     />
-                    {p.deterministic ? "deterministic" : "non-deterministic"}
+                    {p.deterministic ? "Deterministic" : "Non-deterministic"}
                   </span>
                 }
               >

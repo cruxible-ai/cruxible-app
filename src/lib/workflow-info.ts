@@ -62,8 +62,10 @@ export interface SignalWiring {
   fromStepId?: string;
   /** Provider behind that step, when the reference is a provider step. */
   providerName?: string;
-  /** Provider output field the verdict is read from (enum.path / score). */
+  /** Provider output field the verdict is read from. */
   verdictPath?: string;
+  /** For score-mapped signals: the declared thresholding rule. */
+  verdictRule?: string;
   /** Expression the per-member evidence text comes from. */
   evidenceExpr?: string;
 }
@@ -91,18 +93,28 @@ export function signalWiring(workflow: WireWorkflow | undefined): SignalWiring[]
         ? refStep.config
         : undefined;
     const enumSpec = config.enum as { path?: string } | null | undefined;
+    const scoreSpec = config.score as
+      | { path?: string; support_gte?: number; unsure_gte?: number }
+      | null
+      | undefined;
     const verdictPath =
       typeof enumSpec?.path === "string"
         ? enumSpec.path
-        : typeof config.score === "object" && config.score
-          ? "score"
+        : typeof scoreSpec?.path === "string"
+          ? scoreSpec.path
           : undefined;
+    // Score-mapped signals threshold a numeric provider output into the
+    // tri-state verdict; the rule is config, so show it verbatim.
+    const verdictRule = scoreSpec?.path
+      ? `≥${scoreSpec.support_gte ?? "?"} support · ≥${scoreSpec.unsure_gte ?? "?"} unsure · else contradict`
+      : undefined;
     const evidenceExpr = typeof config.evidence === "string" ? config.evidence : undefined;
     wiring.push({
       source,
       ...(fromStepId ? { fromStepId } : {}),
       ...(providerName ? { providerName } : {}),
       ...(verdictPath ? { verdictPath } : {}),
+      ...(verdictRule ? { verdictRule } : {}),
       ...(evidenceExpr ? { evidenceExpr } : {}),
     });
   }

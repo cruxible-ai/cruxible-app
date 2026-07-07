@@ -96,11 +96,12 @@ export function useInstanceSchema() {
   });
 }
 
-export function useInspectEntity(entityType: string, entityId: string) {
+export function useInspectEntity(entityType: string, entityId: string, enabled = true) {
   const client = useApiClient();
   const instanceId = useInstanceId();
   return useQuery({
     queryKey: ["inspect-entity", instanceId, entityType, entityId],
+    enabled: enabled && entityType !== "" && entityId !== "",
     queryFn: async () =>
       unwrap(
         await client.GET("/api/v1/{instance_id}/inspect/entity/{entity_type}/{entity_id}", {
@@ -366,25 +367,6 @@ export function useEntitiesForTypes(entityTypes: string[], limitPerType: number,
             params: {
               path: { instance_id: instanceId, resource_type: "entities" },
               query: { entity_type: entityType, limit: limitPerType },
-            },
-          }),
-        ),
-    })),
-  });
-}
-
-/** Parallel inspect reads — powers in-place neighborhood expansion on graphs. */
-export function useInspectEntities(refs: Array<{ entityType: string; entityId: string }>) {
-  const client = useApiClient();
-  const instanceId = useInstanceId();
-  return useQueries({
-    queries: refs.map(({ entityType, entityId }) => ({
-      queryKey: ["inspect-entity", instanceId, entityType, entityId],
-      queryFn: async () =>
-        unwrap(
-          await client.GET("/api/v1/{instance_id}/inspect/entity/{entity_type}/{entity_id}", {
-            params: {
-              path: { instance_id: instanceId, entity_type: entityType, entity_id: entityId },
             },
           }),
         ),

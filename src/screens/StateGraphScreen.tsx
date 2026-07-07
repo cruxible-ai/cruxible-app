@@ -19,7 +19,13 @@ import {
   type SimulationLinkDatum,
   type SimulationNodeDatum,
 } from "d3-force";
-import { useEdgeList, useEntitiesForTypes, useInstanceId, useStats } from "@/api/hooks";
+import {
+  useEdgeList,
+  useEntitiesForTypes,
+  useInspectEntity,
+  useInstanceId,
+  useStats,
+} from "@/api/hooks";
 import {
   EdgeGovernancePanel,
   edgeStroke,
@@ -391,6 +397,15 @@ export function StateGraphScreen() {
   }, [searchParams]);
   const focus = searchParams.get("focus");
   const hops = Number(searchParams.get("hops") ?? 1) === 2 ? 2 : 1;
+  // The focused entity is fetched directly (entity pages link here for any
+  // entity), so focusing works even when the entity's type is auto-excluded
+  // or its rows fall past the per-type list cap.
+  const colon = focus?.indexOf(":") ?? -1;
+  const focusRef =
+    focus && colon > 0
+      ? { type: focus.slice(0, colon), id: focus.slice(colon + 1) }
+      : null;
+  const focusInspect = useInspectEntity(focusRef?.type ?? "", focusRef?.id ?? "", !!focusRef);
   // Two explicit renderings of the same graph: text-free dots for the whole
   // instance, constrained cards when titles should read at a glance.
   const mode: "dots" | "cards" = searchParams.get("view") === "cards" ? "cards" : "dots";
@@ -451,8 +466,9 @@ export function StateGraphScreen() {
       (s, [, n]) => s + (mode === "cards" ? Math.min(n, CARDS_PER_TYPE) : n),
       0,
     );
+  // A focused view is small by construction — always drawable.
   const withinBudget =
-    projectedNodes > 0 && (projectedNodes <= maxNodes || !typeFilter);
+    !!focusRef || (projectedNodes > 0 && (projectedNodes <= maxNodes || !typeFilter));
 
   const entityResults = useEntitiesForTypes(includedTypes, MAX_NODES_DOTS, withinBudget);
   const edgeList = useEdgeList(EDGE_FETCH_LIMIT, withinBudget);
@@ -504,6 +520,59 @@ export function StateGraphScreen() {
         });
       }
     }
+    // Inject the focused entity and its 1-hop from the direct inspect read:
+    // guarantees the center exists regardless of type chips or list caps.
+    const inspectData = focusInspect.data as
+      | {
+          found?: boolean;
+          properties?: Record<string, unknown>;
+          neighbors?: Array<{
+            direction: "incoming" | "outgoing";
+            relationship_type: string;
+            edge_key: number;
+            properties?: Record<string, unknown> | null;
+            metadata?: EdgeMetadata | null;
+            entity: unknown;
+          }>;
+        }
+      | undefined;
+    const rowFor = (entityType: string, entityId: string, props: Record<string, unknown>) => ({
+      id: `${entityType}:${entityId}`,
+      data: {
+        entityType,
+        entityId,
+        title:
+          typeof props.title === "string"
+            ? props.title
+            : typeof props.name === "string"
+              ? props.name
+              : entityId,
+        status: typeof props.status === "string" ? props.status : undefined,
+        layer: layerColoring.enabled ? layerColoring.layerFor(entityType) : null,
+        properties: props,
+      },
+    });
+    if (focusRef && inspectData?.found) {
+      const have = new Set(rows.map((r) => r.id));
+      const inject = (r: ReturnType<typeof rowFor>) => {
+        if (!have.has(r.id)) {
+          have.add(r.id);
+          rows.push(r);
+        }
+      };
+      inject(rowFor(focusRef.type, focusRef.id, inspectData.properties ?? {}));
+      for (const nb of inspectData.neighbors ?? []) {
+        if (!isEntityRef(nb.entity)) continue;
+        if (settings.hideCold && isColdEntity(nb.entity)) continue;
+        inject(
+          rowFor(
+            nb.entity.entity_type,
+            nb.entity.entity_id,
+            (nb.entity.properties ?? {}) as Record<string, unknown>,
+          ),
+        );
+      }
+    }
     let present = new Set(rows.map((r) => r.id));
 
     const edgeRows = ((edgeList.data as { items?: EdgeRow[] } | undefined)?.items ?? []);
@@ -517,6 +586,33 @@ export function StateGraphScreen() {
         continue;
       }
       links.push({ row, source, target });
+    }
+    if (focusRef && inspectData?.found) {
+      const centerId = `${focusRef.type}:${focusRef.id}`;
+      const seenKeys = new Set(links.map((l) => l.row.edge_key));
+      for (const nb of inspectData.neighbors ?? []) {
+        if (!isEntityRef(nb.entity) || seenKeys.has(nb.edge_key)) continue;
+        const otherId = `${nb.entity.entity_type}:${nb.entity.entity_id}`;
+        if (!present.has(otherId)) continue;
+        const [source, target] =
+          nb.direction === "outgoing" ? [centerId, otherId] : [otherId, centerId];
+        const [fromType, fromId] = source.split(/:(.+)/);
+        const [toType, toId] = target.split(/:(.+)/);
+        links.push({
+          row: {
+            from_type: fromType ?? "",
+            from_id: fromId ?? "",
+            to_type: toType ?? "",
+            to_id: toId ?? "",
+            relationship_type: nb.relationship_type,
+            edge_key: nb.edge_key,
+            properties: nb.properties ?? null,
+            metadata: nb.metadata ?? null,
+          },
+          source,
+          target,
+        });
+      }
     }
 
     // Isolation cuts nodes AND edges to the k-hop neighborhood before layout,
@@ -603,7 +699,7 @@ export function StateGraphScreen() {
     return { nodes: nodes, edges, droppedEdges: dropped };
     // search is deliberately NOT a dependency: layout is expensive and match
     // decoration happens in the cheap pass below.
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, mode, governedTypes]);
+  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, mode, governedTypes, focusRef, focusInspect.data]);
 
   // Cheap per-keystroke pass: stamp search matches onto the laid-out nodes.
   const { nodes, matchCount } = useMemo(() => {

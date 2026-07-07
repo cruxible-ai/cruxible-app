@@ -213,14 +213,17 @@ export function GroupScreen() {
                               </span>
                               {provider && (
                                 <span
-                                  title={provider.deterministic ? "deterministic" : "non-deterministic"}
+                                  title={provider.deterministic ? "Deterministic" : "Non-deterministic"}
                                   className={`h-1.5 w-1.5 shrink-0 rounded-full ${
                                     provider.deterministic ? "bg-emerald-500" : "bg-amber-400"
                                   }`}
                                 />
                               )}
                               {w.verdictPath && (
-                                <span className="font-mono text-[10px] text-zinc-600">
+                                <span
+                                  className="font-mono text-[10px] text-zinc-600"
+                                  title={w.verdictRule}
+                                >
                                   .{w.verdictPath}
                                 </span>
                               )}
@@ -280,12 +283,19 @@ export function GroupScreen() {
                       {m.properties.rationale}
                     </p>
                   )}
-                  {Object.entries(m.properties ?? {}).filter(([k]) => k !== "rationale").length >
-                    0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {Object.entries(m.properties ?? {})
-                        .filter(([k]) => k !== "rationale")
-                        .map(([k, v]) => (
+                  {(() => {
+                    // Signal evidence rows already show basis text verbatim —
+                    // a property chip repeating the same string is noise.
+                    const evidenceTexts = new Set(
+                      (m.signals ?? []).map((s) => s.evidence).filter(Boolean),
+                    );
+                    const chips = Object.entries(m.properties ?? {}).filter(
+                      ([k, v]) => k !== "rationale" && !evidenceTexts.has(String(v)),
+                    );
+                    if (chips.length === 0) return null;
+                    return (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {chips.map(([k, v]) => (
                           <span
                             key={k}
                             className={`${defChipClass} text-[10px]`}
@@ -295,8 +305,9 @@ export function GroupScreen() {
                             <span className="text-zinc-200">{humanize(String(v))}</span>
                           </span>
                         ))}
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })()}
                   {(m.signals ?? []).length > 0 && (
                     <div className="mt-1.5 space-y-1 border-t border-zinc-800/50 pt-1.5">
                       <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">

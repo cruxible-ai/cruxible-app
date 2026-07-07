@@ -3,7 +3,6 @@ import { AppShell } from "./AppShell";
 import { OverviewScreen } from "@/screens/OverviewScreen";
 import { QueryViewScreen } from "@/screens/QueryViewScreen";
 import { EntityScreen } from "@/screens/EntityScreen";
-import { GraphScreen } from "@/screens/GraphScreen";
 import { ActivityScreen } from "@/screens/ActivityScreen";
 import { GroupScreen } from "@/screens/GroupScreen";
 import { GroupsScreen } from "@/screens/GroupsScreen";
@@ -44,7 +43,6 @@ export const router = createBrowserRouter([
       { path: "workflows/:workflowName", element: <WorkflowScreen /> },
       { path: "views/:queryName", element: <QueryViewScreen /> },
       { path: "e/:entityType/:entityId", element: <EntityScreen /> },
-      { path: "g/:entityType/:entityId", element: <GraphScreen /> },
       { path: "receipts/:receiptId", element: <ReceiptScreen /> },
       { path: "browse/:entityType", element: <BrowseScreen /> },
       { path: "sources", element: <SourcesScreen /> },
