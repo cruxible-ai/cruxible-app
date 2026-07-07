@@ -121,8 +121,13 @@ export function AppShell() {
                 <GitPullRequest className="h-3.5 w-3.5" />
                 Review groups
               </span>
+              {/* Same quiet count treatment as the entity rows; amber is the
+                  signal, not a pill. */}
               {pendingGroups > 0 && (
-                <span className="rounded-full bg-amber-950/80 px-1.5 font-mono text-[10px] text-amber-400">
+                <span
+                  title={`${pendingGroups} awaiting review`}
+                  className="font-mono text-[11px] text-amber-400/90"
+                >
                   {pendingGroups}
                 </span>
               )}

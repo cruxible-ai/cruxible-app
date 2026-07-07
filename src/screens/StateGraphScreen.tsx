@@ -264,19 +264,13 @@ function layoutCardClusters(
 
 /**
  * Governance-first legend: edge review state is the signal this graph
- * exists to show; entity hue is the active color mode (type by default,
- * kit layer opt-in). Entity status coloring is deliberately absent until
+ * exists to show. Entity colors aren't repeated here — the type chips above
+ * the canvas carry their own swatches; only kit-layer mode needs its two
+ * layers explained. Entity status coloring is deliberately absent until
  * enum presentation semantics are config-owned
  * (oq-enum-presentation-semantics).
  */
-function GraphLegend({
-  layersOn,
-  typeSwatches,
-}: {
-  layersOn: boolean;
-  /** Drawn types with their assigned colors — null means kit-layer mode. */
-  typeSwatches: Array<{ type: string; color: string }> | null;
-}) {
+function GraphLegend({ kitLayers }: { kitLayers: boolean }) {
   const section = "text-[9px] font-semibold uppercase tracking-wider text-zinc-600";
   const row = "inline-flex items-center gap-1.5";
   return (
@@ -302,38 +296,15 @@ function GraphLegend({
         />{" "}
         Inactive lifecycle
       </span>
-      {typeSwatches ? (
-        <>
-          <span className={`${section} mt-1`}>Entities — type</span>
-          <div className="grid max-h-40 grid-cols-1 gap-y-1 overflow-y-auto">
-            {typeSwatches.map(({ type, color }) => (
-              <span key={type} className={row}>
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: color }}
-                />{" "}
-                {humanize(type)}
-              </span>
-            ))}
-          </div>
-        </>
-      ) : (
+      {kitLayers && (
         <>
           <span className={`${section} mt-1`}>Entities — kit layer</span>
-          {layersOn ? (
-            <>
-              <span className={row}>
-                <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.base.dot}`} /> {LAYER_META.base.label}
-              </span>
-              <span className={row}>
-                <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.domain.dot}`} /> {LAYER_META.domain.label}
-              </span>
-            </>
-          ) : (
-            <span className={row}>
-              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" /> Entity
-            </span>
-          )}
+          <span className={row}>
+            <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.base.dot}`} /> {LAYER_META.base.label}
+          </span>
+          <span className={row}>
+            <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.domain.dot}`} /> {LAYER_META.domain.label}
+          </span>
         </>
       )}
     </div>
@@ -468,9 +439,11 @@ export function StateGraphScreen() {
   const [search, setSearch] = useState("");
   const [selectRequest, setSelectRequest] = useState<{ id: string; nonce: number } | null>(null);
 
+  // types absent = all types; types present (even empty, from deselect-all)
+  // = exactly the listed set.
   const typeFilter = useMemo(() => {
     const raw = searchParams.get("types");
-    return raw ? new Set(raw.split(",")) : null;
+    return raw === null ? null : new Set(raw.split(",").filter(Boolean));
   }, [searchParams]);
   const focus = searchParams.get("focus");
   const hops = Number(searchParams.get("hops") ?? 1) === 2 ? 2 : 1;
@@ -598,6 +571,16 @@ export function StateGraphScreen() {
     else sp.set("types", [...next].sort().join(","));
     setSearchParams(sp);
     saveGraphPrefs(instanceId, all ? { types: undefined } : { types: [...next].sort() });
+  }
+
+  function setAllTypes(on: boolean) {
+    const sp = new URLSearchParams(searchParams);
+    if (on) sp.delete("types");
+    else sp.set("types", "");
+    setSearchParams(sp);
+    // Select-all resets the remembered filter; deselect-all is a transient
+    // narrowing step, not a preference worth restoring next visit.
+    if (on) saveGraphPrefs(instanceId, { types: undefined });
   }
 
   function setFocus(nodeId: string | null, nextHops?: number) {
@@ -871,20 +854,6 @@ export function StateGraphScreen() {
 
   const labelFor = (id: string) => titleById.get(id) ?? id;
 
-  // Legend swatches list only what's actually drawn (filters, focus, and
-  // budget all shrink the canvas — the legend follows).
-  const typeSwatches =
-    colorMode === "type"
-      ? [
-          ...new Set(
-            nodes
-              .map((n) => (n.data as { entityType?: unknown }).entityType)
-              .filter((t): t is string => typeof t === "string"),
-          ),
-        ]
-          .sort()
-          .map((type) => ({ type, color: typeColorFor(type) }))
-      : null;
 
   function jumpToFirstMatch() {
     const first = nodes.find((n) => (n.data as DotNodeData).matched);
@@ -1041,10 +1010,23 @@ export function StateGraphScreen() {
             const active = includedTypes.includes(type);
             return (
               <button key={type} onClick={() => toggleType(type)} className={toggleChipClass(active)}>
+                {/* The chip doubles as the color legend for its type's dots. */}
+                <span
+                  className={`mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle ${
+                    colorMode === "kit" ? LAYER_META[layerColoring.layerFor(type)].dot : ""
+                  } ${active ? "" : "opacity-40"}`}
+                  style={colorMode === "type" ? { backgroundColor: typeColorFor(type) } : undefined}
+                />
                 {humanize(type)} <span className="font-mono text-[10px] text-zinc-500">{count}</span>
               </button>
             );
           })}
+          <button
+            onClick={() => setAllTypes(includedTypes.length !== typeCounts.length)}
+            className={actionChipClass}
+          >
+            {includedTypes.length === typeCounts.length ? "Deselect all" : "Select all"}
+          </button>
           {autoExcluded.length > 0 && (
             <span className="text-[11px] text-zinc-600">
               {autoExcluded.map(humanize).join(", ")} left out to fit the {maxNodes}-node budget —
@@ -1072,7 +1054,7 @@ export function StateGraphScreen() {
           nodeTypes={nodeTypes}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"
-          overlay={<GraphLegend layersOn={layerColoring.enabled} typeSwatches={typeSwatches} />}
+          overlay={<GraphLegend kitLayers={colorMode === "kit"} />}
           selectRequest={selectRequest}
         >
           <Controls showInteractive={false} className="!shadow-none" />
