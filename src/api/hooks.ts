@@ -431,6 +431,12 @@ export function useEntitiesForTypes(entityTypes: string[], limitPerType: number,
           }),
         ),
     })),
+    // Without combine, useQueries returns a NEW array identity every render,
+    // which defeats any useMemo keyed on the result (the state graph's force
+    // layout, notably). combine + structural sharing keeps the reference
+    // stable until a query actually changes.
+    combine: (results) =>
+      results.map((r) => ({ data: r.data, isPending: r.isPending, error: r.error })),
   });
 }
 

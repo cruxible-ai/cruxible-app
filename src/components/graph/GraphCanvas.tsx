@@ -143,42 +143,77 @@ function Canvas({
   // lit nodes would smear into overlap, so past the cap only the dimming
   // applies and the context panel carries the list. False when nothing is
   // selected — "everything lit" is not a neighborhood.
+  //
+  // Both maps cache per-id: an element whose (source object, computed flags)
+  // didn't change keeps its previous OBJECT IDENTITY, so ReactFlow's node/
+  // edge memoization skips it — a search keystroke or selection change only
+  // re-renders the elements it actually touched.
   const revealDetail = litNodes !== null && litNodes.size <= 40;
-  const styledNodes = useMemo(
-    () =>
-      nodes.map((n) =>
-        litNodes && !litNodes.has(n.id)
-          ? { ...n, style: { ...n.style, opacity: 0.18, transition: "opacity 150ms" } }
-          : {
-              ...n,
-              data: { ...n.data, lit: revealDetail },
-              // Lift lit nodes so their revealed labels draw over dimmed dots.
-              ...(revealDetail ? { zIndex: 10 } : {}),
-              style: { ...n.style, opacity: 1, transition: "opacity 150ms" },
-            },
-      ),
-    [nodes, litNodes, revealDetail],
+  const nodeCache = useRef(
+    new Map<string, { src: Node; dim: boolean; lit: boolean; out: Node }>(),
   );
+  const styledNodes = useMemo(() => {
+    const prev = nodeCache.current;
+    const next = new Map<string, { src: Node; dim: boolean; lit: boolean; out: Node }>();
+    const out = nodes.map((n) => {
+      const dim = litNodes !== null && !litNodes.has(n.id);
+      const lit = !dim && revealDetail;
+      const hit = prev.get(n.id);
+      if (hit && hit.src === n && hit.dim === dim && hit.lit === lit) {
+        next.set(n.id, hit);
+        return hit.out;
+      }
+      const styled: Node = dim
+        ? { ...n, style: { ...n.style, opacity: 0.18, transition: "opacity 150ms" } }
+        : {
+            ...n,
+            data: { ...n.data, lit },
+            // Lift lit nodes so their revealed labels draw over dimmed dots.
+            ...(lit ? { zIndex: 10 } : {}),
+            style: { ...n.style, opacity: 1, transition: "opacity 150ms" },
+          };
+      next.set(n.id, { src: n, dim, lit, out: styled });
+      return styled;
+    });
+    nodeCache.current = next;
+    return out;
+  }, [nodes, litNodes, revealDetail]);
 
-  const styledEdges = useMemo(
-    () =>
-      edges.map((e) => {
-        const lit = !litEdges || litEdges.has(e.id);
-        const selected = selection?.kind === "edge" && selection.id === e.id;
-        return {
-          ...e,
-          type: "floating",
-          data: { ...e.data, lit: revealDetail && !!litEdges && lit },
-          style: {
-            ...e.style,
-            opacity: lit ? 1 : 0.12,
-            strokeWidth: selected ? 2.25 : e.style?.strokeWidth,
-            transition: "opacity 150ms",
-          },
-        };
-      }),
-    [edges, litEdges, selection, revealDetail],
+  const edgeCache = useRef(
+    new Map<string, { src: Edge; lit: boolean; reveal: boolean; selected: boolean; out: Edge }>(),
   );
+  const styledEdges = useMemo(() => {
+    const prev = edgeCache.current;
+    const next = new Map<
+      string,
+      { src: Edge; lit: boolean; reveal: boolean; selected: boolean; out: Edge }
+    >();
+    const out = edges.map((e) => {
+      const lit = !litEdges || litEdges.has(e.id);
+      const reveal = revealDetail && litEdges !== null && lit;
+      const selected = selection?.kind === "edge" && selection.id === e.id;
+      const hit = prev.get(e.id);
+      if (hit && hit.src === e && hit.lit === lit && hit.reveal === reveal && hit.selected === selected) {
+        next.set(e.id, hit);
+        return hit.out;
+      }
+      const styled: Edge = {
+        ...e,
+        type: "floating",
+        data: { ...e.data, lit: reveal },
+        style: {
+          ...e.style,
+          opacity: lit ? 1 : 0.12,
+          strokeWidth: selected ? 2.25 : e.style?.strokeWidth,
+          transition: "opacity 150ms",
+        },
+      };
+      next.set(e.id, { src: e, lit, reveal, selected, out: styled });
+      return styled;
+    });
+    edgeCache.current = next;
+    return out;
+  }, [edges, litEdges, selection, revealDetail]);
 
   const panel = selection ? renderPanel(selection, { select }) : null;
 

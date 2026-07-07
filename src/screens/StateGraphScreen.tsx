@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Controls,
@@ -340,6 +340,42 @@ function GraphLegend({
   );
 }
 
+/**
+ * Last-chosen display options (dots/cards, color mode, type chips) per
+ * instance, applied when the graph is opened WITHOUT explicit URL params.
+ * A shared link's params always win over the remembered state; focus is
+ * navigation, not preference, and is never stored.
+ */
+interface GraphPrefs {
+  view?: "dots" | "cards" | undefined;
+  color?: "type" | "kit" | undefined;
+  types?: string[] | undefined;
+}
+
+function prefsKey(instanceId: string) {
+  return `cruxible-graph-prefs:${instanceId}`;
+}
+
+function loadGraphPrefs(instanceId: string): GraphPrefs {
+  try {
+    return (JSON.parse(localStorage.getItem(prefsKey(instanceId)) ?? "{}") ?? {}) as GraphPrefs;
+  } catch {
+    return {};
+  }
+}
+
+function saveGraphPrefs(instanceId: string, patch: GraphPrefs) {
+  try {
+    // undefined patch values drop the key on stringify — "back to default".
+    localStorage.setItem(
+      prefsKey(instanceId),
+      JSON.stringify({ ...loadGraphPrefs(instanceId), ...patch }),
+    );
+  } catch {
+    // Storage unavailable (private mode, quota) — preference just won't stick.
+  }
+}
+
 interface EdgeRow {
   from_type: string;
   from_id: string;
@@ -440,12 +476,15 @@ export function StateGraphScreen() {
   const hops = Number(searchParams.get("hops") ?? 1) === 2 ? 2 : 1;
   // The focused entity is fetched directly (entity pages link here for any
   // entity), so focusing works even when the entity's type is auto-excluded
-  // or its rows fall past the per-type list cap.
-  const colon = focus?.indexOf(":") ?? -1;
-  const focusRef =
-    focus && colon > 0
+  // or its rows fall past the per-type list cap. Memoized: focusRef sits in
+  // the layout memo's deps, and a fresh object every render would re-run the
+  // force simulation on every keystroke.
+  const focusRef = useMemo(() => {
+    const colon = focus?.indexOf(":") ?? -1;
+    return focus && colon > 0
       ? { type: focus.slice(0, colon), id: focus.slice(colon + 1) }
       : null;
+  }, [focus]);
   const focusInspect = useInspectEntity(focusRef?.type ?? "", focusRef?.id ?? "", !!focusRef);
   // Two explicit renderings of the same graph: text-free dots for the whole
   // instance, constrained cards when titles should read at a glance.
@@ -456,11 +495,27 @@ export function StateGraphScreen() {
   const colorMode: "type" | "kit" =
     searchParams.get("color") === "kit" && layerColoring.enabled ? "kit" : "type";
 
+  // Opening the graph bare (sidebar click) restores the last-chosen options;
+  // any explicit params (shared links, entity-page focus) win untouched.
+  const hydratedPrefs = useRef(false);
+  useEffect(() => {
+    if (hydratedPrefs.current) return;
+    hydratedPrefs.current = true;
+    if ([...searchParams.keys()].length > 0) return;
+    const prefs = loadGraphPrefs(instanceId);
+    const sp = new URLSearchParams();
+    if (prefs.view === "cards") sp.set("view", "cards");
+    if (prefs.color === "kit") sp.set("color", "kit");
+    if (prefs.types && prefs.types.length > 0) sp.set("types", prefs.types.join(","));
+    if ([...sp.keys()].length > 0) setSearchParams(sp, { replace: true });
+  }, [searchParams, setSearchParams, instanceId]);
+
   function setMode(next: "dots" | "cards") {
     const sp = new URLSearchParams(searchParams);
     if (next === "cards") sp.set("view", "cards");
     else sp.delete("view");
     setSearchParams(sp);
+    saveGraphPrefs(instanceId, { view: next });
   }
 
   function setColorMode(next: "type" | "kit") {
@@ -468,28 +523,30 @@ export function StateGraphScreen() {
     if (next === "kit") sp.set("color", "kit");
     else sp.delete("color");
     setSearchParams(sp);
+    saveGraphPrefs(instanceId, { color: next });
   }
 
-  const statusCounts = (stats.data?.status_counts ?? {}) as Record<string, Record<string, number>>;
   // Colors key on the instance's FULL type vocabulary (not the filtered
   // view), so a type keeps its hue across chip toggles, hide-cold, and focus.
   const typeColorFor = useMemo(
     () => buildTypeColors(Object.keys(stats.data?.entity_counts ?? {})),
     [stats.data],
   );
-  const typeCounts = useMemo(
-    () =>
-      Object.entries(stats.data?.entity_counts ?? {})
-        .map(([type, count]): [string, number] => {
-          if (!settings.hideCold) return [type, count];
-          const cold = Object.entries(statusCounts[type] ?? {})
-            .filter(([status]) => isColdStatus(status))
-            .reduce((s, [, n]) => s + n, 0);
-          return [type, Math.max(0, count - cold)];
-        })
-        .filter(([, count]) => count > 0),
-    [stats.data, settings.hideCold, statusCounts],
-  );
+  const typeCounts = useMemo(() => {
+    const statusCounts = (stats.data?.status_counts ?? {}) as Record<
+      string,
+      Record<string, number>
+    >;
+    return Object.entries(stats.data?.entity_counts ?? {})
+      .map(([type, count]): [string, number] => {
+        if (!settings.hideCold) return [type, count];
+        const cold = Object.entries(statusCounts[type] ?? {})
+          .filter(([status]) => isColdStatus(status))
+          .reduce((s, [, n]) => s + n, 0);
+        return [type, Math.max(0, count - cold)];
+      })
+      .filter(([, count]) => count > 0);
+  }, [stats.data, settings.hideCold]);
 
   // With no explicit selection, auto-fit: include types smallest-first until
   // the budget is spent, so every instance draws SOMETHING immediately. An
@@ -536,9 +593,11 @@ export function StateGraphScreen() {
     if (next.has(type)) next.delete(type);
     else next.add(type);
     const sp = new URLSearchParams(searchParams);
-    if (next.size === typeCounts.length) sp.delete("types");
+    const all = next.size === typeCounts.length;
+    if (all) sp.delete("types");
     else sp.set("types", [...next].sort().join(","));
     setSearchParams(sp);
+    saveGraphPrefs(instanceId, all ? { types: undefined } : { types: [...next].sort() });
   }
 
   function setFocus(nodeId: string | null, nextHops?: number) {
@@ -783,14 +842,34 @@ export function StateGraphScreen() {
     return { nodes, matchCount: matches };
   }, [baseNodes, search]);
 
+  // Arriving with a focus target (entity page "View graph") also opens that
+  // entity's context panel — focused mode IS the entity's neighborhood view,
+  // not just a cropped canvas.
+  const autoSelectedFocus = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focus || autoSelectedFocus.current === focus) return;
+    if (!baseNodes.some((n) => n.id === focus)) return;
+    autoSelectedFocus.current = focus;
+    setSelectRequest({ id: focus, nonce: Date.now() });
+  }, [focus, baseNodes]);
+
+  // O(1) title lookups — labelFor runs per connection row and per lit edge.
+  const titleById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of baseNodes) {
+      const d = n.data as { title?: unknown };
+      if (typeof d.title === "string") m.set(n.id, d.title);
+    }
+    return m;
+  }, [baseNodes]);
+
   if (stats.isPending) return <LoadState />;
   if (stats.error) return <LoadState error={stats.error} />;
 
   const loading =
     withinBudget && (edgeList.isPending || entityResults.some((r) => r.isPending));
 
-  const labelFor = (id: string) =>
-    (nodes.find((n) => n.id === id)?.data as DotNodeData | undefined)?.title ?? id;
+  const labelFor = (id: string) => titleById.get(id) ?? id;
 
   // Legend swatches list only what's actually drawn (filters, focus, and
   // budget all shrink the canvas — the legend follows).
