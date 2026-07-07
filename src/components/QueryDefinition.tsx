@@ -4,11 +4,18 @@ import { defChipClass } from "@/components/Chip";
 import { humanize } from "@/lib/text";
 
 interface TraversalStep {
-  relationship?: string;
+  /** One relationship, or several for a multi-relationship hop. */
+  relationship?: string | string[];
   direction?: string;
   where?: Record<string, unknown> | null;
   max_depth?: number;
   alias?: string | null;
+}
+
+/** "a_b" → "a b"; multi-relationship hops read as "a b | c d". */
+function relationshipLabel(rel: string | string[] | undefined): string {
+  const names = Array.isArray(rel) ? rel : [rel ?? "?"];
+  return names.map((r) => r.replaceAll("_", " ")).join(" | ");
 }
 
 interface QueryDef {
@@ -89,7 +96,7 @@ export function QueryDefinition({
               {step.direction === "incoming" ? "←" : "→"}
             </span>
             <span className={defChipClass}>
-              <span>{(step.relationship ?? "?").replaceAll("_", " ")}</span>
+              <span>{relationshipLabel(step.relationship)}</span>
               {(step.max_depth ?? 1) > 1 && (
                 <span className="font-mono text-[10px] text-zinc-600">×{step.max_depth}</span>
               )}
