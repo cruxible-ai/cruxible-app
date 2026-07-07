@@ -21,3 +21,10 @@ body {
 table {
   font-variant-numeric: tabular-nums;
 }
+
+/* Each ReactFlow node is its own stacking context (inline z-index), so a
+   hovered dot's label can't escape it — lift the whole node instead.
+   !important beats the library's inline style. */
+.react-flow__node:hover {
+  z-index: 1000 !important;
+}

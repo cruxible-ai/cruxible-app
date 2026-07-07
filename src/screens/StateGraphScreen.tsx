@@ -777,7 +777,8 @@ export function StateGraphScreen() {
       if (typeof d.entityId !== "string") return n;
       const matched = matchesText([d.entityId, d.title], q);
       if (matched) matches++;
-      return matched ? { ...n, data: { ...n.data, matched: true } } : n;
+      // zIndex lifts the match ring + label over non-matching dots.
+      return matched ? { ...n, zIndex: 20, data: { ...n.data, matched: true } } : n;
     });
     return { nodes, matchCount: matches };
   }, [baseNodes, search]);

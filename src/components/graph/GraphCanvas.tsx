@@ -152,6 +152,8 @@ function Canvas({
           : {
               ...n,
               data: { ...n.data, lit: revealDetail },
+              // Lift lit nodes so their revealed labels draw over dimmed dots.
+              ...(revealDetail ? { zIndex: 10 } : {}),
               style: { ...n.style, opacity: 1, transition: "opacity 150ms" },
             },
       ),
