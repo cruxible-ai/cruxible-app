@@ -90,6 +90,26 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+const GROUP_REF_RE = /(GRP-[a-f0-9]+)/;
+
+/**
+ * Group references appear in review/provenance as e.g. "group:GRP-…" —
+ * the group page is the first-class review surface, so they link there.
+ */
+function MaybeGroupRef({ value }: { value: string }) {
+  const instanceId = useInstanceId();
+  const match = GROUP_REF_RE.exec(value);
+  if (!match) return <span className="font-mono text-[10px]">{value}</span>;
+  return (
+    <Link
+      to={`/i/${instanceId}/groups/${match[1]}`}
+      className="font-mono text-[10px] hover:underline"
+    >
+      {value}
+    </Link>
+  );
+}
+
 /**
  * The edge context panel: what kind of write this is, its review state and
  * who moved it there, where it came from (with receipt links), its lifecycle,
@@ -149,7 +169,7 @@ export function EdgeGovernancePanel({
             {review?.source && <Row label="Via">{humanize(review.source)}</Row>}
             {review?.updated_by && (
               <Row label="By">
-                <span className="font-mono">{review.updated_by}</span>
+                <MaybeGroupRef value={review.updated_by} />
               </Row>
             )}
             {review?.updated_at && (
@@ -168,7 +188,7 @@ export function EdgeGovernancePanel({
             {provenance.source && <Row label="Written by">{humanize(provenance.source)}</Row>}
             {provenance.source_ref && (
               <Row label="Ref">
-                <span className="font-mono text-[10px]">{provenance.source_ref}</span>
+                <MaybeGroupRef value={provenance.source_ref} />
               </Row>
             )}
             {provenance.created_actor_context?.actor_id && (
