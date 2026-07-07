@@ -155,9 +155,18 @@ export function AppShell() {
         </nav>
 
         <div className="mt-4">
-          <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+          <NavLink
+            to={`/i/${instanceId}/views`}
+            end
+            className={(s) =>
+              `block rounded px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${
+                s.isActive ? "text-zinc-300" : "text-zinc-600 hover:text-zinc-400"
+              }`
+            }
+            title="All views, including parameterized"
+          >
             Views
-          </div>
+          </NavLink>
           <nav className="space-y-0.5">
             {views.map((q) => (
               <NavLink key={q.name} to={`/i/${instanceId}/views/${q.name}`} className={navClass}>

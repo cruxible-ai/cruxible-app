@@ -300,6 +300,51 @@ export function useGroup(groupId: string) {
   });
 }
 
+/** Provider execution trace summaries, newest first. */
+export function useTraceList(limit = 100) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["trace-list", instanceId, limit],
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/traces", {
+          params: { path: { instance_id: instanceId }, query: { limit } },
+        }),
+      ),
+  });
+}
+
+/** One provider execution trace with its pinned identity and payloads. */
+export function useTrace(traceId: string) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["trace", instanceId, traceId],
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/traces/{trace_id}", {
+          params: { path: { instance_id: instanceId, trace_id: traceId } },
+        }),
+      ),
+  });
+}
+
+/** Immutable state snapshots, newest first. */
+export function useSnapshots() {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["snapshots", instanceId],
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/snapshots", {
+          params: { path: { instance_id: instanceId } },
+        }),
+      ),
+  });
+}
+
 /** Group trust/resolution status: approved history, trust ladder, pending delta. */
 export function useGroupStatus(groupId: string) {
   const client = useApiClient();

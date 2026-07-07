@@ -72,6 +72,7 @@ interface GroupDetail {
     source_workflow_name?: string | null;
     source_workflow_receipt_id?: string | null;
     source_query_receipt_ids?: string[];
+    source_trace_ids?: string[];
     resolution_id?: string | null;
     proposed_actor_context?: { actor_id?: string; actor_type?: string } | null;
     created_at?: string | null;
@@ -444,6 +445,22 @@ export function GroupScreen() {
                         className="block font-mono text-[11px] text-zinc-300 hover:underline"
                       >
                         {rid}
+                      </Link>
+                    ))}
+                  </dd>
+                </div>
+              )}
+              {(group.source_trace_ids ?? []).length > 0 && (
+                <div className="contents">
+                  <dt className="text-zinc-500">Provider traces</dt>
+                  <dd className="space-y-0.5">
+                    {(group.source_trace_ids ?? []).map((tid) => (
+                      <Link
+                        key={tid}
+                        to={`/i/${instanceId}/traces/${tid}`}
+                        className="block font-mono text-[11px] text-zinc-300 hover:underline"
+                      >
+                        {tid}
                       </Link>
                     ))}
                   </dd>

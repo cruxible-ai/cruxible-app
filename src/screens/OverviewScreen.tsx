@@ -2,12 +2,13 @@ import { Link } from "react-router-dom";
 import {
   useInstanceId,
   useQueryCatalog,
+  useSnapshots,
   useStats,
   useView,
 } from "@/api/hooks";
 import { SEGMENT_FILLS, TONE_ORDER, toneFor } from "@/components/Chip";
 import { Panel, LoadState } from "@/components/Panel";
-import { humanize } from "@/lib/text";
+import { formatDateTime, humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { useSettings } from "@/lib/settings";
 import { QueryItems } from "@/components/QueryItems";
@@ -50,8 +51,9 @@ export function OverviewScreen() {
         </div>
       </header>
 
-      <div className="mb-3">
+      <div className="mb-3 space-y-3">
         <StatusMatrix />
+        <SnapshotStrip />
       </div>
 
       {catalog.isPending && <LoadState />}
@@ -149,6 +151,57 @@ function StatusMatrix() {
         <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Blocked / changes requested</span>
         {!hideCold && (<span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> Cold</span>)}
       </div>
+    </Panel>
+  );
+}
+
+/**
+ * The instance's immutable history in one line per snapshot: id, when, and
+ * the config/lock digests that pin what produced it. Read-only orientation —
+ * snapshot/publish operations stay on the CLI.
+ */
+function SnapshotStrip() {
+  const snapshots = useSnapshots();
+  const items = ((snapshots.data as
+    | {
+        items?: Array<{
+          snapshot_id?: string;
+          created_at?: string;
+          label?: string | null;
+          config_digest?: string;
+          lock_digest?: string;
+        }>;
+      }
+    | undefined)?.items ?? []);
+  const total = (snapshots.data as { total?: number } | undefined)?.total ?? items.length;
+  if (items.length === 0) return null;
+  const shown = items.slice(0, 3);
+  return (
+    <Panel title="Snapshots" meta={<span className="font-mono">{total}</span>}>
+      <div className="divide-y divide-zinc-800/60">
+        {shown.map((s) => (
+          <div key={s.snapshot_id} className="flex flex-wrap items-baseline gap-x-3 py-1 text-[12px]">
+            <span className="font-mono text-zinc-300">{s.snapshot_id}</span>
+            {s.label && <span className="text-zinc-400">{s.label}</span>}
+            {s.created_at && (
+              <span className="text-zinc-500" title={s.created_at}>
+                {formatDateTime(s.created_at)}
+              </span>
+            )}
+            {s.config_digest && (
+              <span
+                className="ml-auto truncate font-mono text-[10px] text-zinc-600"
+                title={`config ${s.config_digest}${s.lock_digest ? ` · lock ${s.lock_digest}` : ""}`}
+              >
+                {s.config_digest.slice(0, 23)}…
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {total > shown.length && (
+        <div className="mt-1 text-[11px] text-zinc-600">{total - shown.length} older</div>
+      )}
     </Panel>
   );
 }

@@ -8,6 +8,8 @@ import { ActivityScreen } from "@/screens/ActivityScreen";
 import { GroupScreen } from "@/screens/GroupScreen";
 import { GroupsScreen } from "@/screens/GroupsScreen";
 import { StateGraphScreen } from "@/screens/StateGraphScreen";
+import { TraceScreen } from "@/screens/TraceScreen";
+import { ViewsIndexScreen } from "@/screens/ViewsIndexScreen";
 import { TypeMapScreen } from "@/screens/TypeMapScreen";
 import { WorkflowScreen } from "@/screens/WorkflowScreen";
 import { WorkflowsScreen } from "@/screens/WorkflowsScreen";
@@ -43,7 +45,9 @@ export const router = createBrowserRouter([
       { path: "activity", element: <ActivityScreen /> },
       { path: "workflows", element: <WorkflowsScreen /> },
       { path: "workflows/:workflowName", element: <WorkflowScreen /> },
+      { path: "views", element: <ViewsIndexScreen /> },
       { path: "views/:queryName", element: <QueryViewScreen /> },
+      { path: "traces/:traceId", element: <TraceScreen /> },
       { path: "e/:entityType/:entityId", element: <EntityScreen /> },
       { path: "receipts/:receiptId", element: <ReceiptScreen /> },
       { path: "browse/:entityType", element: <BrowseScreen /> },
