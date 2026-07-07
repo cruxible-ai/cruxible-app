@@ -15,10 +15,14 @@ export interface UiSettings {
   colorByLayer: boolean;
 }
 
-// colorByLayer defaults OFF while layer ownership is heuristic-derived
-// (see lib/kit-layer.ts); flip to true when /schema carries real provenance.
-const DEFAULTS: UiSettings = { hideCold: false, colorByLayer: false };
-const STORAGE_KEY = "cruxible-ui-settings";
+// Both ON by default (Robert, 2026-07-07): cold entities are noise on
+// inspection surfaces, and layer accents earn their place on composed
+// instances (single-layer instances never render them anyway).
+const DEFAULTS: UiSettings = { hideCold: true, colorByLayer: true };
+// v2: the provider persists on first mount, so every pre-default-flip browser
+// has {false,false} stored under the old key. New key = new defaults land
+// once; choices made from here on persist under v2.
+const STORAGE_KEY = "cruxible-ui-settings-v2";
 
 interface SettingsValue {
   settings: UiSettings;

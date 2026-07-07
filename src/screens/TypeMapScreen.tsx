@@ -188,8 +188,8 @@ export function TypeMapScreen() {
     const inner = new Set(byDegree.slice(0, innerCount).filter((t) => (degree.get(t) ?? 0) >= 3));
     const innerOrdered = ordered.filter((t) => inner.has(t));
     const outerOrdered = ordered.filter((t) => !inner.has(t));
-    const outerRadius = Math.max(220, outerOrdered.length * 24);
-    const innerRadius = Math.max(90, outerRadius * 0.35);
+    const outerRadius = Math.max(320, outerOrdered.length * 34);
+    const innerRadius = Math.max(140, outerRadius * 0.42);
 
     const place = (
       names: string[],
