@@ -137,14 +137,25 @@ function Canvas({
     return { litNodes, litEdges };
   }, [selection, edges]);
 
+  // `data.lit` marks the selection's neighborhood so node/edge renderers can
+  // reveal detail (labels) that stays hidden at full-canvas density — but
+  // only while the neighborhood is small enough to read. A hub's hundreds of
+  // lit nodes would smear into overlap, so past the cap only the dimming
+  // applies and the context panel carries the list. False when nothing is
+  // selected — "everything lit" is not a neighborhood.
+  const revealDetail = litNodes !== null && litNodes.size <= 40;
   const styledNodes = useMemo(
     () =>
       nodes.map((n) =>
         litNodes && !litNodes.has(n.id)
           ? { ...n, style: { ...n.style, opacity: 0.18, transition: "opacity 150ms" } }
-          : { ...n, style: { ...n.style, opacity: 1, transition: "opacity 150ms" } },
+          : {
+              ...n,
+              data: { ...n.data, lit: revealDetail },
+              style: { ...n.style, opacity: 1, transition: "opacity 150ms" },
+            },
       ),
-    [nodes, litNodes],
+    [nodes, litNodes, revealDetail],
   );
 
   const styledEdges = useMemo(
@@ -155,6 +166,7 @@ function Canvas({
         return {
           ...e,
           type: "floating",
+          data: { ...e.data, lit: revealDetail && !!litEdges && lit },
           style: {
             ...e.style,
             opacity: lit ? 1 : 0.12,
@@ -163,7 +175,7 @@ function Canvas({
           },
         };
       }),
-    [edges, litEdges, selection],
+    [edges, litEdges, selection, revealDetail],
   );
 
   const panel = selection ? renderPanel(selection, { select }) : null;

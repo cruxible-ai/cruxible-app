@@ -75,6 +75,8 @@ interface DotNodeCore {
 type DotNodeData = DotNodeCore & {
   showLabel: boolean;
   matched: boolean;
+  /** Stamped by GraphCanvas: node is in the selected neighborhood. */
+  lit?: boolean;
   [key: string]: unknown;
 };
 
@@ -100,9 +102,12 @@ function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
         style={data.color ? { backgroundColor: data.color } : undefined}
       />
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
+      {/* Label shows on hover, on a search match, and across the selected
+          1-hop neighborhood — the moments the dot count is small enough for
+          text to help instead of overlap. */}
       <div
         className={`pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-300 ${
-          data.matched ? "" : "opacity-0 group-hover:opacity-100"
+          data.matched || data.lit ? "" : "opacity-0 group-hover:opacity-100"
         }`}
       >
         {data.title}
@@ -745,7 +750,7 @@ export function StateGraphScreen() {
         id: `e${row.edge_key}`,
         source,
         target,
-        data: { row, governed },
+        data: { row, governed, revealLabel: row.relationship_type.replaceAll("_", " ") },
         style: {
           ...edgeStroke(
             governed,

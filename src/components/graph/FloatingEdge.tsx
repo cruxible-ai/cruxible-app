@@ -27,6 +27,9 @@ function borderPoint(node: InternalNode, toward: { x: number; y: number }) {
  * of fixed top/bottom handles — kills the looping detours on radial layouts.
  * Self-references render as a small loop at the node's top-right corner.
  * `data.labelClass` overrides the label's text styling (e.g. dimmed counts).
+ * `data.revealLabel` is a label shown only while the edge is in the selected
+ * neighborhood (`data.lit`, stamped by GraphCanvas) — text that would be
+ * noise at full-canvas density but reads fine on a handful of lit edges.
  */
 export function FloatingEdge({
   id,
@@ -63,17 +66,21 @@ export function FloatingEdge({
     typeof (data as { labelClass?: unknown } | undefined)?.labelClass === "string"
       ? ((data as { labelClass: string }).labelClass)
       : "text-zinc-400";
+  const d = data as { lit?: unknown; revealLabel?: unknown } | undefined;
+  const shown =
+    label ??
+    (d?.lit === true && typeof d.revealLabel === "string" ? d.revealLabel : null);
 
   return (
     <>
       <BaseEdge id={id} path={path} style={style} {...(markerEnd ? { markerEnd } : {})} />
-      {label != null && label !== "" && (
+      {shown != null && shown !== "" && (
         <EdgeLabelRenderer>
           <div
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
             className={`nodrag nopan pointer-events-none absolute rounded bg-zinc-950/85 px-1 text-[9px] ${labelClass}`}
           >
-            {label}
+            {shown}
           </div>
         </EdgeLabelRenderer>
       )}

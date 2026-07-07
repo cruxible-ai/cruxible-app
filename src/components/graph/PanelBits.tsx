@@ -62,11 +62,15 @@ export function ConnectionList({
             className="flex w-full items-baseline gap-1.5 rounded px-1 py-0.5 text-left text-[11px] hover:bg-zinc-900"
           >
             <span className="shrink-0 font-mono text-zinc-600">{outgoing ? "→" : "←"}</span>
-            <span className="shrink-0 text-zinc-500">
-              {String(e.label ?? e.id).replaceAll("_", " ")}
-            </span>
-            <span className="truncate text-zinc-300">
-              {isSelfLoop ? "(self)" : labelFor(other)}
+            {/* Full text always — long titles wrap onto extra lines rather
+                than truncating; the panel scrolls, so height is free. */}
+            <span className="min-w-0">
+              <span className="text-zinc-500">
+                {String(e.label ?? e.id).replaceAll("_", " ")}
+              </span>{" "}
+              <span className="break-words text-zinc-300">
+                {isSelfLoop ? "(self)" : labelFor(other)}
+              </span>
             </span>
           </button>
         );
