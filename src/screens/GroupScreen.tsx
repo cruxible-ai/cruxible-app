@@ -1,12 +1,44 @@
 import { Link, useParams } from "react-router-dom";
-import { useGroup, useInstanceId } from "@/api/hooks";
-import { Chip } from "@/components/Chip";
+import { useGroup, useInstanceId, useInstanceSchema } from "@/api/hooks";
+import { Chip, defChipClass } from "@/components/Chip";
 import { EntityLink } from "@/components/EntityLink";
 import { MonoId } from "@/components/MonoId";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Prose } from "@/components/Prose";
 import { formatDateTime, humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+
+/** Property definitions for one relationship type out of the composed schema. */
+interface SchemaPropertyDef {
+  enum?: string[] | null;
+  enum_ref?: string | null;
+}
+
+function relationshipPropertyDefs(
+  schemaData: unknown,
+  relationshipType: string | undefined,
+): Record<string, SchemaPropertyDef> {
+  if (!relationshipType) return {};
+  const raw = (schemaData as { relationships?: unknown } | undefined)?.relationships;
+  const list = Array.isArray(raw) ? raw : raw ? Object.values(raw) : [];
+  const rel = (list as Array<{ name?: string; properties?: Record<string, SchemaPropertyDef> }>).find(
+    (r) => r.name === relationshipType,
+  );
+  return rel?.properties ?? {};
+}
+
+/** "geography" + its enum def → tooltip "supplier_match_basis: direct | geography". */
+function enumTooltip(
+  def: SchemaPropertyDef | undefined,
+  enums: Record<string, string[]> | undefined,
+): string | undefined {
+  if (!def) return undefined;
+  const values = def.enum ?? (def.enum_ref ? enums?.[def.enum_ref] : undefined);
+  if (!values?.length) return undefined;
+  return `${def.enum_ref ?? "one of"}: ${values.join(" | ")}`;
+}
+
+const SIGNAL_VERDICTS = ["support", "unsure", "contradict"] as const;
 
 interface MemberSignal {
   signal_source?: string;
@@ -68,6 +100,7 @@ export function GroupScreen() {
   usePageTitle(groupId);
   const instanceId = useInstanceId();
   const detail = useGroup(groupId);
+  const schema = useInstanceSchema();
 
   if (detail.isPending) return <LoadState />;
   if (detail.error) return <LoadState error={detail.error} />;
@@ -77,6 +110,23 @@ export function GroupScreen() {
   const signals = group.thesis_facts?.signals;
   const origin = group.thesis_facts?.origin;
   const resolved = group.status !== "pending_review";
+
+  const propDefs = relationshipPropertyDefs(schema.data, group.relationship_type);
+  const schemaEnums = (schema.data as { enums?: Record<string, string[]> } | undefined)?.enums;
+
+  // Signals are the group's evidence structure: aggregate each source's
+  // verdicts across members so the review question ("what supports this,
+  // what's unsure, what contradicts") reads at a glance.
+  const signalMatrix = new Map<string, { support: number; unsure: number; contradict: number }>();
+  for (const m of members) {
+    for (const s of m.signals ?? []) {
+      const source = s.signal_source ?? "unknown";
+      const row = signalMatrix.get(source) ?? { support: 0, unsure: 0, contradict: 0 };
+      const verdict = (s.signal ?? "") as (typeof SIGNAL_VERDICTS)[number];
+      if (SIGNAL_VERDICTS.includes(verdict)) row[verdict]++;
+      signalMatrix.set(source, row);
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -111,6 +161,48 @@ export function GroupScreen() {
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-3">
+          {signalMatrix.size > 0 && (
+            <Panel title="Signals">
+              <table className="w-full text-left text-[12px]">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+                    <th className="py-1 pr-3 font-medium">Source</th>
+                    <th className="py-1 pr-3 font-medium">Support</th>
+                    <th className="py-1 pr-3 font-medium">Unsure</th>
+                    <th className="py-1 pr-3 font-medium">Contradict</th>
+                    <th className="py-1 pr-3 font-medium">Role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...signalMatrix.entries()].map(([source, counts]) => (
+                    <tr key={source} className="border-t border-zinc-800/60">
+                      <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-300">{source}</td>
+                      <td className={`py-1.5 pr-3 font-mono ${counts.support ? "text-emerald-400" : "text-zinc-600"}`}>
+                        {counts.support}
+                      </td>
+                      <td className={`py-1.5 pr-3 font-mono ${counts.unsure ? "text-amber-400" : "text-zinc-600"}`}>
+                        {counts.unsure}
+                      </td>
+                      <td className={`py-1.5 pr-3 font-mono ${counts.contradict ? "text-red-400" : "text-zinc-600"}`}>
+                        {counts.contradict}
+                      </td>
+                      <td className="py-1.5 pr-3 text-[11px] text-zinc-500">
+                        {(signals?.required ?? []).includes(source) && "required"}
+                        {(signals?.blocking ?? []).includes(source) && " · blocking"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {group.thesis_facts?.policy?.auto_resolve_when && (
+                <div className="mt-2 text-[11px] text-zinc-500">
+                  Auto-resolves on {humanize(group.thesis_facts.policy.auto_resolve_when).toLowerCase()}
+                  {" — "}first-run groups still require operator review.
+                </div>
+              )}
+            </Panel>
+          )}
+
           <Panel
             title="Proposed edges"
             meta={
@@ -139,23 +231,40 @@ export function GroupScreen() {
                       </span>
                     )}
                   </div>
-                  {Object.entries(m.properties ?? {}).map(([k, v]) => (
-                    <div key={k} className="mt-1 text-[12px] leading-4 text-zinc-500">
-                      <span className="text-zinc-600">{humanize(k)}: </span>
-                      {String(v)}
+                  {typeof m.properties?.rationale === "string" && (
+                    <p className="mt-1 text-[12px] leading-4 text-zinc-400">
+                      {m.properties.rationale}
+                    </p>
+                  )}
+                  {Object.entries(m.properties ?? {}).filter(([k]) => k !== "rationale").length >
+                    0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {Object.entries(m.properties ?? {})
+                        .filter(([k]) => k !== "rationale")
+                        .map(([k, v]) => (
+                          <span
+                            key={k}
+                            className={`${defChipClass} text-[10px]`}
+                            title={enumTooltip(propDefs[k], schemaEnums)}
+                          >
+                            <span className="text-zinc-500">{humanize(k)}</span>
+                            <span className="text-zinc-200">{humanize(String(v))}</span>
+                          </span>
+                        ))}
                     </div>
-                  ))}
+                  )}
                   {(m.signals ?? []).length > 0 && (
                     <div className="mt-1.5 space-y-1 border-t border-zinc-800/50 pt-1.5">
                       {(m.signals ?? []).map((s, si) => (
-                        <div key={si} className="flex items-start gap-2 text-[12px]">
-                          {s.signal && <Chip value={s.signal} />}
-                          <span className="text-zinc-500">
-                            <span className="font-mono text-[11px] text-zinc-600">
-                              {s.signal_source}
-                            </span>
-                            {s.evidence && <> — {s.evidence}</>}
+                        <div
+                          key={si}
+                          className="grid grid-cols-[6rem_max-content_1fr] items-baseline gap-x-2 text-[12px]"
+                        >
+                          <span className="truncate font-mono text-[10px] text-zinc-500" title={s.signal_source}>
+                            {s.signal_source}
                           </span>
+                          {s.signal ? <Chip value={s.signal} /> : <span />}
+                          <span className="text-zinc-500">{s.evidence}</span>
                         </div>
                       ))}
                     </div>
@@ -276,10 +385,10 @@ export function GroupScreen() {
             </Panel>
           )}
 
-          {(signals || group.thesis_facts?.policy) && (
+          {group.thesis_facts?.policy && (
             <Panel title="Policy">
               <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
-                {group.thesis_facts?.policy?.auto_resolve_when && (
+                {group.thesis_facts.policy.auto_resolve_when && (
                   <div className="contents">
                     <dt className="text-zinc-500">Auto-resolve</dt>
                     <dd className="text-zinc-300">
@@ -287,19 +396,11 @@ export function GroupScreen() {
                     </dd>
                   </div>
                 )}
-                {(signals?.required ?? []).length > 0 && (
+                {group.thesis_facts.policy.proposal_identity && (
                   <div className="contents">
-                    <dt className="text-zinc-500">Required</dt>
-                    <dd className="font-mono text-[11px] text-zinc-300">
-                      {(signals?.required ?? []).join(", ")}
-                    </dd>
-                  </div>
-                )}
-                {(signals?.used ?? []).length > 0 && (
-                  <div className="contents">
-                    <dt className="text-zinc-500">Signals used</dt>
-                    <dd className="font-mono text-[11px] text-zinc-300">
-                      {(signals?.used ?? []).join(", ")}
+                    <dt className="text-zinc-500">Identity</dt>
+                    <dd className="text-zinc-300">
+                      {humanize(group.thesis_facts.policy.proposal_identity)}
                     </dd>
                   </div>
                 )}
