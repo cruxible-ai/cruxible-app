@@ -258,6 +258,65 @@ export function useEntityList(
   });
 }
 
+export type GroupStatus = "pending_review" | "auto_resolved" | "applying" | "resolved";
+export const GROUP_STATUSES: GroupStatus[] = [
+  "pending_review",
+  "auto_resolved",
+  "applying",
+  "resolved",
+];
+
+/** Candidate groups, optionally filtered by status (governance read surface). */
+export function useGroups(status?: GroupStatus, limit = 100) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["groups", instanceId, status ?? null, limit],
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/groups", {
+          params: {
+            path: { instance_id: instanceId },
+            query: { limit, ...(status ? { status } : {}) },
+          },
+        }),
+      ),
+  });
+}
+
+/** One candidate group with its members, signals, and trust metadata. */
+export function useGroup(groupId: string) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["group", instanceId, groupId],
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/groups/{group_id}", {
+          params: { path: { instance_id: instanceId, group_id: groupId } },
+        }),
+      ),
+  });
+}
+
+/** Receipt summaries — the instance's mutation/read audit feed. */
+export function useReceiptList(limit = 500) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["receipt-list", instanceId, limit],
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/list/{resource_type}", {
+          params: {
+            path: { instance_id: instanceId, resource_type: "receipts" },
+            query: { limit },
+          },
+        }),
+      ),
+  });
+}
+
 /** Every edge in the graph (the daemon honors large limits; the caller caps). */
 export function useEdgeList(limit: number, enabled = true) {
   const client = useApiClient();

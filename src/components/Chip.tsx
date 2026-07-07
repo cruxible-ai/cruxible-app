@@ -54,6 +54,12 @@ const VALUE_TONES: Record<string, Tone> = {
   high: "amber",
   medium: "zinc",
   low: "zinc",
+  // candidate groups + proposal signals
+  pending_review: "amber",
+  auto_resolved: "green",
+  support: "green",
+  contradict: "red",
+  unsure: "amber",
 };
 
 // Dot hues for the quiet default treatment.

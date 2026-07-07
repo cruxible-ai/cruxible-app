@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
+  useGroups,
   useInstanceId,
   useInstanceSchema,
   useQueryCatalog,
@@ -7,7 +8,17 @@ import {
   useStats,
 } from "@/api/hooks";
 import { humanize } from "@/lib/text";
-import { FileText, LayoutDashboard, Network, Waypoints, Workflow } from "lucide-react";
+import {
+  FileText,
+  GitPullRequest,
+  History,
+  LayoutDashboard,
+  Network,
+  Search,
+  Waypoints,
+  Workflow,
+} from "lucide-react";
+import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { isColdStatus } from "@/lib/cold";
 import { LAYER_META, useLayerColoring } from "@/lib/kit-layer";
@@ -38,6 +49,11 @@ export function AppShell() {
   // Sources shows only when the daemon serves the route AND artifacts exist
   // (probe returns null on 404 so the UI stays clean against older daemons).
   const sourceCount = useSourceArtifactsProbe().data ?? 0;
+  // Groups nav shows once any candidate group exists; the badge counts the
+  // ones actually awaiting review.
+  const groupTotal = (useGroups(undefined, 1).data as { total?: number } | undefined)?.total ?? 0;
+  const pendingGroups =
+    (useGroups("pending_review", 1).data as { total?: number } | undefined)?.total ?? 0;
 
   const views = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
@@ -96,6 +112,28 @@ export function AppShell() {
               </span>
             </NavLink>
           )}
+          {groupTotal > 0 && (
+            <NavLink
+              to={`/i/${instanceId}/groups`}
+              className={(s) => `${navClass(s)} flex items-center justify-between`}
+            >
+              <span className="inline-flex items-center gap-2">
+                <GitPullRequest className="h-3.5 w-3.5" />
+                Review groups
+              </span>
+              {pendingGroups > 0 && (
+                <span className="rounded-full bg-amber-950/80 px-1.5 font-mono text-[10px] text-amber-400">
+                  {pendingGroups}
+                </span>
+              )}
+            </NavLink>
+          )}
+          <NavLink to={`/i/${instanceId}/activity`} className={navClass}>
+            <span className="inline-flex items-center gap-2">
+              <History className="h-3.5 w-3.5" />
+              Activity
+            </span>
+          </NavLink>
           {sourceCount > 0 && (
             <NavLink to={`/i/${instanceId}/sources`} className={navClass}>
               <span className="inline-flex items-center gap-2">
@@ -104,6 +142,16 @@ export function AppShell() {
               </span>
             </NavLink>
           )}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("cruxible:jump"))}
+            className="flex w-full items-center gap-2 rounded px-2 py-1 text-[13px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+          >
+            <Search className="h-3.5 w-3.5" />
+            Jump to entity
+            <kbd className="ml-auto rounded border border-zinc-800 px-1 text-[10px] text-zinc-600">
+              ⌘K
+            </kbd>
+          </button>
         </nav>
 
         <div className="mt-4">
@@ -155,6 +203,7 @@ export function AppShell() {
       <main className="min-w-0 flex-1 px-6 py-5">
         <Outlet />
       </main>
+      <JumpPalette />
     </div>
   );
 }
