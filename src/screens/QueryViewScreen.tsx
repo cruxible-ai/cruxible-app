@@ -1,13 +1,23 @@
+import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQueryCatalog, useView, type ViewParams } from "@/api/hooks";
-import { isPathItem } from "@/api/items";
+import { isEntityRef, isPathItem, isValuesItem } from "@/api/items";
 import { QueryDefinition } from "@/components/QueryDefinition";
 import { Panel, LoadState } from "@/components/Panel";
 import { PathGraph } from "@/components/PathGraph";
 import { QueryItems } from "@/components/QueryItems";
 import { ReceiptBar } from "@/components/ReceiptBar";
-import { humanize } from "@/lib/text";
+import { humanize, matchesText } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+
+/** The scalar surface of one query item, whatever its shape. */
+function itemFields(item: unknown): unknown[] {
+  if (isEntityRef(item)) return [item.entity_id, ...Object.values(item.properties ?? {})];
+  if (isValuesItem(item)) return Object.values(item.values);
+  if (isPathItem(item))
+    return [item.result.entity_id, ...Object.values(item.result.properties ?? {})];
+  return [];
+}
 
 const PAGE_SIZE = 50;
 
@@ -30,6 +40,15 @@ export function QueryViewScreen() {
 
   const view = useView(queryName, params);
   const info = catalog.data?.items?.find((q) => q.name === queryName);
+
+  // Page-level text filter over the receipted result: display-layer only —
+  // the receipt still covers the full result set, so the meta count is
+  // shown as filtered/total when the filter is active.
+  const [filter, setFilter] = useState("");
+  const filteredItems = filter
+    ? (view.data?.items ?? []).filter((item) => matchesText(itemFields(item), filter))
+    : (view.data?.items ?? []);
+  const filteredResult = view.data ? { ...view.data, items: filteredItems } : undefined;
 
   // ?view=graph renders path-shaped results as one merged subgraph. URL is
   // state, so the graph rendering of a blast radius is a shareable link.
@@ -74,7 +93,15 @@ export function QueryViewScreen() {
                   ))}
                 </span>
               )}
-              <span className="font-mono">{view.data.total} total</span>
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter this page…"
+                className="w-40 rounded border border-zinc-800 bg-transparent px-2 py-px text-[11px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+              />
+              <span className="font-mono">
+                {filter ? `${filteredItems.length} of ${view.data.total}` : `${view.data.total} total`}
+              </span>
             </span>
           )
         }
@@ -84,9 +111,12 @@ export function QueryViewScreen() {
         {view.data && (
           <>
             {asGraph ? (
-              <PathGraph items={view.data.items.filter(isPathItem)} />
+              <PathGraph items={filteredItems.filter(isPathItem)} />
             ) : (
-              <QueryItems result={view.data} linkType={info?.returns ?? undefined} />
+              <QueryItems
+                result={filteredResult ?? view.data}
+                linkType={info?.returns ?? undefined}
+              />
             )}
             <div className="mt-2 flex items-center gap-2 text-[12px]">
               <button

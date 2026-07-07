@@ -1,5 +1,6 @@
-import { humanize } from "@/lib/text";
+import { humanize, matchesText } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useEntityList, useInstanceSchema } from "@/api/hooks";
 import { statusEnumValues } from "@/api/schema-info";
@@ -40,8 +41,16 @@ export function BrowseScreen() {
   // a status chip (even a cold one) always shows exactly that status.
   const { settings } = useSettings();
   const hideCold = settings.hideCold && !status;
-  const items = hideCold ? allItems.filter((e) => !isColdEntity(e)) : allItems;
-  const hiddenCount = allItems.length - items.length;
+  const warmItems = hideCold ? allItems.filter((e) => !isColdEntity(e)) : allItems;
+  const hiddenCount = allItems.length - warmItems.length;
+
+  // Page-level text filter: narrows the rows on screen, nothing more.
+  const [filter, setFilter] = useState("");
+  const items = filter
+    ? warmItems.filter((e) =>
+        matchesText([e.entity_id, ...Object.values(e.properties ?? {})], filter),
+      )
+    : warmItems;
 
   function setStatus(next: string | undefined) {
     const sp = new URLSearchParams(searchParams);
@@ -55,22 +64,30 @@ export function BrowseScreen() {
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">{humanize(entityType)}</h1>
-        {statuses.length > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <button onClick={() => setStatus(undefined)} className={toggleChipClass(!status)}>
-              All
-            </button>
-            {statuses.map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatus(s === status ? undefined : s)}
-                className={toggleChipClass(s === status)}
-              >
-                {humanize(s)}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {statuses.length > 0 && (
+            <>
+              <button onClick={() => setStatus(undefined)} className={toggleChipClass(!status)}>
+                All
               </button>
-            ))}
-          </div>
-        )}
+              {statuses.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatus(s === status ? undefined : s)}
+                  className={toggleChipClass(s === status)}
+                >
+                  {humanize(s)}
+                </button>
+              ))}
+            </>
+          )}
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter this page…"
+            className="ml-auto w-48 rounded border border-zinc-800 bg-transparent px-2 py-0.5 text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+          />
+        </div>
       </header>
       <Panel
         title="Entities"
