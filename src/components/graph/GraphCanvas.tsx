@@ -40,6 +40,8 @@ export function GraphCanvas(props: {
   overlay?: ReactNode;
   /** Rendered inside the ReactFlow element (Controls, MiniMap, ...). */
   children?: ReactNode;
+  /** External select-and-center request (e.g. a search hit); re-fires on nonce change. */
+  selectRequest?: { id: string; nonce: number } | null;
 }) {
   return (
     <ReactFlowProvider>
@@ -56,6 +58,7 @@ function Canvas({
   className = "h-full min-h-[60vh]",
   overlay,
   children,
+  selectRequest,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
@@ -98,6 +101,11 @@ function Canvas({
     },
     [centerOn],
   );
+
+  useEffect(() => {
+    if (selectRequest) select(selectRequest.id);
+    // Re-fire on nonce so repeating the same search hit still recenters.
+  }, [selectRequest, select]);
 
   // Focus sets: with a node selected, its 1-hop neighborhood stays lit; with
   // an edge selected, the edge and its endpoints stay lit.

@@ -1,15 +1,24 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Controls,
   Handle,
-  MarkerType,
   MiniMap,
   Position,
   type Edge,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
+import {
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  forceX,
+  forceY,
+  type SimulationLinkDatum,
+  type SimulationNodeDatum,
+} from "d3-force";
 import { useEdgeList, useEntitiesForTypes, useInstanceId, useStats } from "@/api/hooks";
 import { isEntityRef } from "@/api/items";
 import { entityPath } from "@/components/EntityLink";
@@ -34,55 +43,63 @@ import {
 import { isColdEntity, isColdStatus } from "@/lib/cold";
 import { LAYER_META, useLayerColoring, type KitLayer } from "@/lib/kit-layer";
 import { useSettings } from "@/lib/settings";
-import { humanize } from "@/lib/text";
+import { humanize, matchesText } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
-/** Above this many visible nodes the canvas asks for a narrower type set. */
-const MAX_NODES = 600;
-const EDGE_FETCH_LIMIT = 8000;
+/** Dot nodes are cheap: the budget is an order of magnitude past the cards'. */
+const MAX_NODES = 3000;
+const EDGE_FETCH_LIMIT = 20000;
+/** Below this many drawn nodes every dot carries its label; above, labels
+ * appear on hover, selection, and search matches. */
+const LABELS_ALWAYS_BELOW = 250;
 
-type StateNodeData = {
+interface DotNodeCore {
   entityType: string;
   entityId: string;
   title: string;
   status: string | undefined;
   layer: KitLayer | null;
   properties: Record<string, unknown>;
+}
+
+type DotNodeData = DotNodeCore & {
+  showLabel: boolean;
+  matched: boolean;
   [key: string]: unknown;
 };
 
-function StateNode({ data }: NodeProps<Node<StateNodeData>>) {
+function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
+  // Status is the primary signal; entities without one (reference rows,
+  // assessments) take their kit layer's hue so composed instances read as
+  // strata rather than a single undifferentiated cloud.
   const accent = data.layer ? LAYER_META[data.layer] : null;
+  const fill = data.status
+    ? SEGMENT_FILLS[toneFor(data.status)]
+    : (accent?.dot ?? "bg-zinc-500");
   return (
-    <div
-      className={`max-w-44 rounded border px-2 py-1 text-left ${
-        accent
-          ? `${accent.border} ${accent.borderHover} bg-zinc-900`
-          : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
-      }`}
-    >
+    <div className="group relative">
+      {/* ReactFlow drops edges from handle-less nodes; FloatingEdge ignores
+          handle positions, so these exist purely to register the node. */}
       <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
-      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wide text-zinc-500">
-        {accent && (
-          <span title={accent.label} className={`h-1 w-1 shrink-0 rounded-full ${accent.dot}`} />
-        )}
-        {data.entityType}
-      </div>
-      <div className="flex items-center gap-1.5">
-        {data.status && (
-          <span
-            title={humanize(data.status)}
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEGMENT_FILLS[toneFor(data.status)]}`}
-          />
-        )}
-        <span className="truncate text-[10px] leading-4 text-zinc-200">{data.title}</span>
-      </div>
+      <div
+        title={`${data.entityType} · ${data.title}`}
+        className={`h-3 w-3 rounded-full ${fill} ${
+          data.matched ? "ring-2 ring-zinc-100" : ""
+        }`}
+      />
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
+      <div
+        className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-300 ${
+          data.showLabel || data.matched ? "" : "opacity-0 group-hover:opacity-100"
+        }`}
+      >
+        {data.title}
+      </div>
     </div>
   );
 }
 
-const nodeTypes = { stateNode: StateNode };
+const nodeTypes = { dot: DotNode };
 
 interface EdgeRow {
   from_type: string;
@@ -94,72 +111,75 @@ interface EdgeRow {
   metadata?: { assertion?: { review?: { status?: string } } };
 }
 
-/**
- * Cluster-by-type layout: each type's rows form a near-square grid, and the
- * cluster blocks pack left-to-right into rows of a roughly square overall
- * canvas — dense like a treemap, not a sparse ring, so edges stay short and
- * fit-view zoom keeps labels legible. Deterministic: the same state always
- * draws the same picture.
- */
-function layoutClusters(
-  byType: Map<string, Array<{ id: string; data: StateNodeData }>>,
-): Node<StateNodeData>[] {
-  const COL_W = 180;
-  const ROW_H = 46;
-  const GAP_X = 140;
-  const GAP_Y = 120;
-
-  const clusters = [...byType.entries()]
-    .filter(([, rows]) => rows.length > 0)
-    .map(([type, rows]) => {
-      const cols = Math.ceil(Math.sqrt(rows.length));
-      return {
-        type,
-        rows,
-        cols,
-        width: cols * COL_W,
-        height: Math.ceil(rows.length / cols) * ROW_H,
-      };
-    })
-    .sort((a, b) => b.rows.length - a.rows.length);
-
-  const totalArea = clusters.reduce((s, c) => s + (c.width + GAP_X) * (c.height + GAP_Y), 0);
-  const targetRowWidth = Math.max(Math.sqrt(totalArea) * 1.3, ...clusters.map((c) => c.width));
-
-  const nodes: Node<StateNodeData>[] = [];
-  let x = 0;
-  let y = 0;
-  let rowHeight = 0;
-  for (const cluster of clusters) {
-    if (x > 0 && x + cluster.width > targetRowWidth) {
-      x = 0;
-      y += rowHeight + GAP_Y;
-      rowHeight = 0;
-    }
-    cluster.rows.forEach((row, i) => {
-      nodes.push({
-        id: row.id,
-        type: "stateNode",
-        position: {
-          x: x + (i % cluster.cols) * COL_W,
-          y: y + Math.floor(i / cluster.cols) * ROW_H,
-        },
-        data: row.data,
-      });
-    });
-    x += cluster.width + GAP_X;
-    rowHeight = Math.max(rowHeight, cluster.height);
-  }
-  return nodes;
+interface SimNode extends SimulationNodeDatum {
+  id: string;
 }
 
 /**
- * The complete state graph: every live entity and edge in the instance on one
- * canvas, clustered by type, with the shared GraphCanvas selection model —
- * same context panel, same hop-the-selection philosophy as the type map and
- * the per-entity graph. Hide-cold applies (this is an inspection surface, not
- * a receipted read). Beyond the node budget the screen asks for a narrower
- * type selection instead of drawing soup.
+ * Static force layout: d3-force's deterministic phyllotaxis seeding plus a
+ * fixed tick budget, run synchronously at build time — organic clusters
+ * without physics running in the render loop, and the same state always
+ * draws the same picture.
+ */
+function forceLayout(
+  ids: string[],
+  links: Array<{ source: string; target: string }>,
+): Map<string, { x: number; y: number }> {
+  const simNodes: SimNode[] = ids.map((id) => ({ id }));
+  const simLinks: Array<SimulationLinkDatum<SimNode>> = links.map((l) => ({ ...l }));
+  const sim = forceSimulation(simNodes)
+    .force("charge", forceManyBody().strength(-45).distanceMax(600))
+    .force(
+      "link",
+      forceLink<SimNode, SimulationLinkDatum<SimNode>>(simLinks)
+        .id((d) => d.id)
+        .distance(55)
+        .strength(0.4),
+    )
+    .force("x", forceX(0).strength(0.06))
+    .force("y", forceY(0).strength(0.06))
+    .force("collide", forceCollide(10))
+    .stop();
+  const ticks = ids.length > 1200 ? 120 : 250;
+  for (let i = 0; i < ticks; i++) sim.tick();
+  return new Map(simNodes.map((n) => [n.id, { x: n.x ?? 0, y: n.y ?? 0 }]));
+}
+
+/** Node ids within `hops` of `rootId` over the drawn edges. */
+function neighborhood(
+  rootId: string,
+  edges: Array<{ source: string; target: string }>,
+  hops: number,
+): Set<string> {
+  const adjacency = new Map<string, string[]>();
+  for (const e of edges) {
+    adjacency.set(e.source, [...(adjacency.get(e.source) ?? []), e.target]);
+    adjacency.set(e.target, [...(adjacency.get(e.target) ?? []), e.source]);
+  }
+  const seen = new Set([rootId]);
+  let frontier = [rootId];
+  for (let hop = 0; hop < hops; hop++) {
+    const next: string[] = [];
+    for (const id of frontier) {
+      for (const nb of adjacency.get(id) ?? []) {
+        if (!seen.has(nb)) {
+          seen.add(nb);
+          next.push(nb);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return seen;
+}
+
+/**
+ * The complete state graph: every live entity and edge on one canvas as
+ * status-colored dots under a static force layout, with the shared
+ * GraphCanvas selection model. Search highlights and jumps; "Isolate
+ * neighborhood" (URL state) cuts the canvas down to k hops around one
+ * entity. Hide-cold applies; auto-fit drops the biggest types when an
+ * instance exceeds the node budget.
  */
 export function StateGraphScreen() {
   const instanceId = useInstanceId();
@@ -168,14 +188,17 @@ export function StateGraphScreen() {
   const { settings } = useSettings();
   const layerColoring = useLayerColoring();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState("");
+  const [selectRequest, setSelectRequest] = useState<{ id: string; nonce: number } | null>(null);
 
   const typeFilter = useMemo(() => {
     const raw = searchParams.get("types");
     return raw ? new Set(raw.split(",")) : null;
   }, [searchParams]);
+  const focus = searchParams.get("focus");
+  const hops = Number(searchParams.get("hops") ?? 1) === 2 ? 2 : 1;
 
   const statusCounts = (stats.data?.status_counts ?? {}) as Record<string, Record<string, number>>;
-  // Visible-row estimate per type: total minus cold buckets when hiding cold.
   const typeCounts = useMemo(
     () =>
       Object.entries(stats.data?.entity_counts ?? {})
@@ -191,8 +214,7 @@ export function StateGraphScreen() {
   );
 
   // With no explicit selection, auto-fit: include types smallest-first until
-  // the budget is spent, so every instance draws SOMETHING immediately —
-  // the biggest types drop out rather than the whole canvas refusing. An
+  // the budget is spent, so every instance draws SOMETHING immediately. An
   // explicit over-budget selection still gets the refusal message.
   const { includedTypes, autoExcluded } = useMemo(() => {
     if (typeFilter) {
@@ -219,8 +241,6 @@ export function StateGraphScreen() {
   const projectedNodes = typeCounts
     .filter(([type]) => includedTypes.includes(type))
     .reduce((s, [, n]) => s + n, 0);
-  // Auto-fit always draws (the per-type fetch cap bounds the pathological
-  // one-giant-type case); only an explicit selection can refuse.
   const withinBudget =
     projectedNodes > 0 && (projectedNodes <= MAX_NODES || !typeFilter);
 
@@ -228,8 +248,6 @@ export function StateGraphScreen() {
   const edgeList = useEdgeList(EDGE_FETCH_LIMIT, withinBudget);
 
   function toggleType(type: string) {
-    // Toggling starts from what is actually drawn, so turning one chip on or
-    // off never silently resurrects the auto-excluded giants.
     const next = new Set(typeFilter ?? includedTypes);
     if (next.has(type)) next.delete(type);
     else next.add(type);
@@ -239,16 +257,25 @@ export function StateGraphScreen() {
     setSearchParams(sp);
   }
 
-  const { nodes, edges, droppedEdges } = useMemo(() => {
-    const byType = new Map<string, Array<{ id: string; data: StateNodeData }>>();
+  function setFocus(nodeId: string | null, nextHops?: number) {
+    const sp = new URLSearchParams(searchParams);
+    if (nodeId) sp.set("focus", nodeId);
+    else sp.delete("focus");
+    if (nodeId && (nextHops ?? hops) === 2) sp.set("hops", "2");
+    else sp.delete("hops");
+    setSearchParams(sp);
+  }
+
+  // Entity rows + edge rows → drawn graph, in stages: collect, isolate,
+  // layout, decorate. All pure derivation from fetch results + URL state.
+  const { nodes, edges, droppedEdges, matchCount } = useMemo(() => {
+    const rows: Array<{ id: string; data: DotNodeCore }> = [];
     for (let i = 0; i < includedTypes.length; i++) {
-      const type = includedTypes[i]!;
       const items = ((entityResults[i]?.data as { items?: unknown[] } | undefined)?.items ?? [])
         .filter(isEntityRef)
         .filter((e) => !settings.hideCold || !isColdEntity(e));
-      byType.set(
-        type,
-        items.map((e) => ({
+      for (const e of items) {
+        rows.push({
           id: `${e.entity_type}:${e.entity_id}`,
           data: {
             entityType: e.entity_type,
@@ -264,25 +291,60 @@ export function StateGraphScreen() {
             layer: layerColoring.enabled ? layerColoring.layerFor(e.entity_type) : null,
             properties: (e.properties ?? {}) as Record<string, unknown>,
           },
-        })),
-      );
+        });
+      }
     }
-    const nodes = layoutClusters(byType);
-    const present = new Set(nodes.map((n) => n.id));
+    let present = new Set(rows.map((r) => r.id));
 
-    const rows = ((edgeList.data as { items?: EdgeRow[] } | undefined)?.items ?? []);
+    const edgeRows = ((edgeList.data as { items?: EdgeRow[] } | undefined)?.items ?? []);
     let dropped = 0;
-    const edges: Edge[] = [];
-    for (const row of rows) {
+    let links: Array<{ row: EdgeRow; source: string; target: string }> = [];
+    for (const row of edgeRows) {
       const source = `${row.from_type}:${row.from_id}`;
       const target = `${row.to_type}:${row.to_id}`;
       if (!present.has(source) || !present.has(target)) {
         dropped++;
         continue;
       }
+      links.push({ row, source, target });
+    }
+
+    // Isolation cuts nodes AND edges to the k-hop neighborhood before layout,
+    // so the focused view relaxes into its own shape.
+    if (focus && present.has(focus)) {
+      const keep = neighborhood(focus, links, hops);
+      present = new Set([...present].filter((id) => keep.has(id)));
+      links = links.filter((l) => present.has(l.source) && present.has(l.target));
+    }
+    const drawnRows = rows.filter((r) => present.has(r.id));
+
+    const positions = forceLayout(
+      drawnRows.map((r) => r.id),
+      links.map((l) => ({ source: l.source, target: l.target })),
+    );
+
+    const showLabels = drawnRows.length <= LABELS_ALWAYS_BELOW;
+    let matches = 0;
+    const nodes: Node<DotNodeData>[] = drawnRows.map((r) => {
+      const matched =
+        search.trim() !== "" && matchesText([r.data.entityId, r.data.title], search);
+      if (matched) matches++;
+      return {
+        id: r.id,
+        type: "dot",
+        position: positions.get(r.id) ?? { x: 0, y: 0 },
+        data: { ...r.data, showLabel: showLabels, matched },
+      };
+    });
+
+    // No arrowheads at dot density — direction lives in the context panel.
+    const edges: Edge[] = links.map(({ row, source, target }) => {
       const reviewStatus = row.metadata?.assertion?.review?.status;
-      const stroke = reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981";
-      edges.push({
+      // Softness lives in the stroke alpha: GraphCanvas owns style.opacity
+      // for its selection dimming and would clobber a base opacity here.
+      const stroke =
+        reviewStatus === "unreviewed" ? "rgba(140,140,152,0.45)" : "rgba(16,185,129,0.55)";
+      return {
         id: `e${row.edge_key}`,
         source,
         target,
@@ -290,13 +352,12 @@ export function StateGraphScreen() {
           relationshipType: row.relationship_type,
           reviewStatus: reviewStatus ?? null,
         },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 10, height: 10, color: stroke },
-        style: { stroke, strokeWidth: 1 },
+        style: { stroke, strokeWidth: 1.2 },
         animated: false,
-      });
-    }
-    return { nodes, edges, droppedEdges: dropped };
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring]);
+      };
+    });
+    return { nodes, edges, droppedEdges: dropped, matchCount: matches };
+  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, search]);
 
   if (stats.isPending) return <LoadState />;
   if (stats.error) return <LoadState error={stats.error} />;
@@ -305,13 +366,18 @@ export function StateGraphScreen() {
     withinBudget && (edgeList.isPending || entityResults.some((r) => r.isPending));
 
   const labelFor = (id: string) =>
-    (nodes.find((n) => n.id === id)?.data as StateNodeData | undefined)?.title ?? id;
+    (nodes.find((n) => n.id === id)?.data as DotNodeData | undefined)?.title ?? id;
+
+  function jumpToFirstMatch() {
+    const first = nodes.find((n) => (n.data as DotNodeData).matched);
+    if (first) setSelectRequest({ id: first.id, nonce: Date.now() });
+  }
 
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
     if (selection.kind === "node") {
       const node = nodes.find((n) => n.id === selection.id);
       if (!node) return null;
-      const d = node.data as StateNodeData;
+      const d = node.data as DotNodeData;
       return (
         <div>
           <PanelHeading kicker={d.entityType} title={d.title} />
@@ -327,12 +393,15 @@ export function StateGraphScreen() {
             <Link to={entityPath(instanceId, d.entityType, d.entityId)} className={actionChipClass}>
               Open entity →
             </Link>
-            <Link
-              to={`/i/${instanceId}/g/${d.entityType}/${d.entityId}`}
-              className={actionChipClass}
-            >
-              Focus neighborhood →
-            </Link>
+            {focus === selection.id ? (
+              <button onClick={() => setFocus(null)} className={actionChipClass}>
+                Show whole graph
+              </button>
+            ) : (
+              <button onClick={() => setFocus(selection.id)} className={actionChipClass}>
+                Isolate neighborhood
+              </button>
+            )}
           </PanelActions>
           <PanelSection title="Properties">
             <PropertyList properties={d.properties} omit={["title", "status"]} />
@@ -388,12 +457,52 @@ export function StateGraphScreen() {
         <h1 className="text-[17px] font-semibold text-zinc-100">State graph</h1>
         <span className="text-[11px] text-zinc-600">
           {withinBudget
-            ? `${nodes.length} entities · ${edges.length} edges · grey edge = unreviewed, green = accepted`
+            ? `${nodes.length} entities · ${edges.length} edges · dot = status · grey edge = unreviewed, green = accepted`
             : "The whole instance state on one canvas"}
-          {droppedEdges > 0 && ` · ${droppedEdges} edges to excluded or hidden entities not drawn`}
+          {droppedEdges > 0 && !focus && ` · ${droppedEdges} edges to excluded or hidden entities not drawn`}
+        </span>
+        <span className="ml-auto flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") jumpToFirstMatch();
+            }}
+            placeholder="Find in graph…"
+            className="w-44 rounded border border-zinc-800 bg-transparent px-2 py-0.5 text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+          />
+          {search.trim() !== "" && (
+            <span className="text-[11px] text-zinc-500">
+              {matchCount} {matchCount === 1 ? "match" : "matches"}
+              {matchCount > 0 && " · Enter jumps"}
+            </span>
+          )}
         </span>
       </header>
-      {typeCounts.length > 1 && (
+      {focus && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-[12px] text-zinc-400">
+          <span>
+            Focused on <span className="text-zinc-200">{labelFor(focus)}</span>
+          </span>
+          <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[11px]">
+            {[1, 2].map((h) => (
+              <button
+                key={h}
+                onClick={() => setFocus(focus, h)}
+                className={`px-2 py-px ${
+                  hops === h ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {h} hop{h > 1 ? "s" : ""}
+              </button>
+            ))}
+          </span>
+          <button onClick={() => setFocus(null)} className={actionChipClass}>
+            Show whole graph
+          </button>
+        </div>
+      )}
+      {!focus && typeCounts.length > 1 && (
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           {typeCounts.map(([type, count]) => {
             const active = includedTypes.includes(type);
@@ -422,12 +531,16 @@ export function StateGraphScreen() {
       {loading && <LoadState />}
       {withinBudget && !loading && (
         <GraphCanvas
+          // Remount on graph-identity change so fit-view reframes the new shape
+          // (focus in/out, hop change, type trades).
+          key={`${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"
           overlay={layerColoring.enabled ? <LayerLegend /> : undefined}
+          selectRequest={selectRequest}
         >
           <Controls showInteractive={false} className="!shadow-none" />
           <MiniMap
