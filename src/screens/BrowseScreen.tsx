@@ -58,7 +58,7 @@ export function BrowseScreen() {
         {statuses.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <button onClick={() => setStatus(undefined)} className={toggleChipClass(!status)}>
-              all
+              All
             </button>
             {statuses.map((s) => (
               <button

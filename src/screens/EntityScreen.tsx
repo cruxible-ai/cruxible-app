@@ -114,7 +114,7 @@ export function EntityScreen() {
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {chipKeys.map((k) => (
             <span key={k} className="inline-flex items-center gap-1 text-[11px] text-zinc-600">
-              {k !== "status" && k}
+              {k !== "status" && humanize(k)}
               <Chip value={String(properties[k])} />
             </span>
           ))}
@@ -122,70 +122,80 @@ export function EntityScreen() {
         {summary && <div className="mt-2"><Prose text={summary} /></div>}
       </header>
 
-      {contextQueries.length > 0 && (
-        <div className="flex flex-wrap gap-2 text-[12px]">
-          {contextQueries.map((q) => {
-            const param = (q.required_params ?? [])[0];
-            return (
-              <Link
-                key={q.name}
-                to={`/i/${instanceId}/views/${q.name}?${param}=${encodeURIComponent(data.entity_id)}`}
-                className={actionChipClass}
-              >
-                {humanize(q.name ?? "")}
-                <ArrowRight className="ml-1 inline h-3 w-3" />
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      {restProps.length > 0 && (
-        <Panel title="Properties">
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-            {restProps.map(([k, v]) => (
-              <div key={k} className="contents">
-                <dt className="text-zinc-500">{k}</dt>
-                <dd
-                  className="font-mono text-[12px] text-zinc-300 break-all"
-                  title={looksLikeDateTime(v) ? String(v) : undefined}
-                >
-                  {looksLikeDateTime(v) ? formatDateTime(v) : String(v)}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Panel>
-      )}
-
-      {proseProps.map(([k, v]) => (
-        <Panel key={k} title={k.replaceAll("_", " ")}>
-          <Prose text={v} />
-        </Panel>
-      ))}
-
-      <Panel
-        title="Relationships"
-        meta={
-          <span>
-            <span className="font-mono">{data.total_neighbors}</span>
-            {hiddenNeighbors > 0 && <> · {hiddenNeighbors} cold hidden</>}
-          </span>
-        }
-      >
-        <div className="space-y-3">
-          {[...grouped.entries()].map(([key, edges]) => (
-            <GroupedEdges key={key} edges={edges} />
+      {/* Wide screens: narrative (prose, relationships) on the left, reference
+          detail (properties, context queries) in a right rail. */}
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-3">
+          {proseProps.map(([k, v]) => (
+            <Panel key={k} title={humanize(k)}>
+              <Prose text={v} />
+            </Panel>
           ))}
-          {data.neighbors.length === 0 && <EmptyState>No relationships.</EmptyState>}
-          {data.neighbors.length > 0 && visibleNeighbors.length === 0 && (
-            <EmptyState>
-              All {data.neighbors.length} relationships point at cold entities (hidden by
-              settings).
-            </EmptyState>
+
+          <Panel
+            title="Relationships"
+            meta={
+              <span>
+                <span className="font-mono">{data.total_neighbors}</span>
+                {hiddenNeighbors > 0 && <> · {hiddenNeighbors} cold hidden</>}
+              </span>
+            }
+          >
+            <div className="space-y-3">
+              {[...grouped.entries()].map(([key, edges]) => (
+                <GroupedEdges key={key} edges={edges} />
+              ))}
+              {data.neighbors.length === 0 && <EmptyState>No relationships.</EmptyState>}
+              {data.neighbors.length > 0 && visibleNeighbors.length === 0 && (
+                <EmptyState>
+                  All {data.neighbors.length} relationships point at cold entities (hidden by
+                  settings).
+                </EmptyState>
+              )}
+            </div>
+          </Panel>
+        </div>
+
+        <div className="min-w-0 space-y-3">
+          {restProps.length > 0 && (
+            <Panel title="Properties">
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
+                {restProps.map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-zinc-500">{humanize(k)}</dt>
+                    <dd
+                      className="font-mono text-[12px] text-zinc-300 break-all"
+                      title={looksLikeDateTime(v) ? String(v) : undefined}
+                    >
+                      {looksLikeDateTime(v) ? formatDateTime(v) : String(v)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Panel>
+          )}
+
+          {contextQueries.length > 0 && (
+            <Panel title="Context queries">
+              <div className="flex flex-wrap gap-2 text-[12px]">
+                {contextQueries.map((q) => {
+                  const param = (q.required_params ?? [])[0];
+                  return (
+                    <Link
+                      key={q.name}
+                      to={`/i/${instanceId}/views/${q.name}?${param}=${encodeURIComponent(data.entity_id)}`}
+                      className={actionChipClass}
+                    >
+                      {humanize(q.name ?? "")}
+                      <ArrowRight className="ml-1 inline h-3 w-3" />
+                    </Link>
+                  );
+                })}
+              </div>
+            </Panel>
           )}
         </div>
-      </Panel>
+      </div>
     </div>
   );
 }

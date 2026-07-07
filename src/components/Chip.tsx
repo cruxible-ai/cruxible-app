@@ -1,3 +1,5 @@
+import { humanize } from "@/lib/text";
+
 /**
  * Muted color-coded chip for config-enforced enum values (status, priority,
  * type, review state). Values come straight from the API; color carries
@@ -106,6 +108,7 @@ export const defChipClass =
 export const actionChipClass =
   "rounded border border-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900";
 
+/** "changes_requested" -> "Changes requested"; tone/emphasis key on the raw value. */
 export function Chip({ value, tone }: { value: string; tone?: Tone }) {
   const resolved = tone ?? VALUE_TONES[value] ?? "zinc";
   const textClass = EMPHATIC.has(value) ? "text-red-400" : "text-zinc-400";
@@ -114,7 +117,7 @@ export function Chip({ value, tone }: { value: string; tone?: Tone }) {
       className={`inline-flex items-center gap-1.5 text-[11px] leading-4 whitespace-nowrap ${textClass}`}
     >
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOTS[resolved]}`} />
-      {value}
+      {humanize(value)}
     </span>
   );
 }

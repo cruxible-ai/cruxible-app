@@ -172,22 +172,48 @@ export function TypeMapScreen() {
       rels.map((r) => [r.from_entity, r.to_entity] as [string, string]),
     );
 
-    const n = ordered.length;
-    // Radius grows with type count so labels keep breathing room on big ontologies.
-    const radius = Math.max(300, n * 32);
-    const nodes: Node<TypeNodeData>[] = ordered.map((typeName, i) => {
-      const angle = (2 * Math.PI * i) / Math.max(n, 1) - Math.PI / 2;
-      return {
-        id: typeName,
-        type: "typeNode",
-        position: { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius },
-        data: {
-          typeName,
-          count: st?.entity_counts?.[typeName] ?? 0,
-          layer: layerColoring.enabled ? layerColoring.layerFor(typeName) : null,
-        },
-      };
-    });
+    // Two concentric rings instead of one sparse circle: the best-connected
+    // types (up to a third) sit on a small inner ring, the rest on an outer
+    // ring kept tight enough that edges stay readable at fit-view zoom.
+    const degree = new Map<string, number>();
+    for (const r of rels) {
+      degree.set(r.from_entity, (degree.get(r.from_entity) ?? 0) + 1);
+      degree.set(r.to_entity, (degree.get(r.to_entity) ?? 0) + 1);
+    }
+    const byDegree = [...ordered].sort(
+      (a, b) => (degree.get(b) ?? 0) - (degree.get(a) ?? 0),
+    );
+    const innerCount =
+      ordered.length >= 6 ? Math.min(Math.floor(ordered.length / 3), 5) : 0;
+    const inner = new Set(byDegree.slice(0, innerCount).filter((t) => (degree.get(t) ?? 0) >= 3));
+    const innerOrdered = ordered.filter((t) => inner.has(t));
+    const outerOrdered = ordered.filter((t) => !inner.has(t));
+    const outerRadius = Math.max(220, outerOrdered.length * 24);
+    const innerRadius = Math.max(90, outerRadius * 0.35);
+
+    const place = (
+      names: string[],
+      radius: number,
+      angleOffset: number,
+    ): Node<TypeNodeData>[] =>
+      names.map((typeName, i) => {
+        const angle = (2 * Math.PI * i) / Math.max(names.length, 1) - Math.PI / 2 + angleOffset;
+        return {
+          id: typeName,
+          type: "typeNode",
+          position: { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius },
+          data: {
+            typeName,
+            count: st?.entity_counts?.[typeName] ?? 0,
+            layer: layerColoring.enabled ? layerColoring.layerFor(typeName) : null,
+          },
+        };
+      });
+
+    const nodes: Node<TypeNodeData>[] = [
+      ...place(innerOrdered, innerRadius, Math.PI / 6),
+      ...place(outerOrdered, outerRadius, 0),
+    ];
 
     // Empty relationships stay as unlabeled dashed strokes: the declared
     // shape reads without dozens of labels of noise on a dense ontology.

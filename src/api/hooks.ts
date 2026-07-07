@@ -258,6 +258,65 @@ export function useEntityList(
   });
 }
 
+/** Every edge in the graph (the daemon honors large limits; the caller caps). */
+export function useEdgeList(limit: number, enabled = true) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["edge-list", instanceId, limit],
+    enabled,
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/list/{resource_type}", {
+          params: {
+            path: { instance_id: instanceId, resource_type: "edges" },
+            query: { limit },
+          },
+        }),
+      ),
+  });
+}
+
+/** One list call per entity type — the whole-state fetch for the state graph. */
+export function useEntitiesForTypes(entityTypes: string[], limitPerType: number, enabled = true) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQueries({
+    queries: entityTypes.map((entityType) => ({
+      queryKey: ["entity-list", instanceId, entityType, limitPerType, 0, null],
+      enabled,
+      queryFn: async () =>
+        unwrap(
+          await client.GET("/api/v1/{instance_id}/list/{resource_type}", {
+            params: {
+              path: { instance_id: instanceId, resource_type: "entities" },
+              query: { entity_type: entityType, limit: limitPerType },
+            },
+          }),
+        ),
+    })),
+  });
+}
+
+/** Parallel inspect reads — powers in-place neighborhood expansion on graphs. */
+export function useInspectEntities(refs: Array<{ entityType: string; entityId: string }>) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQueries({
+    queries: refs.map(({ entityType, entityId }) => ({
+      queryKey: ["inspect-entity", instanceId, entityType, entityId],
+      queryFn: async () =>
+        unwrap(
+          await client.GET("/api/v1/{instance_id}/inspect/entity/{entity_type}/{entity_id}", {
+            params: {
+              path: { instance_id: instanceId, entity_type: entityType, entity_id: entityId },
+            },
+          }),
+        ),
+    })),
+  });
+}
+
 /**
  * Server-computed totals per status value for one entity type — one filtered
  * list call per value (`limit: 1`; only `total` is consumed). The daemon has

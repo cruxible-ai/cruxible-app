@@ -4,6 +4,7 @@ import { OverviewScreen } from "@/screens/OverviewScreen";
 import { QueryViewScreen } from "@/screens/QueryViewScreen";
 import { EntityScreen } from "@/screens/EntityScreen";
 import { GraphScreen } from "@/screens/GraphScreen";
+import { StateGraphScreen } from "@/screens/StateGraphScreen";
 import { TypeMapScreen } from "@/screens/TypeMapScreen";
 import { WorkflowsScreen } from "@/screens/WorkflowsScreen";
 import { ReceiptScreen } from "@/screens/ReceiptScreen";
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <OverviewScreen /> },
       { path: "map", element: <TypeMapScreen /> },
+      { path: "graph", element: <StateGraphScreen /> },
       { path: "workflows", element: <WorkflowsScreen /> },
       { path: "views/:queryName", element: <QueryViewScreen /> },
       { path: "e/:entityType/:entityId", element: <EntityScreen /> },

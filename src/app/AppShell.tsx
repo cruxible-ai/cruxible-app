@@ -7,7 +7,7 @@ import {
   useStats,
 } from "@/api/hooks";
 import { humanize } from "@/lib/text";
-import { LayoutDashboard } from "lucide-react";
+import { FileText, LayoutDashboard, Network, Waypoints, Workflow } from "lucide-react";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { isColdStatus } from "@/lib/cold";
 import { LAYER_META, useLayerColoring } from "@/lib/kit-layer";
@@ -60,7 +60,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-800 px-3 py-4">
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-zinc-800 px-3 pt-4">
         <div className="mb-4 px-2">
           <div className="text-[26px] font-normal text-zinc-100" style={{ fontFamily: "Merriweather, serif" }}>Cruxible</div>
           {instanceName && (
@@ -68,6 +68,7 @@ export function AppShell() {
           )}
         </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto pb-4">
         <nav className="space-y-0.5">
           <NavLink to={`/i/${instanceId}`} end className={navClass}>
             <span className="inline-flex items-center gap-2">
@@ -76,16 +77,31 @@ export function AppShell() {
             </span>
           </NavLink>
           <NavLink to={`/i/${instanceId}/map`} className={navClass}>
-            Type map
+            <span className="inline-flex items-center gap-2">
+              <Network className="h-3.5 w-3.5" />
+              Type map
+            </span>
+          </NavLink>
+          <NavLink to={`/i/${instanceId}/graph`} className={navClass}>
+            <span className="inline-flex items-center gap-2">
+              <Waypoints className="h-3.5 w-3.5" />
+              State graph
+            </span>
           </NavLink>
           {workflowCount > 0 && (
             <NavLink to={`/i/${instanceId}/workflows`} className={navClass}>
-              Workflows
+              <span className="inline-flex items-center gap-2">
+                <Workflow className="h-3.5 w-3.5" />
+                Workflows
+              </span>
             </NavLink>
           )}
           {sourceCount > 0 && (
             <NavLink to={`/i/${instanceId}/sources`} className={navClass}>
-              Sources
+              <span className="inline-flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5" />
+                Sources
+              </span>
             </NavLink>
           )}
         </nav>
@@ -129,7 +145,9 @@ export function AppShell() {
           </nav>
         </div>
 
-        <div className="mt-auto pt-6">
+        </div>
+
+        <div className="shrink-0 border-t border-zinc-800/60 py-2">
           <SettingsMenu />
         </div>
       </aside>

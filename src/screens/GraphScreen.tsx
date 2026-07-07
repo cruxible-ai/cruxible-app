@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   Controls,
@@ -10,7 +10,7 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { useInspectEntity, useInstanceId } from "@/api/hooks";
+import { useInspectEntities, useInspectEntity, useInstanceId } from "@/api/hooks";
 import { entityPath } from "@/components/EntityLink";
 import { MonoId } from "@/components/MonoId";
 import { LoadState } from "@/components/Panel";
@@ -137,6 +137,22 @@ export function GraphScreen() {
     setSearchParams(sp);
   }
 
+  // In-place expansion: walked-to nodes whose own 1-hop has been pulled into
+  // the canvas without recentering. Keyed on the URL center so recentering
+  // starts from a clean 1-hop again.
+  const [expandedByCenter, setExpandedByCenter] = useState<{
+    center: string;
+    refs: Array<{ entityType: string; entityId: string }>;
+  }>({ center: "", refs: [] });
+  const centerKey = `${entityType}:${entityId}`;
+  const expandedRefs = expandedByCenter.center === centerKey ? expandedByCenter.refs : [];
+  const setExpandedRefs = (
+    update: (
+      prev: Array<{ entityType: string; entityId: string }>,
+    ) => Array<{ entityType: string; entityId: string }>,
+  ) => setExpandedByCenter({ center: centerKey, refs: update(expandedRefs) });
+  const expansions = useInspectEntities(expandedRefs);
+
   const { nodes, edges } = useMemo(() => {
     const data = inspect.data as
       | {
@@ -222,8 +238,73 @@ export function GraphScreen() {
         animated: false,
       });
     });
+
+    // Merge expanded neighborhoods in place: each walked-to node's neighbors
+    // ring around it at a tighter radius; existing nodes and edges keep their
+    // spots, so expansion reads as growth, not relayout.
+    const edgeIds = new Set(edges.map((e) => e.id));
+    expandedRefs.forEach((ref, ei) => {
+      const parentId = `${ref.entityType}:${ref.entityId}`;
+      const parent = nodes.find((nd) => nd.id === parentId);
+      const exp = expansions[ei]?.data as
+        | { found?: boolean; neighbors?: NeighborForGraph[] }
+        | undefined;
+      if (!parent || !exp?.found) return;
+      const fresh = (exp.neighbors ?? []).filter(
+        (nb) => isEntityRef(nb.entity) && !edgeIds.has(`e${nb.edge_key}`),
+      );
+      const newOnes = fresh.filter(
+        (nb) => isEntityRef(nb.entity) &&
+          !seen.has(`${nb.entity.entity_type}:${nb.entity.entity_id}`),
+      );
+      let placed = 0;
+      for (const nb of fresh) {
+        if (!isEntityRef(nb.entity)) continue;
+        const e = nb.entity;
+        const nodeId = `${e.entity_type}:${e.entity_id}`;
+        if (!seen.has(nodeId)) {
+          seen.add(nodeId);
+          const angle = (2 * Math.PI * placed) / Math.max(newOnes.length, 1);
+          placed++;
+          nodes.push({
+            id: nodeId,
+            type: "entity",
+            position: {
+              x: parent.position.x + Math.cos(angle) * 230,
+              y: parent.position.y + Math.sin(angle) * 230,
+            },
+            data: {
+              entityType: e.entity_type,
+              entityId: e.entity_id,
+              title: typeof e.properties.title === "string" ? e.properties.title : e.entity_id,
+              status:
+                typeof e.properties.status === "string" ? e.properties.status : undefined,
+              isCenter: false,
+              layer: layerColoring.enabled ? layerColoring.layerFor(e.entity_type) : null,
+              properties: e.properties,
+            },
+          });
+        }
+        const reviewStatus = nb.metadata.assertion?.review?.status;
+        const stroke = reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981";
+        edgeIds.add(`e${nb.edge_key}`);
+        edges.push({
+          id: `e${nb.edge_key}`,
+          source: nb.direction === "outgoing" ? parentId : nodeId,
+          target: nb.direction === "outgoing" ? nodeId : parentId,
+          data: {
+            labelClass: "text-zinc-500",
+            relationshipType: nb.relationship_type,
+            reviewStatus: reviewStatus ?? null,
+          },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
+          style: { stroke, strokeWidth: 1.25 },
+          animated: false,
+        });
+      }
+    });
     return { nodes, edges };
-  }, [inspect.data, entityType, entityId, relFilter, layerColoring]);
+  }, [inspect.data, entityType, entityId, relFilter, layerColoring, expandedRefs, expansions]);
 
   if (inspect.isPending) return <LoadState />;
   if (inspect.error) return <LoadState error={inspect.error} />;
@@ -254,12 +335,28 @@ export function GraphScreen() {
             >
               Open entity →
             </Link>
+            {!d.isCenter &&
+              !expandedRefs.some(
+                (r) => r.entityType === d.entityType && r.entityId === d.entityId,
+              ) && (
+                <button
+                  onClick={() =>
+                    setExpandedRefs((prev) => [
+                      ...prev,
+                      { entityType: d.entityType, entityId: d.entityId },
+                    ])
+                  }
+                  className={actionChipClass}
+                >
+                  Expand neighbors here
+                </button>
+              )}
             {!d.isCenter && (
               <Link
                 to={`/i/${instanceId}/g/${d.entityType}/${d.entityId}`}
                 className={actionChipClass}
               >
-                Center graph here →
+                Recenter graph →
               </Link>
             )}
           </PanelActions>

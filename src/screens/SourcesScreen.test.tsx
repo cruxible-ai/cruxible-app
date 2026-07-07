@@ -38,9 +38,9 @@ describe("SourcesScreen", () => {
     const link = await screen.findByRole("link", { name: "Deploy runbook (ops wiki)" });
     expect(link).toHaveAttribute("href", "/i/inst_x/sources/SRC-fixture00001");
     expect(screen.getByText("SRC-fixture00001")).toBeInTheDocument();
-    expect(screen.getAllByText("markdown")).toHaveLength(3);
-    expect(screen.getAllByText("archive")).toHaveLength(2);
-    expect(screen.getByText("manifest_only")).toBeInTheDocument();
+    expect(screen.getAllByText("Markdown")).toHaveLength(3);
+    expect(screen.getAllByText("Archive")).toHaveLength(2);
+    expect(screen.getByText("Manifest only")).toBeInTheDocument();
     // chunk counts, verbatim
     expect(screen.getByText("6")).toBeInTheDocument();
     // 3 fixtures fit on one page: no pagination controls

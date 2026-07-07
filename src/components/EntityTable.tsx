@@ -31,11 +31,11 @@ function deriveColumns(entities: EntityRef[], compact: boolean): string[] {
   return [...lead, ...seen.filter((k) => !lead.includes(k))];
 }
 
-function isChipKey(key: string): boolean {
+export function isChipKey(key: string): boolean {
   return key === "status" || key === "priority" || key.endsWith("_status");
 }
 
-function Cell({ value, column }: { value: unknown; column: string }) {
+export function Cell({ value, column }: { value: unknown; column: string }) {
   if (value === null || value === undefined || value === "") {
     return <span className="text-zinc-700">—</span>;
   }

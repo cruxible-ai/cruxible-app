@@ -69,7 +69,7 @@ export function QueryViewScreen() {
                           : "text-zinc-500 hover:text-zinc-300"
                       }`}
                     >
-                      {mode}
+                      {mode === "rows" ? "Rows" : "Graph"}
                     </button>
                   ))}
                 </span>
@@ -97,7 +97,7 @@ export function QueryViewScreen() {
                 }}
                 className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
               >
-                prev
+                Previous
               </button>
               <button
                 disabled={offset + PAGE_SIZE >= view.data.total}
@@ -107,7 +107,7 @@ export function QueryViewScreen() {
                 }}
                 className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
               >
-                next
+                Next
               </button>
               <span className="text-zinc-600">
                 {offset}–{Math.min(offset + PAGE_SIZE, view.data.total)} of {view.data.total}

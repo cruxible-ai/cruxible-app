@@ -5,8 +5,7 @@ import {
   useStats,
   useView,
 } from "@/api/hooks";
-import { SEGMENT_FILLS, TONE_ORDER, toggleChipClass, toneFor } from "@/components/Chip";
-import { EyeOff } from "lucide-react";
+import { SEGMENT_FILLS, TONE_ORDER, toneFor } from "@/components/Chip";
 import { Panel, LoadState } from "@/components/Panel";
 import { humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -86,7 +85,7 @@ function StatusMatrix() {
   const instanceId = useInstanceId();
   // Same display preference the sidebar and browse surfaces use — one
   // hide-cold, not a per-screen toggle.
-  const { settings, update } = useSettings();
+  const { settings } = useSettings();
   const hideCold = settings.hideCold;
 
   if (!stats.data) return null;
@@ -110,15 +109,7 @@ function StatusMatrix() {
   return (
     <Panel
       title="State by status"
-      meta={
-        <button
-          onClick={() => update({ hideCold: !hideCold })}
-          className={toggleChipClass(hideCold)}
-        >
-          <EyeOff className="mr-1 inline h-3 w-3" />
-          Hide cold
-        </button>
-      }
+      meta={hideCold ? <span className="text-zinc-600">Cold hidden by settings</span> : undefined}
     >
       <div className="space-y-2">
         {rows.map(({ type, present, total }) => (
@@ -152,11 +143,11 @@ function StatusMatrix() {
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500">
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> active / approved</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> awaiting review</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> planned</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> blocked / changes requested</span>
-        {!hideCold && (<span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> cold</span>)}
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active / approved</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Awaiting review</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> Planned</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Blocked / changes requested</span>
+        {!hideCold && (<span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> Cold</span>)}
       </div>
     </Panel>
   );
