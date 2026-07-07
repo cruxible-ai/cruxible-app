@@ -107,13 +107,13 @@ export const LAYER_META: Record<
   { label: string; dot: string; border: string; borderHover: string }
 > = {
   base: {
-    label: "base kit",
+    label: "Base kit",
     dot: "bg-zinc-500",
     border: "border-zinc-700",
     borderHover: "hover:border-zinc-500",
   },
   domain: {
-    label: "domain overlay",
+    label: "Domain overlay",
     dot: "bg-violet-400",
     border: "border-violet-900",
     borderHover: "hover:border-violet-700",

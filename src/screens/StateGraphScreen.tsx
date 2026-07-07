@@ -32,7 +32,6 @@ import {
   toneFor,
 } from "@/components/Chip";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
-import { LayerLegend } from "@/components/graph/LayerLegend";
 import {
   ConnectionList,
   PanelActions,
@@ -80,19 +79,19 @@ function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
     ? SEGMENT_FILLS[toneFor(data.status)]
     : (accent?.dot ?? "bg-zinc-500");
   return (
-    <div className="group relative">
+    // Padded wrapper = a finger-sized click/drag target around a 12px dot.
+    <div className="group relative p-1.5" title={`${data.entityType} · ${data.title}`}>
       {/* ReactFlow drops edges from handle-less nodes; FloatingEdge ignores
           handle positions, so these exist purely to register the node. */}
       <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
       <div
-        title={`${data.entityType} · ${data.title}`}
         className={`h-3 w-3 rounded-full ${fill} ${
           data.matched ? "ring-2 ring-zinc-100" : ""
         }`}
       />
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
       <div
-        className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-300 ${
+        className={`pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-300 ${
           data.matched ? "" : "opacity-0 group-hover:opacity-100"
         }`}
       >
@@ -250,23 +249,44 @@ function layoutCardClusters(
   return nodes;
 }
 
-/** What the dot hues mean; layer hues come from the LayerLegend beside it. */
-function StatusLegend() {
-  const rows: Array<[string, string]> = [
-    ["bg-emerald-500", "Active / approved"],
-    ["bg-amber-400", "Awaiting review"],
-    ["bg-sky-500", "Planned"],
-    ["bg-red-500", "Blocked / attention"],
-    ["bg-zinc-500", "Cold or no status"],
-  ];
+/**
+ * One legend, three encodings, each named for what it colors: entity dots
+ * carry status, edge strokes carry review state, and (on composed instances)
+ * status-less entities take their kit layer's hue.
+ */
+function GraphLegend({ layersOn }: { layersOn: boolean }) {
+  const section = "text-[9px] font-semibold uppercase tracking-wider text-zinc-600";
+  const row = "inline-flex items-center gap-1.5";
   return (
     <div className="flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
-      {rows.map(([dot, label]) => (
-        <span key={label} className="inline-flex items-center gap-1.5">
-          <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-          {label}
+      <span className={section}>Entities — status</span>
+      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active / approved</span>
+      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Awaiting review</span>
+      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> Planned</span>
+      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Blocked / attention</span>
+      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> Cold</span>
+      {layersOn ? (
+        <>
+          <span className={`${section} mt-1`}>Entities without status — kit layer</span>
+          <span className={row}>
+            <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.base.dot}`} /> {LAYER_META.base.label}
+          </span>
+          <span className={row}>
+            <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.domain.dot}`} /> {LAYER_META.domain.label}
+          </span>
+        </>
+      ) : (
+        <span className={row}>
+          <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> No status
         </span>
-      ))}
+      )}
+      <span className={`${section} mt-1`}>Edges — review state</span>
+      <span className={row}>
+        <span className="h-px w-3 bg-emerald-500" /> Accepted
+      </span>
+      <span className={row}>
+        <span className="h-px w-3 bg-zinc-500" /> Unreviewed
+      </span>
     </div>
   );
 }
@@ -569,7 +589,7 @@ export function StateGraphScreen() {
       // Softness lives in the stroke alpha: GraphCanvas owns style.opacity
       // for its selection dimming and would clobber a base opacity here.
       const stroke =
-        reviewStatus === "unreviewed" ? "rgba(140,140,152,0.45)" : "rgba(16,185,129,0.55)";
+        reviewStatus === "unreviewed" ? "rgba(150,150,162,0.55)" : "rgba(16,185,129,0.7)";
       return {
         id: `e${row.edge_key}`,
         source,
@@ -578,7 +598,7 @@ export function StateGraphScreen() {
           relationshipType: row.relationship_type,
           reviewStatus: reviewStatus ?? null,
         },
-        style: { stroke, strokeWidth: 1.2 },
+        style: { stroke, strokeWidth: 1.5 },
         animated: false,
       };
     });
@@ -780,12 +800,7 @@ export function StateGraphScreen() {
           nodeTypes={nodeTypes}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"
-          overlay={
-            <div className="flex flex-col gap-2">
-              <StatusLegend />
-              {layerColoring.enabled && <LayerLegend />}
-            </div>
-          }
+          overlay={<GraphLegend layersOn={layerColoring.enabled} />}
           selectRequest={selectRequest}
         >
           <Controls showInteractive={false} className="!shadow-none" />

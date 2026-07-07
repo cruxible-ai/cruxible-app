@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Background,
   ReactFlow,
@@ -63,6 +63,10 @@ function Canvas({
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  // Panning must not clear the selection: only a true click on the pane
+  // (pointer down → up with no viewport move in between) deselects, so you
+  // can drag around a lit neighborhood without losing it.
+  const pannedRef = useRef(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -186,7 +190,15 @@ function Canvas({
           proOptions={{ hideAttribution: true }}
           onNodeClick={(_, node) => select(node.id)}
           onEdgeClick={(_, edge) => setSelection({ kind: "edge", id: edge.id })}
-          onPaneClick={() => setSelection(null)}
+          onPointerDownCapture={() => {
+            pannedRef.current = false;
+          }}
+          onMove={() => {
+            pannedRef.current = true;
+          }}
+          onPaneClick={() => {
+            if (!pannedRef.current) setSelection(null);
+          }}
         >
           <Background color="#27272a" gap={24} />
           {children}
