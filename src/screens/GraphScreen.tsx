@@ -23,6 +23,12 @@ import {
   toggleChipClass,
   toneFor,
 } from "@/components/Chip";
+import {
+  EdgeGovernancePanel,
+  edgeStroke,
+  useGovernedRelationshipTypes,
+  type EdgeMetadata,
+} from "@/components/graph/EdgeGovernance";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import { LayerLegend } from "@/components/graph/LayerLegend";
 import { LAYER_META, useLayerColoring, type KitLayer } from "@/lib/kit-layer";
@@ -39,7 +45,8 @@ interface NeighborForGraph {
   direction: "incoming" | "outgoing";
   relationship_type: string;
   edge_key: number;
-  metadata: { assertion?: { review?: { status?: string } } };
+  properties?: Record<string, unknown> | null;
+  metadata: EdgeMetadata;
   entity: unknown;
 }
 
@@ -110,6 +117,7 @@ export function GraphScreen() {
   const inspect = useInspectEntity(entityType, entityId);
   usePageTitle(`Graph — ${entityId}`);
   const layerColoring = useLayerColoring();
+  const governedTypes = useGovernedRelationshipTypes();
 
   // Relationship-type filter lives in the URL (?rel=a,b) so a filtered
   // neighborhood is a shareable view.
@@ -219,8 +227,12 @@ export function GraphScreen() {
           },
         });
       }
-      const reviewStatus = nb.metadata.assertion?.review?.status;
-      const stroke = reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981";
+      const governed = governedTypes.has(nb.relationship_type);
+      const style = edgeStroke(
+        governed,
+        nb.metadata.assertion?.review?.status,
+        nb.metadata.assertion?.lifecycle?.status,
+      );
       edges.push({
         id: `e${nb.edge_key}`,
         source: nb.direction === "outgoing" ? center.id : nodeId,
@@ -228,13 +240,9 @@ export function GraphScreen() {
         // On dense rings the repeated labels turn to noise; the relationship
         // filter chips above the canvas already name every edge type.
         label: n > 12 ? undefined : nb.relationship_type.replaceAll("_", " "),
-        data: {
-          labelClass: "text-zinc-500",
-          relationshipType: nb.relationship_type,
-          reviewStatus: reviewStatus ?? null,
-        },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
-        style: { stroke, strokeWidth: 1.25 },
+        data: { labelClass: "text-zinc-500", nb, governed },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: style.stroke },
+        style: { ...style, strokeWidth: 1.25 },
         animated: false,
       });
     });
@@ -285,26 +293,26 @@ export function GraphScreen() {
             },
           });
         }
-        const reviewStatus = nb.metadata.assertion?.review?.status;
-        const stroke = reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981";
+        const governed = governedTypes.has(nb.relationship_type);
+        const style = edgeStroke(
+          governed,
+          nb.metadata.assertion?.review?.status,
+          nb.metadata.assertion?.lifecycle?.status,
+        );
         edgeIds.add(`e${nb.edge_key}`);
         edges.push({
           id: `e${nb.edge_key}`,
           source: nb.direction === "outgoing" ? parentId : nodeId,
           target: nb.direction === "outgoing" ? nodeId : parentId,
-          data: {
-            labelClass: "text-zinc-500",
-            relationshipType: nb.relationship_type,
-            reviewStatus: reviewStatus ?? null,
-          },
-          markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
-          style: { stroke, strokeWidth: 1.25 },
+          data: { labelClass: "text-zinc-500", nb, governed },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: style.stroke },
+          style: { ...style, strokeWidth: 1.25 },
           animated: false,
         });
       }
     });
     return { nodes, edges };
-  }, [inspect.data, entityType, entityId, relFilter, layerColoring, expandedRefs, expansions]);
+  }, [inspect.data, entityType, entityId, relFilter, layerColoring, expandedRefs, expansions, governedTypes]);
 
   if (inspect.isPending) return <LoadState />;
   if (inspect.error) return <LoadState error={inspect.error} />;
@@ -370,7 +378,7 @@ export function GraphScreen() {
                 ...e,
                 label:
                   e.label ??
-                  (e.data as { relationshipType?: string } | undefined)?.relationshipType,
+                  (e.data as { nb?: NeighborForGraph } | undefined)?.nb?.relationship_type,
               }))}
               api={api}
               labelFor={labelFor}
@@ -381,34 +389,18 @@ export function GraphScreen() {
     }
     const edge = edges.find((e) => e.id === selection.id);
     if (!edge) return null;
-    const data = edge.data as
-      | { relationshipType?: string; reviewStatus?: string | null }
-      | undefined;
+    const { nb, governed } = edge.data as { nb: NeighborForGraph; governed: boolean };
     return (
-      <div>
-        <PanelHeading
-          kicker="Relationship"
-          title={(data?.relationshipType ?? String(edge.label ?? "")).replaceAll("_", " ")}
-        />
-        <div className="flex flex-col gap-0.5 text-[12px]">
-          <button
-            onClick={() => api.select(edge.source)}
-            className="text-left text-zinc-300 hover:underline"
-          >
-            {labelFor(edge.source)}
-          </button>
-          <span className="text-zinc-600">↓</span>
-          <button
-            onClick={() => api.select(edge.target)}
-            className="text-left text-zinc-300 hover:underline"
-          >
-            {labelFor(edge.target)}
-          </button>
-        </div>
-        <PanelSection title="Review status">
-          <Chip value={data?.reviewStatus ?? "live"} />
-        </PanelSection>
-      </div>
+      <EdgeGovernancePanel
+        relationshipType={nb.relationship_type}
+        governed={governed}
+        properties={nb.properties ?? null}
+        metadata={nb.metadata}
+        sourceLabel={labelFor(edge.source)}
+        targetLabel={labelFor(edge.target)}
+        onSelectSource={() => api.select(edge.source)}
+        onSelectTarget={() => api.select(edge.target)}
+      />
     );
   }
 

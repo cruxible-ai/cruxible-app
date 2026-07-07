@@ -20,11 +20,17 @@ import {
   type SimulationNodeDatum,
 } from "d3-force";
 import { useEdgeList, useEntitiesForTypes, useInstanceId, useStats } from "@/api/hooks";
+import {
+  EdgeGovernancePanel,
+  edgeStroke,
+  useGovernedRelationshipTypes,
+  type EdgeMetadata,
+} from "@/components/graph/EdgeGovernance";
 import { isEntityRef } from "@/api/items";
 import { entityPath } from "@/components/EntityLink";
 import { MonoId } from "@/components/MonoId";
 import { EmptyState, LoadState } from "@/components/Panel";
-import { actionChipClass, Chip, toggleChipClass } from "@/components/Chip";
+import { actionChipClass, toggleChipClass } from "@/components/Chip";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import {
   ConnectionList,
@@ -247,12 +253,26 @@ function GraphLegend({ layersOn }: { layersOn: boolean }) {
   const row = "inline-flex items-center gap-1.5";
   return (
     <div className="flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
-      <span className={section}>Edges — review state</span>
+      <span className={section}>Governed edges — review state</span>
       <span className={row}>
         <span className="h-px w-3 bg-emerald-500" /> Accepted
       </span>
       <span className={row}>
-        <span className="h-px w-3 bg-zinc-500" /> Unreviewed
+        <span className="h-px w-3 bg-amber-400" /> Unreviewed
+      </span>
+      <span className={row}>
+        <span className="h-px w-3 bg-red-500" /> Rejected
+      </span>
+      <span className={`${section} mt-1`}>Deterministic edges</span>
+      <span className={row}>
+        <span className="h-px w-3 bg-zinc-500" /> Direct write · review n/a
+      </span>
+      <span className={row}>
+        <span
+          className="w-3 border-t border-dashed border-zinc-500"
+          style={{ height: 0 }}
+        />{" "}
+        Inactive lifecycle
       </span>
       <span className={`${section} mt-1`}>Entities — kit layer</span>
       {layersOn ? (
@@ -280,7 +300,8 @@ interface EdgeRow {
   to_id: string;
   relationship_type: string;
   edge_key: number;
-  metadata?: { assertion?: { review?: { status?: string } } };
+  properties?: Record<string, unknown> | null;
+  metadata?: EdgeMetadata | null;
 }
 
 interface SimNode extends SimulationNodeDatum {
@@ -359,6 +380,7 @@ export function StateGraphScreen() {
   const stats = useStats();
   const { settings } = useSettings();
   const layerColoring = useLayerColoring();
+  const governedTypes = useGovernedRelationshipTypes();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [selectRequest, setSelectRequest] = useState<{ id: string; nonce: number } | null>(null);
@@ -558,28 +580,30 @@ export function StateGraphScreen() {
     }
 
     // No arrowheads at dot density — direction lives in the context panel.
+    // Stroke alpha carries softness: GraphCanvas owns style.opacity for its
+    // selection dimming and would clobber a base opacity here.
     const edges: Edge[] = links.map(({ row, source, target }) => {
-      const reviewStatus = row.metadata?.assertion?.review?.status;
-      // Softness lives in the stroke alpha: GraphCanvas owns style.opacity
-      // for its selection dimming and would clobber a base opacity here.
-      const stroke =
-        reviewStatus === "unreviewed" ? "rgba(150,150,162,0.55)" : "rgba(16,185,129,0.7)";
+      const governed = governedTypes.has(row.relationship_type);
       return {
         id: `e${row.edge_key}`,
         source,
         target,
-        data: {
-          relationshipType: row.relationship_type,
-          reviewStatus: reviewStatus ?? null,
+        data: { row, governed },
+        style: {
+          ...edgeStroke(
+            governed,
+            row.metadata?.assertion?.review?.status,
+            row.metadata?.assertion?.lifecycle?.status,
+          ),
+          strokeWidth: 1.5,
         },
-        style: { stroke, strokeWidth: 1.5 },
         animated: false,
       };
     });
     return { nodes: nodes, edges, droppedEdges: dropped };
     // search is deliberately NOT a dependency: layout is expensive and match
     // decoration happens in the cheap pass below.
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, mode]);
+  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, mode, governedTypes]);
 
   // Cheap per-keystroke pass: stamp search matches onto the laid-out nodes.
   const { nodes, matchCount } = useMemo(() => {
@@ -645,7 +669,7 @@ export function StateGraphScreen() {
               nodeId={selection.id}
               edges={edges.map((e) => ({
                 ...e,
-                label: (e.data as { relationshipType?: string } | undefined)?.relationshipType,
+                label: (e.data as { row?: EdgeRow } | undefined)?.row?.relationship_type,
               }))}
               api={api}
               labelFor={labelFor}
@@ -656,32 +680,18 @@ export function StateGraphScreen() {
     }
     const edge = edges.find((e) => e.id === selection.id);
     if (!edge) return null;
-    const data = edge.data as { relationshipType?: string; reviewStatus?: string | null };
+    const { row, governed } = edge.data as { row: EdgeRow; governed: boolean };
     return (
-      <div>
-        <PanelHeading
-          kicker="Relationship"
-          title={(data.relationshipType ?? "").replaceAll("_", " ")}
-        />
-        <div className="flex flex-col gap-0.5 text-[12px]">
-          <button
-            onClick={() => api.select(edge.source)}
-            className="text-left text-zinc-300 hover:underline"
-          >
-            {labelFor(edge.source)}
-          </button>
-          <span className="text-zinc-600">↓</span>
-          <button
-            onClick={() => api.select(edge.target)}
-            className="text-left text-zinc-300 hover:underline"
-          >
-            {labelFor(edge.target)}
-          </button>
-        </div>
-        <PanelSection title="Review status">
-          <Chip value={data.reviewStatus ?? "live"} />
-        </PanelSection>
-      </div>
+      <EdgeGovernancePanel
+        relationshipType={row.relationship_type}
+        governed={governed}
+        properties={row.properties ?? null}
+        metadata={row.metadata ?? null}
+        sourceLabel={labelFor(edge.source)}
+        targetLabel={labelFor(edge.target)}
+        onSelectSource={() => api.select(edge.source)}
+        onSelectTarget={() => api.select(edge.target)}
+      />
     );
   }
 
