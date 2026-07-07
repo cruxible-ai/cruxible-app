@@ -317,13 +317,23 @@ export function useReceiptList(limit = 500) {
   });
 }
 
-/** Every edge in the graph (the daemon honors large limits; the caller caps). */
+/**
+ * Every edge in the graph (the daemon honors large limits; the caller caps).
+ * This is the state graph's heaviest read (~1.4MB at 2k edges since the
+ * list route has no field projection for edges — reported as friction), so
+ * it caches like useView: keyed on graph structure, fresh for 5 minutes.
+ */
 export function useEdgeList(limit: number, enabled = true) {
   const client = useApiClient();
   const instanceId = useInstanceId();
+  const stats = useStats();
+  const structureKey = stats.data
+    ? `${stats.data.entity_count}:${stats.data.edge_count}`
+    : "pending";
   return useQuery({
-    queryKey: ["edge-list", instanceId, limit],
-    enabled,
+    queryKey: ["edge-list", instanceId, limit, structureKey],
+    enabled: enabled && stats.data !== undefined,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () =>
       unwrap(
         await client.GET("/api/v1/{instance_id}/list/{resource_type}", {
@@ -336,14 +346,20 @@ export function useEdgeList(limit: number, enabled = true) {
   });
 }
 
-/** One list call per entity type — the whole-state fetch for the state graph. */
+/** One list call per entity type — the whole-state fetch for the state graph.
+ * Structure-keyed and cached like useEdgeList. */
 export function useEntitiesForTypes(entityTypes: string[], limitPerType: number, enabled = true) {
   const client = useApiClient();
   const instanceId = useInstanceId();
+  const stats = useStats();
+  const structureKey = stats.data
+    ? `${stats.data.entity_count}:${stats.data.edge_count}`
+    : "pending";
   return useQueries({
     queries: entityTypes.map((entityType) => ({
-      queryKey: ["entity-list", instanceId, entityType, limitPerType, 0, null],
-      enabled,
+      queryKey: ["entity-list", instanceId, entityType, limitPerType, 0, structureKey],
+      enabled: enabled && stats.data !== undefined,
+      staleTime: 5 * 60 * 1000,
       queryFn: async () =>
         unwrap(
           await client.GET("/api/v1/{instance_id}/list/{resource_type}", {

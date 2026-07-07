@@ -24,13 +24,7 @@ import { isEntityRef } from "@/api/items";
 import { entityPath } from "@/components/EntityLink";
 import { MonoId } from "@/components/MonoId";
 import { EmptyState, LoadState } from "@/components/Panel";
-import {
-  actionChipClass,
-  Chip,
-  SEGMENT_FILLS,
-  toggleChipClass,
-  toneFor,
-} from "@/components/Chip";
+import { actionChipClass, Chip, toggleChipClass } from "@/components/Chip";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import {
   ConnectionList,
@@ -71,13 +65,12 @@ type DotNodeData = DotNodeCore & {
 
 function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
   // No always-on text at dot density — identity comes from the legend, the
-  // hover label, search rings, and the context panel. Status is the primary
-  // hue; entities without one (reference rows, assessments) take their kit
-  // layer's hue so composed instances read as strata.
+  // hover label, search rings, and the context panel. Entity hue is kit
+  // layer only: status coloring is deliberately absent from the graph until
+  // enum presentation semantics are config-owned (oq-enum-presentation-
+  // semantics) — edge review state is the governance signal here.
   const accent = data.layer ? LAYER_META[data.layer] : null;
-  const fill = data.status
-    ? SEGMENT_FILLS[toneFor(data.status)]
-    : (accent?.dot ?? "bg-zinc-500");
+  const fill = accent?.dot ?? "bg-zinc-400";
   return (
     // Padded wrapper = a finger-sized click/drag target around a 12px dot.
     <div className="group relative p-1.5" title={`${data.entityType} · ${data.title}`}>
@@ -119,12 +112,6 @@ function CardNode({ data }: NodeProps<Node<DotNodeData>>) {
         {data.entityType}
       </div>
       <div className="flex items-center gap-1.5">
-        {data.status && (
-          <span
-            title={humanize(data.status)}
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEGMENT_FILLS[toneFor(data.status)]}`}
-          />
-        )}
         <span className="truncate text-[10px] leading-4 text-zinc-200">{data.title}</span>
       </div>
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
@@ -250,24 +237,26 @@ function layoutCardClusters(
 }
 
 /**
- * One legend, three encodings, each named for what it colors: entity dots
- * carry status, edge strokes carry review state, and (on composed instances)
- * status-less entities take their kit layer's hue.
+ * Governance-first legend: edge review state is the signal this graph
+ * exists to show; entity hue is kit layer only. Entity status coloring is
+ * deliberately absent until enum presentation semantics are config-owned
+ * (oq-enum-presentation-semantics).
  */
 function GraphLegend({ layersOn }: { layersOn: boolean }) {
   const section = "text-[9px] font-semibold uppercase tracking-wider text-zinc-600";
   const row = "inline-flex items-center gap-1.5";
   return (
     <div className="flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
-      <span className={section}>Entities — status</span>
-      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active / approved</span>
-      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Awaiting review</span>
-      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> Planned</span>
-      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Blocked / attention</span>
-      <span className={row}><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> Cold</span>
+      <span className={section}>Edges — review state</span>
+      <span className={row}>
+        <span className="h-px w-3 bg-emerald-500" /> Accepted
+      </span>
+      <span className={row}>
+        <span className="h-px w-3 bg-zinc-500" /> Unreviewed
+      </span>
+      <span className={`${section} mt-1`}>Entities — kit layer</span>
       {layersOn ? (
         <>
-          <span className={`${section} mt-1`}>Entities without status — kit layer</span>
           <span className={row}>
             <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.base.dot}`} /> {LAYER_META.base.label}
           </span>
@@ -277,16 +266,9 @@ function GraphLegend({ layersOn }: { layersOn: boolean }) {
         </>
       ) : (
         <span className={row}>
-          <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> No status
+          <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" /> Entity
         </span>
       )}
-      <span className={`${section} mt-1`}>Edges — review state</span>
-      <span className={row}>
-        <span className="h-px w-3 bg-emerald-500" /> Accepted
-      </span>
-      <span className={row}>
-        <span className="h-px w-3 bg-zinc-500" /> Unreviewed
-      </span>
     </div>
   );
 }
@@ -330,7 +312,7 @@ function forceLayout(
     .force("y", forceY(0).strength(0.06))
     .force("collide", forceCollide(10))
     .stop();
-  const ticks = ids.length > 1200 ? 120 : 250;
+  const ticks = ids.length > 800 ? 90 : 160;
   for (let i = 0; i < ticks; i++) sim.tick();
   return new Map(simNodes.map((n) => [n.id, { x: n.x ?? 0, y: n.y ?? 0 }]));
 }
@@ -473,8 +455,8 @@ export function StateGraphScreen() {
   }
 
   // Entity rows + edge rows → drawn graph, in stages: collect, isolate,
-  // layout, decorate. All pure derivation from fetch results + URL state.
-  const { nodes, edges, droppedEdges, matchCount } = useMemo(() => {
+  // layout. All pure derivation from fetch results + URL state.
+  const { nodes: baseNodes, edges, droppedEdges } = useMemo(() => {
     const rows: Array<{ id: string; data: DotNodeCore }> = [];
     for (let i = 0; i < includedTypes.length; i++) {
       const items = ((entityResults[i]?.data as { items?: unknown[] } | undefined)?.items ?? [])
@@ -559,17 +541,9 @@ export function StateGraphScreen() {
       drawnRows = kept;
     }
 
-    let matches = 0;
-    const decorate = (r: (typeof drawnRows)[number]) => {
-      const matched =
-        search.trim() !== "" && matchesText([r.data.entityId, r.data.title], search);
-      if (matched) matches++;
-      return matched;
-    };
-
     let nodes: Node[];
     if (mode === "cards") {
-      nodes = layoutCardClusters(drawnRows, overflow, decorate);
+      nodes = layoutCardClusters(drawnRows, overflow, () => false);
     } else {
       const positions = forceLayout(
         drawnRows.map((r) => r.id),
@@ -579,7 +553,7 @@ export function StateGraphScreen() {
         id: r.id,
         type: "dot",
         position: positions.get(r.id) ?? { x: 0, y: 0 },
-        data: { ...r.data, showLabel: false, matched: decorate(r) },
+        data: { ...r.data, showLabel: false, matched: false },
       }));
     }
 
@@ -602,8 +576,25 @@ export function StateGraphScreen() {
         animated: false,
       };
     });
-    return { nodes, edges, droppedEdges: dropped, matchCount: matches };
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, search, mode]);
+    return { nodes: nodes, edges, droppedEdges: dropped };
+    // search is deliberately NOT a dependency: layout is expensive and match
+    // decoration happens in the cheap pass below.
+  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, mode]);
+
+  // Cheap per-keystroke pass: stamp search matches onto the laid-out nodes.
+  const { nodes, matchCount } = useMemo(() => {
+    const q = search.trim();
+    if (q === "") return { nodes: baseNodes, matchCount: 0 };
+    let matches = 0;
+    const nodes = baseNodes.map((n) => {
+      const d = n.data as { entityId?: string; title?: string };
+      if (typeof d.entityId !== "string") return n;
+      const matched = matchesText([d.entityId, d.title], q);
+      if (matched) matches++;
+      return matched ? { ...n, data: { ...n.data, matched: true } } : n;
+    });
+    return { nodes, matchCount: matches };
+  }, [baseNodes, search]);
 
   if (stats.isPending) return <LoadState />;
   if (stats.error) return <LoadState error={stats.error} />;
@@ -632,11 +623,6 @@ export function StateGraphScreen() {
           <div className="break-all">
             <MonoId id={d.entityId} />
           </div>
-          {d.status && (
-            <div className="mt-1">
-              <Chip value={d.status} />
-            </div>
-          )}
           <PanelActions>
             <Link to={entityPath(instanceId, d.entityType, d.entityId)} className={actionChipClass}>
               Open entity →
@@ -652,7 +638,7 @@ export function StateGraphScreen() {
             )}
           </PanelActions>
           <PanelSection title="Properties">
-            <PropertyList properties={d.properties} omit={["title", "status"]} />
+            <PropertyList properties={d.properties} omit={["title"]} />
           </PanelSection>
           <PanelSection title="Connections">
             <ConnectionList
@@ -705,7 +691,7 @@ export function StateGraphScreen() {
         <h1 className="text-[17px] font-semibold text-zinc-100">State graph</h1>
         <span className="text-[11px] text-zinc-600">
           {withinBudget
-            ? `${nodes.length} entities · ${edges.length} edges · dot = status · grey edge = unreviewed, green = accepted`
+            ? `${nodes.length} entities · ${edges.length} edges`
             : "The whole instance state on one canvas"}
           {droppedEdges > 0 && !focus && ` · ${droppedEdges} edges to excluded or hidden entities not drawn`}
         </span>
