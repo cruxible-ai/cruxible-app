@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useInstanceId, useInstanceSchema } from "@/api/hooks";
 import { defChipClass } from "@/components/Chip";
@@ -6,9 +7,11 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import {
+  describeStep,
   providersOf,
   signalWiring,
-  stepDetail,
+  stepPhase,
+  stepReadIds,
   workflowProviders,
   workflowsOf,
 } from "@/lib/workflow-info";
@@ -52,7 +55,7 @@ export function WorkflowScreen() {
           {workflow.mode && <span className={defChipClass}>{workflow.mode}</span>}
           {workflow.input_contract && (
             <span>
-              input contract <span className="font-mono">{workflow.input_contract}</span>
+              Input contract <span className="font-mono">{workflow.input_contract}</span>
             </span>
           )}
           <span>
@@ -69,37 +72,92 @@ export function WorkflowScreen() {
           <Panel title="Pipeline">
             <ol className="space-y-1">
               {steps.map((step, i) => {
-                const detail = stepDetail(step.config);
+                const description = describeStep(step);
+                const phase = stepPhase(step);
+                const previousPhase = i > 0 ? stepPhase(steps[i - 1] ?? {}) : null;
+                const reads = stepReadIds(step);
+                const continuesPhase = phase === previousPhase;
                 const provider =
                   step.kind === "provider" && typeof step.config === "string"
                     ? providers[step.config]
                     : undefined;
                 return (
-                  <li
-                    key={step.id ?? i}
-                    className="grid grid-cols-[1.5rem_11rem_1fr] items-baseline gap-x-2 border-t border-zinc-800/50 py-1 text-[12px] first:border-t-0"
-                  >
-                    <span className="font-mono text-[10px] text-zinc-600">{i + 1}</span>
-                    <span className="inline-flex items-center gap-1.5 text-zinc-300">
-                      {(step.kind ?? "step").replaceAll("_", " ")}
-                      {provider && (
-                        <span
-                          title={provider.deterministic ? "Deterministic" : "Non-deterministic"}
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            provider.deterministic ? "bg-emerald-500" : "bg-amber-400"
-                          }`}
-                        />
-                      )}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="font-mono text-[11px] text-zinc-500">{step.id}</span>
-                      {detail && (
-                        <span className="ml-2 break-all font-mono text-[11px] text-zinc-400">
-                          {detail}
-                        </span>
-                      )}
-                    </span>
-                  </li>
+                  <Fragment key={step.id ?? i}>
+                    {phase !== previousPhase && (
+                      <li
+                        className={`${i === 0 ? "pt-0" : "border-t border-zinc-800/50 pt-2"} pb-0.5`}
+                      >
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                          {phase}
+                        </div>
+                      </li>
+                    )}
+                    <li
+                      className={`grid grid-cols-[1.5rem_10rem_1fr] items-start gap-x-2 py-1.5 text-[12px] ${
+                        continuesPhase ? "border-t border-zinc-800/50" : ""
+                      }`}
+                    >
+                      <span className="pt-0.5 font-mono text-[10px] text-zinc-600">{i + 1}</span>
+                      <span className="inline-flex items-center gap-1.5 pt-px text-zinc-300">
+                        {humanize(step.kind ?? "step")}
+                        {provider && (
+                          <span
+                            title={provider.deterministic ? "Deterministic" : "Non-deterministic"}
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              provider.deterministic ? "bg-emerald-500" : "bg-amber-400"
+                            }`}
+                          />
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                          {step.id && (
+                            <span className="font-mono text-[11px] text-zinc-500">{step.id}</span>
+                          )}
+                          <span className="min-w-0 text-zinc-300">
+                            {description.queryName ? (
+                              <>
+                                Runs named query{" "}
+                                <Link
+                                  to={`/i/${instanceId}/views/${description.queryName}`}
+                                  className="break-all font-mono text-[11px] text-sky-400 hover:underline"
+                                >
+                                  {description.queryName}
+                                </Link>
+                              </>
+                            ) : (
+                              description.summary
+                            )}
+                          </span>
+                          {reads.length > 0 && (
+                            <span className="inline-flex flex-wrap items-center gap-1 text-[10px] text-zinc-600">
+                              Reads:
+                              {reads.map((id) => (
+                                <span
+                                  key={id}
+                                  className={`${defChipClass} font-mono text-[10px] text-zinc-400`}
+                                >
+                                  {id}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </div>
+                        {description.rows.length > 0 && (
+                          <dl className="mt-1 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[11px]">
+                            {description.rows.map((row, rowIndex) => (
+                              <div key={`${row.label}-${rowIndex}`} className="contents">
+                                <dt className="text-zinc-600">{row.label}</dt>
+                                <dd className="break-words font-mono text-[10px] text-zinc-500">
+                                  {row.value}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
+                      </div>
+                    </li>
+                  </Fragment>
                 );
               })}
             </ol>
