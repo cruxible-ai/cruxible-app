@@ -47,6 +47,7 @@ import {
 } from "@/components/graph/PanelBits";
 import { isColdEntity, isColdStatus } from "@/lib/cold";
 import { LAYER_META, useLayerColoring, type KitLayer } from "@/lib/kit-layer";
+import { buildTypeColors } from "@/lib/type-colors";
 import { useSettings } from "@/lib/settings";
 import { humanize, matchesText } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -66,6 +67,8 @@ interface DotNodeCore {
   title: string;
   status: string | undefined;
   layer: KitLayer | null;
+  /** Resolved dot hue (hex) in type-color mode; null falls back to kit layer. */
+  color: string | null;
   properties: Record<string, unknown>;
 }
 
@@ -77,12 +80,13 @@ type DotNodeData = DotNodeCore & {
 
 function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
   // No always-on text at dot density — identity comes from the legend, the
-  // hover label, search rings, and the context panel. Entity hue is kit
-  // layer only: status coloring is deliberately absent from the graph until
-  // enum presentation semantics are config-owned (oq-enum-presentation-
-  // semantics) — edge review state is the governance signal here.
+  // hover label, search rings, and the context panel. Entity hue is the
+  // active color mode (entity type by default, kit layer opt-in); status
+  // coloring is deliberately absent from the graph until enum presentation
+  // semantics are config-owned (oq-enum-presentation-semantics) — edge
+  // review state is the governance signal here.
   const accent = data.layer ? LAYER_META[data.layer] : null;
-  const fill = accent?.dot ?? "bg-zinc-400";
+  const fill = data.color ? "" : (accent?.dot ?? "bg-zinc-400");
   return (
     // Padded wrapper = a finger-sized click/drag target around a 12px dot.
     <div className="group relative p-1.5" title={`${data.entityType} · ${data.title}`}>
@@ -93,6 +97,7 @@ function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
         className={`h-3 w-3 rounded-full ${fill} ${
           data.matched ? "ring-2 ring-zinc-100" : ""
         }`}
+        style={data.color ? { backgroundColor: data.color } : undefined}
       />
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
       <div
@@ -118,8 +123,12 @@ function CardNode({ data }: NodeProps<Node<DotNodeData>>) {
     >
       <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
       <div className="flex items-center gap-1 text-[8px] uppercase tracking-wide text-zinc-500">
-        {accent && (
-          <span title={accent.label} className={`h-1 w-1 shrink-0 rounded-full ${accent.dot}`} />
+        {data.color ? (
+          <span className="h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: data.color }} />
+        ) : (
+          accent && (
+            <span title={accent.label} className={`h-1 w-1 shrink-0 rounded-full ${accent.dot}`} />
+          )
         )}
         {data.entityType}
       </div>
@@ -250,11 +259,19 @@ function layoutCardClusters(
 
 /**
  * Governance-first legend: edge review state is the signal this graph
- * exists to show; entity hue is kit layer only. Entity status coloring is
- * deliberately absent until enum presentation semantics are config-owned
+ * exists to show; entity hue is the active color mode (type by default,
+ * kit layer opt-in). Entity status coloring is deliberately absent until
+ * enum presentation semantics are config-owned
  * (oq-enum-presentation-semantics).
  */
-function GraphLegend({ layersOn }: { layersOn: boolean }) {
+function GraphLegend({
+  layersOn,
+  typeSwatches,
+}: {
+  layersOn: boolean;
+  /** Drawn types with their assigned colors — null means kit-layer mode. */
+  typeSwatches: Array<{ type: string; color: string }> | null;
+}) {
   const section = "text-[9px] font-semibold uppercase tracking-wider text-zinc-600";
   const row = "inline-flex items-center gap-1.5";
   return (
@@ -280,20 +297,39 @@ function GraphLegend({ layersOn }: { layersOn: boolean }) {
         />{" "}
         Inactive lifecycle
       </span>
-      <span className={`${section} mt-1`}>Entities — kit layer</span>
-      {layersOn ? (
+      {typeSwatches ? (
         <>
-          <span className={row}>
-            <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.base.dot}`} /> {LAYER_META.base.label}
-          </span>
-          <span className={row}>
-            <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.domain.dot}`} /> {LAYER_META.domain.label}
-          </span>
+          <span className={`${section} mt-1`}>Entities — type</span>
+          <div className="grid max-h-40 grid-cols-1 gap-y-1 overflow-y-auto">
+            {typeSwatches.map(({ type, color }) => (
+              <span key={type} className={row}>
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: color }}
+                />{" "}
+                {humanize(type)}
+              </span>
+            ))}
+          </div>
         </>
       ) : (
-        <span className={row}>
-          <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" /> Entity
-        </span>
+        <>
+          <span className={`${section} mt-1`}>Entities — kit layer</span>
+          {layersOn ? (
+            <>
+              <span className={row}>
+                <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.base.dot}`} /> {LAYER_META.base.label}
+              </span>
+              <span className={row}>
+                <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META.domain.dot}`} /> {LAYER_META.domain.label}
+              </span>
+            </>
+          ) : (
+            <span className={row}>
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" /> Entity
+            </span>
+          )}
+        </>
       )}
     </div>
   );
@@ -410,6 +446,10 @@ export function StateGraphScreen() {
   // instance, constrained cards when titles should read at a glance.
   const mode: "dots" | "cards" = searchParams.get("view") === "cards" ? "cards" : "dots";
   const maxNodes = mode === "cards" ? MAX_NODES_CARDS : MAX_NODES_DOTS;
+  // Entity hue: per-type colors by default; kit-layer accents opt-in (and
+  // only offered when the instance actually spans layers).
+  const colorMode: "type" | "kit" =
+    searchParams.get("color") === "kit" && layerColoring.enabled ? "kit" : "type";
 
   function setMode(next: "dots" | "cards") {
     const sp = new URLSearchParams(searchParams);
@@ -418,7 +458,20 @@ export function StateGraphScreen() {
     setSearchParams(sp);
   }
 
+  function setColorMode(next: "type" | "kit") {
+    const sp = new URLSearchParams(searchParams);
+    if (next === "kit") sp.set("color", "kit");
+    else sp.delete("color");
+    setSearchParams(sp);
+  }
+
   const statusCounts = (stats.data?.status_counts ?? {}) as Record<string, Record<string, number>>;
+  // Colors key on the instance's FULL type vocabulary (not the filtered
+  // view), so a type keeps its hue across chip toggles, hide-cold, and focus.
+  const typeColorFor = useMemo(
+    () => buildTypeColors(Object.keys(stats.data?.entity_counts ?? {})),
+    [stats.data],
+  );
   const typeCounts = useMemo(
     () =>
       Object.entries(stats.data?.entity_counts ?? {})
@@ -514,7 +567,11 @@ export function StateGraphScreen() {
                   : e.entity_id,
             status:
               typeof e.properties?.status === "string" ? e.properties.status : undefined,
-            layer: layerColoring.enabled ? layerColoring.layerFor(e.entity_type) : null,
+            layer:
+              colorMode === "kit" && layerColoring.enabled
+                ? layerColoring.layerFor(e.entity_type)
+                : null,
+            color: colorMode === "type" ? typeColorFor(e.entity_type) : null,
             properties: (e.properties ?? {}) as Record<string, unknown>,
           },
         });
@@ -548,7 +605,11 @@ export function StateGraphScreen() {
               ? props.name
               : entityId,
         status: typeof props.status === "string" ? props.status : undefined,
-        layer: layerColoring.enabled ? layerColoring.layerFor(entityType) : null,
+        layer:
+          colorMode === "kit" && layerColoring.enabled
+            ? layerColoring.layerFor(entityType)
+            : null,
+        color: colorMode === "type" ? typeColorFor(entityType) : null,
         properties: props,
       },
     });
@@ -699,7 +760,7 @@ export function StateGraphScreen() {
     return { nodes: nodes, edges, droppedEdges: dropped };
     // search is deliberately NOT a dependency: layout is expensive and match
     // decoration happens in the cheap pass below.
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, focus, hops, mode, governedTypes, focusRef, focusInspect.data]);
+  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, colorMode, typeColorFor, focus, hops, mode, governedTypes, focusRef, focusInspect.data]);
 
   // Cheap per-keystroke pass: stamp search matches onto the laid-out nodes.
   const { nodes, matchCount } = useMemo(() => {
@@ -724,6 +785,21 @@ export function StateGraphScreen() {
 
   const labelFor = (id: string) =>
     (nodes.find((n) => n.id === id)?.data as DotNodeData | undefined)?.title ?? id;
+
+  // Legend swatches list only what's actually drawn (filters, focus, and
+  // budget all shrink the canvas — the legend follows).
+  const typeSwatches =
+    colorMode === "type"
+      ? [
+          ...new Set(
+            nodes
+              .map((n) => (n.data as { entityType?: unknown }).entityType)
+              .filter((t): t is string => typeof t === "string"),
+          ),
+        ]
+          .sort()
+          .map((type) => ({ type, color: typeColorFor(type) }))
+      : null;
 
   function jumpToFirstMatch() {
     const first = nodes.find((n) => (n.data as DotNodeData).matched);
@@ -815,6 +891,25 @@ export function StateGraphScreen() {
               </button>
             ))}
           </span>
+          {/* Kit-layer hue is only an alternative when the instance spans layers. */}
+          {layerColoring.enabled && (
+            <span
+              className="inline-flex overflow-hidden rounded border border-zinc-800 text-[11px]"
+              title="Entity color coding"
+            >
+              {(["type", "kit"] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColorMode(c)}
+                  className={`px-2 py-px ${
+                    colorMode === c ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {c === "type" ? "By type" : "By kit"}
+                </button>
+              ))}
+            </span>
+          )}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -892,7 +987,7 @@ export function StateGraphScreen() {
           nodeTypes={nodeTypes}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"
-          overlay={<GraphLegend layersOn={layerColoring.enabled} />}
+          overlay={<GraphLegend layersOn={layerColoring.enabled} typeSwatches={typeSwatches} />}
           selectRequest={selectRequest}
         >
           <Controls showInteractive={false} className="!shadow-none" />
