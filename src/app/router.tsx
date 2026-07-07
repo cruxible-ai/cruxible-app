@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
+import { RouteError } from "./RouteError";
 import { OverviewScreen } from "@/screens/OverviewScreen";
 import { QueryViewScreen } from "@/screens/QueryViewScreen";
 import { EntityScreen } from "@/screens/EntityScreen";
@@ -28,10 +29,11 @@ function RootRedirect() {
 }
 
 export const router = createBrowserRouter([
-  { path: "/", element: <RootRedirect /> },
+  { path: "/", element: <RootRedirect />, errorElement: <RouteError /> },
   {
     path: "/i/:instanceId",
     element: <AppShell />,
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <OverviewScreen /> },
       { path: "map", element: <TypeMapScreen /> },

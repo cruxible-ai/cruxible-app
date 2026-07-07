@@ -300,6 +300,21 @@ export function useGroup(groupId: string) {
   });
 }
 
+/** Group trust/resolution status: approved history, trust ladder, pending delta. */
+export function useGroupStatus(groupId: string) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["group-status", instanceId, groupId],
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/groups/{group_id}/status", {
+          params: { path: { instance_id: instanceId, group_id: groupId } },
+        }),
+      ),
+  });
+}
+
 /** Receipt summaries — the instance's mutation/read audit feed. */
 export function useReceiptList(limit = 500) {
   const client = useApiClient();

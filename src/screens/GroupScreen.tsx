@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { useGroup, useInstanceId, useInstanceSchema } from "@/api/hooks";
+import { useGroup, useGroupStatus, useInstanceId, useInstanceSchema } from "@/api/hooks";
 import { Chip, defChipClass } from "@/components/Chip";
 import { EntityLink } from "@/components/EntityLink";
 import { MonoId } from "@/components/MonoId";
@@ -101,6 +101,7 @@ export function GroupScreen() {
   usePageTitle(groupId);
   const instanceId = useInstanceId();
   const detail = useGroup(groupId);
+  const status = useGroupStatus(groupId);
   const schema = useInstanceSchema();
 
   if (detail.isPending) return <LoadState />;
@@ -345,6 +346,57 @@ export function GroupScreen() {
         </div>
 
         <div className="min-w-0 space-y-3">
+          {(() => {
+            const st = status.data as
+              | {
+                  latest_trust_status?: string | null;
+                  approved_history?: Array<{
+                    resolution_id?: string;
+                    action?: string;
+                    trust_status?: string;
+                    confirmed?: boolean;
+                    resolved_at?: string;
+                    tuple_count?: number;
+                  }>;
+                }
+              | undefined;
+            const history = st?.approved_history ?? [];
+            if (history.length === 0) return null;
+            return (
+              <Panel title="Resolution">
+                <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
+                  {st?.latest_trust_status && (
+                    <div className="contents">
+                      <dt className="text-zinc-500">Rule trust</dt>
+                      <dd>
+                        <Chip value={st.latest_trust_status} />
+                      </dd>
+                    </div>
+                  )}
+                  {history.map((r) => (
+                    <div key={r.resolution_id} className="contents">
+                      <dt className="text-zinc-500">{humanize(r.action ?? "resolved")}</dt>
+                      <dd className="text-zinc-300">
+                        <span className="font-mono text-[11px]">{r.resolution_id}</span>
+                        <span className="block text-[11px] text-zinc-500">
+                          {r.resolved_at && (
+                            <span title={r.resolved_at}>{formatDateTime(r.resolved_at)}</span>
+                          )}
+                          {typeof r.tuple_count === "number" && <> · {r.tuple_count} edges</>}
+                          {r.confirmed === false && " · unconfirmed"}
+                        </span>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className="mt-2 text-[10px] leading-3 text-zinc-600">
+                  Resolver identity and rationale aren't on the read surface yet
+                  (wi-resolution-read-surface).
+                </div>
+              </Panel>
+            );
+          })()}
+
           <Panel title="Provenance">
             <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
               {group.source_workflow_name && (
