@@ -17,7 +17,7 @@ const PREVIEW_LIMIT = 5;
 
 /**
  * Orientation point: every parameterless collection query in the instance's
- * catalog rendered as a queue card with its top items. Replaces ad hoc CLI
+ * catalog rendered as a view card with its top items. Replaces ad hoc CLI
  * sampling for "what's going on right now".
  */
 export function OverviewScreen() {
@@ -26,7 +26,7 @@ export function OverviewScreen() {
   const catalog = useQueryCatalog();
   usePageTitle("Overview");
 
-  const queues = (catalog.data?.items ?? []).filter(
+  const views = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
   );
 
@@ -58,9 +58,9 @@ export function OverviewScreen() {
       {catalog.error && <LoadState error={catalog.error} />}
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
-        {queues.map((q) => (
+        {views.map((q) => (
           <div key={q.name} className="min-w-0">
-            <QueueCard
+            <ViewCard
               instanceId={instanceId}
               name={q.name ?? ""}
               description={q.description ?? undefined}
@@ -153,7 +153,7 @@ function StatusMatrix() {
   );
 }
 
-function QueueCard({
+function ViewCard({
   instanceId,
   name,
   description,

@@ -20,7 +20,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 }
 
 /**
- * Two-pane inspection console: catalog-driven nav on the left (queue views
+ * Two-pane inspection console: catalog-driven nav on the left (named-query views
  * straight from /queries, entity types from /stats), content on the right.
  */
 export function AppShell() {
@@ -39,7 +39,7 @@ export function AppShell() {
   // (probe returns null on 404 so the UI stays clean against older daemons).
   const sourceCount = useSourceArtifactsProbe().data ?? 0;
 
-  const queues = (catalog.data?.items ?? []).filter(
+  const views = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
   );
 
@@ -108,10 +108,10 @@ export function AppShell() {
 
         <div className="mt-4">
           <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
-            Queues
+            Views
           </div>
           <nav className="space-y-0.5">
-            {queues.map((q) => (
+            {views.map((q) => (
               <NavLink key={q.name} to={`/i/${instanceId}/views/${q.name}`} className={navClass}>
                 {humanize(q.name ?? "")}
               </NavLink>
