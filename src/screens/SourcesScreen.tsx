@@ -42,7 +42,7 @@ export function SourcesScreen() {
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">Sources</h1>
-        <p className="mt-0.5 text-[12px] text-zinc-500">
+        <p className="mt-0.5 text-[13px] text-zinc-500">
           Digest-pinned source artifacts backing evidence on governed claims.
         </p>
       </header>
@@ -62,9 +62,9 @@ export function SourcesScreen() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-[13px]">
+                <table className="w-full text-left text-[14px]">
                   <thead>
-                    <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+                    <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
                       <th className="py-1 pr-3 font-medium">Label</th>
                       <th className="py-1 pr-3 font-medium">Id</th>
                       <th className="py-1 pr-3 font-medium">Kind</th>
@@ -96,7 +96,7 @@ export function SourcesScreen() {
                         <td className="py-1.5 pr-3">
                           <Chip value={a.retention} tone={RETENTION_TONE[a.retention]} />
                         </td>
-                        <td className="py-1.5 pr-3 font-mono text-[12px] text-zinc-400">
+                        <td className="py-1.5 pr-3 font-mono text-[13px] text-zinc-400">
                           {a.chunk_count}
                         </td>
                         <td className="whitespace-nowrap py-1.5 pr-3 text-zinc-400">
@@ -108,7 +108,7 @@ export function SourcesScreen() {
                 </table>
               </div>
               {total > PAGE_SIZE && (
-                <div className="mt-2 flex items-center gap-2 text-[12px]">
+                <div className="mt-2 flex items-center gap-2 text-[13px]">
                   <button
                     disabled={offset <= 0}
                     onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}

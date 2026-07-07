@@ -43,7 +43,7 @@ export function WorkflowScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <div className="flex items-center gap-3 text-[12px]">
+        <div className="flex items-center gap-3 text-[13px]">
           <Link to={`/i/${instanceId}/workflows`} className="text-zinc-500 hover:text-zinc-300">
             Workflows
           </Link>
@@ -51,7 +51,7 @@ export function WorkflowScreen() {
           <MonoId id={workflowName} />
         </div>
         <h1 className="mt-1 text-[17px] font-semibold text-zinc-100">{humanize(workflowName)}</h1>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
           {workflow.mode && <span className={defChipClass}>{workflow.mode}</span>}
           {workflow.input_contract && (
             <span>
@@ -63,7 +63,7 @@ export function WorkflowScreen() {
           </span>
         </div>
         {workflow.description && (
-          <p className="mt-2 text-[12px] leading-4 text-zinc-400">{workflow.description}</p>
+          <p className="mt-2 text-[13px] leading-4 text-zinc-400">{workflow.description}</p>
         )}
       </header>
 
@@ -93,7 +93,7 @@ export function WorkflowScreen() {
                       </li>
                     )}
                     <li
-                      className={`grid grid-cols-[1.5rem_10rem_1fr] items-start gap-x-2 py-1.5 text-[12px] ${
+                      className={`grid grid-cols-[1.5rem_10rem_1fr] items-start gap-x-2 py-1.5 text-[13px] ${
                         continuesPhase ? "border-t border-zinc-800/50" : ""
                       }`}
                     >
@@ -112,7 +112,7 @@ export function WorkflowScreen() {
                       <div className="min-w-0">
                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                           {step.id && (
-                            <span className="font-mono text-[11px] text-zinc-500">{step.id}</span>
+                            <span className="font-mono text-[12px] text-zinc-500">{step.id}</span>
                           )}
                           <span className="min-w-0 text-zinc-300">
                             {description.queryName ? (
@@ -120,7 +120,7 @@ export function WorkflowScreen() {
                                 Runs named query{" "}
                                 <Link
                                   to={`/i/${instanceId}/views/${description.queryName}`}
-                                  className="break-all font-mono text-[11px] text-sky-400 hover:underline"
+                                  className="break-all font-mono text-[12px] text-sky-400 hover:underline"
                                 >
                                   {description.queryName}
                                 </Link>
@@ -144,7 +144,7 @@ export function WorkflowScreen() {
                           )}
                         </div>
                         {description.rows.length > 0 && (
-                          <dl className="mt-1 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[11px]">
+                          <dl className="mt-1 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[12px]">
                             {description.rows.map((row, rowIndex) => (
                               <div key={`${row.label}-${rowIndex}`} className="contents">
                                 <dt className="text-zinc-600">{row.label}</dt>
@@ -166,9 +166,9 @@ export function WorkflowScreen() {
           {signals.length > 0 && (
             <Panel title="Signal wiring">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-[12px]">
+                <table className="w-full text-left text-[13px]">
                   <thead>
-                    <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+                    <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
                       <th className="py-1 pr-3 font-medium">Signal source</th>
                       <th className="py-1 pr-3 font-medium">Produced by</th>
                       <th className="py-1 pr-3 font-medium">Verdict from</th>
@@ -178,13 +178,13 @@ export function WorkflowScreen() {
                   <tbody>
                     {signals.map((s) => (
                       <tr key={s.source} className="border-t border-zinc-800/60 align-top">
-                        <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-300">
+                        <td className="py-1.5 pr-3 font-mono text-[12px] text-zinc-300">
                           {s.source}
                         </td>
-                        <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-400">
+                        <td className="py-1.5 pr-3 font-mono text-[12px] text-zinc-400">
                           {s.providerName ?? s.fromStepId ?? "—"}
                         </td>
-                        <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-400">
+                        <td className="py-1.5 pr-3 font-mono text-[12px] text-zinc-400">
                           {s.verdictPath ?? "—"}
                           {s.verdictRule && (
                             <div className="text-[10px] text-zinc-600">{s.verdictRule}</div>
@@ -209,7 +209,7 @@ export function WorkflowScreen() {
             return (
               <Panel
                 key={name}
-                title={<span className="font-mono text-[12px]">{name}</span>}
+                title={<span className="font-mono text-[13px]">{name}</span>}
                 meta={
                   <span
                     className={`inline-flex items-center gap-1.5 ${
@@ -226,9 +226,9 @@ export function WorkflowScreen() {
                 }
               >
                 {p.description && (
-                  <p className="mb-2 text-[12px] leading-4 text-zinc-400">{p.description}</p>
+                  <p className="mb-2 text-[13px] leading-4 text-zinc-400">{p.description}</p>
                 )}
-                <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[11px]">
+                <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[12px]">
                   {p.ref && (
                     <div className="contents">
                       <dt className="text-zinc-500">Source</dt>

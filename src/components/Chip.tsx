@@ -99,7 +99,7 @@ export const TONE_ORDER: Tone[] = ["green", "amber", "blue", "red", "violet", "z
  * filters): one active/inactive treatment everywhere.
  */
 export function toggleChipClass(active: boolean): string {
-  return `rounded border px-1.5 py-px text-[11px] ${
+  return `rounded border px-1.5 py-px text-[12px] ${
     active
       ? "border-zinc-600 bg-zinc-800 text-zinc-200"
       : "border-zinc-800 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300"
@@ -112,7 +112,7 @@ export const defChipClass =
 
 /** Bordered secondary action (header buttons, context-query links). */
 export const actionChipClass =
-  "rounded border border-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900";
+  "rounded border border-zinc-800 px-2 py-0.5 text-[12px] text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900";
 
 /** "changes_requested" -> "Changes requested"; tone/emphasis key on the raw value. */
 export function Chip({ value, tone }: { value: string; tone?: Tone }) {
@@ -120,7 +120,7 @@ export function Chip({ value, tone }: { value: string; tone?: Tone }) {
   const textClass = EMPHATIC.has(value) ? "text-red-400" : "text-zinc-400";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-[11px] leading-4 whitespace-nowrap ${textClass}`}
+      className={`inline-flex items-center gap-1.5 text-[12px] leading-4 whitespace-nowrap ${textClass}`}
     >
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOTS[resolved]}`} />
       {humanize(value)}

@@ -31,7 +31,7 @@ function PayloadBlock({ title, payload }: { title: string; payload: unknown }) {
   return (
     <Panel title={title} meta={<span className="font-mono">{(text.length / 1024).toFixed(1)} KB</span>}>
       <details open={text.length < 4000}>
-        <summary className="cursor-pointer text-[11px] text-zinc-600 hover:text-zinc-400">
+        <summary className="cursor-pointer text-[12px] text-zinc-600 hover:text-zinc-400">
           {text.length < 4000 ? "Collapse" : "Expand"}
         </summary>
         <pre className="mt-1 max-h-[32rem] overflow-auto whitespace-pre-wrap text-[10px] leading-3 text-zinc-400">
@@ -64,7 +64,7 @@ export function TraceScreen() {
       t.workflow_name ? (
         <Link
           to={`/i/${instanceId}/workflows/${t.workflow_name}`}
-          className="font-mono text-[11px] hover:underline"
+          className="font-mono text-[12px] hover:underline"
         >
           {t.workflow_name}
         </Link>
@@ -72,10 +72,10 @@ export function TraceScreen() {
         "—"
       ),
     ],
-    ["Step", <span className="font-mono text-[11px]">{t.step_id ?? "—"}</span>],
+    ["Step", <span className="font-mono text-[12px]">{t.step_id ?? "—"}</span>],
     [
       "Provider",
-      <span className="font-mono text-[11px]">
+      <span className="font-mono text-[12px]">
         {t.provider_name}
         {t.provider_version && ` · ${t.provider_version}`}
       </span>,
@@ -115,13 +115,13 @@ export function TraceScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <div className="text-[12px] text-zinc-400">Provider trace</div>
+        <div className="text-[13px] text-zinc-400">Provider trace</div>
         <h1 className="mt-0.5">
           <MonoId id={traceId} />
         </h1>
       </header>
       <Panel title="Execution identity">
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
           {rows.map(([k, v]) => (
             <div key={k} className="contents">
               <dt className="text-zinc-500">{k}</dt>

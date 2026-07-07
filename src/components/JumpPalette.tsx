@@ -145,16 +145,16 @@ export function JumpPalette() {
               }
             }}
             placeholder="Jump to entity by id or title…"
-            className="w-full bg-transparent text-[13px] text-zinc-100 placeholder-zinc-600 outline-none"
+            className="w-full bg-transparent text-[14px] text-zinc-100 placeholder-zinc-600 outline-none"
           />
           <kbd className="rounded border border-zinc-700 px-1 text-[10px] text-zinc-500">esc</kbd>
         </div>
         <div className="max-h-80 overflow-y-auto">
           {loading && (
-            <div className="px-3 py-2 text-[12px] text-zinc-500">Loading entities…</div>
+            <div className="px-3 py-2 text-[13px] text-zinc-500">Loading entities…</div>
           )}
           {!loading && query.trim() !== "" && matches.length === 0 && (
-            <div className="px-3 py-2 text-[12px] text-zinc-500">No matches.</div>
+            <div className="px-3 py-2 text-[13px] text-zinc-500">No matches.</div>
           )}
           {matches.map((c, i) => (
             <button
@@ -168,8 +168,8 @@ export function JumpPalette() {
               <span className="w-24 shrink-0 truncate text-[10px] uppercase tracking-wide text-zinc-500">
                 {humanize(c.entityType)}
               </span>
-              <span className="truncate text-[13px] text-zinc-200">{c.title}</span>
-              <span className="ml-auto shrink-0 font-mono text-[11px] text-zinc-500">
+              <span className="truncate text-[14px] text-zinc-200">{c.title}</span>
+              <span className="ml-auto shrink-0 font-mono text-[12px] text-zinc-500">
                 {c.entityId}
               </span>
             </button>

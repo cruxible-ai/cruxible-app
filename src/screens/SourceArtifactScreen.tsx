@@ -44,7 +44,7 @@ export function buildDocument(chunks: SourceArtifactReadChunk[]): DocPiece[] {
 const HEADING_CLASSES = [
   "text-[16px] font-semibold text-zinc-100",
   "text-[14px] font-semibold text-zinc-200",
-  "text-[13px] font-medium text-zinc-300",
+  "text-[14px] font-medium text-zinc-300",
 ];
 
 function SectionHeading({ chunk }: { chunk: SourceArtifactReadChunk }) {
@@ -79,7 +79,7 @@ function ChunkAnchor({ piece, highlighted }: { piece: DocPiece; highlighted: boo
       ) : chunk.text != null ? (
         <Prose text={chunk.text} />
       ) : (
-        <div className="text-[12px] italic text-zinc-600">
+        <div className="text-[13px] italic text-zinc-600">
           (chunk text not captured — {chunk.block_type} at L{chunk.line_start}–{chunk.line_end})
         </div>
       )}
@@ -131,7 +131,7 @@ export function SourceArtifactScreen() {
                 value={data.retention}
                 tone={data.retention === "archive" ? "green" : "zinc"}
               />
-              <span className="text-[11px] text-zinc-500">
+              <span className="text-[12px] text-zinc-500">
                 registered {formatDateTime(data.registered_at)}
               </span>
             </div>
@@ -139,30 +139,30 @@ export function SourceArtifactScreen() {
               // Plain text on purpose: original_uri is an unverified claim
               // about where the content came from, not a safe navigation
               // target for a trust console.
-              <div className="mt-1 font-mono text-[11px] text-zinc-500">{data.original_uri}</div>
+              <div className="mt-1 font-mono text-[12px] text-zinc-500">{data.original_uri}</div>
             )}
             <div className="mt-1 font-mono text-[10px] text-zinc-600">{data.content_hash}</div>
           </header>
 
           {!data.content_available ? (
             <Panel title="Content unavailable" meta={<span>{data.chunks.length} chunks pinned</span>}>
-              <div className="py-2 text-[13px] text-zinc-400">
+              <div className="py-2 text-[14px] text-zinc-400">
                 The source text for this artifact cannot be read right now.
                 {data.content_unavailable_reason && (
-                  <div className="mt-1 text-[12px] text-zinc-500">
+                  <div className="mt-1 text-[13px] text-zinc-500">
                     {data.content_unavailable_reason}
                   </div>
                 )}
               </div>
               {data.chunks.length > 0 && (
                 <div className="mt-2 border-t border-zinc-800 pt-2">
-                  <div className="mb-1 text-[11px] text-zinc-500">
+                  <div className="mb-1 text-[12px] text-zinc-500">
                     Pinned chunk manifest (hashes remain verifiable):
                   </div>
                   <ul className="space-y-0.5">
                     {data.chunks.map((c) => (
-                      <li key={c.chunk_id} className="flex flex-wrap items-center gap-x-2 text-[11px]">
-                        <MonoId id={c.chunk_id} className="text-[11px]" />
+                      <li key={c.chunk_id} className="flex flex-wrap items-center gap-x-2 text-[12px]">
+                        <MonoId id={c.chunk_id} className="text-[12px]" />
                         {c.heading_path.length > 0 && (
                           <span className="text-zinc-500">{c.heading_path.join(" › ")}</span>
                         )}

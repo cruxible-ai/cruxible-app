@@ -37,19 +37,19 @@ function textOf(node: ReactNode): string {
 
 export function Prose({ text }: { text: string }) {
   return (
-    <div className="max-w-3xl space-y-2 text-[13px] leading-5 text-zinc-400">
+    <div className="max-w-3xl space-y-2 text-[14px] leading-5 text-zinc-400">
       <Markdown
         remarkPlugins={[remarkGfm, remarkBreaks, remarkCruxibleRefs]}
         urlTransform={urlTransform}
         components={{
           h1: (p) => <h3 className="text-[14px] font-semibold text-zinc-200" {...p} />,
-          h2: (p) => <h4 className="text-[13px] font-semibold text-zinc-200" {...p} />,
-          h3: (p) => <h5 className="text-[13px] font-medium text-zinc-300" {...p} />,
+          h2: (p) => <h4 className="text-[14px] font-semibold text-zinc-200" {...p} />,
+          h3: (p) => <h5 className="text-[14px] font-medium text-zinc-300" {...p} />,
           p: (p) => <p className="my-1.5" {...p} />,
           ul: (p) => <ul className="my-1.5 list-disc space-y-0.5 pl-5" {...p} />,
           ol: (p) => <ol className="my-1.5 list-decimal space-y-0.5 pl-5" {...p} />,
           code: (p) => (
-            <code className="rounded bg-zinc-900 px-1 font-mono text-[12px] text-zinc-300" {...p} />
+            <code className="rounded bg-zinc-900 px-1 font-mono text-[13px] text-zinc-300" {...p} />
           ),
           pre: (p) => (
             <pre className="my-1.5 overflow-x-auto rounded border border-zinc-800 bg-zinc-900/60 p-2" {...p} />
@@ -75,10 +75,10 @@ export function Prose({ text }: { text: string }) {
           ),
           table: (p) => (
             <div className="my-1.5 overflow-x-auto">
-              <table className="w-full text-left text-[12px]" {...p} />
+              <table className="w-full text-left text-[13px]" {...p} />
             </div>
           ),
-          thead: (p) => <thead className="border-b border-zinc-800 text-[11px] text-zinc-500" {...p} />,
+          thead: (p) => <thead className="border-b border-zinc-800 text-[12px] text-zinc-500" {...p} />,
           th: (p) => <th className="py-1 pr-3 font-medium" {...p} />,
           td: (p) => <td className="border-t border-zinc-900 py-1 pr-3 align-top text-zinc-300" {...p} />,
         }}

@@ -5,7 +5,9 @@ import {
   Handle,
   MiniMap,
   Position,
+  useReactFlow,
   type Edge,
+  type MiniMapNodeProps,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
@@ -60,6 +62,10 @@ const MAX_NODES_CARDS = 600;
  * shows the members most worth reading. */
 const CARDS_PER_TYPE = 40;
 const EDGE_FETCH_LIMIT = 20000;
+const MINI_MAP_LAYER_DOT_COLORS: Record<KitLayer, string> = {
+  base: "#71717a",
+  domain: "#a78bfa",
+};
 
 interface DotNodeCore {
   entityType: string;
@@ -147,7 +153,7 @@ function CardNode({ data }: NodeProps<Node<DotNodeData>>) {
 
 function ClusterLabelNode({ data }: NodeProps<Node<{ label: string; count: number; [key: string]: unknown }>>) {
   return (
-    <div className="pointer-events-none text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+    <div className="pointer-events-none text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
       {data.label} <span className="font-mono normal-case text-zinc-600">{data.count}</span>
     </div>
   );
@@ -164,6 +170,39 @@ function OverflowNode({ data }: NodeProps<Node<{ entityType: string; count: numb
       +{data.count} more · browse →
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
     </Link>
+  );
+}
+
+type MiniMapDotData = {
+  color?: string | null;
+  layer?: KitLayer | null;
+};
+
+function MiniMapDot({ id, x, y, width, height }: MiniMapNodeProps) {
+  const { getNode } = useReactFlow();
+  if (id.startsWith("__label:") || id.startsWith("__more:")) return null;
+
+  const node = getNode(id);
+  const data = node?.data as MiniMapDotData | undefined;
+  const layer = data?.layer;
+  const fill =
+    typeof data?.color === "string" && data.color
+      ? data.color
+      : layer === "base" || layer === "domain"
+        ? MINI_MAP_LAYER_DOT_COLORS[layer]
+        : "#71717a";
+
+  return (
+    // r is in flow coordinates: the dots layout spans thousands of units, so
+    // a node-true radius would scale to under a pixel in the minimap. 56
+    // units ≈ a 2px dot — visible without smearing into neighbors, and
+    // card-sized nodes still win via width/height.
+    <circle
+      cx={x + width / 2}
+      cy={y + height / 2}
+      r={Math.max(width, height, 56) / 2}
+      fill={fill}
+    />
   );
 }
 
@@ -240,6 +279,9 @@ function layoutCardClusters(
           x: x + (i % cluster.cols) * COL_W,
           y: y + LABEL_H + Math.floor(i / cluster.cols) * ROW_H,
         },
+        // Nominal card size for the MiniMap's dimension check (see dot nodes).
+        initialWidth: 176,
+        initialHeight: 42,
         data: { ...row.data, showLabel: true, matched: decorate(row) },
       });
     });
@@ -779,6 +821,11 @@ export function StateGraphScreen() {
         id: r.id,
         type: "dot",
         position: positions.get(r.id) ?? { x: 0, y: 0 },
+        // Controlled nodes without onNodesChange never get `measured` written
+        // back, and the MiniMap skips dimensionless nodes — declare the dot's
+        // known size so it draws there. Does not constrain canvas rendering.
+        initialWidth: 24,
+        initialHeight: 24,
         data: { ...r.data, showLabel: false, matched: false },
       }));
     }
@@ -925,14 +972,14 @@ export function StateGraphScreen() {
     <div className="flex h-full min-h-[80vh] flex-col">
       <header className="mb-3 flex items-baseline gap-3">
         <h1 className="text-[17px] font-semibold text-zinc-100">State graph</h1>
-        <span className="text-[11px] text-zinc-600">
+        <span className="text-[12px] text-zinc-600">
           {withinBudget
             ? `${nodes.length} entities · ${edges.length} edges`
             : "The whole instance state on one canvas"}
           {droppedEdges > 0 && !focus && ` · ${droppedEdges} edges to excluded or hidden entities not drawn`}
         </span>
         <span className="ml-auto flex items-center gap-2">
-          <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[11px]">
+          <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[12px]">
             {(["dots", "cards"] as const).map((m) => (
               <button
                 key={m}
@@ -948,7 +995,7 @@ export function StateGraphScreen() {
           {/* Kit-layer hue is only an alternative when the instance spans layers. */}
           {layerColoring.enabled && (
             <span
-              className="inline-flex overflow-hidden rounded border border-zinc-800 text-[11px]"
+              className="inline-flex overflow-hidden rounded border border-zinc-800 text-[12px]"
               title="Entity color coding"
             >
               {(["type", "kit"] as const).map((c) => (
@@ -971,10 +1018,10 @@ export function StateGraphScreen() {
               if (e.key === "Enter") jumpToFirstMatch();
             }}
             placeholder="Find in graph…"
-            className="w-44 rounded border border-zinc-800 bg-transparent px-2 py-0.5 text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+            className="w-44 rounded border border-zinc-800 bg-transparent px-2 py-0.5 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
           />
           {search.trim() !== "" && (
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-[12px] text-zinc-500">
               {matchCount} {matchCount === 1 ? "match" : "matches"}
               {matchCount > 0 && " · Enter jumps"}
             </span>
@@ -982,11 +1029,11 @@ export function StateGraphScreen() {
         </span>
       </header>
       {focus && (
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-[12px] text-zinc-400">
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-[13px] text-zinc-400">
           <span>
             Focused on <span className="text-zinc-200">{labelFor(focus)}</span>
           </span>
-          <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[11px]">
+          <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[12px]">
             {[1, 2].map((h) => (
               <button
                 key={h}
@@ -1028,7 +1075,7 @@ export function StateGraphScreen() {
             {includedTypes.length === typeCounts.length ? "Deselect all" : "Select all"}
           </button>
           {autoExcluded.length > 0 && (
-            <span className="text-[11px] text-zinc-600">
+            <span className="text-[12px] text-zinc-600">
               {autoExcluded.map(humanize).join(", ")} left out to fit the {maxNodes}-node budget —
               toggle chips to trade
             </span>
@@ -1064,7 +1111,7 @@ export function StateGraphScreen() {
             className="!h-24 !w-36"
             bgColor="#09090b"
             maskColor="rgba(24,24,27,0.7)"
-            nodeColor="#3f3f46"
+            nodeComponent={MiniMapDot}
           />
         </GraphCanvas>
       )}

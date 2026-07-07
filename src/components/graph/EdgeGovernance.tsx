@@ -141,12 +141,12 @@ export function EdgeGovernancePanel({
   const lifecycle = metadata?.assertion?.lifecycle;
   const provenance = metadata?.provenance;
   const evidence = metadata?.evidence;
-  const dl = "grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[11px]";
+  const dl = "grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[12px]";
 
   return (
     <div>
       <PanelHeading kicker="Relationship" title={relationshipType.replaceAll("_", " ")} />
-      <div className="flex flex-col gap-0.5 text-[12px]">
+      <div className="flex flex-col gap-0.5 text-[13px]">
         <button onClick={onSelectSource} className="text-left text-zinc-300 hover:underline">
           {sourceLabel}
         </button>
@@ -155,7 +155,7 @@ export function EdgeGovernancePanel({
           {targetLabel}
         </button>
       </div>
-      <div className="mt-1.5 text-[11px] text-zinc-500">
+      <div className="mt-1.5 text-[12px] text-zinc-500">
         {governed
           ? "Governed relationship — proposal-only writes, review-gated"
           : "Deterministic relationship — direct canonical writes; review does not apply"}
@@ -254,7 +254,7 @@ export function EdgeGovernancePanel({
         (evidence?.source_receipt_ids ?? []).length > 0) && (
         <PanelSection title="Evidence">
           {evidence?.rationale && (
-            <p className="mb-1 text-[11px] italic leading-4 text-zinc-400">{evidence.rationale}</p>
+            <p className="mb-1 text-[12px] italic leading-4 text-zinc-400">{evidence.rationale}</p>
           )}
           {(evidence?.evidence_refs ?? []).map((ref, i) => (
             <EvidenceRef key={i} refData={ref} />

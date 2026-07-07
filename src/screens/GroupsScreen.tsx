@@ -50,7 +50,7 @@ export function GroupsScreen() {
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">Review groups</h1>
-        <p className="mt-1 text-[12px] text-zinc-500">
+        <p className="mt-1 text-[13px] text-zinc-500">
           Proposed governed edges awaiting review. Nothing here is accepted state until a
           reviewer resolves the group — resolution happens on the CLI or MCP surface.
         </p>
@@ -79,9 +79,9 @@ export function GroupsScreen() {
         )}
         {items.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13px]">
+            <table className="w-full text-left text-[14px]">
               <thead>
-                <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+                <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
                   <th className="py-1 pr-3 font-medium">Group</th>
                   <th className="py-1 pr-3 font-medium">Relationship</th>
                   <th className="py-1 pr-3 font-medium">Status</th>
@@ -100,7 +100,7 @@ export function GroupsScreen() {
                     <td className="whitespace-nowrap py-1.5 pr-3">
                       <Link
                         to={`/i/${instanceId}/groups/${g.group_id}`}
-                        className="font-mono text-[12px] text-zinc-200 hover:underline"
+                        className="font-mono text-[13px] text-zinc-200 hover:underline"
                       >
                         {g.group_id}
                       </Link>
@@ -111,7 +111,7 @@ export function GroupsScreen() {
                     <td className="whitespace-nowrap py-1.5 pr-3">
                       <Chip value={g.status} />
                     </td>
-                    <td className="py-1.5 pr-3 font-mono text-[12px] text-zinc-400">
+                    <td className="py-1.5 pr-3 font-mono text-[13px] text-zinc-400">
                       {g.member_count ?? "—"}
                     </td>
                     <td className="whitespace-nowrap py-1.5 pr-3 text-zinc-400">

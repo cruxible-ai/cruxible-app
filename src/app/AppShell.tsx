@@ -25,7 +25,7 @@ import { LAYER_META, useLayerColoring } from "@/lib/kit-layer";
 import { useSettings } from "@/lib/settings";
 
 function navClass({ isActive }: { isActive: boolean }) {
-  return `block rounded px-2 py-1 text-[13px] ${
+  return `block rounded px-2 py-1 text-[14px] ${
     isActive ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
   }`;
 }
@@ -78,9 +78,9 @@ export function AppShell() {
     <div className="flex min-h-screen">
       <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-zinc-800 px-3 pt-4">
         <div className="mb-4 px-2">
-          <div className="text-[26px] font-normal text-zinc-100" style={{ fontFamily: "Merriweather, serif" }}>Cruxible</div>
+          <div className="text-[17px] font-normal text-zinc-100" style={{ fontFamily: "Merriweather, serif" }}>Cruxible</div>
           {instanceName && (
-            <div className="mt-0.5 text-[12px] text-zinc-400">{instanceName}</div>
+            <div className="mt-0.5 text-[13px] text-zinc-400">{instanceName}</div>
           )}
         </div>
 
@@ -126,7 +126,7 @@ export function AppShell() {
               {pendingGroups > 0 && (
                 <span
                   title={`${pendingGroups} awaiting review`}
-                  className="font-mono text-[11px] text-amber-400/90"
+                  className="font-mono text-[12px] text-amber-400/90"
                 >
                   {pendingGroups}
                 </span>
@@ -149,7 +149,7 @@ export function AppShell() {
           )}
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("cruxible:jump"))}
-            className="flex w-full items-center gap-2 rounded px-2 py-1 text-[13px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            className="flex w-full items-center gap-2 rounded px-2 py-1 text-[14px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
           >
             <Search className="h-3.5 w-3.5" />
             Jump to entity
@@ -201,7 +201,7 @@ export function AppShell() {
                   )}
                   {humanize(type)}
                 </span>
-                <span className="font-mono text-[11px] text-zinc-600">{count}</span>
+                <span className="font-mono text-[12px] text-zinc-600">{count}</span>
               </NavLink>
             ))}
           </nav>

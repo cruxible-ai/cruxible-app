@@ -23,7 +23,7 @@ function RootRedirect() {
   const { defaultInstanceId } = loadConfig();
   if (defaultInstanceId) return <Navigate to={`/i/${defaultInstanceId}`} replace />;
   return (
-    <div className="p-8 text-[13px] text-zinc-400">
+    <div className="p-8 text-[14px] text-zinc-400">
       No default instance configured. Open <code className="font-mono">/i/&lt;instance_id&gt;</code>{" "}
       directly, or set <code className="font-mono">VITE_CRUXIBLE_INSTANCE_ID</code>.
     </div>

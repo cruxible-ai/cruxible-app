@@ -53,7 +53,7 @@ function PathNode({ data }: NodeProps<Node<PathNodeData>>) {
         )}
         {data.entityType}
       </div>
-      <div className="truncate text-[11px] leading-4 text-zinc-200">{data.title}</div>
+      <div className="truncate text-[12px] leading-4 text-zinc-200">{data.title}</div>
       <Handle type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
   );
@@ -252,7 +252,7 @@ export function PathGraph({ items }: { items: PathItem[] }) {
           kicker="Relationship"
           title={String(edge.label ?? edge.id).replaceAll("_", " ")}
         />
-        <div className="flex flex-col gap-0.5 text-[12px]">
+        <div className="flex flex-col gap-0.5 text-[13px]">
           <button
             onClick={() => api.select(edge.source)}
             className="text-left text-zinc-300 hover:underline"

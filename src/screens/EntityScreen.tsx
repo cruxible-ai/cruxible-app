@@ -99,7 +99,7 @@ export function EntityScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <div className="flex items-center gap-3 text-[12px]">
+        <div className="flex items-center gap-3 text-[13px]">
           <span className="text-zinc-400">{humanize(data.entity_type)}</span>
           <MonoId id={data.entity_id} />
           <Link
@@ -115,7 +115,7 @@ export function EntityScreen() {
         <h1 className="mt-1 text-[17px] font-semibold text-zinc-100">{title ?? data.entity_id}</h1>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {chipKeys.map((k) => (
-            <span key={k} className="inline-flex items-center gap-1 text-[11px] text-zinc-600">
+            <span key={k} className="inline-flex items-center gap-1 text-[12px] text-zinc-600">
               {k !== "status" && humanize(k)}
               <Chip value={String(properties[k])} />
             </span>
@@ -161,12 +161,12 @@ export function EntityScreen() {
         <div className="min-w-0 space-y-3">
           {restProps.length > 0 && (
             <Panel title="Properties">
-              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
                 {restProps.map(([k, v]) => (
                   <div key={k} className="contents">
                     <dt className="text-zinc-500">{humanize(k)}</dt>
                     <dd
-                      className="font-mono text-[12px] text-zinc-300 break-all"
+                      className="font-mono text-[13px] text-zinc-300 break-all"
                       title={looksLikeDateTime(v) ? String(v) : undefined}
                     >
                       {looksLikeDateTime(v) ? formatDateTime(v) : String(v)}
@@ -179,7 +179,7 @@ export function EntityScreen() {
 
           {contextQueries.length > 0 && (
             <Panel title="Context queries">
-              <div className="flex flex-wrap gap-2 text-[12px]">
+              <div className="flex flex-wrap gap-2 text-[13px]">
                 {contextQueries.map((q) => {
                   const param = (q.required_params ?? [])[0];
                   return (
@@ -216,7 +216,7 @@ function GroupedEdges({ edges }: { edges: NeighborEdge[] }) {
   const uniformSource = sources.size === 1 ? [...sources][0] : null;
   return (
     <details open={edges.length <= 8}>
-      <summary className="mb-1 cursor-pointer list-none text-[11px] uppercase tracking-wide text-zinc-600 hover:text-zinc-400">
+      <summary className="mb-1 cursor-pointer list-none text-[12px] uppercase tracking-wide text-zinc-600 hover:text-zinc-400">
         {edges[0]!.direction === "outgoing" ? "→" : "←"}{" "}
         {edges[0]!.relationship_type.replaceAll("_", " ")}{" "}
         <span className="font-mono normal-case">({edges.length})</span>
@@ -258,10 +258,10 @@ function NeighborRow({
 
   return (
     <div className="rounded border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-1.5">
-      <div className="flex flex-wrap items-center gap-2 text-[13px]">
+      <div className="flex flex-wrap items-center gap-2 text-[14px]">
         {isEntityRef(e) ? (
           <>
-            <span className="text-[11px] text-zinc-600">{e.entity_type}</span>
+            <span className="text-[12px] text-zinc-600">{e.entity_type}</span>
             <EntityLink entityType={e.entity_type} entityId={e.entity_id}>
               <span>
                 {typeof e.properties.title === "string" ? e.properties.title : e.entity_id}
@@ -272,7 +272,7 @@ function NeighborRow({
         ) : (
           <span className="text-zinc-500">(entity unavailable)</span>
         )}
-        <span className="ml-auto flex items-center gap-2 text-[11px] text-zinc-500">
+        <span className="ml-auto flex items-center gap-2 text-[12px] text-zinc-500">
           {review && !hideReview && <Chip value={review} />}
           {provenance?.source && !hideProvenance && (
             <span title={provenance.created_at}>
@@ -282,7 +282,7 @@ function NeighborRow({
         </span>
       </div>
       {(evidence?.rationale || (evidence?.evidence_refs ?? []).length > 0) && (
-        <div className="mt-1 border-t border-zinc-800/50 pt-1 text-[12px] text-zinc-500">
+        <div className="mt-1 border-t border-zinc-800/50 pt-1 text-[13px] text-zinc-500">
           {evidence?.rationale && <p className="italic">{evidence.rationale}</p>}
           {(evidence?.evidence_refs ?? []).map((ref, i) => (
             <EvidenceRef key={i} refData={ref} />
@@ -291,7 +291,7 @@ function NeighborRow({
             <Link
               key={rid}
               to={`/i/${instanceId}/receipts/${rid}`}
-              className="mr-2 font-mono text-[11px] text-zinc-400 hover:underline"
+              className="mr-2 font-mono text-[12px] text-zinc-400 hover:underline"
             >
               {rid}
             </Link>

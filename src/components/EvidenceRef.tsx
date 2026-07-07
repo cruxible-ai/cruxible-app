@@ -52,7 +52,7 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
 
   return (
     <div className="mt-0.5">
-      <div className="flex flex-wrap items-center gap-x-2 font-mono text-[11px]">
+      <div className="flex flex-wrap items-center gap-x-2 font-mono text-[12px]">
         <button
           onClick={() => setOpen(!open)}
           className="text-zinc-400 hover:text-zinc-200"
@@ -86,7 +86,7 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
           {deref.error && <LoadState error={deref.error} />}
           {result && (
             <>
-              <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+              <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
                 <Chip value={result.status} tone={STATUS_TONE[result.status]} />
                 {result.body_origin && <span>from {result.body_origin}</span>}
                 {result.status === "drifted" && (
@@ -101,11 +101,11 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
                 {result.reason && <span>{result.reason}</span>}
               </div>
               {result.body ? (
-                <pre className="max-h-64 overflow-auto font-mono text-[11px] leading-4 whitespace-pre-wrap text-zinc-300">
+                <pre className="max-h-64 overflow-auto font-mono text-[12px] leading-4 whitespace-pre-wrap text-zinc-300">
                   {result.body}
                 </pre>
               ) : (
-                <div className="text-[12px] text-zinc-600">No source text available.</div>
+                <div className="text-[13px] text-zinc-600">No source text available.</div>
               )}
             </>
           )}

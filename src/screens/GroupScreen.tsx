@@ -145,7 +145,7 @@ export function GroupScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <div className="flex items-center gap-3 text-[12px]">
+        <div className="flex items-center gap-3 text-[13px]">
           <Link to={`/i/${instanceId}/groups`} className="text-zinc-500 hover:text-zinc-300">
             Review groups
           </Link>
@@ -155,7 +155,7 @@ export function GroupScreen() {
         <h1 className="mt-1 text-[17px] font-semibold text-zinc-100">
           {humanize(group.relationship_type)}
         </h1>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
           <Chip value={group.status} />
           {group.group_kind && <span>kind {group.group_kind}</span>}
           <span>
@@ -177,9 +177,9 @@ export function GroupScreen() {
         <div className="min-w-0 space-y-3">
           {signalMatrix.size > 0 && (
             <Panel title="Signals">
-              <table className="w-full text-left text-[12px]">
+              <table className="w-full text-left text-[13px]">
                 <thead>
-                  <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+                  <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
                     <th className="py-1 pr-3 font-medium">Source</th>
                     <th className="py-1 pr-3 font-medium">Support</th>
                     <th className="py-1 pr-3 font-medium">Unsure</th>
@@ -194,7 +194,7 @@ export function GroupScreen() {
                     const provider = w?.providerName ? providerDefs[w.providerName] : undefined;
                     return (
                       <tr key={source} className="border-t border-zinc-800/60 align-top">
-                        <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-300">{source}</td>
+                        <td className="py-1.5 pr-3 font-mono text-[12px] text-zinc-300">{source}</td>
                         <td className={`py-1.5 pr-3 font-mono ${counts.support ? "text-emerald-400" : "text-zinc-600"}`}>
                           {counts.support}
                         </td>
@@ -210,7 +210,7 @@ export function GroupScreen() {
                               className="inline-flex items-center gap-1.5"
                               title={provider?.description ?? undefined}
                             >
-                              <span className="font-mono text-[11px] text-zinc-400">
+                              <span className="font-mono text-[12px] text-zinc-400">
                                 {w.providerName}
                               </span>
                               {provider && (
@@ -234,7 +234,7 @@ export function GroupScreen() {
                             <span className="text-zinc-600">—</span>
                           )}
                         </td>
-                        <td className="py-1.5 pr-3 text-[11px] text-zinc-500">
+                        <td className="py-1.5 pr-3 text-[12px] text-zinc-500">
                           {(signals?.required ?? []).includes(source) && "required"}
                           {(signals?.blocking ?? []).includes(source) && " · blocking"}
                         </td>
@@ -244,7 +244,7 @@ export function GroupScreen() {
                 </tbody>
               </table>
               {group.thesis_facts?.policy?.auto_resolve_when && (
-                <div className="mt-2 text-[11px] text-zinc-500">
+                <div className="mt-2 text-[12px] text-zinc-500">
                   Auto-resolves on {humanize(group.thesis_facts.policy.auto_resolve_when).toLowerCase()}
                   {" — "}first-run groups still require operator review.
                 </div>
@@ -265,11 +265,11 @@ export function GroupScreen() {
             <div className="space-y-2">
               {members.map((m, i) => (
                 <div key={i} className="rounded border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-2">
-                  <div className="flex flex-wrap items-center gap-2 text-[13px]">
-                    <span className="text-[11px] text-zinc-600">{m.from_type}</span>
+                  <div className="flex flex-wrap items-center gap-2 text-[14px]">
+                    <span className="text-[12px] text-zinc-600">{m.from_type}</span>
                     <EntityLink entityType={m.from_type} entityId={m.from_id} />
                     <span className="text-zinc-600">→</span>
-                    <span className="text-[11px] text-zinc-600">{m.to_type}</span>
+                    <span className="text-[12px] text-zinc-600">{m.to_type}</span>
                     <EntityLink entityType={m.to_type} entityId={m.to_id} />
                     {/* Members are the immutable as-proposed record; showing
                         their frozen review stamp on a resolved group reads as
@@ -281,7 +281,7 @@ export function GroupScreen() {
                     )}
                   </div>
                   {typeof m.properties?.rationale === "string" && (
-                    <p className="mt-1 text-[12px] leading-4 text-zinc-400">
+                    <p className="mt-1 text-[13px] leading-4 text-zinc-400">
                       {m.properties.rationale}
                     </p>
                   )}
@@ -318,7 +318,7 @@ export function GroupScreen() {
                       {(m.signals ?? []).map((s, si) => (
                         <div
                           key={si}
-                          className="grid grid-cols-[6rem_max-content_1fr] items-baseline gap-x-2 text-[12px]"
+                          className="grid grid-cols-[6rem_max-content_1fr] items-baseline gap-x-2 text-[13px]"
                         >
                           <span className="truncate font-mono text-[10px] text-zinc-500" title={s.signal_source}>
                             {s.signal_source}
@@ -336,9 +336,9 @@ export function GroupScreen() {
           </Panel>
 
           {group.status === "pending_review" && (
-            <div className="rounded border border-zinc-800/60 bg-zinc-900/30 px-3 py-2 text-[12px] text-zinc-500">
+            <div className="rounded border border-zinc-800/60 bg-zinc-900/30 px-3 py-2 text-[13px] text-zinc-500">
               Resolve from the CLI:{" "}
-              <code className="font-mono text-[11px] text-zinc-300">
+              <code className="font-mono text-[12px] text-zinc-300">
                 cruxible group resolve --group {group.group_id} --action approve
                 --expected-pending-version {group.pending_version ?? 1} --rationale "…"
               </code>
@@ -365,7 +365,7 @@ export function GroupScreen() {
             if (history.length === 0) return null;
             return (
               <Panel title="Resolution">
-                <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
+                <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
                   {st?.latest_trust_status && (
                     <div className="contents">
                       <dt className="text-zinc-500">Rule trust</dt>
@@ -378,8 +378,8 @@ export function GroupScreen() {
                     <div key={r.resolution_id} className="contents">
                       <dt className="text-zinc-500">{humanize(r.action ?? "resolved")}</dt>
                       <dd className="text-zinc-300">
-                        <span className="font-mono text-[11px]">{r.resolution_id}</span>
-                        <span className="block text-[11px] text-zinc-500">
+                        <span className="font-mono text-[12px]">{r.resolution_id}</span>
+                        <span className="block text-[12px] text-zinc-500">
                           {r.resolved_at && (
                             <span title={r.resolved_at}>{formatDateTime(r.resolved_at)}</span>
                           )}
@@ -399,11 +399,11 @@ export function GroupScreen() {
           })()}
 
           <Panel title="Provenance">
-            <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
+            <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
               {group.source_workflow_name && (
                 <div className="contents">
                   <dt className="text-zinc-500">Workflow</dt>
-                  <dd className="font-mono text-[11px] text-zinc-300 break-all">
+                  <dd className="font-mono text-[12px] text-zinc-300 break-all">
                     <Link
                       to={`/i/${instanceId}/workflows/${group.source_workflow_name}`}
                       className="hover:underline"
@@ -416,7 +416,7 @@ export function GroupScreen() {
               {group.proposed_actor_context?.actor_id && (
                 <div className="contents">
                   <dt className="text-zinc-500">Proposed by</dt>
-                  <dd className="font-mono text-[11px] text-zinc-300">
+                  <dd className="font-mono text-[12px] text-zinc-300">
                     {group.proposed_actor_context.actor_id}
                   </dd>
                 </div>
@@ -427,7 +427,7 @@ export function GroupScreen() {
                   <dd>
                     <Link
                       to={`/i/${instanceId}/receipts/${group.source_workflow_receipt_id}`}
-                      className="font-mono text-[11px] text-zinc-300 hover:underline"
+                      className="font-mono text-[12px] text-zinc-300 hover:underline"
                     >
                       {group.source_workflow_receipt_id}
                     </Link>
@@ -442,7 +442,7 @@ export function GroupScreen() {
                       <Link
                         key={rid}
                         to={`/i/${instanceId}/receipts/${rid}`}
-                        className="block font-mono text-[11px] text-zinc-300 hover:underline"
+                        className="block font-mono text-[12px] text-zinc-300 hover:underline"
                       >
                         {rid}
                       </Link>
@@ -458,7 +458,7 @@ export function GroupScreen() {
                       <Link
                         key={tid}
                         to={`/i/${instanceId}/traces/${tid}`}
-                        className="block font-mono text-[11px] text-zinc-300 hover:underline"
+                        className="block font-mono text-[12px] text-zinc-300 hover:underline"
                       >
                         {tid}
                       </Link>
@@ -471,7 +471,7 @@ export function GroupScreen() {
 
           {origin && (
             <Panel title="Thesis facts">
-              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
                 {origin.kind && (
                   <div className="contents">
                     <dt className="text-zinc-500">Origin</dt>
@@ -481,7 +481,7 @@ export function GroupScreen() {
                 {origin.workflow_name && (
                   <div className="contents">
                     <dt className="text-zinc-500">Workflow</dt>
-                    <dd className="font-mono text-[11px] text-zinc-300 break-all">
+                    <dd className="font-mono text-[12px] text-zinc-300 break-all">
                       <Link
                         to={`/i/${instanceId}/workflows/${origin.workflow_name}`}
                         className="hover:underline"
@@ -524,7 +524,7 @@ export function GroupScreen() {
 
           {group.thesis_facts?.policy && (
             <Panel title="Policy">
-              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[12px]">
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
                 {group.thesis_facts.policy.auto_resolve_when && (
                   <div className="contents">
                     <dt className="text-zinc-500">Auto-resolve</dt>

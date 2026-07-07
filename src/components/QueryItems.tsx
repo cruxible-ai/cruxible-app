@@ -116,9 +116,9 @@ function ValuesTable({
 
   return (
     <div className={compact ? "overflow-hidden" : "overflow-x-auto"}>
-      <table className={`w-full text-left text-[13px] ${compact ? "table-fixed" : ""}`}>
+      <table className={`w-full text-left text-[14px] ${compact ? "table-fixed" : ""}`}>
         <thead>
-          <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+          <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
             {columns.map((c) => (
               <th
                 key={c}

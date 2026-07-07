@@ -43,13 +43,13 @@ function ParamForm({ query }: { query: CatalogQuery }) {
           value={values[p] ?? ""}
           onChange={(e) => setValues((v) => ({ ...v, [p]: e.target.value }))}
           placeholder={p}
-          className="w-44 rounded border border-zinc-800 bg-transparent px-2 py-0.5 font-mono text-[11px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+          className="w-44 rounded border border-zinc-800 bg-transparent px-2 py-0.5 font-mono text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
         />
       ))}
       <button
         type="submit"
         disabled={!complete}
-        className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-200 enabled:hover:border-zinc-500 disabled:opacity-40"
+        className="rounded border border-zinc-700 px-2 py-0.5 text-[12px] text-zinc-200 enabled:hover:border-zinc-500 disabled:opacity-40"
       >
         Run
       </button>
@@ -94,7 +94,7 @@ export function ViewsIndexScreen() {
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">Views</h1>
-        <p className="mt-1 text-[12px] text-zinc-500">
+        <p className="mt-1 text-[13px] text-zinc-500">
           The instance's named queries — deterministic, receipted reads. Parameterized views
           take their required ids below; entity pages link them pre-filled.
         </p>
@@ -107,11 +107,11 @@ export function ViewsIndexScreen() {
             <div key={q.name} className="flex items-baseline gap-3 py-1.5">
               <Link
                 to={`/i/${instanceId}/views/${q.name}`}
-                className="w-72 shrink-0 truncate text-[13px] text-zinc-200 hover:underline"
+                className="w-72 shrink-0 truncate text-[14px] text-zinc-200 hover:underline"
               >
                 {humanize(q.name ?? "")}
               </Link>
-              <span className="min-w-0 flex-1 truncate text-[12px] text-zinc-500">
+              <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-500">
                 {q.description}
               </span>
               {meta(q)}
@@ -130,10 +130,10 @@ export function ViewsIndexScreen() {
             {parameterized.map((q) => (
               <div key={q.name} className="py-2">
                 <div className="flex items-baseline gap-3">
-                  <span className="w-72 shrink-0 truncate text-[13px] text-zinc-200">
+                  <span className="w-72 shrink-0 truncate text-[14px] text-zinc-200">
                     {humanize(q.name ?? "")}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-zinc-500">
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-500">
                     {q.description}
                   </span>
                   {meta(q)}

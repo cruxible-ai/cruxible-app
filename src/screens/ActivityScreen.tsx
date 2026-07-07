@@ -58,7 +58,7 @@ export function ActivityScreen() {
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">Activity</h1>
-        <p className="mt-1 text-[12px] text-zinc-500">
+        <p className="mt-1 text-[13px] text-zinc-500">
           Every receipted operation on this instance, newest first. A receipt is the audit
           record of one read or write — click through for its full context.
         </p>
@@ -93,9 +93,9 @@ export function ActivityScreen() {
         {receipts.data && items.length === 0 && <EmptyState>No receipts.</EmptyState>}
         {items.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13px]">
+            <table className="w-full text-left text-[14px]">
               <thead>
-                <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+                <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
                   <th className="py-1 pr-3 font-medium">When</th>
                   <th className="py-1 pr-3 font-medium">Operation</th>
                   <th className="py-1 pr-3 font-medium">Name</th>
@@ -118,16 +118,16 @@ export function ActivityScreen() {
                     <td className="whitespace-nowrap py-1.5 pr-3 text-zinc-300">
                       {humanize(r.operation_type || "query")}
                     </td>
-                    <td className="max-w-[24rem] truncate py-1.5 pr-3 font-mono text-[12px] text-zinc-400">
+                    <td className="max-w-[24rem] truncate py-1.5 pr-3 font-mono text-[13px] text-zinc-400">
                       {r.query_name || "—"}
                     </td>
-                    <td className="whitespace-nowrap py-1.5 pr-3 font-mono text-[12px] text-zinc-500">
+                    <td className="whitespace-nowrap py-1.5 pr-3 font-mono text-[13px] text-zinc-500">
                       {typeof r.duration_ms === "number" ? `${Math.round(r.duration_ms)} ms` : "—"}
                     </td>
                     <td className="whitespace-nowrap py-1.5 pr-3">
                       <Link
                         to={`/i/${instanceId}/receipts/${r.receipt_id}`}
-                        className="font-mono text-[12px] text-zinc-300 hover:underline"
+                        className="font-mono text-[13px] text-zinc-300 hover:underline"
                       >
                         {r.receipt_id}
                       </Link>

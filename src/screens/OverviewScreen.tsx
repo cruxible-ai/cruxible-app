@@ -35,7 +35,7 @@ export function OverviewScreen() {
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">Overview</h1>
-        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-zinc-500">
+        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-zinc-500">
           {stats.data && (
             <>
               <span>{stats.data.entity_count} entities</span>
@@ -115,7 +115,7 @@ function StatusMatrix() {
     >
       <div className="space-y-2">
         {rows.map(({ type, present, total }) => (
-          <div key={type} className="flex items-center gap-3 text-[13px]">
+          <div key={type} className="flex items-center gap-3 text-[14px]">
             <Link
               to={`/i/${instanceId}/browse/${type}`}
               className="w-32 shrink-0 text-zinc-300 hover:underline"
@@ -138,13 +138,13 @@ function StatusMatrix() {
               ))}
               </div>
             </div>
-            <span className="w-8 shrink-0 text-right font-mono text-[12px] text-zinc-400">
+            <span className="w-8 shrink-0 text-right font-mono text-[13px] text-zinc-400">
               {total}
             </span>
           </div>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-zinc-500">
         <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active / approved</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Awaiting review</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> Planned</span>
@@ -180,7 +180,7 @@ function SnapshotStrip() {
     <Panel title="Snapshots" meta={<span className="font-mono">{total}</span>}>
       <div className="divide-y divide-zinc-800/60">
         {shown.map((s) => (
-          <div key={s.snapshot_id} className="flex flex-wrap items-baseline gap-x-3 py-1 text-[12px]">
+          <div key={s.snapshot_id} className="flex flex-wrap items-baseline gap-x-3 py-1 text-[13px]">
             <span className="font-mono text-zinc-300">{s.snapshot_id}</span>
             {s.label && <span className="text-zinc-400">{s.label}</span>}
             {s.created_at && (
@@ -200,7 +200,7 @@ function SnapshotStrip() {
         ))}
       </div>
       {total > shown.length && (
-        <div className="mt-1 text-[11px] text-zinc-600">{total - shown.length} older</div>
+        <div className="mt-1 text-[12px] text-zinc-600">{total - shown.length} older</div>
       )}
     </Panel>
   );
@@ -231,7 +231,7 @@ function ViewCard({
         ) : undefined
       }
     >
-      {description && <p className="mb-2 text-[12px] text-zinc-500">{description}</p>}
+      {description && <p className="mb-2 text-[13px] text-zinc-500">{description}</p>}
       {view.isPending && <LoadState />}
       {view.error && <LoadState error={view.error} />}
       {view.data && (

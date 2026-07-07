@@ -22,7 +22,7 @@ export function EntityLink({
       to={entityPath(instanceId, entityType, entityId)}
       className={`text-zinc-200 hover:text-white hover:underline decoration-zinc-600 underline-offset-2 ${className}`}
     >
-      {children ?? <span className="font-mono text-[12px]">{entityId}</span>}
+      {children ?? <span className="font-mono text-[13px]">{entityId}</span>}
     </Link>
   );
 }

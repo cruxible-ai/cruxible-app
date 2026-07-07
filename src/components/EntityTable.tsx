@@ -87,9 +87,9 @@ export function EntityTable({
   }
   return (
     <div className={compact ? "overflow-hidden" : "overflow-x-auto"}>
-      <table className={`w-full text-left text-[13px] ${compact ? "table-fixed" : ""}`}>
+      <table className={`w-full text-left text-[14px] ${compact ? "table-fixed" : ""}`}>
         <thead>
-          <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+          <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
             {columns.map((c) => (
               <th key={c} className={`py-1 pr-3 font-medium ${c === "id" ? (compact ? "w-[38%]" : "w-64") : ""}`}>
                 <button onClick={() => setSort(nextSort(sort, c))} className="hover:text-zinc-300">

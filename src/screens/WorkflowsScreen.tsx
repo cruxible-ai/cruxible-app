@@ -67,7 +67,7 @@ export function WorkflowsScreen() {
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">Workflows</h1>
-        <p className="mt-1 text-[12px] text-zinc-500">
+        <p className="mt-1 text-[13px] text-zinc-500">
           The machinery declared by this instance's config. Runs happen through the CLI or MCP
           surfaces; every apply leaves a receipt.
         </p>
@@ -90,9 +90,9 @@ export function WorkflowsScreen() {
             meta={wf.mode ? <Chip value={wf.mode} /> : undefined}
           >
             {wf.description && (
-              <p className="mb-2 text-[12px] leading-4 text-zinc-500">{wf.description}</p>
+              <p className="mb-2 text-[13px] leading-4 text-zinc-500">{wf.description}</p>
             )}
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px]">
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px]">
               {(wf.steps ?? []).map((step, i) => {
                 const kind = step.kind ?? "step";
                 const detail = stepDetail(step.config);
@@ -125,7 +125,7 @@ export function WorkflowsScreen() {
         ))}
       </div>
       {workflows.length > 0 && (
-        <div className="mt-3 text-[11px] text-zinc-600">
+        <div className="mt-3 text-[12px] text-zinc-600">
           dot on a provider step: green = deterministic, amber = non-deterministic
         </div>
       )}

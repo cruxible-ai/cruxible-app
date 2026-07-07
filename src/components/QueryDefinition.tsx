@@ -83,7 +83,7 @@ export function QueryDefinition({
   ].filter(Boolean);
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-zinc-500">
+    <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-zinc-500">
       <span className={defChipClass}>
         <span className="text-zinc-300">{humanize(def.entry_point ?? "?")}</span>
         {paramText && <span className="font-mono text-[10px] text-zinc-500">{paramText}</span>}

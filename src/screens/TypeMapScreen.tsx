@@ -87,7 +87,7 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
             className={`h-1.5 w-1.5 shrink-0 rounded-full ${accent.dot} ${empty ? "opacity-40" : ""}`}
           />
         )}
-        <span className={`text-[12px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-200"}`}>
+        <span className={`text-[13px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-200"}`}>
           {data.typeName}
         </span>
       </div>
@@ -252,12 +252,12 @@ export function TypeMapScreen() {
       return (
         <div>
           <PanelHeading kicker="Entity type" title={humanize(selection.id)} />
-          <div className="text-[12px] text-zinc-400">
+          <div className="text-[13px] text-zinc-400">
             <span className="font-mono text-zinc-200">{count}</span> live{" "}
             {count === 1 ? "row" : "rows"}
           </div>
           {layerColoring.enabled && (
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500">
+            <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-zinc-500">
               <span
                 className={`h-1.5 w-1.5 rounded-full ${LAYER_META[layerColoring.layerFor(selection.id)].dot}`}
               />
@@ -271,7 +271,7 @@ export function TypeMapScreen() {
           </PanelActions>
           {propDefs.length > 0 && (
             <PanelSection title="Properties">
-              <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[11px]">
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[12px]">
                 {propDefs.map(([name, def]) => (
                   <div key={name} className="contents">
                     <dt className="font-mono text-zinc-400">{name}</dt>
@@ -296,7 +296,7 @@ export function TypeMapScreen() {
     return (
       <div>
         <PanelHeading kicker="Relationship type" title={selection.id.replaceAll("_", " ")} />
-        <div className="flex items-baseline gap-1.5 text-[12px]">
+        <div className="flex items-baseline gap-1.5 text-[13px]">
           <button onClick={() => api.select(edge.source)} className="text-zinc-300 hover:underline">
             {humanize(edge.source)}
           </button>
@@ -305,7 +305,7 @@ export function TypeMapScreen() {
             {humanize(edge.target)}
           </button>
         </div>
-        <div className="mt-1 text-[12px] text-zinc-400">
+        <div className="mt-1 text-[13px] text-zinc-400">
           {(data?.count ?? 0) > 0 ? (
             <>
               <span className="font-mono text-zinc-200">{data?.count}</span> live{" "}
@@ -317,7 +317,7 @@ export function TypeMapScreen() {
         </div>
         {data?.description && (
           <PanelSection title="Description">
-            <div className="text-[12px] leading-4 text-zinc-400">{data.description}</div>
+            <div className="text-[13px] leading-4 text-zinc-400">{data.description}</div>
           </PanelSection>
         )}
       </div>
@@ -328,7 +328,7 @@ export function TypeMapScreen() {
     <div className="flex h-full min-h-[80vh] flex-col">
       <header className="mb-3 flex items-baseline gap-3">
         <h1 className="text-[17px] font-semibold text-zinc-100">Type map</h1>
-        <span className="text-[11px] text-zinc-600">
+        <span className="text-[12px] text-zinc-600">
           {nodes.length} types · {edges.length} relationship types · dashed = declared but empty ·
           click anything for context
         </span>

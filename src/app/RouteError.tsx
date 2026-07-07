@@ -43,8 +43,8 @@ export function RouteError() {
           Cruxible
         </div>
         <h1 className="mt-3 text-[15px] font-semibold text-zinc-100">{title}</h1>
-        {message && <p className="mt-1 break-all text-[12px] text-zinc-400">{message}</p>}
-        <div className="mt-3 flex items-center gap-2 text-[12px]">
+        {message && <p className="mt-1 break-all text-[13px] text-zinc-400">{message}</p>}
+        <div className="mt-3 flex items-center gap-2 text-[13px]">
           <Link
             to="/"
             reloadDocument
@@ -61,7 +61,7 @@ export function RouteError() {
         </div>
         {stack && (
           <details className="mt-3">
-            <summary className="cursor-pointer text-[11px] text-zinc-600 hover:text-zinc-400">
+            <summary className="cursor-pointer text-[12px] text-zinc-600 hover:text-zinc-400">
               Stack trace
             </summary>
             <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap text-[10px] leading-3 text-zinc-500">

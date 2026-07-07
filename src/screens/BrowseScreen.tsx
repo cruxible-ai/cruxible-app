@@ -85,7 +85,7 @@ export function BrowseScreen() {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter this page…"
-            className="ml-auto w-48 rounded border border-zinc-800 bg-transparent px-2 py-0.5 text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+            className="ml-auto w-48 rounded border border-zinc-800 bg-transparent px-2 py-0.5 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
           />
         </div>
       </header>
@@ -104,7 +104,7 @@ export function BrowseScreen() {
           <>
             <EntityTable entities={items} />
             {total > PAGE_SIZE && (
-              <div className="mt-2 flex items-center gap-2 text-[12px]">
+              <div className="mt-2 flex items-center gap-2 text-[13px]">
                 <button
                   disabled={offset <= 0}
                   onClick={() => {
