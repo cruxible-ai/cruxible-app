@@ -56,6 +56,7 @@ import { usePageTitle } from "@/lib/usePageTitle";
 
 /** Dot nodes are cheap; cards carry text and need an order of magnitude less. */
 const MAX_NODES_DOTS = 3000;
+const MIN_DOTS_PER_TYPE = 25;
 const MAX_NODES_CARDS = 600;
 /** Card mode shows each type's best-connected members and folds the rest
  * into one overflow card — reading titles is the mode's whole point, so it
@@ -467,7 +468,7 @@ function neighborhood(
  * status-colored dots under a static force layout, with the shared
  * GraphCanvas selection model. Search highlights and jumps; "Isolate
  * neighborhood" (URL state) cuts the canvas down to k hops around one
- * entity. Hide-cold applies; auto-fit drops the biggest types when an
+ * entity. Hide-cold applies; dots mode samples dense types by degree when an
  * instance exceeds the node budget.
  */
 export function StateGraphScreen() {
@@ -563,13 +564,19 @@ export function StateGraphScreen() {
       .filter(([, count]) => count > 0);
   }, [stats.data, settings.hideCold]);
 
-  // With no explicit selection, auto-fit: include types smallest-first until
-  // the budget is spent, so every instance draws SOMETHING immediately. An
-  // explicit over-budget selection still gets the refusal message.
+  // Dots mode includes every selected type and enforces its budget inside the
+  // layout memo, after degree can be computed from the fetched edge list.
+  // Cards keep their existing smallest-first auto-fit behavior.
   const { includedTypes, autoExcluded } = useMemo(() => {
     if (typeFilter) {
       return {
         includedTypes: typeCounts.filter(([t]) => typeFilter.has(t)).map(([t]) => t),
+        autoExcluded: [] as string[],
+      };
+    }
+    if (mode === "dots") {
+      return {
+        includedTypes: typeCounts.map(([t]) => t),
         autoExcluded: [] as string[],
       };
     }
@@ -598,7 +605,9 @@ export function StateGraphScreen() {
     );
   // A focused view is small by construction — always drawable.
   const withinBudget =
-    !!focusRef || (projectedNodes > 0 && (projectedNodes <= maxNodes || !typeFilter));
+    !!focusRef ||
+    (projectedNodes > 0 &&
+      (mode === "dots" || projectedNodes <= maxNodes || !typeFilter));
 
   const entityResults = useEntitiesForTypes(includedTypes, MAX_NODES_DOTS, withinBudget);
   const edgeList = useEdgeList(EDGE_FETCH_LIMIT, withinBudget);
@@ -636,8 +645,9 @@ export function StateGraphScreen() {
 
   // Entity rows + edge rows → drawn graph, in stages: collect, isolate,
   // layout. All pure derivation from fetch results + URL state.
-  const { nodes: baseNodes, edges, droppedEdges } = useMemo(() => {
+  const { nodes: baseNodes, edges, droppedEdges, sampledTypeCounts } = useMemo(() => {
     const rows: Array<{ id: string; data: DotNodeCore }> = [];
+    const sampledTypeCounts = new Map<string, number>();
     for (let i = 0; i < includedTypes.length; i++) {
       const items = ((entityResults[i]?.data as { items?: unknown[] } | undefined)?.items ?? [])
         .filter(isEntityRef)
@@ -774,6 +784,65 @@ export function StateGraphScreen() {
     }
     let drawnRows = rows.filter((r) => present.has(r.id));
 
+    // Dots mode constraint: preserve every type, then keep each large type's
+    // best-connected members by degree over the full fetched edge list.
+    if (mode === "dots" && !focus && drawnRows.length > MAX_NODES_DOTS) {
+      const degree = new Map<string, number>();
+      for (const row of edgeRows) {
+        const source = `${row.from_type}:${row.from_id}`;
+        const target = `${row.to_type}:${row.to_id}`;
+        degree.set(source, (degree.get(source) ?? 0) + 1);
+        degree.set(target, (degree.get(target) ?? 0) + 1);
+      }
+      const byType = new Map<string, typeof drawnRows>();
+      for (const r of drawnRows) {
+        byType.set(r.data.entityType, [...(byType.get(r.data.entityType) ?? []), r]);
+      }
+      const totalCount = drawnRows.length;
+      const keptByType = new Map<string, typeof drawnRows>();
+      const keptIds = new Set<string>();
+      for (const [type, members] of byType) {
+        const keepLimit = Math.max(
+          MIN_DOTS_PER_TYPE,
+          Math.floor((MAX_NODES_DOTS * members.length) / totalCount),
+        );
+        const sorted = [...members].sort(
+          (a, b) =>
+            (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0) || a.id.localeCompare(b.id),
+        );
+        const kept = members.length <= keepLimit ? sorted : sorted.slice(0, keepLimit);
+        keptByType.set(type, kept);
+        for (const r of kept) keptIds.add(r.id);
+      }
+
+      let overBudget = keptIds.size - MAX_NODES_DOTS;
+      if (overBudget > 0) {
+        const trimOrder = [...byType.entries()].sort(
+          (a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]),
+        );
+        for (const [type] of trimOrder) {
+          const kept = keptByType.get(type) ?? [];
+          while (overBudget > 0 && kept.length > 0) {
+            const tail = kept.pop();
+            if (tail) keptIds.delete(tail.id);
+            overBudget--;
+          }
+          if (overBudget === 0) break;
+        }
+      }
+
+      for (const [type, members] of byType) {
+        const kept = keptByType.get(type) ?? [];
+        if (kept.length < members.length) sampledTypeCounts.set(type, kept.length);
+      }
+      dropped += links.filter(
+        (l) => !keptIds.has(l.source) || !keptIds.has(l.target),
+      ).length;
+      links = links.filter((l) => keptIds.has(l.source) && keptIds.has(l.target));
+      present = keptIds;
+      drawnRows = drawnRows.filter((r) => present.has(r.id));
+    }
+
     // Card mode constraint: keep each type's best-connected members (degree
     // over the drawn edges), fold the rest into one overflow card per type.
     const overflow = new Map<string, number>();
@@ -851,7 +920,7 @@ export function StateGraphScreen() {
         animated: false,
       };
     });
-    return { nodes: nodes, edges, droppedEdges: dropped };
+    return { nodes: nodes, edges, droppedEdges: dropped, sampledTypeCounts };
     // search is deliberately NOT a dependency: layout is expensive and match
     // decoration happens in the cheap pass below.
   }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, colorMode, typeColorFor, focus, hops, mode, governedTypes, focusRef, focusInspect.data]);
@@ -898,6 +967,10 @@ export function StateGraphScreen() {
 
   const loading =
     withinBudget && (edgeList.isPending || entityResults.some((r) => r.isPending));
+  const drawnEdges = edges.length;
+  const fetchedEdges = drawnEdges + droppedEdges;
+  const showDegenerateNotice =
+    fetchedEdges > 50 && droppedEdges / fetchedEdges > 0.9;
 
   const labelFor = (id: string) => titleById.get(id) ?? id;
 
@@ -1055,6 +1128,9 @@ export function StateGraphScreen() {
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           {typeCounts.map(([type, count]) => {
             const active = includedTypes.includes(type);
+            const sampledCount = sampledTypeCounts.get(type);
+            const countLabel =
+              sampledCount === undefined ? String(count) : `${sampledCount}/${count}`;
             return (
               <button key={type} onClick={() => toggleType(type)} className={toggleChipClass(active)}>
                 {/* The chip doubles as the color legend for its type's dots. */}
@@ -1064,7 +1140,7 @@ export function StateGraphScreen() {
                   } ${active ? "" : "opacity-40"}`}
                   style={colorMode === "type" ? { backgroundColor: typeColorFor(type) } : undefined}
                 />
-                {humanize(type)} <span className="font-mono text-[10px] text-zinc-500">{count}</span>
+                {humanize(type)} <span className="font-mono text-[10px] text-zinc-500">{countLabel}</span>
               </button>
             );
           })}
@@ -1074,7 +1150,7 @@ export function StateGraphScreen() {
           >
             {includedTypes.length === typeCounts.length ? "Deselect all" : "Select all"}
           </button>
-          {autoExcluded.length > 0 && (
+          {mode === "cards" && autoExcluded.length > 0 && (
             <span className="text-[12px] text-zinc-600">
               {autoExcluded.map(humanize).join(", ")} left out to fit the {maxNodes}-node budget —
               toggle chips to trade
@@ -1082,7 +1158,7 @@ export function StateGraphScreen() {
           )}
         </div>
       )}
-      {!withinBudget && projectedNodes > 0 && (
+      {mode === "cards" && !withinBudget && projectedNodes > 0 && (
         <EmptyState>
           {projectedNodes.toLocaleString()} entities selected — this view draws up to {maxNodes}.
           Narrow the type chips above (or hide cold entities in Settings) to bring the selection
@@ -1101,7 +1177,17 @@ export function StateGraphScreen() {
           nodeTypes={nodeTypes}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"
-          overlay={<GraphLegend kitLayers={colorMode === "kit"} />}
+          overlay={
+            <div className="flex flex-col gap-1.5">
+              <GraphLegend kitLayers={colorMode === "kit"} />
+              {showDegenerateNotice && (
+                <div className="rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[12px] text-amber-400">
+                  Most of this graph's edges connect to entities not drawn — adjust the type
+                  chips or use Find / focus.
+                </div>
+              )}
+            </div>
+          }
           selectRequest={selectRequest}
         >
           <Controls showInteractive={false} className="!shadow-none" />
