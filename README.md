@@ -72,12 +72,14 @@ through an MSW worker at the network layer — same code paths, canned data.
 
 ## Screenshots
 
-<!-- Captured against the project-state kit; regenerate before release. -->
+Captured against the supply-chain demo instance from the
+[core quickstart](https://github.com/cruxible-ai/cruxible/blob/main/docs/quickstart.md).
 
-![Overview](docs/screenshots/overview.png)
-![Entity context](docs/screenshots/entity.png)
-![Graph](docs/screenshots/graph.png)
-![Receipt](docs/screenshots/receipt.png)
+![State graph: the whole instance as typed dots, edge strokes carrying governance review state](docs/screenshots/ui_state_graph.png)
+
+![Review group: signal matrix, proposed edges with matching evidence, provenance rail](docs/screenshots/ui_group_review.png)
+
+![Type map: base and overlay entity types with live counts, relationship types as labeled edges](docs/screenshots/ui_type_map.png)
 
 ## Alpha caveats
 
