@@ -1,16 +1,18 @@
-import { useInstanceSchema } from "@/api/hooks";
-import { Chip } from "@/components/Chip";
-import { LoadState, Panel } from "@/components/Panel";
+import { Link } from "react-router-dom";
+import { useInstanceId, useInstanceSchema } from "@/api/hooks";
+import { Chip, defChipClass } from "@/components/Chip";
+import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { humanize } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 
+type StepConfig = string | Record<string, unknown>;
+
+/** Discriminated wire shape served by /schema since core adefa83. */
 interface WorkflowStep {
   id?: string;
   kind?: string;
-  provider?: string;
-  query?: string;
-  relationship_type?: string;
-  entity_type?: string;
-  workflow?: string;
+  /** String for provider / named-query references, object for inline specs. */
+  config?: StepConfig | null;
 }
 
 interface WorkflowDef {
@@ -31,11 +33,16 @@ export interface SchemaWithWorkflows {
   providers?: Record<string, ProviderDef>;
 }
 
-/** One step chip: the kind, plus the most identifying reference it carries. */
-function stepDetail(step: WorkflowStep): string | null {
-  return (
-    step.provider ?? step.query ?? step.relationship_type ?? step.entity_type ?? step.workflow ?? null
-  );
+/** One step chip: the most identifying reference the step config carries. */
+function stepDetail(config: StepConfig | null | undefined): string | null {
+  if (typeof config === "string") return config;
+  if (config) {
+    for (const key of ["entity_type", "relationship_type", "entry_point", "workflow", "query"]) {
+      const value = config[key];
+      if (typeof value === "string") return value;
+    }
+  }
+  return null;
 }
 
 /**
@@ -47,6 +54,8 @@ function stepDetail(step: WorkflowStep): string | null {
  */
 export function WorkflowsScreen() {
   const schema = useInstanceSchema();
+  const instanceId = useInstanceId();
+  usePageTitle("Workflows");
   if (schema.isPending) return <LoadState />;
   if (schema.error) return <LoadState error={schema.error} />;
 
@@ -58,38 +67,44 @@ export function WorkflowsScreen() {
     <div>
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">Workflows</h1>
-        <p className="mt-1 text-[12px] text-zinc-500">
+        <p className="mt-1 text-[13px] text-zinc-500">
           The machinery declared by this instance's config. Runs happen through the CLI or MCP
           surfaces; every apply leaves a receipt.
         </p>
       </header>
       {workflows.length === 0 && (
-        <div className="text-[13px] text-zinc-600">
-          This instance's config declares no workflows — its state is built through direct
-          governed writes.
-        </div>
+        <EmptyState>
+          No workflows declared — this instance's state is built through direct governed
+          writes.
+        </EmptyState>
       )}
       <div className="space-y-3">
         {workflows.map(([name, wf]) => (
           <Panel
             key={name}
-            title={humanize(name)}
+            title={
+              <Link to={`/i/${instanceId}/workflows/${name}`} className="hover:underline">
+                {humanize(name)}
+              </Link>
+            }
             meta={wf.mode ? <Chip value={wf.mode} /> : undefined}
           >
             {wf.description && (
-              <p className="mb-2 text-[12px] leading-4 text-zinc-500">{wf.description}</p>
+              <p className="mb-2 text-[13px] leading-4 text-zinc-500">{wf.description}</p>
             )}
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px]">
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px]">
               {(wf.steps ?? []).map((step, i) => {
-                const detail = stepDetail(step);
-                const provider = step.provider ? providers[step.provider] : undefined;
+                const kind = step.kind ?? "step";
+                const detail = stepDetail(step.config);
+                const provider =
+                  kind === "provider" && typeof step.config === "string"
+                    ? providers[step.config]
+                    : undefined;
                 return (
                   <span key={step.id ?? i} className="inline-flex items-center gap-1.5">
                     {i > 0 && <span className="font-mono text-zinc-700">→</span>}
-                    <span className="inline-flex items-center gap-1 rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-px">
-                      <span className="text-zinc-400">
-                        {(step.kind ?? "step").replaceAll("_", " ")}
-                      </span>
+                    <span className={defChipClass}>
+                      <span className="text-zinc-400">{kind.replaceAll("_", " ")}</span>
                       {detail && (
                         <span className="font-mono text-[10px] text-zinc-500">{detail}</span>
                       )}
@@ -110,7 +125,7 @@ export function WorkflowsScreen() {
         ))}
       </div>
       {workflows.length > 0 && (
-        <div className="mt-3 text-[11px] text-zinc-600">
+        <div className="mt-3 text-[12px] text-zinc-600">
           dot on a provider step: green = deterministic, amber = non-deterministic
         </div>
       )}

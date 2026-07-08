@@ -8,8 +8,8 @@ import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
 export function PanelHeading({ kicker, title }: { kicker: string; title: string }) {
   return (
     <div className="mb-2 pr-6">
-      <div className="text-[9px] uppercase tracking-wide text-zinc-500">{kicker}</div>
-      <div className="text-[13px] font-medium leading-4 text-zinc-100">{title}</div>
+      <div className="text-[10px] uppercase tracking-wide text-zinc-500">{kicker}</div>
+      <div className="text-[14px] font-medium leading-4 text-zinc-100">{title}</div>
     </div>
   );
 }
@@ -29,9 +29,6 @@ export function PanelActions({ children }: { children: ReactNode }) {
   return <div className="mt-3 flex flex-wrap gap-1.5">{children}</div>;
 }
 
-export const panelActionClass =
-  "rounded border border-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900";
-
 /**
  * The selected node's 1-hop connections, one row per edge: direction glyph,
  * relationship label, and the far node — clicking a row walks the selection
@@ -50,7 +47,7 @@ export function ConnectionList({
 }) {
   const touching = edges.filter((e) => e.source === nodeId || e.target === nodeId);
   if (touching.length === 0) {
-    return <div className="text-[12px] text-zinc-600">No connections in this view.</div>;
+    return <div className="text-[13px] text-zinc-600">No connections in this view.</div>;
   }
   return (
     <div className="space-y-0.5">
@@ -62,14 +59,18 @@ export function ConnectionList({
           <button
             key={e.id}
             onClick={() => api.select(other)}
-            className="flex w-full items-baseline gap-1.5 rounded px-1 py-0.5 text-left text-[11px] hover:bg-zinc-900"
+            className="flex w-full items-baseline gap-1.5 rounded px-1 py-0.5 text-left text-[12px] hover:bg-zinc-900"
           >
             <span className="shrink-0 font-mono text-zinc-600">{outgoing ? "→" : "←"}</span>
-            <span className="shrink-0 text-zinc-500">
-              {String(e.label ?? e.id).replaceAll("_", " ")}
-            </span>
-            <span className="truncate text-zinc-300">
-              {isSelfLoop ? "(self)" : labelFor(other)}
+            {/* Full text always — long titles wrap onto extra lines rather
+                than truncating; the panel scrolls, so height is free. */}
+            <span className="min-w-0">
+              <span className="text-zinc-500">
+                {String(e.label ?? e.id).replaceAll("_", " ")}
+              </span>{" "}
+              <span className="break-words text-zinc-300">
+                {isSelfLoop ? "(self)" : labelFor(other)}
+              </span>
             </span>
           </button>
         );
@@ -97,10 +98,10 @@ export function PropertyList({
     ([k, v]) => v !== null && v !== undefined && v !== "" && !omit.includes(k),
   );
   if (entries.length === 0) {
-    return <div className="text-[12px] text-zinc-600">No properties set.</div>;
+    return <div className="text-[13px] text-zinc-600">No properties set.</div>;
   }
   return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-[11px]">
+    <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-[12px]">
       {entries.map(([k, v]) => {
         const isStatusLike = (k === "status" || k.endsWith("_status")) && typeof v === "string";
         const text = looksLikeDateTime(v)

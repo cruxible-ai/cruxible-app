@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Chip } from "./Chip";
 import { EntityLink } from "./EntityLink";
+import { EmptyState } from "./Panel";
 import { prop, type EntityRef } from "@/api/items";
 import { compareCells, nextSort, type SortState } from "@/lib/sort";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
@@ -30,11 +31,11 @@ function deriveColumns(entities: EntityRef[], compact: boolean): string[] {
   return [...lead, ...seen.filter((k) => !lead.includes(k))];
 }
 
-function isChipKey(key: string): boolean {
+export function isChipKey(key: string): boolean {
   return key === "status" || key === "priority" || key.endsWith("_status");
 }
 
-function Cell({ value, column }: { value: unknown; column: string }) {
+export function Cell({ value, column }: { value: unknown; column: string }) {
   if (value === null || value === undefined || value === "") {
     return <span className="text-zinc-700">—</span>;
   }
@@ -82,13 +83,13 @@ export function EntityTable({
   }, [entities, sort]);
 
   if (entities.length === 0) {
-    return <div className="py-3 text-[13px] text-zinc-600">No items.</div>;
+    return <EmptyState>No items.</EmptyState>;
   }
   return (
     <div className={compact ? "overflow-hidden" : "overflow-x-auto"}>
-      <table className={`w-full text-left text-[13px] ${compact ? "table-fixed" : ""}`}>
+      <table className={`w-full text-left text-[14px] ${compact ? "table-fixed" : ""}`}>
         <thead>
-          <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+          <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
             {columns.map((c) => (
               <th key={c} className={`py-1 pr-3 font-medium ${c === "id" ? (compact ? "w-[38%]" : "w-64") : ""}`}>
                 <button onClick={() => setSort(nextSort(sort, c))} className="hover:text-zinc-300">

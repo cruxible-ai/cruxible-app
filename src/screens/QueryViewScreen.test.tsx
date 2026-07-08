@@ -42,7 +42,7 @@ describe("QueryViewScreen", () => {
     expect(await screen.findByText("Fixture work item")).toBeInTheDocument();
     expect(screen.getByText("wi-fixture-1")).toBeInTheDocument();
     expect(screen.getByText("RCP-fixture0001")).toBeInTheDocument();
-    expect(screen.getByText("planned")).toBeInTheDocument();
+    expect(screen.getByText("Planned")).toBeInTheDocument();
   });
 
   it("forwards non-reserved URL search params to the view query", async () => {

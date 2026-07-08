@@ -1,6 +1,7 @@
-import { Chip } from "./Chip";
+import { useMemo, useState } from "react";
 import { EntityLink } from "./EntityLink";
-import { EntityTable } from "./EntityTable";
+import { Cell, EntityTable } from "./EntityTable";
+import { EmptyState } from "./Panel";
 import {
   isEntityRef,
   isPathItem,
@@ -9,7 +10,8 @@ import {
   type ValuesItem,
 } from "@/api/items";
 import type { QueryToolResult } from "@/api/data-source";
-import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
+import { compareCells, nextSort, type SortState } from "@/lib/sort";
+import { humanize, looksLikeDateTime } from "@/lib/text";
 
 /**
  * Renders the items of a QueryToolResult according to its result_shape:
@@ -42,7 +44,7 @@ export function QueryItems({
   if (paths.length === 0) {
     const values = result.items.filter(isValuesItem);
     if (values.length > 0) return <ValuesTable rows={values} linkType={linkType} compact={compact} />;
-    return <div className="py-3 text-[13px] text-zinc-600">No items.</div>;
+    return <EmptyState>No items.</EmptyState>;
   }
   const byType = new Map<string, EntityRef[]>();
   const seen = new Set<string>();
@@ -95,41 +97,57 @@ function ValuesTable({
   const columns = compact
     ? allColumns.filter((c) => c === idColumn || COMPACT_COLUMNS.includes(c))
     : allColumns;
+
+  // Same interaction grammar as EntityTable: sortable headers, hover rows,
+  // chip treatment for status/priority — a projected queue must not read
+  // worse than a browse list.
+  const hasPriority = rows.some((r) => typeof r.values["priority"] === "string");
+  const [sort, setSort] = useState<SortState>(
+    hasPriority ? { column: "priority", dir: -1 } : null,
+  );
+  const sorted = useMemo(() => {
+    if (!sort) return rows;
+    return [...rows].sort(
+      (a, b) =>
+        sort.dir *
+        compareCells(sort.column, String(a.values[sort.column] ?? ""), String(b.values[sort.column] ?? "")),
+    );
+  }, [rows, sort]);
+
   return (
     <div className={compact ? "overflow-hidden" : "overflow-x-auto"}>
-      <table className={`w-full text-left text-[13px] ${compact ? "table-fixed" : ""}`}>
+      <table className={`w-full text-left text-[14px] ${compact ? "table-fixed" : ""}`}>
         <thead>
-          <tr className="border-b border-zinc-800 text-[11px] text-zinc-500">
+          <tr className="border-b border-zinc-800 text-[12px] text-zinc-500">
             {columns.map((c) => (
               <th
                 key={c}
                 className={`py-1 pr-3 font-medium ${compact && c === idColumn ? "w-[38%]" : ""}`}
               >
-                {humanize(c)}
+                <button onClick={() => setSort(nextSort(sort, c))} className="hover:text-zinc-300">
+                  {humanize(c)}
+                  {sort?.column === c && (sort.dir === -1 ? " ↓" : " ↑")}
+                </button>
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-b border-zinc-900 align-top">
+          {sorted.map((row, i) => (
+            <tr key={i} className="border-t border-zinc-800/60 align-top hover:bg-zinc-900/40">
               {columns.map((c) => {
                 const v = row.values[c];
-                const text = v == null ? "—" : looksLikeDateTime(v) ? formatDateTime(v) : String(v);
-                const isStatus = c === "status" && typeof v === "string";
                 const isLink = linkType && c === idColumn && typeof v === "string";
                 return (
                   <td
                     key={c}
                     title={looksLikeDateTime(v) ? String(v) : undefined}
-                    className="max-w-[28rem] truncate whitespace-nowrap py-1 pr-3 text-zinc-300"
+                    className="max-w-[28rem] truncate whitespace-nowrap py-1.5 pr-3 text-zinc-300"
                   >
                     {isLink ? (
                       <EntityLink entityType={linkType} entityId={v as string} />
-                    ) : isStatus ? (
-                      <Chip value={v as string} />
                     ) : (
-                      text
+                      <Cell value={v} column={c} />
                     )}
                   </td>
                 );

@@ -1,16 +1,24 @@
 import { useInstanceSchema } from "@/api/hooks";
 import type { ViewParams } from "@/api/hooks";
+import { defChipClass } from "@/components/Chip";
 import { humanize } from "@/lib/text";
 
-interface TraversalStep {
-  relationship?: string;
+export interface TraversalStep {
+  /** One relationship, or several for a multi-relationship hop. */
+  relationship?: string | string[];
   direction?: string;
   where?: Record<string, unknown> | null;
   max_depth?: number;
   alias?: string | null;
 }
 
-interface QueryDef {
+/** "a_b" → "a b"; multi-relationship hops read as "a b | c d". */
+function relationshipLabel(rel: string | string[] | undefined): string {
+  const names = Array.isArray(rel) ? rel : [rel ?? "?"];
+  return names.map((r) => r.replaceAll("_", " ")).join(" | ");
+}
+
+export interface QueryDef {
   entry_point?: string | null;
   traversal?: TraversalStep[];
   returns?: string;
@@ -38,9 +46,6 @@ function summarizeWhere(where: Record<string, unknown> | null | undefined): stri
   });
 }
 
-const chipClass =
-  "inline-flex items-center gap-1 rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-px";
-
 /**
  * How this view is computed, always visible: the entry point with the live
  * param values, each traversal hop with its direction and filters, the
@@ -61,6 +66,16 @@ export function QueryDefinition({
   )?.named_queries?.[queryName];
   if (!def) return null;
 
+  return <QueryDefinitionBody definition={def} params={params} />;
+}
+
+export function QueryDefinitionBody({
+  definition: def,
+  params = {},
+}: {
+  definition: QueryDef;
+  params?: Record<string, unknown>;
+}) {
   const paramText = (def.required_params ?? [])
     .map((p) => `${p}=${String(params[p] ?? "?")}`)
     .join(", ");
@@ -78,8 +93,8 @@ export function QueryDefinition({
   ].filter(Boolean);
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-zinc-500">
-      <span className={chipClass}>
+    <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-zinc-500">
+      <span className={defChipClass}>
         <span className="text-zinc-300">{humanize(def.entry_point ?? "?")}</span>
         {paramText && <span className="font-mono text-[10px] text-zinc-500">{paramText}</span>}
       </span>
@@ -90,8 +105,8 @@ export function QueryDefinition({
             <span className="font-mono text-zinc-600">
               {step.direction === "incoming" ? "←" : "→"}
             </span>
-            <span className={chipClass}>
-              <span>{(step.relationship ?? "?").replaceAll("_", " ")}</span>
+            <span className={defChipClass}>
+              <span>{relationshipLabel(step.relationship)}</span>
               {(step.max_depth ?? 1) > 1 && (
                 <span className="font-mono text-[10px] text-zinc-600">×{step.max_depth}</span>
               )}
@@ -103,7 +118,7 @@ export function QueryDefinition({
         );
       })}
       <span className="font-mono text-zinc-600">⇒</span>
-      <span className={chipClass}>
+      <span className={defChipClass}>
         <span className="text-zinc-300">{humanize(def.returns ?? "?")}</span>
         {rootFilters.length > 0 && (
           <span className="text-[10px] text-zinc-600">[{rootFilters.join("; ")}]</span>

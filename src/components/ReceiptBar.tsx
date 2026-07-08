@@ -12,7 +12,7 @@ export function ReceiptBar({ result }: { result: QueryToolResult }) {
   const instanceId = useInstanceId();
   const receipt = result.receipt as { head_snapshot_id?: string; duration_ms?: number } | null;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-800/80 pt-2 mt-3 text-[11px] text-zinc-500">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-800/80 pt-2 mt-3 text-[12px] text-zinc-500">
       {result.receipt_id ? (
         <span className="inline-flex items-center gap-1">
           <ReceiptText className="h-3 w-3" />

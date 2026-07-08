@@ -15,7 +15,7 @@ describe("fixture handler set", () => {
     const stats = unwrap(
       await client.GET("/api/v1/{instance_id}/stats", { params: { path } }),
     ) as { entity_count: number };
-    expect(stats.entity_count).toBe(3);
+    expect(stats.entity_count).toBe(4);
 
     const queue = unwrap(
       await client.GET("/api/v1/{instance_id}/views/{query_name}", {

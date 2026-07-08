@@ -11,6 +11,21 @@ export function humanize(identifier: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/**
+ * Case-insensitive substring match over an item's scalar surface — the shared
+ * predicate for the page-level filter boxes. Display-layer only: it narrows
+ * what is on screen, never what a receipt covers.
+ */
+export function matchesText(fields: unknown[], query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return fields.some(
+    (v) =>
+      (typeof v === "string" || typeof v === "number") &&
+      String(v).toLowerCase().includes(q),
+  );
+}
+
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 
 /** True for ISO-8601-looking datetime strings. */

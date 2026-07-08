@@ -1,8 +1,9 @@
 {
   "name": "cruxible-ui",
+  "description": "Read-only inspection console for a local Cruxible daemon (alpha)",
+  "license": "Apache-2.0",
   "private": true,
   "version": "0.1.0",
-  "license": "Apache-2.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -21,6 +22,7 @@
     "@fontsource/merriweather": "^5.2.11",
     "@tanstack/react-query": "^5",
     "@xyflow/react": "^12.11.0",
+    "d3-force": "^3.0.0",
     "lucide-react": "^1.23.0",
     "openapi-fetch": "^0.13",
     "react": "^19",
@@ -35,6 +37,7 @@
     "@tailwindcss/vite": "^4",
     "@testing-library/jest-dom": "^6",
     "@testing-library/react": "^16",
+    "@types/d3-force": "^3.0.10",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",

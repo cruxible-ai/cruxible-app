@@ -1,11 +1,13 @@
 import { Link, useParams } from "react-router-dom";
 import { useInspectEntity, useInstanceId, useQueryCatalog } from "@/api/hooks";
-import { Chip } from "@/components/Chip";
+import { actionChipClass, Chip } from "@/components/Chip";
 import { EntityLink } from "@/components/EntityLink";
 import { EvidenceRef, type EvidenceRefData } from "@/components/EvidenceRef";
-import { Panel, LoadState } from "@/components/Panel";
+import { MonoId } from "@/components/MonoId";
+import { Panel, LoadState, EmptyState } from "@/components/Panel";
 import { Prose } from "@/components/Prose";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { ArrowRight, Waypoints } from "lucide-react";
 import { isEntityRef } from "@/api/items";
 import { isColdEntity } from "@/lib/cold";
@@ -39,6 +41,9 @@ export function EntityScreen() {
   const inspect = useInspectEntity(entityType, entityId);
   const catalog = useQueryCatalog();
   const { settings } = useSettings();
+  const loadedTitle = (inspect.data as { properties?: { title?: unknown } } | undefined)
+    ?.properties?.title;
+  usePageTitle(typeof loadedTitle === "string" ? loadedTitle : entityId);
 
   if (inspect.isPending) return <LoadState />;
   if (inspect.error) return <LoadState error={inspect.error} />;
@@ -51,7 +56,7 @@ export function EntityScreen() {
     total_neighbors: number;
   };
   if (!data.found) {
-    return <div className="text-[13px] text-zinc-500">Entity not found.</div>;
+    return <EmptyState>Entity not found.</EmptyState>;
   }
 
   const { properties } = data;
@@ -94,12 +99,14 @@ export function EntityScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <div className="flex items-center gap-3 text-[12px]">
+        <div className="flex items-center gap-3 text-[13px]">
           <span className="text-zinc-400">{humanize(data.entity_type)}</span>
-          <span className="font-mono text-[11px] text-zinc-600">{data.entity_id}</span>
+          <MonoId id={data.entity_id} />
           <Link
-            to={`/i/${instanceId}/g/${data.entity_type}/${data.entity_id}`}
-            className="ml-auto inline-flex items-center gap-1.5 rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900"
+            to={`/i/${instanceId}/graph?focus=${encodeURIComponent(
+              `${data.entity_type}:${data.entity_id}`,
+            )}`}
+            className={`ml-auto inline-flex items-center gap-1.5 ${actionChipClass}`}
           >
             <Waypoints className="h-3 w-3" />
             View graph
@@ -108,8 +115,8 @@ export function EntityScreen() {
         <h1 className="mt-1 text-[17px] font-semibold text-zinc-100">{title ?? data.entity_id}</h1>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {chipKeys.map((k) => (
-            <span key={k} className="inline-flex items-center gap-1 text-[11px] text-zinc-600">
-              {k !== "status" && k}
+            <span key={k} className="inline-flex items-center gap-1 text-[12px] text-zinc-600">
+              {k !== "status" && humanize(k)}
               <Chip value={String(properties[k])} />
             </span>
           ))}
@@ -117,72 +124,80 @@ export function EntityScreen() {
         {summary && <div className="mt-2"><Prose text={summary} /></div>}
       </header>
 
-      {contextQueries.length > 0 && (
-        <div className="flex flex-wrap gap-2 text-[12px]">
-          {contextQueries.map((q) => {
-            const param = (q.required_params ?? [])[0];
-            return (
-              <Link
-                key={q.name}
-                to={`/i/${instanceId}/views/${q.name}?${param}=${encodeURIComponent(data.entity_id)}`}
-                className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
-              >
-                {humanize(q.name ?? "")}
-                <ArrowRight className="ml-1 inline h-3 w-3" />
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      {restProps.length > 0 && (
-        <Panel title="Properties">
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-            {restProps.map(([k, v]) => (
-              <div key={k} className="contents">
-                <dt className="text-zinc-500">{k}</dt>
-                <dd
-                  className="font-mono text-[12px] text-zinc-300 break-all"
-                  title={looksLikeDateTime(v) ? String(v) : undefined}
-                >
-                  {looksLikeDateTime(v) ? formatDateTime(v) : String(v)}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Panel>
-      )}
-
-      {proseProps.map(([k, v]) => (
-        <Panel key={k} title={k.replaceAll("_", " ")}>
-          <Prose text={v} />
-        </Panel>
-      ))}
-
-      <Panel
-        title="Relationships"
-        meta={
-          <span>
-            <span className="font-mono">{data.total_neighbors}</span>
-            {hiddenNeighbors > 0 && <> · {hiddenNeighbors} cold hidden</>}
-          </span>
-        }
-      >
-        <div className="space-y-3">
-          {[...grouped.entries()].map(([key, edges]) => (
-            <GroupedEdges key={key} edges={edges} />
+      {/* Wide screens: narrative (prose, relationships) on the left, reference
+          detail (properties, context queries) in a right rail. */}
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-3">
+          {proseProps.map(([k, v]) => (
+            <Panel key={k} title={humanize(k)}>
+              <Prose text={v} />
+            </Panel>
           ))}
-          {data.neighbors.length === 0 && (
-            <div className="text-[13px] text-zinc-600">No relationships.</div>
-          )}
-          {data.neighbors.length > 0 && visibleNeighbors.length === 0 && (
-            <div className="text-[13px] text-zinc-600">
-              All {data.neighbors.length} relationships point at cold entities
-              (hidden by settings).
+
+          <Panel
+            title="Relationships"
+            meta={
+              <span>
+                <span className="font-mono">{data.total_neighbors}</span>
+                {hiddenNeighbors > 0 && <> · {hiddenNeighbors} cold hidden</>}
+              </span>
+            }
+          >
+            <div className="space-y-3">
+              {[...grouped.entries()].map(([key, edges]) => (
+                <GroupedEdges key={key} edges={edges} />
+              ))}
+              {data.neighbors.length === 0 && <EmptyState>No relationships.</EmptyState>}
+              {data.neighbors.length > 0 && visibleNeighbors.length === 0 && (
+                <EmptyState>
+                  All {data.neighbors.length} relationships point at cold entities (hidden by
+                  settings).
+                </EmptyState>
+              )}
             </div>
+          </Panel>
+        </div>
+
+        <div className="min-w-0 space-y-3">
+          {restProps.length > 0 && (
+            <Panel title="Properties">
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
+                {restProps.map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-zinc-500">{humanize(k)}</dt>
+                    <dd
+                      className="font-mono text-[13px] text-zinc-300 break-all"
+                      title={looksLikeDateTime(v) ? String(v) : undefined}
+                    >
+                      {looksLikeDateTime(v) ? formatDateTime(v) : String(v)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Panel>
+          )}
+
+          {contextQueries.length > 0 && (
+            <Panel title="Context queries">
+              <div className="flex flex-wrap gap-2 text-[13px]">
+                {contextQueries.map((q) => {
+                  const param = (q.required_params ?? [])[0];
+                  return (
+                    <Link
+                      key={q.name}
+                      to={`/i/${instanceId}/views/${q.name}?${param}=${encodeURIComponent(data.entity_id)}`}
+                      className={actionChipClass}
+                    >
+                      {humanize(q.name ?? "")}
+                      <ArrowRight className="ml-1 inline h-3 w-3" />
+                    </Link>
+                  );
+                })}
+              </div>
+            </Panel>
           )}
         </div>
-      </Panel>
+      </div>
     </div>
   );
 }
@@ -201,7 +216,7 @@ function GroupedEdges({ edges }: { edges: NeighborEdge[] }) {
   const uniformSource = sources.size === 1 ? [...sources][0] : null;
   return (
     <details open={edges.length <= 8}>
-      <summary className="mb-1 cursor-pointer list-none text-[11px] uppercase tracking-wide text-zinc-600 hover:text-zinc-400">
+      <summary className="mb-1 cursor-pointer list-none text-[12px] uppercase tracking-wide text-zinc-600 hover:text-zinc-400">
         {edges[0]!.direction === "outgoing" ? "→" : "←"}{" "}
         {edges[0]!.relationship_type.replaceAll("_", " ")}{" "}
         <span className="font-mono normal-case">({edges.length})</span>
@@ -242,11 +257,11 @@ function NeighborRow({
   const evidence = edge.metadata.evidence;
 
   return (
-    <div className="rounded border border-zinc-800/70 bg-zinc-900/30 px-2.5 py-1.5">
-      <div className="flex flex-wrap items-center gap-2 text-[13px]">
+    <div className="rounded border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-1.5">
+      <div className="flex flex-wrap items-center gap-2 text-[14px]">
         {isEntityRef(e) ? (
           <>
-            <span className="text-[11px] text-zinc-600">{e.entity_type}</span>
+            <span className="text-[12px] text-zinc-600">{e.entity_type}</span>
             <EntityLink entityType={e.entity_type} entityId={e.entity_id}>
               <span>
                 {typeof e.properties.title === "string" ? e.properties.title : e.entity_id}
@@ -257,7 +272,7 @@ function NeighborRow({
         ) : (
           <span className="text-zinc-500">(entity unavailable)</span>
         )}
-        <span className="ml-auto flex items-center gap-2 text-[11px] text-zinc-500">
+        <span className="ml-auto flex items-center gap-2 text-[12px] text-zinc-500">
           {review && !hideReview && <Chip value={review} />}
           {provenance?.source && !hideProvenance && (
             <span title={provenance.created_at}>
@@ -267,7 +282,7 @@ function NeighborRow({
         </span>
       </div>
       {(evidence?.rationale || (evidence?.evidence_refs ?? []).length > 0) && (
-        <div className="mt-1 border-t border-zinc-800/50 pt-1 text-[12px] text-zinc-500">
+        <div className="mt-1 border-t border-zinc-800/50 pt-1 text-[13px] text-zinc-500">
           {evidence?.rationale && <p className="italic">{evidence.rationale}</p>}
           {(evidence?.evidence_refs ?? []).map((ref, i) => (
             <EvidenceRef key={i} refData={ref} />
@@ -276,7 +291,7 @@ function NeighborRow({
             <Link
               key={rid}
               to={`/i/${instanceId}/receipts/${rid}`}
-              className="mr-2 font-mono text-[11px] text-zinc-400 hover:underline"
+              className="mr-2 font-mono text-[12px] text-zinc-400 hover:underline"
             >
               {rid}
             </Link>

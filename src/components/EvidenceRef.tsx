@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useDereferenceEvidence } from "@/api/hooks";
-import { Chip } from "./Chip";
+import { Link } from "react-router-dom";
+import { useDereferenceEvidence, useInstanceId } from "@/api/hooks";
+import { actionChipClass, Chip } from "./Chip";
 import { LoadState } from "./Panel";
 
 export interface EvidenceRefData {
@@ -28,6 +29,7 @@ const STATUS_TONE = { available: "green", drifted: "amber", unavailable: "red" }
  */
 export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
   const [open, setOpen] = useState(false);
+  const instanceId = useInstanceId();
   const meta = refData.metadata ?? {};
   const locator =
     open && refData.artifact_id
@@ -50,7 +52,7 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
 
   return (
     <div className="mt-0.5">
-      <div className="flex flex-wrap items-center gap-x-2 font-mono text-[11px]">
+      <div className="flex flex-wrap items-center gap-x-2 font-mono text-[12px]">
         <button
           onClick={() => setOpen(!open)}
           className="text-zinc-400 hover:text-zinc-200"
@@ -68,6 +70,15 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
           </span>
         )}
         {refData.label && <span className="font-sans italic text-zinc-500">“{refData.label}”</span>}
+        {refData.artifact_id && refData.source_record_id && (
+          // Deep link into the artifact viewer, anchored on the cited chunk.
+          <Link
+            to={`/i/${instanceId}/sources/${refData.artifact_id}#${refData.source_record_id}`}
+            className={`font-sans ${actionChipClass}`}
+          >
+            open in source
+          </Link>
+        )}
       </div>
       {open && (
         <div className="mt-1 ml-4 rounded border border-zinc-800 bg-zinc-950 p-2">
@@ -75,7 +86,7 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
           {deref.error && <LoadState error={deref.error} />}
           {result && (
             <>
-              <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+              <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
                 <Chip value={result.status} tone={STATUS_TONE[result.status]} />
                 {result.body_origin && <span>from {result.body_origin}</span>}
                 {result.status === "drifted" && (
@@ -90,11 +101,11 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
                 {result.reason && <span>{result.reason}</span>}
               </div>
               {result.body ? (
-                <pre className="max-h-64 overflow-auto font-mono text-[11px] leading-4 whitespace-pre-wrap text-zinc-300">
+                <pre className="max-h-64 overflow-auto font-mono text-[12px] leading-4 whitespace-pre-wrap text-zinc-300">
                   {result.body}
                 </pre>
               ) : (
-                <div className="text-[12px] text-zinc-600">No source text available.</div>
+                <div className="text-[13px] text-zinc-600">No source text available.</div>
               )}
             </>
           )}

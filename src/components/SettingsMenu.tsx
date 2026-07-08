@@ -36,10 +36,26 @@ export function SettingsMenu() {
               className="mt-0.5 accent-zinc-400"
             />
             <span>
-              <span className="block text-[13px] text-zinc-200">Hide cold entities</span>
-              <span className="block text-[11px] leading-snug text-zinc-500">
+              <span className="block text-[14px] text-zinc-200">Hide cold entities</span>
+              <span className="block text-[12px] leading-snug text-zinc-500">
                 Skip closed/retired items in browse lists and relationship
                 panels. Receipted query views are never filtered.
+              </span>
+            </span>
+          </label>
+          <label className="mt-2.5 flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              checked={settings.colorByLayer}
+              onChange={(e) => update({ colorByLayer: e.target.checked })}
+              className="mt-0.5 accent-zinc-400"
+            />
+            <span>
+              <span className="block text-[14px] text-zinc-200">Color by kit layer</span>
+              <span className="block text-[12px] leading-snug text-zinc-500">
+                Accent graph and type views by which kit layer owns each
+                entity type — base kit vs domain overlay. Only shows on
+                composed instances.
               </span>
             </span>
           </label>
@@ -47,7 +63,7 @@ export function SettingsMenu() {
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center gap-2 rounded px-2 py-1 text-[13px] ${
+        className={`flex w-full items-center gap-2 rounded px-2 py-1 text-[14px] ${
           open ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
         }`}
       >

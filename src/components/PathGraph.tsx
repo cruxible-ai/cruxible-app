@@ -3,21 +3,26 @@ import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } fr
 import { useInstanceId } from "@/api/hooks";
 import { prop, type EntityRef, type PathItem, type PathSegment } from "@/api/items";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
+import { LayerLegend } from "@/components/graph/LayerLegend";
+import { LAYER_META, useLayerColoring, type KitLayer } from "@/lib/kit-layer";
 import {
   ConnectionList,
   PanelActions,
   PanelHeading,
   PanelSection,
   PropertyList,
-  panelActionClass,
 } from "@/components/graph/PanelBits";
-import { Chip } from "@/components/Chip";
+import { actionChipClass, Chip } from "@/components/Chip";
+import { MonoId } from "@/components/MonoId";
+import { EmptyState } from "@/components/Panel";
 
 export type PathNodeData = {
   entityType: string;
   entityId: string;
   title: string;
   role: "entry" | "result" | "hop";
+  /** Owning kit layer; null when layer coloring is off. */
+  layer?: KitLayer | null;
   properties: Record<string, unknown>;
   [key: string]: unknown;
 };
@@ -29,13 +34,26 @@ const ROLE_CLASS: Record<PathNodeData["role"], string> = {
 };
 
 function PathNode({ data }: NodeProps<Node<PathNodeData>>) {
+  // Role borders (entry/result) outrank layer tint; hop nodes take the layer
+  // border, and the kicker dot carries the layer on every node.
+  const accent = data.layer ? LAYER_META[data.layer] : null;
+  const borderClass =
+    data.role === "hop" && accent ? `${accent.border} bg-zinc-900` : ROLE_CLASS[data.role];
   return (
     <div
-      className={`max-w-52 rounded border px-2 py-1 text-left hover:border-zinc-400 ${ROLE_CLASS[data.role]}`}
+      className={`max-w-52 rounded border px-2 py-1 text-left hover:border-zinc-400 ${borderClass}`}
     >
       <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
-      <div className="text-[9px] uppercase tracking-wide text-zinc-500">{data.entityType}</div>
-      <div className="truncate text-[11px] leading-4 text-zinc-200">{data.title}</div>
+      <div className="flex items-center gap-1 text-[9px] uppercase tracking-wide text-zinc-500">
+        {accent && (
+          <span
+            title={accent.label}
+            className={`h-1 w-1 shrink-0 rounded-full ${accent.dot}`}
+          />
+        )}
+        {data.entityType}
+      </div>
+      <div className="truncate text-[12px] leading-4 text-zinc-200">{data.title}</div>
       <Handle type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
   );
@@ -56,7 +74,10 @@ function segmentReviewStatus(seg: PathSegment): string | undefined {
  * (exposure). Edge color carries review status (green accepted, grey
  * unreviewed) — same vocabulary as the entity graph screen.
  */
-export function buildPathGraph(items: PathItem[]): {
+export function buildPathGraph(
+  items: PathItem[],
+  layerFor?: ((entityType: string) => KitLayer) | null,
+): {
   nodes: Node<PathNodeData>[];
   edges: Edge[];
 } {
@@ -142,6 +163,7 @@ export function buildPathGraph(items: PathItem[]): {
             entityId: e.entity_id,
             title: prop(e, "title") ?? prop(e, "name") ?? e.entity_id,
             role: roleById.get(id) ?? "hop",
+            layer: layerFor ? layerFor(e.entity_type) : null,
             properties: e.properties ?? {},
           },
         });
@@ -173,13 +195,12 @@ const ROLE_LABEL: Record<PathNodeData["role"], string> = {
 
 export function PathGraph({ items }: { items: PathItem[] }) {
   const instanceId = useInstanceId();
-  const { nodes, edges } = buildPathGraph(items);
+  const layerColoring = useLayerColoring();
+  const { nodes, edges } = buildPathGraph(items, layerColoring.enabled ? layerColoring.layerFor : null);
 
   if (nodes.length === 0) {
     return (
-      <div className="py-3 text-[13px] text-zinc-600">
-        No path segments to draw — this query's results carry no hop data.
-      </div>
+      <EmptyState>No path segments to draw — this query's results carry no hop data.</EmptyState>
     );
   }
 
@@ -194,17 +215,21 @@ export function PathGraph({ items }: { items: PathItem[] }) {
       return (
         <div>
           <PanelHeading kicker={`${d.entityType} · ${ROLE_LABEL[d.role]}`} title={d.title} />
-          <div className="break-all font-mono text-[11px] text-zinc-500">{d.entityId}</div>
+          <div className="break-all">
+            <MonoId id={d.entityId} />
+          </div>
           <PanelActions>
             <Link
               to={`/i/${instanceId}/e/${d.entityType}/${d.entityId}`}
-              className={panelActionClass}
+              className={actionChipClass}
             >
               Open entity →
             </Link>
             <Link
-              to={`/i/${instanceId}/g/${d.entityType}/${d.entityId}`}
-              className={panelActionClass}
+              to={`/i/${instanceId}/graph?focus=${encodeURIComponent(
+                `${d.entityType}:${d.entityId}`,
+              )}`}
+              className={actionChipClass}
             >
               Entity graph →
             </Link>
@@ -227,7 +252,7 @@ export function PathGraph({ items }: { items: PathItem[] }) {
           kicker="Relationship"
           title={String(edge.label ?? edge.id).replaceAll("_", " ")}
         />
-        <div className="flex flex-col gap-0.5 text-[12px]">
+        <div className="flex flex-col gap-0.5 text-[13px]">
           <button
             onClick={() => api.select(edge.source)}
             className="text-left text-zinc-300 hover:underline"
@@ -256,6 +281,7 @@ export function PathGraph({ items }: { items: PathItem[] }) {
       nodeTypes={nodeTypes}
       renderPanel={renderPanel}
       className="h-[70vh]"
+      overlay={layerColoring.enabled ? <LayerLegend /> : undefined}
     />
   );
 }
