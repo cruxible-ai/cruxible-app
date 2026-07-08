@@ -1,42 +1,54 @@
-# cruxible-ui
+# Cruxible App
 
-Read-only inspection console for a local [Cruxible](https://github.com/cruxible-ai/cruxible-core)
-daemon — the governed state layer for AI agents. The daemon holds the state
-(entities, relationships, review queues, receipts, workflows); this app lets
-you look at it.
+Read-only inspection console for a [Cruxible](https://github.com/cruxible-ai/cruxible)
+daemon — the hard state layer for AI agents. The daemon holds the state
+(entities, relationships, review queues, receipts, workflows, traces); this
+app lets you look at it: the state graph, pending judgment, and the evidence
+chain behind every answer.
 
-**Status: alpha.** See [caveats](#alpha-caveats).
+**Status: alpha.** Read-only by design — judgment stays on the attributed
+CLI/MCP surface. See [caveats](#alpha-caveats).
+
+## Run
+
+Requires Node ≥ 22 and pnpm, plus a running Cruxible daemon
+([quickstart](https://github.com/cruxible-ai/cruxible/blob/main/docs/quickstart.md);
+default `http://127.0.0.1:8100`).
+
+```sh
+git clone https://github.com/cruxible-ai/cruxible-app.git && cd cruxible-app
+pnpm install
+cp .env.example .env.local          # set VITE_CRUXIBLE_INSTANCE_ID to your instance id
+pnpm dev                            # http://localhost:5173
+```
+
+Against an auth-off sandbox daemon no token is needed. With auth on, mint a
+read-only credential (`cruxible credential mint --label ui --mode read_only`)
+and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev` — the dev
+proxy injects it server-side; tokens never live in env files. A non-default
+daemon URL goes in `CRUXIBLE_DAEMON_URL`.
 
 ## Screens
 
-| screen     | what it shows                                                              |
-| ---------- | -------------------------------------------------------------------------- |
-| Overview   | status meters per entity type; every catalog queue with its top items      |
-| Browse     | raw entity listing per type, schema-driven status filters                  |
-| Entity     | properties plus every relationship with its trust metadata (provenance, review state, evidence) |
-| Graph      | 1-hop neighborhood around an entity; edge color carries review status      |
-| Type map   | the instance's ontology: entity types with live counts, relationship types as edges |
-| Workflows  | the declared workflow catalog — step pipelines and the providers they call |
-| Query view | any named query, with the query definition always visible and a receipt footer |
-| Receipt    | the full trust artifact behind a query: operation, node trail, raw envelope |
+| screen        | what it shows                                                            |
+| ------------- | ------------------------------------------------------------------------ |
+| Overview      | status meters per entity type, view cards, latest snapshots               |
+| State graph   | the whole instance as typed dots and governance-colored edges; search, focus, dual dot/card modes |
+| Type map      | the ontology: entity types with live counts, relationship types as edges, base/overlay layers |
+| Review groups | pending judgment: signal matrix, proposed edges with evidence, resolution rationale and actor |
+| Workflows     | grouped by class (decision proposals first, with pending-judgment counts); each workflow's declarative step pipeline |
+| Views         | every named query — standing views in the sidebar, parameterized views with inline forms |
+| Entity        | properties, every relationship with its trust metadata, context queries, focus-in-graph |
+| Traces        | provider execution records: pinned digests, runtime, input/output payloads |
+| Receipt       | the full trust artifact behind a query: operation, node trail, raw envelope |
+| Activity      | recent receipts across the instance                                       |
+| Sources       | registered source artifacts and their chunked content                     |
 
-## Setup
-
-Requires Node ≥ 22, pnpm, and a running cruxible-core daemon (default
-`http://127.0.0.1:8119`).
-
-```sh
-pnpm install
-cp .env.example .env.local        # set your instance id
-# in a shell where CRUXIBLE_SERVER_BEARER_TOKEN is set:
-pnpm dev
-```
-
-Environment for the dev server:
+## Environment
 
 | variable                       | purpose                                              | default                 |
 | ------------------------------ | ---------------------------------------------------- | ----------------------- |
-| `CRUXIBLE_DAEMON_URL`          | daemon origin the dev proxy targets                  | `http://127.0.0.1:8119` |
+| `CRUXIBLE_DAEMON_URL`          | daemon origin the dev proxy targets                  | `http://127.0.0.1:8100` |
 | `CRUXIBLE_SERVER_BEARER_TOKEN` | daemon bearer token, injected by the proxy           | unset                   |
 | `VITE_CRUXIBLE_INSTANCE_ID`    | instance to land on at `/` (in `.env.local`)         | unset                   |
 

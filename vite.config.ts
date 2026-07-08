@@ -7,7 +7,7 @@ import path from "node:path";
 // server fronts it; the bearer token is injected here from the shell env and
 // never reaches client code. Local prod serves the bundle from the daemon
 // same-origin, so '/api' works unproxied there.
-const DAEMON_URL = process.env.CRUXIBLE_DAEMON_URL ?? "http://127.0.0.1:8119";
+const DAEMON_URL = process.env.CRUXIBLE_DAEMON_URL ?? "http://127.0.0.1:8100";
 const DAEMON_TOKEN = process.env.CRUXIBLE_SERVER_BEARER_TOKEN;
 
 export default defineConfig({
