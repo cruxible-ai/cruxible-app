@@ -358,6 +358,9 @@ export function GroupScreen() {
                     confirmed?: boolean;
                     resolved_at?: string;
                     tuple_count?: number;
+                    rationale?: string;
+                    resolved_by?: string;
+                    resolved_actor?: { actor_id?: string; actor_type?: string } | null;
                   }>;
                 }
               | undefined;
@@ -383,17 +386,31 @@ export function GroupScreen() {
                           {r.resolved_at && (
                             <span title={r.resolved_at}>{formatDateTime(r.resolved_at)}</span>
                           )}
+                          {(r.resolved_actor?.actor_id || r.resolved_by) && (
+                            <>
+                              {" · by "}
+                              <span className="font-mono">
+                                {r.resolved_actor?.actor_id ?? r.resolved_by}
+                              </span>
+                              {r.resolved_actor?.actor_id &&
+                                r.resolved_by &&
+                                r.resolved_by !== r.resolved_actor.actor_id && (
+                                  <> ({r.resolved_by})</>
+                                )}
+                            </>
+                          )}
                           {typeof r.tuple_count === "number" && <> · {r.tuple_count} edges</>}
                           {r.confirmed === false && " · unconfirmed"}
                         </span>
+                        {r.rationale && (
+                          <span className="block text-[12px] text-zinc-400">
+                            “{r.rationale}”
+                          </span>
+                        )}
                       </dd>
                     </div>
                   ))}
                 </dl>
-                <div className="mt-2 text-[10px] leading-3 text-zinc-600">
-                  Resolver identity and rationale aren't on the read surface yet
-                  (wi-resolution-read-surface).
-                </div>
               </Panel>
             );
           })()}

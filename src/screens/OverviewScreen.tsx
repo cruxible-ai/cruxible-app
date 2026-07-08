@@ -11,6 +11,7 @@ import { Panel, LoadState } from "@/components/Panel";
 import { formatDateTime, humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { useSettings } from "@/lib/settings";
+import { queryLayer } from "@/lib/kit-layer";
 import { QueryItems } from "@/components/QueryItems";
 import { ReceiptBar } from "@/components/ReceiptBar";
 
@@ -27,9 +28,13 @@ export function OverviewScreen() {
   const catalog = useQueryCatalog();
   usePageTitle("Overview");
 
-  const views = (catalog.data?.items ?? []).filter(
+  const catalogViews = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
   );
+  const views = [
+    ...catalogViews.filter((q) => queryLayer(q) === "domain"),
+    ...catalogViews.filter((q) => queryLayer(q) === "base"),
+  ];
 
   return (
     <div>

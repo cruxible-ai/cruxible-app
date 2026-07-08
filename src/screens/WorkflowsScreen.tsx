@@ -1,48 +1,62 @@
 import { Link } from "react-router-dom";
-import { useInstanceId, useInstanceSchema } from "@/api/hooks";
+import { useGroups, useInstanceId, useInstanceSchema } from "@/api/hooks";
 import { Chip, defChipClass } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import {
+  proposedRelationshipOf,
+  providersOf,
+  stepDetail,
+  workflowsOf,
+  type WireWorkflow,
+} from "@/lib/workflow-info";
 
-type StepConfig = string | Record<string, unknown>;
+type WorkflowSectionKey = "proposal" | "canonical" | "utility";
+type WorkflowEntry = [string, WireWorkflow];
 
-/** Discriminated wire shape served by /schema since core adefa83. */
-interface WorkflowStep {
-  id?: string;
-  kind?: string;
-  /** String for provider / named-query references, object for inline specs. */
-  config?: StepConfig | null;
+interface PendingGroupSummary {
+  relationship_type?: string | null;
 }
 
-interface WorkflowDef {
-  mode?: string;
-  description?: string | null;
-  steps?: WorkflowStep[];
-  input_contract?: string | null;
+const WORKFLOW_SECTIONS: Array<{ key: WorkflowSectionKey; label: string }> = [
+  { key: "proposal", label: "Decision proposals" },
+  { key: "canonical", label: "State builders" },
+  { key: "utility", label: "Utilities" },
+];
+
+function workflowSection(workflow: WireWorkflow): WorkflowSectionKey {
+  if (workflow.type === "proposal" || workflow.type === "utility") return workflow.type;
+  return "canonical";
 }
 
-interface ProviderDef {
-  kind?: string;
-  deterministic?: boolean;
-  description?: string | null;
-}
-
-export interface SchemaWithWorkflows {
-  workflows?: Record<string, WorkflowDef>;
-  providers?: Record<string, ProviderDef>;
-}
-
-/** One step chip: the most identifying reference the step config carries. */
-function stepDetail(config: StepConfig | null | undefined): string | null {
-  if (typeof config === "string") return config;
-  if (config) {
-    for (const key of ["entity_type", "relationship_type", "entry_point", "workflow", "query"]) {
-      const value = config[key];
-      if (typeof value === "string") return value;
-    }
+function pendingGroupCounts(data: unknown): Map<string, number> {
+  const items = ((data as { items?: PendingGroupSummary[] } | undefined)?.items ?? []);
+  const counts = new Map<string, number>();
+  for (const group of items) {
+    const relationshipType = group.relationship_type;
+    if (typeof relationshipType !== "string") continue;
+    counts.set(relationshipType, (counts.get(relationshipType) ?? 0) + 1);
   }
-  return null;
+  return counts;
+}
+
+function workflowMeta(instanceId: string, mode: string | null | undefined, pendingCount: number) {
+  if (!mode && pendingCount <= 0) return undefined;
+  return (
+    <span className="inline-flex items-center gap-2">
+      {pendingCount > 0 && (
+        <Link
+          to={"/i/" + instanceId + "/groups"}
+          title={pendingCount + " awaiting review"}
+          className="font-mono text-[12px] text-amber-400/90 hover:text-amber-300"
+        >
+          {pendingCount}
+        </Link>
+      )}
+      {mode && <Chip value={mode} />}
+    </span>
+  );
 }
 
 /**
@@ -55,13 +69,22 @@ function stepDetail(config: StepConfig | null | undefined): string | null {
 export function WorkflowsScreen() {
   const schema = useInstanceSchema();
   const instanceId = useInstanceId();
+  const pendingGroups = useGroups("pending_review", 200);
   usePageTitle("Workflows");
   if (schema.isPending) return <LoadState />;
   if (schema.error) return <LoadState error={schema.error} />;
 
-  const s = schema.data as SchemaWithWorkflows | undefined;
-  const workflows = Object.entries(s?.workflows ?? {});
-  const providers = s?.providers ?? {};
+  const workflows = Object.entries(workflowsOf(schema.data));
+  const providers = providersOf(schema.data);
+  const pendingByRelationship = pendingGroupCounts(pendingGroups.data);
+  const workflowGroups: Record<WorkflowSectionKey, WorkflowEntry[]> = {
+    proposal: [],
+    canonical: [],
+    utility: [],
+  };
+  for (const entry of workflows) {
+    workflowGroups[workflowSection(entry[1])].push(entry);
+  }
 
   return (
     <div>
@@ -78,51 +101,83 @@ export function WorkflowsScreen() {
           writes.
         </EmptyState>
       )}
-      <div className="space-y-3">
-        {workflows.map(([name, wf]) => (
-          <Panel
-            key={name}
-            title={
-              <Link to={`/i/${instanceId}/workflows/${name}`} className="hover:underline">
-                {humanize(name)}
-              </Link>
-            }
-            meta={wf.mode ? <Chip value={wf.mode} /> : undefined}
-          >
-            {wf.description && (
-              <p className="mb-2 text-[13px] leading-4 text-zinc-500">{wf.description}</p>
-            )}
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px]">
-              {(wf.steps ?? []).map((step, i) => {
-                const kind = step.kind ?? "step";
-                const detail = stepDetail(step.config);
-                const provider =
-                  kind === "provider" && typeof step.config === "string"
-                    ? providers[step.config]
-                    : undefined;
-                return (
-                  <span key={step.id ?? i} className="inline-flex items-center gap-1.5">
-                    {i > 0 && <span className="font-mono text-zinc-700">→</span>}
-                    <span className={defChipClass}>
-                      <span className="text-zinc-400">{kind.replaceAll("_", " ")}</span>
-                      {detail && (
-                        <span className="font-mono text-[10px] text-zinc-500">{detail}</span>
+      <div className="space-y-4">
+        {WORKFLOW_SECTIONS.map((section) => {
+          const items = workflowGroups[section.key];
+          if (items.length === 0) return null;
+          return (
+            <section key={section.key}>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+                {section.label}
+              </div>
+              <div className="space-y-3">
+                {items.map(([name, wf]) => {
+                  const proposedRelationship = proposedRelationshipOf(wf);
+                  const pendingCount =
+                    wf.type === "proposal" && proposedRelationship
+                      ? (pendingByRelationship.get(proposedRelationship) ?? 0)
+                      : 0;
+                  return (
+                    <Panel
+                      key={name}
+                      title={
+                        <Link
+                          to={"/i/" + instanceId + "/workflows/" + name}
+                          className="hover:underline"
+                        >
+                          {humanize(name)}
+                        </Link>
+                      }
+                      meta={workflowMeta(instanceId, wf.mode, pendingCount)}
+                    >
+                      {wf.description && (
+                        <p className="mb-2 text-[13px] leading-4 text-zinc-500">
+                          {wf.description}
+                        </p>
                       )}
-                      {provider && (
-                        <span
-                          title={provider.deterministic ? "deterministic" : "non-deterministic"}
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            provider.deterministic ? "bg-emerald-500" : "bg-amber-400"
-                          }`}
-                        />
-                      )}
-                    </span>
-                  </span>
-                );
-              })}
-            </div>
-          </Panel>
-        ))}
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px]">
+                        {(wf.steps ?? []).map((step, i) => {
+                          const kind = step.kind ?? "step";
+                          const detail = stepDetail(step.config);
+                          const provider =
+                            kind === "provider" && typeof step.config === "string"
+                              ? providers[step.config]
+                              : undefined;
+                          return (
+                            <span key={step.id ?? i} className="inline-flex items-center gap-1.5">
+                              {i > 0 && <span className="font-mono text-zinc-700">→</span>}
+                              <span className={defChipClass}>
+                                <span className="text-zinc-400">{kind.replaceAll("_", " ")}</span>
+                                {detail && (
+                                  <span className="font-mono text-[10px] text-zinc-500">
+                                    {detail}
+                                  </span>
+                                )}
+                                {provider && (
+                                  <span
+                                    title={
+                                      provider.deterministic
+                                        ? "deterministic"
+                                        : "non-deterministic"
+                                    }
+                                    className={
+                                      "h-1.5 w-1.5 rounded-full " +
+                                      (provider.deterministic ? "bg-emerald-500" : "bg-amber-400")
+                                    }
+                                  />
+                                )}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </Panel>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </div>
       {workflows.length > 0 && (
         <div className="mt-3 text-[12px] text-zinc-600">

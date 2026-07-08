@@ -21,7 +21,7 @@ import {
 import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { isColdStatus } from "@/lib/cold";
-import { LAYER_META, useLayerColoring } from "@/lib/kit-layer";
+import { LAYER_META, queryLayer, useLayerColoring } from "@/lib/kit-layer";
 import { useSettings } from "@/lib/settings";
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -58,6 +58,11 @@ export function AppShell() {
   const views = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
   );
+  const viewGroups = {
+    domain: views.filter((q) => queryLayer(q) === "domain"),
+    operation: views.filter((q) => queryLayer(q) === "base"),
+  };
+  const viewsSpanLayers = viewGroups.domain.length > 0 && viewGroups.operation.length > 0;
 
   // With hide-cold on, sidebar counts show what's actually viewable: the
   // type total minus its cold-status buckets from the stats breakdown.
@@ -172,13 +177,42 @@ export function AppShell() {
           >
             Views
           </NavLink>
-          <nav className="space-y-0.5">
-            {views.map((q) => (
-              <NavLink key={q.name} to={`/i/${instanceId}/views/${q.name}`} className={navClass}>
-                {humanize(q.name ?? "")}
-              </NavLink>
-            ))}
-          </nav>
+          {viewsSpanLayers ? (
+            <nav className="space-y-2">
+              <div>
+                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+                  Domain
+                </div>
+                <div className="space-y-0.5">
+                  {viewGroups.domain.map((q) => (
+                    <NavLink key={q.name} to={`/i/${instanceId}/views/${q.name}`} className={navClass}>
+                      {humanize(q.name ?? "")}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+                  Operation
+                </div>
+                <div className="space-y-0.5">
+                  {viewGroups.operation.map((q) => (
+                    <NavLink key={q.name} to={`/i/${instanceId}/views/${q.name}`} className={navClass}>
+                      {humanize(q.name ?? "")}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            </nav>
+          ) : (
+            <nav className="space-y-0.5">
+              {views.map((q) => (
+                <NavLink key={q.name} to={`/i/${instanceId}/views/${q.name}`} className={navClass}>
+                  {humanize(q.name ?? "")}
+                </NavLink>
+              ))}
+            </nav>
+          )}
         </div>
 
         <div className="mt-4">

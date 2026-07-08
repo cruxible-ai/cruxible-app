@@ -19,6 +19,7 @@ export interface WireWorkflowStep {
 
 export interface WireWorkflow {
   mode?: string;
+  type?: string | null;
   description?: string | null;
   steps?: WireWorkflowStep[];
   input_contract?: string | null;
@@ -57,6 +58,16 @@ export function stepDetail(config: StepConfig | null | undefined): string | null
       const value = config[key];
       if (typeof value === "string") return value;
     }
+  }
+  return null;
+}
+
+/** Relationship type declared by a proposal workflow's group proposal step. */
+export function proposedRelationshipOf(workflow: WireWorkflow | undefined): string | null {
+  for (const step of workflow?.steps ?? []) {
+    if (step.kind !== "propose_relationship_group" || !isRecord(step.config)) continue;
+    const relationshipType = step.config.relationship_type;
+    if (typeof relationshipType === "string") return relationshipType;
   }
   return null;
 }
