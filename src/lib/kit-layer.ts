@@ -42,6 +42,31 @@ const AGENT_OPERATION_BASE_TYPES: ReadonlySet<string> = new Set([
   "StateNote",
 ]);
 
+/**
+ * True for names in the agent-operation base vocabulary. INTERIM HEURISTIC:
+ * this is still the same fixed-vocabulary fallback used for entity ownership
+ * until core exposes real per-type provenance. Relationship names are not in
+ * this set, so a query returning a domain relationship remains domain unless
+ * its entry point is one of these base types.
+ */
+export function isBaseVocabularyType(name: string | null | undefined): boolean {
+  return typeof name === "string" && AGENT_OPERATION_BASE_TYPES.has(name);
+}
+
+/**
+ * Presentation-layer query grouping: a named query belongs to the operation
+ * layer when either its entry point or its declared return type names the
+ * agent-operation base vocabulary. Everything else is domain.
+ */
+export function queryLayer(query: {
+  entry_point?: string | null;
+  returns?: string | null;
+}): KitLayer {
+  return isBaseVocabularyType(query.entry_point) || isBaseVocabularyType(query.returns)
+    ? "base"
+    : "domain";
+}
+
 interface ComposedFromEntry {
   name?: string;
   role?: string;
@@ -80,7 +105,7 @@ export function typeLayer(schema: unknown, entityType: string): KitLayer {
   if (base && typeof sourceKit === "string") {
     return sourceKit === base ? "base" : "domain";
   }
-  return AGENT_OPERATION_BASE_TYPES.has(entityType) ? "base" : "domain";
+  return isBaseVocabularyType(entityType) ? "base" : "domain";
 }
 
 /**
