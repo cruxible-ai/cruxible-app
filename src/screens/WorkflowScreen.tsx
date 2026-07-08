@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useInstanceId, useInstanceSchema } from "@/api/hooks";
 import { defChipClass } from "@/components/Chip";
+import { QueryDefinitionBody, type QueryDef } from "@/components/QueryDefinition";
 import { MonoId } from "@/components/MonoId";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { humanize } from "@/lib/text";
@@ -81,6 +82,13 @@ export function WorkflowScreen() {
                   step.kind === "provider" && typeof step.config === "string"
                     ? providers[step.config]
                     : undefined;
+                const inlineQuery =
+                  step.kind === "query" &&
+                  typeof step.config === "object" &&
+                  step.config !== null &&
+                  !Array.isArray(step.config)
+                    ? (step.config as QueryDef)
+                    : null;
                 return (
                   <Fragment key={step.id ?? i}>
                     {phase !== previousPhase && (
@@ -143,6 +151,12 @@ export function WorkflowScreen() {
                             </span>
                           )}
                         </div>
+                        {inlineQuery && (
+                          <QueryDefinitionBody
+                            definition={inlineQuery}
+                            {...(step.params ? { params: step.params } : {})}
+                          />
+                        )}
                         {description.rows.length > 0 && (
                           <dl className="mt-1 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[12px]">
                             {description.rows.map((row, rowIndex) => (

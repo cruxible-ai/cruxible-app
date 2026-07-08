@@ -3,7 +3,7 @@ import type { ViewParams } from "@/api/hooks";
 import { defChipClass } from "@/components/Chip";
 import { humanize } from "@/lib/text";
 
-interface TraversalStep {
+export interface TraversalStep {
   /** One relationship, or several for a multi-relationship hop. */
   relationship?: string | string[];
   direction?: string;
@@ -18,7 +18,7 @@ function relationshipLabel(rel: string | string[] | undefined): string {
   return names.map((r) => r.replaceAll("_", " ")).join(" | ");
 }
 
-interface QueryDef {
+export interface QueryDef {
   entry_point?: string | null;
   traversal?: TraversalStep[];
   returns?: string;
@@ -66,6 +66,16 @@ export function QueryDefinition({
   )?.named_queries?.[queryName];
   if (!def) return null;
 
+  return <QueryDefinitionBody definition={def} params={params} />;
+}
+
+export function QueryDefinitionBody({
+  definition: def,
+  params = {},
+}: {
+  definition: QueryDef;
+  params?: Record<string, unknown>;
+}) {
   const paramText = (def.required_params ?? [])
     .map((p) => `${p}=${String(params[p] ?? "?")}`)
     .join(", ");

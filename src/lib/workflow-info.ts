@@ -395,17 +395,7 @@ function describeQueryStep(step: WireWorkflowStep): StepDescription {
     return withStepExtras(step, { summary: "Runs query", rows });
   }
 
-  addRow(rows, "Mode", config.mode);
-  addRow(rows, "Entry point", config.entry_point);
-  addRow(rows, "Result shape", config.result_shape);
-  addRow(rows, "Returns", config.returns);
-  addRow(rows, "Traversal", formatTraversal(config.traversal));
-  addRow(rows, "Filters", formatMapping(config.where));
-  addRow(rows, "Order", formatOrder(config.order_by));
-  addRow(rows, "Limit", config.limit);
-  addRow(rows, "Required params", config.required_params);
-  addRow(rows, "Params", formatMapping(step.params));
-  addRow(rows, "Relationship state", config.relationship_state ?? step.relationship_state);
+  addRow(rows, "Relationship state", step.relationship_state);
   if (step.include_source) addRow(rows, "Include source", "Yes");
 
   const target = [config.mode, config.result_shape, config.returns].map(textOrNull).filter(Boolean);
@@ -523,33 +513,6 @@ function signalVerdict(config: Record<string, unknown>): string | null {
   return null;
 }
 
-function formatTraversal(value: unknown): string | null {
-  if (!Array.isArray(value)) return formatValue(value);
-  const steps = value
-    .map((item, index) => {
-      if (!isRecord(item)) return formatValue(item);
-      const direction = item.direction === "incoming" ? "←" : "→";
-      const relationship = formatValue(item.relationship) ?? "?";
-      const filters = formatMapping(item.where);
-      const depth = item.max_depth != null ? ` ×${text(item.max_depth, "?")}` : "";
-      const alias = item.alias != null ? ` as ${text(item.alias, "?")}` : "";
-      return `${index + 1}. ${direction} ${relationship}${depth}${alias}${filters ? ` where ${filters}` : ""}`;
-    })
-    .filter((part): part is string => Boolean(part));
-  return steps.length > 0 ? steps.join("; ") : null;
-}
-
-function formatOrder(value: unknown): string | null {
-  if (!Array.isArray(value)) return formatValue(value);
-  const orders = value
-    .map((item) => {
-      if (!isRecord(item)) return formatValue(item);
-      const direction = text(item.direction, "asc");
-      return `${text(item.field, "?")} ${direction}`;
-    })
-    .filter((part): part is string => Boolean(part));
-  return orders.length > 0 ? orders.join(", ") : null;
-}
 
 function humanLabel(value: string): string {
   const spaced = value.replaceAll("_", " ");
