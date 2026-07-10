@@ -171,7 +171,7 @@ export function buildPathGraph(
     }
 
     const edges: Edge[] = [...edgeById.entries()].map(([id, agg]) => {
-      const stroke = agg.reviewStatus === "unreviewed" ? "#403d34" : "#10b981";
+      const stroke = agg.reviewStatus === "unreviewed" ? "#403d34" : "#30d158";
       return {
         id,
         source: agg.source,

@@ -70,10 +70,10 @@ const NEGATIVE_REVIEW = new Set(["rejected"]);
  * PathGraph) and the WebGL dots renderer, so review-state colors can't
  * drift between the two. */
 export type EdgeRgba = readonly [number, number, number, number];
-const STROKE_UNGOVERNED: EdgeRgba = [150, 150, 162, 0.5];
-const STROKE_APPROVED: EdgeRgba = [16, 185, 129, 0.7];
-const STROKE_REJECTED: EdgeRgba = [239, 68, 68, 0.7];
-const STROKE_PENDING: EdgeRgba = [245, 158, 11, 0.75];
+const STROKE_UNGOVERNED: EdgeRgba = [162, 159, 148, 0.5];
+const STROKE_APPROVED: EdgeRgba = [48, 209, 88, 0.75];
+const STROKE_REJECTED: EdgeRgba = [255, 69, 58, 0.75];
+const STROKE_PENDING: EdgeRgba = [255, 178, 36, 0.8];
 /** GL lines can't dash; inactive-lifecycle edges drop to this fraction of
  * their base alpha instead (see DECISION.md). */
 const INACTIVE_ALPHA_FACTOR = 0.45;
