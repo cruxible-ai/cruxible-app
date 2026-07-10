@@ -405,6 +405,10 @@ export function CosmosDots({
       scheduleOverlaySync();
     };
     return () => {
+      // Detach before terminate: a message already queued on the main thread
+      // would otherwise still run and call setPointPositions/render() on a
+      // destroyed regl instance.
+      worker.onmessage = null;
       worker.terminate();
       graph.destroy();
       // destroy() clears the canvas but leaves it in the DOM; drop it so a
