@@ -74,7 +74,7 @@ export function ViewsIndexScreen() {
   const parameterized = items.filter((q) => (q.required_params ?? []).length > 0);
 
   const meta = (q: CatalogQuery) => (
-    <span className="flex flex-wrap items-center gap-1.5 text-[10px]">
+    <span className="flex flex-wrap items-center gap-1.5 text-[11px]">
       {q.entry_point && (
         <span className={defChipClass}>
           <span className="text-zinc-500">from</span>

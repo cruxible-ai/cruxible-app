@@ -73,7 +73,7 @@ export function ActivityScreen() {
                 onClick={() => setOp(op === opFilter ? undefined : op)}
                 className={toggleChipClass(op === opFilter)}
               >
-                {humanize(op)} <span className="font-mono text-[10px] text-zinc-500">{count}</span>
+                {humanize(op)} <span className="font-mono text-[11px] text-zinc-500">{count}</span>
               </button>
             ))}
           </div>

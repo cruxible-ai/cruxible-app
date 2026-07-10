@@ -34,7 +34,7 @@ function PayloadBlock({ title, payload }: { title: string; payload: unknown }) {
         <summary className="cursor-pointer text-[12px] text-zinc-600 hover:text-zinc-400">
           {text.length < 4000 ? "Collapse" : "Expand"}
         </summary>
-        <pre className="mt-1 max-h-[32rem] overflow-auto whitespace-pre-wrap text-[10px] leading-3 text-zinc-400">
+        <pre className="mt-1 max-h-[32rem] overflow-auto whitespace-pre-wrap text-[11px] leading-4 text-zinc-400">
           {text}
         </pre>
       </details>
@@ -80,10 +80,10 @@ export function TraceScreen() {
         {t.provider_version && ` · ${t.provider_version}`}
       </span>,
     ],
-    ["Source", <span className="break-all font-mono text-[10px]">{t.provider_ref ?? "—"}</span>],
+    ["Source", <span className="break-all font-mono text-[11px]">{t.provider_ref ?? "—"}</span>],
     [
       "Entrypoint digest",
-      <span className="break-all font-mono text-[10px]">{t.provider_entrypoint_digest ?? "—"}</span>,
+      <span className="break-all font-mono text-[11px]">{t.provider_entrypoint_digest ?? "—"}</span>,
     ],
     ["Runtime", t.runtime ?? "—"],
     [
@@ -97,7 +97,7 @@ export function TraceScreen() {
       ? ([
           [
             "Pinned artifact",
-            <span className="break-all font-mono text-[10px]">
+            <span className="break-all font-mono text-[11px]">
               {t.artifact_name}
               {t.artifact_digest && ` · ${t.artifact_digest}`}
             </span>,

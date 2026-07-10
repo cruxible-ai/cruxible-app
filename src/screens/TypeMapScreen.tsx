@@ -91,7 +91,7 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
           {data.typeName}
         </span>
       </div>
-      <div className={`font-mono text-[10px] ${empty ? "text-zinc-700" : "text-zinc-500"}`}>
+      <div className={`font-mono text-[11px] ${empty ? "text-zinc-700" : "text-zinc-500"}`}>
         {data.count}
       </div>
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />

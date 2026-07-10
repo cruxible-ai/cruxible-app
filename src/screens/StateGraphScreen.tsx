@@ -114,7 +114,7 @@ function CardNode({ data }: NodeProps<Node<DotNodeData>>) {
         {data.entityType}
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="truncate text-[10px] leading-4 text-zinc-200">{data.title}</span>
+        <span className="truncate text-[11px] leading-4 text-zinc-200">{data.title}</span>
       </div>
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
     </div>
@@ -134,7 +134,7 @@ function OverflowNode({ data }: NodeProps<Node<{ entityType: string; count: numb
   return (
     <Link
       to={`/i/${instanceId}/browse/${data.entityType}`}
-      className="block max-w-44 border border-dashed border-zinc-700 px-2 py-1 text-[10px] leading-4 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+      className="block max-w-44 border border-dashed border-zinc-700 px-2 py-1 text-[11px] leading-4 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
     >
       <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
       +{data.count} more · browse →
@@ -282,10 +282,10 @@ function layoutCardClusters(
  * (oq-enum-presentation-semantics).
  */
 function GraphLegend({ kitLayers, gl }: { kitLayers: boolean; gl?: boolean }) {
-  const section = "text-[9px] font-semibold uppercase tracking-wider text-zinc-600";
+  const section = "text-[10px] font-semibold uppercase tracking-wider text-zinc-600";
   const row = "inline-flex items-center gap-1.5";
   return (
-    <div className="flex flex-col gap-1 border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
+    <div className="flex flex-col gap-1 border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[11px] text-zinc-400">
       <span className={section}>Governed edges — review state</span>
       <span className={row}>
         <span className="h-px w-3 bg-emerald-500" /> Approved
@@ -1133,7 +1133,7 @@ export function StateGraphScreen() {
                   } ${active ? "" : "opacity-40"}`}
                   style={colorMode === "type" ? { backgroundColor: typeColorFor(type) } : undefined}
                 />
-                {humanize(type)} <span className="font-mono text-[10px] text-zinc-500">{countLabel}</span>
+                {humanize(type)} <span className="font-mono text-[11px] text-zinc-500">{countLabel}</span>
               </button>
             );
           })}

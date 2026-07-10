@@ -129,11 +129,11 @@ const GROUP_REF_RE = /(GRP-[a-f0-9]+)/;
 function MaybeGroupRef({ value }: { value: string }) {
   const instanceId = useInstanceId();
   const match = GROUP_REF_RE.exec(value);
-  if (!match) return <span className="font-mono text-[10px]">{value}</span>;
+  if (!match) return <span className="font-mono text-[11px]">{value}</span>;
   return (
     <Link
       to={`/i/${instanceId}/groups/${match[1]}`}
-      className="font-mono text-[10px] hover:underline"
+      className="font-mono text-[11px] hover:underline"
     >
       {value}
     </Link>
@@ -235,7 +235,7 @@ export function EdgeGovernancePanel({
               <Row label="Receipt">
                 <Link
                   to={`/i/${instanceId}/receipts/${provenance.receipt_id}`}
-                  className="font-mono text-[10px] hover:underline"
+                  className="font-mono text-[11px] hover:underline"
                 >
                   {provenance.receipt_id}
                 </Link>
@@ -254,12 +254,12 @@ export function EdgeGovernancePanel({
             {lifecycle.reason && <Row label="Reason">{lifecycle.reason}</Row>}
             {lifecycle.supersedes && (
               <Row label="Supersedes">
-                <span className="font-mono text-[10px]">{lifecycle.supersedes}</span>
+                <span className="font-mono text-[11px]">{lifecycle.supersedes}</span>
               </Row>
             )}
             {lifecycle.superseded_by && (
               <Row label="Superseded by">
-                <span className="font-mono text-[10px]">{lifecycle.superseded_by}</span>
+                <span className="font-mono text-[11px]">{lifecycle.superseded_by}</span>
               </Row>
             )}
           </dl>
@@ -292,7 +292,7 @@ export function EdgeGovernancePanel({
             <Link
               key={rid}
               to={`/i/${instanceId}/receipts/${rid}`}
-              className="mr-2 font-mono text-[10px] text-zinc-400 hover:underline"
+              className="mr-2 font-mono text-[11px] text-zinc-400 hover:underline"
             >
               {rid}
             </Link>

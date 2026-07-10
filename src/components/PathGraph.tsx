@@ -44,7 +44,7 @@ function PathNode({ data }: NodeProps<Node<PathNodeData>>) {
       className={`max-w-52 border px-2 py-1 text-left hover:border-zinc-400 ${borderClass}`}
     >
       <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
-      <div className="flex items-center gap-1 text-[9px] uppercase tracking-wide text-zinc-500">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500">
         {accent && (
           <span
             title={accent.label}

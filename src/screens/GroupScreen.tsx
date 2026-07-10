@@ -223,7 +223,7 @@ export function GroupScreen() {
                               )}
                               {w.verdictPath && (
                                 <span
-                                  className="font-mono text-[10px] text-zinc-600"
+                                  className="font-mono text-[11px] text-zinc-600"
                                   title={w.verdictRule}
                                 >
                                   .{w.verdictPath}
@@ -300,7 +300,7 @@ export function GroupScreen() {
                         {chips.map(([k, v]) => (
                           <span
                             key={k}
-                            className={`${defChipClass} text-[10px]`}
+                            className={`${defChipClass} text-[11px]`}
                             title={enumTooltip(propDefs[k], schemaEnums)}
                           >
                             <span className="text-zinc-500">{humanize(k)}</span>
@@ -312,7 +312,7 @@ export function GroupScreen() {
                   })()}
                   {(m.signals ?? []).length > 0 && (
                     <div className="mt-1.5 space-y-1 border-t border-zinc-800/50 pt-1.5">
-                      <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
                         Signals
                       </div>
                       {(m.signals ?? []).map((s, si) => (
@@ -320,7 +320,7 @@ export function GroupScreen() {
                           key={si}
                           className="grid grid-cols-[6rem_max-content_1fr] items-baseline gap-x-2 text-[13px]"
                         >
-                          <span className="truncate font-mono text-[10px] text-zinc-500" title={s.signal_source}>
+                          <span className="truncate font-mono text-[11px] text-zinc-500" title={s.signal_source}>
                             {s.signal_source}
                           </span>
                           {s.signal ? <Chip value={s.signal} /> : <span />}
@@ -519,7 +519,7 @@ export function GroupScreen() {
                   <div className="contents">
                     <dt className="text-zinc-500">Logic digest</dt>
                     <dd
-                      className="truncate font-mono text-[10px] text-zinc-400"
+                      className="truncate font-mono text-[11px] text-zinc-400"
                       title={origin.proposal_logic_digest}
                     >
                       {origin.proposal_logic_digest}

@@ -149,7 +149,7 @@ export function WorkflowsScreen() {
                               <span className={defChipClass}>
                                 <span className="text-zinc-400">{kind.replaceAll("_", " ")}</span>
                                 {detail && (
-                                  <span className="font-mono text-[10px] text-zinc-500">
+                                  <span className="font-mono text-[11px] text-zinc-500">
                                     {detail}
                                   </span>
                                 )}

@@ -122,3 +122,21 @@ the shipped selectRequest path, timed to context-panel paint):
 
 Layout (worker, deterministic): ~3 s at 5k, ~15–20 s at 30k, streamed in 12
 progress frames — the canvas is interactive from first paint throughout.
+
+## Post-merge findings (2026-07-11, manager pass)
+
+- **Coordinate space**: layout coordinates are now mapped into cosmos's
+  positive space (`toSpace`: center 2048, fixed 0.45 scale) instead of
+  raw origin-centered d3 output. On GL environments that clamp cosmos's
+  spaceSize to 4096 (software GL), raw negative coordinates rendered as
+  a corner-crushed graph; hardware GL was unaffected, so the same state
+  drew different pictures on different machines.
+- **Software GL (SwiftShader) caveat**: even with in-space coordinates,
+  cosmos 2.0.0-beta.20 renders nothing under software GL — separate
+  from the coordinate issue, not diagnosed further (near-zero real-user
+  population). Follow-up idea if it ever matters: probe the GL renderer
+  string and steer to Cards mode. Screenshot tooling should run headed
+  or with GPU flags.
+- **Intro easing**: worker layout batches are targets for a rAF
+  exponential-smoothing loop (~120ms time constant) rather than applied
+  directly — the first-load unfold flows instead of jumping per batch.

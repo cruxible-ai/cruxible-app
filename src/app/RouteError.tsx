@@ -59,7 +59,7 @@ export function RouteError() {
             <summary className="cursor-pointer text-[12px] text-zinc-600 hover:text-zinc-400">
               Stack trace
             </summary>
-            <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap text-[10px] leading-3 text-zinc-500">
+            <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap text-[11px] leading-4 text-zinc-500">
               {stack}
             </pre>
           </details>

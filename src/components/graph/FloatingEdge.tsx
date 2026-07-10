@@ -78,7 +78,7 @@ export function FloatingEdge({
         <EdgeLabelRenderer>
           <div
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-            className={`nodrag nopan pointer-events-none absolute bg-zinc-950/85 px-1 text-[9px] ${labelClass}`}
+            className={`nodrag nopan pointer-events-none absolute bg-zinc-950/85 px-1 text-[11px] ${labelClass}`}
           >
             {shown}
           </div>

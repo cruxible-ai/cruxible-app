@@ -65,12 +65,12 @@ function ChunkAnchor({ piece, highlighted }: { piece: DocPiece; highlighted: boo
     >
       <div className="absolute -top-2.5 right-0 z-10 hidden max-w-full items-center gap-2 border border-zinc-800 bg-zinc-900/95 px-1.5 py-0.5 group-hover:flex">
         {chunk.heading_path.length > 0 && (
-          <span className="truncate text-[10px] text-zinc-500">
+          <span className="truncate text-[11px] text-zinc-500">
             {chunk.heading_path.join(" › ")}
           </span>
         )}
-        <MonoId id={chunk.chunk_id} className="whitespace-nowrap text-[10px]" />
-        <span className="whitespace-nowrap font-mono text-[10px] text-zinc-600">
+        <MonoId id={chunk.chunk_id} className="whitespace-nowrap text-[11px]" />
+        <span className="whitespace-nowrap font-mono text-[11px] text-zinc-600">
           L{chunk.line_start}–{chunk.line_end}
         </span>
       </div>
@@ -141,7 +141,7 @@ export function SourceArtifactScreen() {
               // target for a trust console.
               <div className="mt-1 font-mono text-[12px] text-zinc-500">{data.original_uri}</div>
             )}
-            <div className="mt-1 font-mono text-[10px] text-zinc-600">{data.content_hash}</div>
+            <div className="mt-1 font-mono text-[11px] text-zinc-600">{data.content_hash}</div>
           </header>
 
           {!data.content_available ? (

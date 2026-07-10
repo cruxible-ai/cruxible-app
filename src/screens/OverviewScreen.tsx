@@ -195,7 +195,7 @@ function SnapshotStrip() {
             )}
             {s.config_digest && (
               <span
-                className="ml-auto truncate font-mono text-[10px] text-zinc-600"
+                className="ml-auto truncate font-mono text-[11px] text-zinc-600"
                 title={`config ${s.config_digest}${s.lock_digest ? ` · lock ${s.lock_digest}` : ""}`}
               >
                 {s.config_digest.slice(0, 23)}…

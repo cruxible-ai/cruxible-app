@@ -96,7 +96,7 @@ export function QueryDefinitionBody({
     <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-zinc-500">
       <span className={defChipClass}>
         <span className="text-zinc-300">{humanize(def.entry_point ?? "?")}</span>
-        {paramText && <span className="font-mono text-[10px] text-zinc-500">{paramText}</span>}
+        {paramText && <span className="font-mono text-[11px] text-zinc-500">{paramText}</span>}
       </span>
       {(def.traversal ?? []).map((step, i) => {
         const filters = summarizeWhere(step.where);
@@ -108,10 +108,10 @@ export function QueryDefinitionBody({
             <span className={defChipClass}>
               <span>{relationshipLabel(step.relationship)}</span>
               {(step.max_depth ?? 1) > 1 && (
-                <span className="font-mono text-[10px] text-zinc-600">×{step.max_depth}</span>
+                <span className="font-mono text-[11px] text-zinc-600">×{step.max_depth}</span>
               )}
               {filters.length > 0 && (
-                <span className="text-[10px] text-zinc-600">[{filters.join("; ")}]</span>
+                <span className="text-[11px] text-zinc-600">[{filters.join("; ")}]</span>
               )}
             </span>
           </span>
@@ -121,7 +121,7 @@ export function QueryDefinitionBody({
       <span className={defChipClass}>
         <span className="text-zinc-300">{humanize(def.returns ?? "?")}</span>
         {rootFilters.length > 0 && (
-          <span className="text-[10px] text-zinc-600">[{rootFilters.join("; ")}]</span>
+          <span className="text-[11px] text-zinc-600">[{rootFilters.join("; ")}]</span>
         )}
       </span>
       {policy.length > 0 && <span className="text-zinc-600">· {policy.join(" · ")}</span>}

@@ -105,7 +105,7 @@ export function WorkflowScreen() {
                         continuesPhase ? "border-t border-zinc-800/50" : ""
                       }`}
                     >
-                      <span className="pt-0.5 font-mono text-[10px] text-zinc-600">{i + 1}</span>
+                      <span className="pt-0.5 font-mono text-[11px] text-zinc-600">{i + 1}</span>
                       <span className="inline-flex items-center gap-1.5 pt-px text-zinc-300">
                         {humanize(step.kind ?? "step")}
                         {provider && (
@@ -138,12 +138,12 @@ export function WorkflowScreen() {
                             )}
                           </span>
                           {reads.length > 0 && (
-                            <span className="inline-flex flex-wrap items-center gap-1 text-[10px] text-zinc-600">
+                            <span className="inline-flex flex-wrap items-center gap-1 text-[11px] text-zinc-600">
                               Reads:
                               {reads.map((id) => (
                                 <span
                                   key={id}
-                                  className={`${defChipClass} font-mono text-[10px] text-zinc-400`}
+                                  className={`${defChipClass} font-mono text-[11px] text-zinc-400`}
                                 >
                                   {id}
                                 </span>
@@ -162,7 +162,7 @@ export function WorkflowScreen() {
                             {description.rows.map((row, rowIndex) => (
                               <div key={`${row.label}-${rowIndex}`} className="contents">
                                 <dt className="text-zinc-600">{row.label}</dt>
-                                <dd className="break-words font-mono text-[10px] text-zinc-500">
+                                <dd className="break-words font-mono text-[11px] text-zinc-500">
                                   {row.value}
                                 </dd>
                               </div>
@@ -201,10 +201,10 @@ export function WorkflowScreen() {
                         <td className="py-1.5 pr-3 font-mono text-[12px] text-zinc-400">
                           {s.verdictPath ?? "—"}
                           {s.verdictRule && (
-                            <div className="text-[10px] text-zinc-600">{s.verdictRule}</div>
+                            <div className="text-[11px] text-zinc-600">{s.verdictRule}</div>
                           )}
                         </td>
-                        <td className="py-1.5 pr-3 font-mono text-[10px] text-zinc-500">
+                        <td className="py-1.5 pr-3 font-mono text-[11px] text-zinc-500">
                           {s.evidenceExpr ?? "—"}
                         </td>
                       </tr>
@@ -246,7 +246,7 @@ export function WorkflowScreen() {
                   {p.ref && (
                     <div className="contents">
                       <dt className="text-zinc-500">Source</dt>
-                      <dd className="break-all font-mono text-[10px] text-zinc-300">{p.ref}</dd>
+                      <dd className="break-all font-mono text-[11px] text-zinc-300">{p.ref}</dd>
                     </div>
                   )}
                   {p.version && (
@@ -264,13 +264,13 @@ export function WorkflowScreen() {
                   {p.artifact && (
                     <div className="contents">
                       <dt className="text-zinc-500">Pinned artifact</dt>
-                      <dd className="font-mono text-[10px] text-zinc-300">{p.artifact}</dd>
+                      <dd className="font-mono text-[11px] text-zinc-300">{p.artifact}</dd>
                     </div>
                   )}
                   {(p.contract_in || p.contract_out) && (
                     <div className="contents">
                       <dt className="text-zinc-500">Contract</dt>
-                      <dd className="break-all font-mono text-[10px] text-zinc-400">
+                      <dd className="break-all font-mono text-[11px] text-zinc-400">
                         {p.contract_in} → {p.contract_out}
                       </dd>
                     </div>
