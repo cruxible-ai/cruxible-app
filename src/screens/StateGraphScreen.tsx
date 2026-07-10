@@ -66,20 +66,24 @@ const LAYER_DOT_HEX: Record<KitLayer, string> = {
 };
 const FALLBACK_DOT_HEX = "#726f63";
 
+/** Topology-identity row data: deliberately color-free, so switching the
+ * color mode never invalidates the memos (and the WebGL graph + worker
+ * layout keyed on them). Hue is resolved at paint time per renderer. */
 interface DotNodeCore {
   entityType: string;
   entityId: string;
   title: string;
   status: string | undefined;
-  layer: KitLayer | null;
-  /** Resolved dot hue (hex) in type-color mode; null falls back to kit layer. */
-  color: string | null;
   properties: Record<string, unknown>;
 }
 
 type DotNodeData = DotNodeCore & {
   showLabel: boolean;
   matched: boolean;
+  /** Kit-layer accent, stamped at card build time in kit color mode. */
+  layer?: KitLayer | null;
+  /** Resolved dot hue (hex), stamped at card build time in type color mode. */
+  color?: string | null;
   /** Stamped by GraphCanvas: node is in the selected neighborhood. */
   lit?: boolean;
   [key: string]: unknown;
@@ -186,7 +190,7 @@ const nodeTypes = {
 function layoutCardClusters(
   rows: Array<{ id: string; data: DotNodeCore }>,
   overflow: Map<string, number>,
-  decorate: (row: { id: string; data: DotNodeCore }) => boolean,
+  decorate: (row: { id: string; data: DotNodeCore }) => Partial<DotNodeData>,
 ): Node[] {
   const COL_W = 190;
   const ROW_H = 48;
@@ -247,7 +251,7 @@ function layoutCardClusters(
         // Nominal card size for the MiniMap's dimension check (see dot nodes).
         initialWidth: 176,
         initialHeight: 42,
-        data: { ...row.data, showLabel: true, matched: decorate(row) },
+        data: { ...row.data, showLabel: true, ...decorate(row) },
       });
     });
     if (overflow.has(cluster.type)) {
@@ -487,6 +491,17 @@ export function StateGraphScreen() {
     () => buildTypeColors(Object.keys(stats.data?.entity_counts ?? {})),
     [stats.data],
   );
+  // Hue resolution for the current color mode, applied at paint time (card
+  // build / GL color buffer) — never baked into the topology rows, so a
+  // color-mode toggle restyles in place instead of rebuilding the graph.
+  const dotStyleFor = useMemo(
+    () =>
+      (entityType: string): { color: string | null; layer: KitLayer | null } =>
+        colorMode === "kit" && layerColoring.enabled
+          ? { color: null, layer: layerColoring.layerFor(entityType) }
+          : { color: typeColorFor(entityType), layer: null },
+    [colorMode, layerColoring, typeColorFor],
+  );
   const typeCounts = useMemo(() => {
     const statusCounts = (stats.data?.status_counts ?? {}) as Record<
       string,
@@ -606,11 +621,6 @@ export function StateGraphScreen() {
                   : e.entity_id,
             status:
               typeof e.properties?.status === "string" ? e.properties.status : undefined,
-            layer:
-              colorMode === "kit" && layerColoring.enabled
-                ? layerColoring.layerFor(e.entity_type)
-                : null,
-            color: colorMode === "type" ? typeColorFor(e.entity_type) : null,
             properties: (e.properties ?? {}) as Record<string, unknown>,
           },
         });
@@ -644,11 +654,6 @@ export function StateGraphScreen() {
               ? props.name
               : entityId,
         status: typeof props.status === "string" ? props.status : undefined,
-        layer:
-          colorMode === "kit" && layerColoring.enabled
-            ? layerColoring.layerFor(entityType)
-            : null,
-        color: colorMode === "type" ? typeColorFor(entityType) : null,
         properties: props,
       },
     });
@@ -826,8 +831,8 @@ export function StateGraphScreen() {
       overflow,
     };
     // search is deliberately NOT a dependency: match decoration happens in
-    // the cheap passes below.
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, colorMode, typeColorFor, focus, hops, mode, focusRef, focusInspect.data]);
+    // the cheap passes below. Nor is anything color — see dotStyleFor.
+  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, focus, hops, mode, focusRef, focusInspect.data]);
 
   // Cheap per-keystroke pass: which drawn entities match the search.
   const { matchedIds, matchCount } = useMemo(() => {
@@ -843,7 +848,10 @@ export function StateGraphScreen() {
   // Cards mode: grid layout + SVG edges (ReactFlow, unchanged philosophy).
   const cardGraph = useMemo(() => {
     if (mode !== "cards") return null;
-    const nodes = layoutCardClusters(rows, overflow, (row) => matchedIds?.has(row.id) ?? false);
+    const nodes = layoutCardClusters(rows, overflow, (row) => ({
+      matched: matchedIds?.has(row.id) ?? false,
+      ...dotStyleFor(row.data.entityType),
+    }));
     // Stroke alpha carries softness: GraphCanvas owns style.opacity for its
     // selection dimming and would clobber a base opacity here.
     const edges: Edge[] = links.map(({ row, source, target }) => {
@@ -865,18 +873,17 @@ export function StateGraphScreen() {
       };
     });
     return { nodes, edges };
-  }, [mode, rows, links, overflow, governedTypes, matchedIds]);
+  }, [mode, rows, links, overflow, governedTypes, matchedIds, dotStyleFor]);
 
   // Dots mode: flat GPU buffers for CosmosDots. No arrowheads at dot
-  // density — direction lives in the context panel.
+  // density — direction lives in the context panel. Topology only: dot hues
+  // travel separately (glNodeColors) so a color-mode toggle can't invalidate
+  // this identity and rebuild the graph.
   const glGraph = useMemo(() => {
     if (mode !== "dots") return null;
     const nodes: GlDotNode[] = rows.map((r) => ({
       id: r.id,
       title: r.data.title,
-      color:
-        r.data.color ??
-        (r.data.layer ? LAYER_DOT_HEX[r.data.layer] : FALLBACK_DOT_HEX),
     }));
     const edges: GlDotEdge[] = links.map(({ row, source, target }) => {
       const governed = governedTypes.has(row.relationship_type);
@@ -894,6 +901,17 @@ export function StateGraphScreen() {
     });
     return { nodes, edges };
   }, [mode, rows, links, governedTypes]);
+
+  // Dot hues, index-aligned with glGraph.nodes. The only thing a color-mode
+  // toggle recomputes — CosmosDots pushes it through setPointColors.
+  const glNodeColors = useMemo(
+    () =>
+      rows.map((r) => {
+        const s = dotStyleFor(r.data.entityType);
+        return s.color ?? (s.layer ? LAYER_DOT_HEX[s.layer] : FALLBACK_DOT_HEX);
+      }),
+    [rows, dotStyleFor],
+  );
 
   // Arriving with a focus target (entity page "View graph") also opens that
   // entity's context panel — focused mode IS the entity's neighborhood view,
@@ -1132,6 +1150,7 @@ export function StateGraphScreen() {
           key={`dots:${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
           nodes={glGraph.nodes}
           edges={glGraph.edges}
+          nodeColors={glNodeColors}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"
           overlay={

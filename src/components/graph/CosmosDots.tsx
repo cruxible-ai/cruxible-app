@@ -18,12 +18,11 @@ import type { LayoutUpdate } from "./layout.worker";
  * undefined as "no focus" — hence the cast. */
 const UNFOCUS = { focusedPointIndex: undefined } as unknown as Partial<GraphConfigInterface>;
 
-/** A dot in the WebGL state graph. */
+/** A dot in the WebGL state graph. Color arrives separately (nodeColors) so
+ * a palette swap never changes topology identity. */
 export interface GlDotNode {
   id: string;
   title: string;
-  /** Dot fill as #rrggbb (type palette or kit-layer hue). */
-  color: string;
 }
 
 /** A line in the WebGL state graph. */
@@ -64,6 +63,7 @@ const POINT_SIZE = 7;
 export function CosmosDots({
   nodes,
   edges,
+  nodeColors,
   renderPanel,
   overlay,
   className = "min-h-0 flex-1",
@@ -72,6 +72,10 @@ export function CosmosDots({
 }: {
   nodes: GlDotNode[];
   edges: GlDotEdge[];
+  /** Dot fill per node (#rrggbb, index-aligned with `nodes`). Color-only
+   * changes (By type ↔ By kit) restyle the live graph via setPointColors —
+   * no rebuild, no relayout, camera untouched. */
+  nodeColors: string[];
   renderPanel: (selection: GraphSelection, api: GraphPanelApi) => ReactNode;
   /** Extra controls rendered top-left inside the canvas (e.g. legends). */
   overlay?: ReactNode;
@@ -102,7 +106,9 @@ export function CosmosDots({
     });
   }, []);
 
-  // Buffers and adjacency, all index-addressed in `nodes` order.
+  // Buffers and adjacency, all index-addressed in `nodes` order. Topology
+  // only — colors live in their own memo so a palette swap can't invalidate
+  // this identity (the graph + layout lifecycle keys on it).
   const data = useMemo(() => {
     const idToIndex = new Map<string, number>();
     nodes.forEach((n, i) => idToIndex.set(n.id, i));
@@ -117,16 +123,6 @@ export function CosmosDots({
       seedPositions[i * 2] = radius * Math.cos(angle);
       seedPositions[i * 2 + 1] = radius * Math.sin(angle);
     }
-
-    // Cosmos consumes raw 0..1 floats (its docstrings claim 0-255; the
-    // shader says otherwise — see DECISION.md).
-    const pointColors = new Float32Array(nodes.length * 4);
-    nodes.forEach((n, i) => {
-      pointColors[i * 4] = parseInt(n.color.slice(1, 3), 16) / 255;
-      pointColors[i * 4 + 1] = parseInt(n.color.slice(3, 5), 16) / 255;
-      pointColors[i * 4 + 2] = parseInt(n.color.slice(5, 7), 16) / 255;
-      pointColors[i * 4 + 3] = 1;
-    });
 
     const drawn = edges.filter(
       (e) => idToIndex.has(e.source) && idToIndex.has(e.target),
@@ -156,7 +152,6 @@ export function CosmosDots({
     return {
       idToIndex,
       seedPositions,
-      pointColors,
       drawn,
       linkIndices,
       workerLinks,
@@ -166,6 +161,25 @@ export function CosmosDots({
       edgeIndexById,
     };
   }, [nodes, edges]);
+
+  // Cosmos consumes raw 0..1 floats (its docstrings claim 0-255; the shader
+  // says otherwise — see DECISION.md). Kept apart from `data`: a color-mode
+  // toggle re-runs only this and the push effect below.
+  const pointColors = useMemo(() => {
+    const buf = new Float32Array(nodes.length * 4);
+    nodeColors.forEach((c, i) => {
+      buf[i * 4] = parseInt(c.slice(1, 3), 16) / 255;
+      buf[i * 4 + 1] = parseInt(c.slice(3, 5), 16) / 255;
+      buf[i * 4 + 2] = parseInt(c.slice(5, 7), 16) / 255;
+      buf[i * 4 + 3] = 1;
+    });
+    return buf;
+  }, [nodes.length, nodeColors]);
+  // Render-body ref assignment (same pattern as handlersRef): the lifecycle
+  // effect reads the current colors at graph construction without taking
+  // them as a dependency.
+  const pointColorsRef = useRef(pointColors);
+  pointColorsRef.current = pointColors;
 
   // Live handlers behind a ref: cosmos config callbacks bind once at
   // construction and must always see current state.
@@ -358,7 +372,7 @@ export function CosmosDots({
       },
     });
     graph.setPointPositions(data.seedPositions);
-    graph.setPointColors(data.pointColors);
+    graph.setPointColors(pointColorsRef.current);
     graph.setLinks(data.linkIndices);
     graph.setLinkColors(data.linkColors);
     graph.render();
@@ -401,6 +415,17 @@ export function CosmosDots({
     };
     // scheduleOverlaySync is stable (useCallback []).
   }, [data, nodes, scheduleOverlaySync]);
+
+  // Color-only updates restyle the live graph in place. On mount this
+  // re-applies what the lifecycle effect already set — harmless; on a
+  // palette swap it is the whole job: stage + render (setters stage, render()
+  // applies — the beta staging quirk, see DECISION.md).
+  useEffect(() => {
+    const g = graphRef.current;
+    if (!g) return;
+    g.setPointColors(pointColors);
+    g.render();
+  }, [pointColors]);
 
   // Re-assert GPU selection after the graph remounts under an existing
   // selection (e.g. hide-cold toggled while a node is selected).
