@@ -8,18 +8,18 @@
  */
 
 export const TYPE_PALETTE = [
-  "#38bdf8", // sky
-  "#fbbf24", // amber
-  "#34d399", // emerald
-  "#fb7185", // rose
-  "#a78bfa", // violet
-  "#fb923c", // orange
-  "#2dd4bf", // teal
-  "#e879f9", // fuchsia
-  "#a3e635", // lime
-  "#818cf8", // indigo
-  "#f472b6", // pink
-  "#22d3ee", // cyan
+  "#00a9ff", // sky
+  "#ffc400", // amber
+  "#00e28c", // spring green
+  "#ff5c77", // rose
+  "#a06bff", // violet
+  "#ff8b26", // orange
+  "#00d6c4", // teal
+  "#ee55f5", // fuchsia
+  "#bce327", // lime
+  "#7c89ff", // indigo
+  "#ff66c4", // pink
+  "#48e5ff", // cyan
 ] as const;
 
 const FALLBACK = "#a1a1aa"; // zinc-400 — types outside the known vocabulary

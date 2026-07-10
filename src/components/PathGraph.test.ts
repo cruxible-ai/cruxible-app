@@ -104,7 +104,7 @@ describe("buildPathGraph", () => {
       "#403d34",
     );
     expect(byId["incident_affects_supplier|Incident:inc-gd|Supplier:s-ldo"]?.style?.stroke).toBe(
-      "#10b981",
+      "#30d158",
     );
   });
 

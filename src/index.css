@@ -15,6 +15,24 @@
      site's warm grays (fg #F2F0EA = 100, muted #A3A094 = 400, border
      #58554B = 600, bg #09090B = 950) so every existing zinc-* usage
      reads brand-warm instead of blue-gray. */
+  /* Semantic state trio, shared with cruxible.ai's lane marks (accepted /
+     deterministic green, pending amber, rejected red) — vivid on the dark
+     ground. Only the shades the app uses are remapped. */
+  --color-emerald-400: #4ce07a;
+  --color-emerald-500: #30d158;
+  --color-emerald-700: #1d8f3d;
+  --color-emerald-900: #124d24;
+  --color-emerald-950: #0a2e16;
+  --color-amber-300: #ffd166;
+  --color-amber-400: #ffb224;
+  --color-amber-500: #ff9f0a;
+  --color-amber-900: #66430a;
+  --color-amber-950: #3d2a06;
+  --color-red-400: #ff6961;
+  --color-red-500: #ff453a;
+  --color-red-900: #661b16;
+  --color-red-950: #3d100d;
+
   --color-zinc-50: #f7f5f0;
   --color-zinc-100: #f2f0ea;
   --color-zinc-200: #dedbd0;

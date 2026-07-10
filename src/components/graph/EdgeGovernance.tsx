@@ -72,12 +72,12 @@ export function edgeStroke(
   lifecycleStatus: string | null | undefined,
 ): { stroke: string; strokeDasharray?: string } {
   const stroke = !governed
-    ? "rgba(150,150,162,0.5)"
+    ? "rgba(162,159,148,0.5)"
     : POSITIVE_REVIEW.has(reviewStatus ?? "")
-      ? "rgba(16,185,129,0.7)"
+      ? "rgba(48,209,88,0.75)"
       : NEGATIVE_REVIEW.has(reviewStatus ?? "")
-        ? "rgba(239,68,68,0.7)"
-        : "rgba(245,158,11,0.75)";
+        ? "rgba(255,69,58,0.75)"
+        : "rgba(255,178,36,0.8)";
   const active = lifecycleStatus == null || lifecycleStatus === "active";
   return active ? { stroke } : { stroke, strokeDasharray: "5 4" };
 }
