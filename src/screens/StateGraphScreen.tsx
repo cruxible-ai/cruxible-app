@@ -563,7 +563,15 @@ export function StateGraphScreen() {
     (projectedNodes > 0 &&
       (mode === "dots" || projectedNodes <= maxNodes || !typeFilter));
 
-  const entityResults = useEntitiesForTypes(includedTypes, MAX_NODES_DOTS, withinBudget);
+  // Fetch scope follows the mode: cards draw at most CARDS_PER_TYPE members
+  // per type from a 600-node budget, so pulling the 30k dots budget per type
+  // there is pure waste. 600/type still lets the degree ranking pick each
+  // type's best-connected members from well beyond what it can draw.
+  const entityResults = useEntitiesForTypes(
+    includedTypes,
+    mode === "cards" ? MAX_NODES_CARDS : MAX_NODES_DOTS,
+    withinBudget,
+  );
   const edgeList = useEdgeList(EDGE_FETCH_LIMIT, withinBudget);
 
   function toggleType(type: string) {
