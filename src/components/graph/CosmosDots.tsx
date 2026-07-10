@@ -47,6 +47,20 @@ const EDGE_HIT_TOLERANCE_PX = 6;
 /** Constant screen-pixel glyph size — semantic zoom keeps dots this size
  * while zoom stretches the space between them. */
 const POINT_SIZE = 7;
+/** Cosmos world space, pinned so every GL environment draws the same
+ * picture. Cosmos silently clamps spaceSize to the GPU's texture limit
+ * (4096 on software/weak GL, with positions clamped into [0, spaceSize]);
+ * raw d3 coordinates are centered on 0, so on clamping environments the
+ * negative half of the layout piled onto the space edge — a corner-blob
+ * graph on some machines and a perfect one on others. Mapping coordinates
+ * into the space ourselves removes the variance. */
+const SPACE_SIZE = 4096;
+/** Fixed layout→space scale: these d3 layouts stay within ~±4000 worst
+ * case (charge distanceMax 600 at the 30k budget); 0.45 fits that inside
+ * the space with headroom. Fixed — never fitted per stream batch — so the
+ * forming picture refines instead of breathing. */
+const LAYOUT_SCALE = 0.45;
+const toSpace = (v: number) => SPACE_SIZE / 2 + v * LAYOUT_SCALE;
 
 /**
  * WebGL dots renderer for the state graph: cosmos draws every dot and line
@@ -120,8 +134,8 @@ export function CosmosDots({
     for (let i = 0; i < nodes.length; i++) {
       const radius = 10 * Math.sqrt(0.5 + i);
       const angle = i * initialAngle;
-      seedPositions[i * 2] = radius * Math.cos(angle);
-      seedPositions[i * 2 + 1] = radius * Math.sin(angle);
+      seedPositions[i * 2] = toSpace(radius * Math.cos(angle));
+      seedPositions[i * 2 + 1] = toSpace(radius * Math.sin(angle));
     }
 
     const drawn = edges.filter(
@@ -389,25 +403,68 @@ export function CosmosDots({
       // surface the cause instead of failing silently.
       console.error("layout worker failed:", e.message, e);
     };
+    // Worker batches arrive as discrete waypoints; teleporting to each one
+    // makes the intro unfold choppy. Instead the latest batch is a TARGET
+    // and a rAF loop eases the visible positions toward it (exponential
+    // smoothing, ~120ms time constant), so the layout flows. The loop runs
+    // only while the stream is live or points are still converging;
+    // positionsRef always holds the VISIBLE positions so overlays and hit
+    // tests track what's on screen.
     let firstUpdate = true;
-    worker.onmessage = (e: MessageEvent<LayoutUpdate>) => {
-      positionsRef.current = e.data.positions;
-      graph.setPointPositions(e.data.positions);
-      // setPointPositions only stages the buffer; render() applies staged
-      // data (it is the library's "data changed" entry point, cheap here).
+    let targetPositions: Float32Array | null = null;
+    let streamDone = false;
+    let animFrame = 0;
+    let lastT = 0;
+    const current = new Float32Array(data.seedPositions);
+    positionsRef.current = current;
+    const tick = (t: number) => {
+      animFrame = 0;
+      if (!targetPositions) return;
+      const dt = lastT ? Math.min(100, t - lastT) : 16;
+      lastT = t;
+      const alpha = 1 - Math.exp(-dt / 120);
+      let maxDelta = 0;
+      for (let i = 0; i < current.length; i++) {
+        const d = targetPositions[i]! - current[i]!;
+        current[i] = current[i]! + d * alpha;
+        const ad = Math.abs(d);
+        if (ad > maxDelta) maxDelta = ad;
+      }
+      graph.setPointPositions(current);
       graph.render();
+      scheduleOverlaySync();
+      // Converged and nothing more coming: snap and stop.
+      if (streamDone && maxDelta < 0.5) {
+        current.set(targetPositions);
+        graph.setPointPositions(current);
+        graph.render();
+        return;
+      }
+      animFrame = requestAnimationFrame(tick);
+    };
+    worker.onmessage = (e: MessageEvent<LayoutUpdate>) => {
+      // Worker emits raw d3 coordinates (origin-centered); map into cosmos
+      // space in place. Everything downstream works in space coordinates.
+      const positions = e.data.positions;
+      for (let i = 0; i < positions.length; i++) positions[i] = toSpace(positions[i]);
+      targetPositions = positions;
+      streamDone = e.data.done;
+      if (!animFrame) {
+        lastT = 0;
+        animFrame = requestAnimationFrame(tick);
+      }
       // Keep the forming picture framed, but never yank a camera the user
       // has already taken over.
       if ((firstUpdate || e.data.done) && !cameraOwnedRef.current) {
         graph.fitView(e.data.done ? 400 : 0);
       }
       firstUpdate = false;
-      scheduleOverlaySync();
     };
     return () => {
       // Detach before terminate: a message already queued on the main thread
       // would otherwise still run and call setPointPositions/render() on a
-      // destroyed regl instance.
+      // destroyed regl instance. Cancel the easing loop for the same reason.
+      if (animFrame) cancelAnimationFrame(animFrame);
       worker.onmessage = null;
       worker.terminate();
       graph.destroy();
@@ -570,7 +627,7 @@ export function CosmosDots({
               <div
                 key={l.key}
                 style={{ transform: `translate(${l.x}px, ${l.y}px) translate(-50%, -50%)` }}
-                className="absolute left-0 top-0 whitespace-nowrap bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-400"
+                className="absolute left-0 top-0 whitespace-nowrap bg-zinc-950/85 px-1 text-[11px] leading-4 text-zinc-400"
               >
                 {l.text}
               </div>
@@ -578,7 +635,7 @@ export function CosmosDots({
               <div
                 key={l.key}
                 style={{ transform: `translate(${l.x + 8}px, ${l.y}px) translateY(-50%)` }}
-                className="absolute left-0 top-0 whitespace-nowrap bg-zinc-950/85 px-1 text-[10px] leading-4 text-zinc-300"
+                className="absolute left-0 top-0 whitespace-nowrap bg-zinc-950/85 px-1 text-[11px] leading-4 text-zinc-300"
               >
                 {l.text}
               </div>
