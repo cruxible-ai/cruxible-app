@@ -425,6 +425,15 @@ export function StateGraphScreen() {
   const [search, setSearch] = useState("");
   const [selectRequest, setSelectRequest] = useState<{ id: string; nonce: number } | null>(null);
 
+  // A select request is an event, not state to keep: the mounted renderer
+  // consumes it in its own effect (child effects run before this parent
+  // one), after which holding onto it only lets a renderer REMOUNT — e.g.
+  // hide-cold changing the type set and thus the remount key — replay the
+  // old jump and yank the camera. Drop it as soon as it has been seen.
+  useEffect(() => {
+    if (selectRequest) setSelectRequest(null);
+  }, [selectRequest]);
+
   // types absent = all types; types present (even empty, from deselect-all)
   // = exactly the listed set.
   const typeFilter = useMemo(() => {
