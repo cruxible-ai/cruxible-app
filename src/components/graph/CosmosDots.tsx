@@ -441,9 +441,16 @@ export function CosmosDots({
     // Runs when data (and thus the graph instance) changes.
   }, [data, applySelection]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Each request fires exactly once, ever: `select` (and thus this effect)
+  // re-runs on any data identity change (hide-cold, color toggle, refetch),
+  // and without the nonce guard that replayed a stale jump and yanked the
+  // camera.
+  const consumedSelectNonce = useRef<number | null>(null);
   useEffect(() => {
-    if (selectRequest) select(selectRequest.id);
-    // Re-fire on nonce so repeating the same search hit still recenters.
+    if (!selectRequest || consumedSelectNonce.current === selectRequest.nonce) return;
+    consumedSelectNonce.current = selectRequest.nonce;
+    // A repeated search hit still recenters — the caller bumps the nonce.
+    select(selectRequest.id);
   }, [selectRequest, select]);
 
   useEffect(() => {
