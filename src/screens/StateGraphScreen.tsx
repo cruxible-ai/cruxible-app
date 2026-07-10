@@ -12,16 +12,6 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import {
-  forceCollide,
-  forceLink,
-  forceManyBody,
-  forceSimulation,
-  forceX,
-  forceY,
-  type SimulationLinkDatum,
-  type SimulationNodeDatum,
-} from "d3-force";
-import {
   useEdgeList,
   useEntitiesForTypes,
   useInspectEntity,
@@ -31,9 +21,11 @@ import {
 import {
   EdgeGovernancePanel,
   edgeStroke,
+  edgeStrokeRgba,
   useGovernedRelationshipTypes,
   type EdgeMetadata,
 } from "@/components/graph/EdgeGovernance";
+import { CosmosDots, type GlDotEdge, type GlDotNode } from "@/components/graph/CosmosDots";
 import { isEntityRef } from "@/api/items";
 import { entityPath } from "@/components/EntityLink";
 import { MonoId } from "@/components/MonoId";
@@ -54,74 +46,51 @@ import { useSettings } from "@/lib/settings";
 import { humanize, matchesText } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
-/** Dot nodes are cheap; cards carry text and need an order of magnitude less. */
-const MAX_NODES_DOTS = 3000;
+/** Dots are GPU points now (CosmosDots) — the budget is a sanity ceiling
+ * against pathological instances, not a DOM cost cap. Verified at this scale:
+ * pans/zooms at refresh rate, select < 50ms (see DECISION.md). */
+const MAX_NODES_DOTS = 30000;
 const MIN_DOTS_PER_TYPE = 25;
 const MAX_NODES_CARDS = 600;
 /** Card mode shows each type's best-connected members and folds the rest
  * into one overflow card — reading titles is the mode's whole point, so it
  * shows the members most worth reading. */
 const CARDS_PER_TYPE = 40;
-const EDGE_FETCH_LIMIT = 20000;
-const MINI_MAP_LAYER_DOT_COLORS: Record<KitLayer, string> = {
+/** Sized for the raised dots budget (daemon list accepts it; KEV ships 14k). */
+const EDGE_FETCH_LIMIT = 60000;
+/** Kit-layer hues as plain hex, for surfaces that can't take a Tailwind
+ * class: the cards MiniMap and the WebGL dot colors. */
+const LAYER_DOT_HEX: Record<KitLayer, string> = {
   base: "#726f63",
   domain: "#a78bfa",
 };
+const FALLBACK_DOT_HEX = "#726f63";
 
+/** Topology-identity row data: deliberately color-free, so switching the
+ * color mode never invalidates the memos (and the WebGL graph + worker
+ * layout keyed on them). Hue is resolved at paint time per renderer. */
 interface DotNodeCore {
   entityType: string;
   entityId: string;
   title: string;
   status: string | undefined;
-  layer: KitLayer | null;
-  /** Resolved dot hue (hex) in type-color mode; null falls back to kit layer. */
-  color: string | null;
   properties: Record<string, unknown>;
 }
 
 type DotNodeData = DotNodeCore & {
   showLabel: boolean;
   matched: boolean;
+  /** Kit-layer accent, stamped at card build time in kit color mode. */
+  layer?: KitLayer | null;
+  /** Resolved dot hue (hex), stamped at card build time in type color mode. */
+  color?: string | null;
   /** Stamped by GraphCanvas: node is in the selected neighborhood. */
   lit?: boolean;
   [key: string]: unknown;
 };
 
-function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
-  // No always-on text at dot density — identity comes from the legend, the
-  // hover label, search rings, and the context panel. Entity hue is the
-  // active color mode (entity type by default, kit layer opt-in); status
-  // coloring is deliberately absent from the graph until enum presentation
-  // semantics are config-owned (oq-enum-presentation-semantics) — edge
-  // review state is the governance signal here.
-  const accent = data.layer ? LAYER_META[data.layer] : null;
-  const fill = data.color ? "" : (accent?.dot ?? "bg-zinc-400");
-  return (
-    // Padded wrapper = a finger-sized click/drag target around a 12px dot.
-    <div className="group relative p-1.5" title={`${data.entityType} · ${data.title}`}>
-      {/* ReactFlow drops edges from handle-less nodes; FloatingEdge ignores
-          handle positions, so these exist purely to register the node. */}
-      <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
-      <div
-        className={`h-3 w-3 rounded-full ${fill} ${
-          data.matched ? "ring-2 ring-zinc-100" : ""
-        }`}
-        style={data.color ? { backgroundColor: data.color } : undefined}
-      />
-      <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
-      {/* Label shows on hover, on a search match, and across the selected
-          1-hop neighborhood — the moments the dot count is small enough for
-          text to help instead of overlap. */}
-      <div
-        className={`pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-300 ${
-          data.matched || data.lit ? "" : "opacity-0 group-hover:opacity-100"
-        }`}
-      >
-        {data.title}
-      </div>
-    </div>
-  );
-}
+// Dots mode renders through CosmosDots (WebGL points) — no per-dot React
+// component exists anymore. Cards below stay ReactFlow.
 
 function CardNode({ data }: NodeProps<Node<DotNodeData>>) {
   const accent = data.layer ? LAYER_META[data.layer] : null;
@@ -190,8 +159,8 @@ function MiniMapDot({ id, x, y, width, height }: MiniMapNodeProps) {
     typeof data?.color === "string" && data.color
       ? data.color
       : layer === "base" || layer === "domain"
-        ? MINI_MAP_LAYER_DOT_COLORS[layer]
-        : "#726f63";
+        ? LAYER_DOT_HEX[layer]
+        : FALLBACK_DOT_HEX;
 
   return (
     // r is in flow coordinates: the dots layout spans thousands of units, so
@@ -208,7 +177,6 @@ function MiniMapDot({ id, x, y, width, height }: MiniMapNodeProps) {
 }
 
 const nodeTypes = {
-  dot: DotNode,
   card: CardNode,
   clusterLabel: ClusterLabelNode,
   overflowCard: OverflowNode,
@@ -222,7 +190,7 @@ const nodeTypes = {
 function layoutCardClusters(
   rows: Array<{ id: string; data: DotNodeCore }>,
   overflow: Map<string, number>,
-  decorate: (row: { id: string; data: DotNodeCore }) => boolean,
+  decorate: (row: { id: string; data: DotNodeCore }) => Partial<DotNodeData>,
 ): Node[] {
   const COL_W = 190;
   const ROW_H = 48;
@@ -283,7 +251,7 @@ function layoutCardClusters(
         // Nominal card size for the MiniMap's dimension check (see dot nodes).
         initialWidth: 176,
         initialHeight: 42,
-        data: { ...row.data, showLabel: true, matched: decorate(row) },
+        data: { ...row.data, showLabel: true, ...decorate(row) },
       });
     });
     if (overflow.has(cluster.type)) {
@@ -313,7 +281,7 @@ function layoutCardClusters(
  * enum presentation semantics are config-owned
  * (oq-enum-presentation-semantics).
  */
-function GraphLegend({ kitLayers }: { kitLayers: boolean }) {
+function GraphLegend({ kitLayers, gl }: { kitLayers: boolean; gl?: boolean }) {
   const section = "text-[9px] font-semibold uppercase tracking-wider text-zinc-600";
   const row = "inline-flex items-center gap-1.5";
   return (
@@ -332,12 +300,17 @@ function GraphLegend({ kitLayers }: { kitLayers: boolean }) {
       <span className={row}>
         <span className="h-px w-3 bg-zinc-500" /> Direct write · review n/a
       </span>
+      {/* GL lines can't dash — inactive lifecycle renders faint instead. */}
       <span className={row}>
-        <span
-          className="w-3 border-t border-dashed border-zinc-500"
-          style={{ height: 0 }}
-        />{" "}
-        Inactive lifecycle
+        {gl ? (
+          <span className="h-px w-3 bg-zinc-500 opacity-40" />
+        ) : (
+          <span
+            className="w-3 border-t border-dashed border-zinc-500"
+            style={{ height: 0 }}
+          />
+        )}{" "}
+        Inactive lifecycle{gl ? " (faint)" : ""}
       </span>
       {kitLayers && (
         <>
@@ -401,39 +374,9 @@ interface EdgeRow {
   metadata?: EdgeMetadata | null;
 }
 
-interface SimNode extends SimulationNodeDatum {
-  id: string;
-}
-
-/**
- * Static force layout: d3-force's deterministic phyllotaxis seeding plus a
- * fixed tick budget, run synchronously at build time — organic clusters
- * without physics running in the render loop, and the same state always
- * draws the same picture.
- */
-function forceLayout(
-  ids: string[],
-  links: Array<{ source: string; target: string }>,
-): Map<string, { x: number; y: number }> {
-  const simNodes: SimNode[] = ids.map((id) => ({ id }));
-  const simLinks: Array<SimulationLinkDatum<SimNode>> = links.map((l) => ({ ...l }));
-  const sim = forceSimulation(simNodes)
-    .force("charge", forceManyBody().strength(-45).distanceMax(600))
-    .force(
-      "link",
-      forceLink<SimNode, SimulationLinkDatum<SimNode>>(simLinks)
-        .id((d) => d.id)
-        .distance(55)
-        .strength(0.4),
-    )
-    .force("x", forceX(0).strength(0.06))
-    .force("y", forceY(0).strength(0.06))
-    .force("collide", forceCollide(10))
-    .stop();
-  const ticks = ids.length > 800 ? 90 : 160;
-  for (let i = 0; i < ticks; i++) sim.tick();
-  return new Map(simNodes.map((n) => [n.id, { x: n.x ?? 0, y: n.y ?? 0 }]));
-}
+// The force layout for dots mode lives in layout.worker.ts (same
+// deterministic d3-force pipeline, streamed off the main thread by
+// CosmosDots). Cards mode is a grid — no physics.
 
 /** Node ids within `hops` of `rootId` over the drawn edges. */
 function neighborhood(
@@ -481,6 +424,15 @@ export function StateGraphScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [selectRequest, setSelectRequest] = useState<{ id: string; nonce: number } | null>(null);
+
+  // A select request is an event, not state to keep: the mounted renderer
+  // consumes it in its own effect (child effects run before this parent
+  // one), after which holding onto it only lets a renderer REMOUNT — e.g.
+  // hide-cold changing the type set and thus the remount key — replay the
+  // old jump and yank the camera. Drop it as soon as it has been seen.
+  useEffect(() => {
+    if (selectRequest) setSelectRequest(null);
+  }, [selectRequest]);
 
   // types absent = all types; types present (even empty, from deselect-all)
   // = exactly the listed set.
@@ -548,6 +500,17 @@ export function StateGraphScreen() {
     () => buildTypeColors(Object.keys(stats.data?.entity_counts ?? {})),
     [stats.data],
   );
+  // Hue resolution for the current color mode, applied at paint time (card
+  // build / GL color buffer) — never baked into the topology rows, so a
+  // color-mode toggle restyles in place instead of rebuilding the graph.
+  const dotStyleFor = useMemo(
+    () =>
+      (entityType: string): { color: string | null; layer: KitLayer | null } =>
+        colorMode === "kit" && layerColoring.enabled
+          ? { color: null, layer: layerColoring.layerFor(entityType) }
+          : { color: typeColorFor(entityType), layer: null },
+    [colorMode, layerColoring, typeColorFor],
+  );
   const typeCounts = useMemo(() => {
     const statusCounts = (stats.data?.status_counts ?? {}) as Record<
       string,
@@ -609,7 +572,15 @@ export function StateGraphScreen() {
     (projectedNodes > 0 &&
       (mode === "dots" || projectedNodes <= maxNodes || !typeFilter));
 
-  const entityResults = useEntitiesForTypes(includedTypes, MAX_NODES_DOTS, withinBudget);
+  // Fetch scope follows the mode: cards draw at most CARDS_PER_TYPE members
+  // per type from a 600-node budget, so pulling the 30k dots budget per type
+  // there is pure waste. 600/type still lets the degree ranking pick each
+  // type's best-connected members from well beyond what it can draw.
+  const entityResults = useEntitiesForTypes(
+    includedTypes,
+    mode === "cards" ? MAX_NODES_CARDS : MAX_NODES_DOTS,
+    withinBudget,
+  );
   const edgeList = useEdgeList(EDGE_FETCH_LIMIT, withinBudget);
 
   function toggleType(type: string) {
@@ -643,9 +614,10 @@ export function StateGraphScreen() {
     setSearchParams(sp);
   }
 
-  // Entity rows + edge rows → drawn graph, in stages: collect, isolate,
-  // layout. All pure derivation from fetch results + URL state.
-  const { nodes: baseNodes, edges, droppedEdges, sampledTypeCounts } = useMemo(() => {
+  // Entity rows + edge rows → the drawn graph's rows and links, in stages:
+  // collect, isolate, budget. All pure derivation from fetch results + URL
+  // state. Layout is downstream: grid for cards, worker force-layout for dots.
+  const { rows, links, droppedEdges, sampledTypeCounts, overflow } = useMemo(() => {
     const rows: Array<{ id: string; data: DotNodeCore }> = [];
     const sampledTypeCounts = new Map<string, number>();
     for (let i = 0; i < includedTypes.length; i++) {
@@ -666,11 +638,6 @@ export function StateGraphScreen() {
                   : e.entity_id,
             status:
               typeof e.properties?.status === "string" ? e.properties.status : undefined,
-            layer:
-              colorMode === "kit" && layerColoring.enabled
-                ? layerColoring.layerFor(e.entity_type)
-                : null,
-            color: colorMode === "type" ? typeColorFor(e.entity_type) : null,
             properties: (e.properties ?? {}) as Record<string, unknown>,
           },
         });
@@ -704,11 +671,6 @@ export function StateGraphScreen() {
               ? props.name
               : entityId,
         status: typeof props.status === "string" ? props.status : undefined,
-        layer:
-          colorMode === "kit" && layerColoring.enabled
-            ? layerColoring.layerFor(entityType)
-            : null,
-        color: colorMode === "type" ? typeColorFor(entityType) : null,
         properties: props,
       },
     });
@@ -878,28 +840,35 @@ export function StateGraphScreen() {
       drawnRows = kept;
     }
 
-    let nodes: Node[];
-    if (mode === "cards") {
-      nodes = layoutCardClusters(drawnRows, overflow, () => false);
-    } else {
-      const positions = forceLayout(
-        drawnRows.map((r) => r.id),
-        links.map((l) => ({ source: l.source, target: l.target })),
-      );
-      nodes = drawnRows.map((r) => ({
-        id: r.id,
-        type: "dot",
-        position: positions.get(r.id) ?? { x: 0, y: 0 },
-        // Controlled nodes without onNodesChange never get `measured` written
-        // back, and the MiniMap skips dimensionless nodes — declare the dot's
-        // known size so it draws there. Does not constrain canvas rendering.
-        initialWidth: 24,
-        initialHeight: 24,
-        data: { ...r.data, showLabel: false, matched: false },
-      }));
-    }
+    return {
+      rows: drawnRows,
+      links,
+      droppedEdges: dropped,
+      sampledTypeCounts,
+      overflow,
+    };
+    // search is deliberately NOT a dependency: match decoration happens in
+    // the cheap passes below. Nor is anything color — see dotStyleFor.
+  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, focus, hops, mode, focusRef, focusInspect.data]);
 
-    // No arrowheads at dot density — direction lives in the context panel.
+  // Cheap per-keystroke pass: which drawn entities match the search.
+  const { matchedIds, matchCount } = useMemo(() => {
+    const q = search.trim();
+    if (q === "") return { matchedIds: null, matchCount: 0 };
+    const matchedIds = new Set<string>();
+    for (const r of rows) {
+      if (matchesText([r.data.entityId, r.data.title], q)) matchedIds.add(r.id);
+    }
+    return { matchedIds, matchCount: matchedIds.size };
+  }, [rows, search]);
+
+  // Cards mode: grid layout + SVG edges (ReactFlow, unchanged philosophy).
+  const cardGraph = useMemo(() => {
+    if (mode !== "cards") return null;
+    const nodes = layoutCardClusters(rows, overflow, (row) => ({
+      matched: matchedIds?.has(row.id) ?? false,
+      ...dotStyleFor(row.data.entityType),
+    }));
     // Stroke alpha carries softness: GraphCanvas owns style.opacity for its
     // selection dimming and would clobber a base opacity here.
     const edges: Edge[] = links.map(({ row, source, target }) => {
@@ -920,26 +889,46 @@ export function StateGraphScreen() {
         animated: false,
       };
     });
-    return { nodes: nodes, edges, droppedEdges: dropped, sampledTypeCounts };
-    // search is deliberately NOT a dependency: layout is expensive and match
-    // decoration happens in the cheap pass below.
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, layerColoring, colorMode, typeColorFor, focus, hops, mode, governedTypes, focusRef, focusInspect.data]);
+    return { nodes, edges };
+  }, [mode, rows, links, overflow, governedTypes, matchedIds, dotStyleFor]);
 
-  // Cheap per-keystroke pass: stamp search matches onto the laid-out nodes.
-  const { nodes, matchCount } = useMemo(() => {
-    const q = search.trim();
-    if (q === "") return { nodes: baseNodes, matchCount: 0 };
-    let matches = 0;
-    const nodes = baseNodes.map((n) => {
-      const d = n.data as { entityId?: string; title?: string };
-      if (typeof d.entityId !== "string") return n;
-      const matched = matchesText([d.entityId, d.title], q);
-      if (matched) matches++;
-      // zIndex lifts the match ring + label over non-matching dots.
-      return matched ? { ...n, zIndex: 20, data: { ...n.data, matched: true } } : n;
+  // Dots mode: flat GPU buffers for CosmosDots. No arrowheads at dot
+  // density — direction lives in the context panel. Topology only: dot hues
+  // travel separately (glNodeColors) so a color-mode toggle can't invalidate
+  // this identity and rebuild the graph.
+  const glGraph = useMemo(() => {
+    if (mode !== "dots") return null;
+    const nodes: GlDotNode[] = rows.map((r) => ({
+      id: r.id,
+      title: r.data.title,
+    }));
+    const edges: GlDotEdge[] = links.map(({ row, source, target }) => {
+      const governed = governedTypes.has(row.relationship_type);
+      return {
+        id: `e${row.edge_key}`,
+        source,
+        target,
+        rgba: edgeStrokeRgba(
+          governed,
+          row.metadata?.assertion?.review?.status,
+          row.metadata?.assertion?.lifecycle?.status,
+        ).rgba,
+        label: row.relationship_type.replaceAll("_", " "),
+      };
     });
-    return { nodes, matchCount: matches };
-  }, [baseNodes, search]);
+    return { nodes, edges };
+  }, [mode, rows, links, governedTypes]);
+
+  // Dot hues, index-aligned with glGraph.nodes. The only thing a color-mode
+  // toggle recomputes — CosmosDots pushes it through setPointColors.
+  const glNodeColors = useMemo(
+    () =>
+      rows.map((r) => {
+        const s = dotStyleFor(r.data.entityType);
+        return s.color ?? (s.layer ? LAYER_DOT_HEX[s.layer] : FALLBACK_DOT_HEX);
+      }),
+    [rows, dotStyleFor],
+  );
 
   // Arriving with a focus target (entity page "View graph") also opens that
   // entity's context panel — focused mode IS the entity's neighborhood view,
@@ -947,46 +936,53 @@ export function StateGraphScreen() {
   const autoSelectedFocus = useRef<string | null>(null);
   useEffect(() => {
     if (!focus || autoSelectedFocus.current === focus) return;
-    if (!baseNodes.some((n) => n.id === focus)) return;
+    if (!rows.some((r) => r.id === focus)) return;
     autoSelectedFocus.current = focus;
     setSelectRequest({ id: focus, nonce: Date.now() });
-  }, [focus, baseNodes]);
+  }, [focus, rows]);
 
-  // O(1) title lookups — labelFor runs per connection row and per lit edge.
-  const titleById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const n of baseNodes) {
-      const d = n.data as { title?: unknown };
-      if (typeof d.title === "string") m.set(n.id, d.title);
-    }
-    return m;
-  }, [baseNodes]);
+  // O(1) lookups for the context panel — by-id access runs per connection
+  // row, per lit edge, and on every selection render.
+  const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r.data])), [rows]);
+  const linkById = useMemo(
+    () => new Map(links.map((l) => [`e${l.row.edge_key}`, l])),
+    [links],
+  );
+  // Minimal edge shape for the panel's ConnectionList (both modes).
+  const panelEdges = useMemo(
+    () =>
+      links.map(({ row, source, target }) => ({
+        id: `e${row.edge_key}`,
+        source,
+        target,
+        label: row.relationship_type,
+      })),
+    [links],
+  );
 
   if (stats.isPending) return <LoadState />;
   if (stats.error) return <LoadState error={stats.error} />;
 
   const loading =
     withinBudget && (edgeList.isPending || entityResults.some((r) => r.isPending));
-  const drawnEdges = edges.length;
+  const drawnEdges = links.length;
   const fetchedEdges = drawnEdges + droppedEdges;
   const showDegenerateNotice =
     fetchedEdges > 50 && droppedEdges / fetchedEdges > 0.9;
 
-  const labelFor = (id: string) => titleById.get(id) ?? id;
-
+  const labelFor = (id: string) => rowById.get(id)?.title ?? id;
 
   function jumpToFirstMatch() {
-    const first = nodes.find((n) => (n.data as DotNodeData).matched);
+    if (!matchedIds) return;
+    const first = rows.find((r) => matchedIds.has(r.id));
     if (first) setSelectRequest({ id: first.id, nonce: Date.now() });
   }
 
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
     if (selection.kind === "node") {
-      const node = nodes.find((n) => n.id === selection.id);
-      // Synthetic cluster labels / overflow cards carry no entity.
-      if (!node || typeof (node.data as { entityId?: unknown }).entityId !== "string")
-        return null;
-      const d = node.data as DotNodeData;
+      // Synthetic cluster labels / overflow cards carry no entity row.
+      const d = rowById.get(selection.id);
+      if (!d) return null;
       return (
         <div>
           <PanelHeading kicker={d.entityType} title={d.title} />
@@ -1013,10 +1009,7 @@ export function StateGraphScreen() {
           <PanelSection title="Connections">
             <ConnectionList
               nodeId={selection.id}
-              edges={edges.map((e) => ({
-                ...e,
-                label: (e.data as { row?: EdgeRow } | undefined)?.row?.relationship_type,
-              }))}
+              edges={panelEdges}
               api={api}
               labelFor={labelFor}
             />
@@ -1024,19 +1017,19 @@ export function StateGraphScreen() {
         </div>
       );
     }
-    const edge = edges.find((e) => e.id === selection.id);
-    if (!edge) return null;
-    const { row, governed } = edge.data as { row: EdgeRow; governed: boolean };
+    const link = linkById.get(selection.id);
+    if (!link) return null;
+    const { row, source, target } = link;
     return (
       <EdgeGovernancePanel
         relationshipType={row.relationship_type}
-        governed={governed}
+        governed={governedTypes.has(row.relationship_type)}
         properties={row.properties ?? null}
         metadata={row.metadata ?? null}
-        sourceLabel={labelFor(edge.source)}
-        targetLabel={labelFor(edge.target)}
-        onSelectSource={() => api.select(edge.source)}
-        onSelectTarget={() => api.select(edge.target)}
+        sourceLabel={labelFor(source)}
+        targetLabel={labelFor(target)}
+        onSelectSource={() => api.select(source)}
+        onSelectTarget={() => api.select(target)}
       />
     );
   }
@@ -1047,7 +1040,7 @@ export function StateGraphScreen() {
         <h1 className="text-[17px] font-semibold text-zinc-100">State graph</h1>
         <span className="text-[12px] text-zinc-600">
           {withinBudget
-            ? `${nodes.length} entities · ${edges.length} edges`
+            ? `${rows.length} entities · ${drawnEdges} edges`
             : "The whole instance state on one canvas"}
           {droppedEdges > 0 && !focus && ` · ${droppedEdges} edges to excluded or hidden entities not drawn`}
         </span>
@@ -1167,13 +1160,38 @@ export function StateGraphScreen() {
       )}
       {projectedNodes === 0 && <EmptyState>No live entities in the selected types.</EmptyState>}
       {loading && <LoadState />}
-      {withinBudget && !loading && (
+      {withinBudget && !loading && glGraph && (
+        <CosmosDots
+          // Remount on graph-identity change so fit-view reframes the new shape
+          // (focus in/out, hop change, type trades).
+          key={`dots:${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
+          nodes={glGraph.nodes}
+          edges={glGraph.edges}
+          nodeColors={glNodeColors}
+          renderPanel={renderPanel}
+          className="min-h-0 flex-1"
+          overlay={
+            <div className="flex flex-col gap-1.5">
+              <GraphLegend kitLayers={colorMode === "kit"} gl />
+              {showDegenerateNotice && (
+                <div className="border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[12px] text-amber-400">
+                  Most of this graph's edges connect to entities not drawn — adjust the type
+                  chips or use Find / focus.
+                </div>
+              )}
+            </div>
+          }
+          selectRequest={selectRequest}
+          matchedIds={matchedIds}
+        />
+      )}
+      {withinBudget && !loading && cardGraph && (
         <GraphCanvas
           // Remount on graph-identity change so fit-view reframes the new shape
           // (mode switch, focus in/out, hop change, type trades).
-          key={`${mode}:${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
-          nodes={nodes}
-          edges={edges}
+          key={`cards:${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
+          nodes={cardGraph.nodes}
+          edges={cardGraph.edges}
           nodeTypes={nodeTypes}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"

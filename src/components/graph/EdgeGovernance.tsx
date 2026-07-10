@@ -66,20 +66,49 @@ export function useGovernedRelationshipTypes(): Set<string> {
 const POSITIVE_REVIEW = new Set(["approved"]);
 const NEGATIVE_REVIEW = new Set(["rejected"]);
 
+/** RGBA 0-255 rgb + 0-1 alpha. One table feeds both the SVG strokes (cards,
+ * PathGraph) and the WebGL dots renderer, so review-state colors can't
+ * drift between the two. */
+export type EdgeRgba = readonly [number, number, number, number];
+const STROKE_UNGOVERNED: EdgeRgba = [162, 159, 148, 0.5];
+const STROKE_APPROVED: EdgeRgba = [48, 209, 88, 0.75];
+const STROKE_REJECTED: EdgeRgba = [255, 69, 58, 0.75];
+const STROKE_PENDING: EdgeRgba = [255, 178, 36, 0.8];
+/** GL lines can't dash; inactive-lifecycle edges drop to this fraction of
+ * their base alpha instead (see DECISION.md). */
+const INACTIVE_ALPHA_FACTOR = 0.45;
+
+export function edgeStrokeRgba(
+  governed: boolean,
+  reviewStatus: string | null | undefined,
+  lifecycleStatus: string | null | undefined,
+): { rgba: EdgeRgba; inactive: boolean } {
+  const base = !governed
+    ? STROKE_UNGOVERNED
+    : POSITIVE_REVIEW.has(reviewStatus ?? "")
+      ? STROKE_APPROVED
+      : NEGATIVE_REVIEW.has(reviewStatus ?? "")
+        ? STROKE_REJECTED
+        : STROKE_PENDING;
+  const inactive = lifecycleStatus != null && lifecycleStatus !== "active";
+  return {
+    rgba: inactive
+      ? [base[0], base[1], base[2], base[3] * INACTIVE_ALPHA_FACTOR]
+      : base,
+    inactive,
+  };
+}
+
 export function edgeStroke(
   governed: boolean,
   reviewStatus: string | null | undefined,
   lifecycleStatus: string | null | undefined,
 ): { stroke: string; strokeDasharray?: string } {
-  const stroke = !governed
-    ? "rgba(162,159,148,0.5)"
-    : POSITIVE_REVIEW.has(reviewStatus ?? "")
-      ? "rgba(48,209,88,0.75)"
-      : NEGATIVE_REVIEW.has(reviewStatus ?? "")
-        ? "rgba(255,69,58,0.75)"
-        : "rgba(255,178,36,0.8)";
-  const active = lifecycleStatus == null || lifecycleStatus === "active";
-  return active ? { stroke } : { stroke, strokeDasharray: "5 4" };
+  // SVG keeps the full base alpha and carries "inactive" as a dash instead.
+  const { rgba } = edgeStrokeRgba(governed, reviewStatus, null);
+  const stroke = `rgba(${rgba[0]},${rgba[1]},${rgba[2]},${rgba[3]})`;
+  const dashed = lifecycleStatus != null && lifecycleStatus !== "active";
+  return dashed ? { stroke, strokeDasharray: "5 4" } : { stroke };
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
