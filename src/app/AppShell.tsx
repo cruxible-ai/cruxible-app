@@ -83,9 +83,9 @@ export function AppShell() {
     <div className="flex min-h-screen">
       <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-zinc-800 px-3 pt-4">
         <div className="mb-4 px-2">
-          <div className="text-[17px] font-normal text-zinc-100" style={{ fontFamily: "Merriweather, serif" }}>Cruxible</div>
+          <img src="/brand/cruxible-wordmark-white.svg" alt="Cruxible" className="h-[22px] w-auto" />
           {instanceName && (
-            <div className="mt-0.5 text-[13px] text-zinc-400">{instanceName}</div>
+            <div className="mt-1.5 text-[13px] text-zinc-400">{instanceName}</div>
           )}
         </div>
 

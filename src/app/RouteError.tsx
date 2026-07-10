@@ -36,12 +36,7 @@ export function RouteError() {
   return (
     <div className="flex min-h-screen items-center justify-center p-8">
       <div className="w-[36rem] max-w-full rounded-md border border-zinc-800 bg-zinc-900/40 p-5">
-        <div
-          className="text-[22px] font-normal text-zinc-100"
-          style={{ fontFamily: "Merriweather, serif" }}
-        >
-          Cruxible
-        </div>
+        <img src="/brand/cruxible-wordmark-white.svg" alt="Cruxible" className="h-[26px] w-auto" />
         <h1 className="mt-3 text-[15px] font-semibold text-zinc-100">{title}</h1>
         {message && <p className="mt-1 break-all text-[13px] text-zinc-400">{message}</p>}
         <div className="mt-3 flex items-center gap-2 text-[13px]">
