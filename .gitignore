@@ -20,3 +20,5 @@ playwright-report
 # Renderer spike artifacts (fixtures are multi-MB API dumps; shots are local)
 spike/fixtures
 spike/shot-*.png
+spike/app-*.png
+spike/component-30k.png

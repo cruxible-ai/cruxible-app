@@ -56,9 +56,21 @@ deck.gl (the fallback) was not needed — cosmos meets every target.
 
 ## Noted tradeoffs
 
-- **cosmos is 2.0.0-beta.20.** API is stable enough in practice, but two dist
-  docstrings lie (`setPointColors`/`setLinkColors` claim 0–255 RGB; the
-  shader consumes raw 0–1 floats). Pinned exact version in package.json.
+- **cosmos is 2.0.0-beta.20.** API is stable enough in practice, but three
+  dist behaviors are underdocumented (learned the hard way, all handled in
+  CosmosDots): (1) `setPointColors`/`setLinkColors` docstrings claim 0–255
+  RGB; the shader consumes raw 0–1 floats. (2) `setPointPositions` after the
+  initial render only stages the buffer — `render()` must be called again to
+  apply it (matters for streamed layout). (3) `destroy()` clears but does not
+  remove its canvas from the container; a React remount must clear the
+  container or dead canvases stack. Pinned exact version in package.json.
+- **Hover picking costs a GPU readback every third frame** (`readPixels`
+  pipeline sync, unconditional while the mouse is on canvas). On dense
+  layouts the sync waits on the full link-overdraw frame and lands on the
+  main thread as 50–95 ms stalls during zoom. Mitigated with a fill-rate
+  governor: `pixelRatio` drops from 2 to 1 above 30k drawn links, which
+  returned wheel-zoom at 30k nodes / 83k links to p95 8.2 ms with zero long
+  tasks (visual difference at dot scale: negligible).
 - **No edge picking in cosmos** (points only). Edge click is implemented
   app-side: nearest-edge hit test in screen space on canvas clicks that miss
   a point; lighting the edge = selecting its two endpoints (the shader then
@@ -83,8 +95,17 @@ deck.gl (the fallback) was not needed — cosmos meets every target.
 
 ## Perf verification of the shipped implementation
 
-See the final work-item report. Summary against the same baselines
-(ReactFlow DOM dots, 3,000-node budget): mount 12 s → ~1.3 s at 5k real data;
-select/deselect 1.5–3 s → <50 ms; zoom long-tasks 75–114 ms → none observed
-(frame p95 at the display floor); 30k nodes pans/zooms at refresh rate (the
-DOM renderer could not draw 30k at all).
+Measured on the shipped CosmosDots component (headed Chromium, 165 Hz
+display, wheel-zoom, longtask observer; select = worst-case hub 1-hop via
+the shipped selectRequest path, timed to context-panel paint):
+
+| | Baseline (DOM dots @3k) | KEV live app (5,153 / 13,807) | Harness 30k (30,918 / 82,842) |
+|---|---|---|---|
+| Mount (data ready → painted) | ~12 s | ~0.4 s (3.8 s nav→canvas incl. fetch) | ~0.5 s |
+| Zoom frame p95 / long tasks | 75–114 ms long tasks | 8.5 ms / none | 8.2 ms / none |
+| Select → panel | 1.5–3 s freeze | ~97 ms (25–35 ms GPU+panel warm) | 29–39 ms |
+| Deselect | 1.5–3 s freeze | 6 ms | ~5 ms |
+| JS heap | — | ~48 MB | ~99 MB |
+
+Layout (worker, deterministic): ~3 s at 5k, ~15–20 s at 30k, streamed in 12
+progress frames — the canvas is interactive from first paint throughout.

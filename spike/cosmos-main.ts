@@ -46,6 +46,23 @@ const graph = new Graph(div, {
   pointGreyoutOpacity: 0.18,
   linkGreyoutOpacity: 0.12,
   disableAttribution: true,
+  // Config-bisect probes (?ring=1&cbs=1) for the long-task hunt.
+  ...(location.search.includes("ring=1")
+    ? {
+        hoveredPointCursor: "pointer",
+        renderHoveredPointRing: true,
+        hoveredPointRingColor: "#e4e4e7",
+        focusedPointRingColor: "#f4f4f5",
+      }
+    : {}),
+  ...(location.search.includes("cbs=1")
+    ? {
+        onClick: () => {},
+        onPointMouseOver: () => {},
+        onPointMouseOut: () => {},
+        onZoom: () => {},
+      }
+    : {}),
 });
 graph.setPointPositions(positions);
 graph.setPointColors(colors);
