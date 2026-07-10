@@ -8,7 +8,7 @@ const LAYERS: KitLayer[] = ["base", "domain"];
  */
 export function LayerLegend() {
   return (
-    <div className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1">
+    <div className="flex items-center gap-3 border border-zinc-800 bg-zinc-950/90 px-2 py-1">
       {LAYERS.map((layer) => (
         <span key={layer} className="flex items-center gap-1.5 text-[10px] text-zinc-400">
           <span className={`h-1.5 w-1.5 rounded-full ${LAYER_META[layer].dot}`} />

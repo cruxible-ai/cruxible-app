@@ -41,7 +41,7 @@ function PathNode({ data }: NodeProps<Node<PathNodeData>>) {
     data.role === "hop" && accent ? `${accent.border} bg-zinc-900` : ROLE_CLASS[data.role];
   return (
     <div
-      className={`max-w-52 rounded border px-2 py-1 text-left hover:border-zinc-400 ${borderClass}`}
+      className={`max-w-52 border px-2 py-1 text-left hover:border-zinc-400 ${borderClass}`}
     >
       <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
       <div className="flex items-center gap-1 text-[9px] uppercase tracking-wide text-zinc-500">
@@ -171,7 +171,7 @@ export function buildPathGraph(
     }
 
     const edges: Edge[] = [...edgeById.entries()].map(([id, agg]) => {
-      const stroke = agg.reviewStatus === "unreviewed" ? "#3f3f46" : "#10b981";
+      const stroke = agg.reviewStatus === "unreviewed" ? "#403d34" : "#10b981";
       return {
         id,
         source: agg.source,

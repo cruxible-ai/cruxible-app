@@ -70,7 +70,7 @@ export function ReceiptScreen() {
             {nodes.map((n) => (
               <div
                 key={n.node_id}
-                className="flex flex-wrap items-baseline gap-x-3 rounded border border-zinc-800/60 px-2.5 py-1.5 text-[13px]"
+                className="flex flex-wrap items-baseline gap-x-3 border border-zinc-800/60 px-2.5 py-1.5 text-[13px]"
               >
                 <span className="font-mono text-zinc-600">{n.node_id}</span>
                 <span className="text-zinc-300">{n.node_type}</span>
@@ -91,7 +91,7 @@ export function ReceiptScreen() {
       )}
 
       <Panel title="Raw envelope">
-        <pre className="max-h-[32rem] overflow-auto rounded bg-zinc-950 p-3 font-mono text-[12px] leading-4 text-zinc-400">
+        <pre className="max-h-[32rem] overflow-auto bg-zinc-950 p-3 font-mono text-[12px] leading-4 text-zinc-400">
           {JSON.stringify(data, null, 2)}
         </pre>
       </Panel>

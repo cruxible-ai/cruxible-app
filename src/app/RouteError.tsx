@@ -35,7 +35,7 @@ export function RouteError() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-8">
-      <div className="w-[36rem] max-w-full rounded-md border border-zinc-800 bg-zinc-900/40 p-5">
+      <div className="w-[36rem] max-w-full border border-zinc-800 bg-zinc-900/40 p-5">
         <img src="/brand/cruxible-wordmark-white.svg" alt="Cruxible" className="h-[26px] w-auto" />
         <h1 className="mt-3 text-[15px] font-semibold text-zinc-100">{title}</h1>
         {message && <p className="mt-1 break-all text-[13px] text-zinc-400">{message}</p>}
@@ -43,13 +43,13 @@ export function RouteError() {
           <Link
             to="/"
             reloadDocument
-            className="rounded border border-zinc-700 px-2 py-0.5 text-zinc-200 hover:border-zinc-500"
+            className="border border-zinc-700 px-2 py-0.5 text-zinc-200 hover:border-zinc-500"
           >
             Back to overview
           </Link>
           <button
             onClick={copyDiagnostics}
-            className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+            className="border border-zinc-800 px-2 py-0.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
           >
             {copied ? "Copied" : "Copy diagnostics"}
           </button>

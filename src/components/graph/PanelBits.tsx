@@ -59,7 +59,7 @@ export function ConnectionList({
           <button
             key={e.id}
             onClick={() => api.select(other)}
-            className="flex w-full items-baseline gap-1.5 rounded px-1 py-0.5 text-left text-[12px] hover:bg-zinc-900"
+            className="flex w-full items-baseline gap-1.5 px-1 py-0.5 text-left text-[12px] hover:bg-zinc-900"
           >
             <span className="shrink-0 font-mono text-zinc-600">{outgoing ? "→" : "←"}</span>
             {/* Full text always — long titles wrap onto extra lines rather

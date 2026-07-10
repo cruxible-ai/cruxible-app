@@ -81,7 +81,7 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
         )}
       </div>
       {open && (
-        <div className="mt-1 ml-4 rounded border border-zinc-800 bg-zinc-950 p-2">
+        <div className="mt-1 ml-4 border border-zinc-800 bg-zinc-950 p-2">
           {deref.isPending && <LoadState />}
           {deref.error && <LoadState error={deref.error} />}
           {result && (

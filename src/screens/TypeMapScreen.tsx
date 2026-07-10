@@ -71,7 +71,7 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
   const accent = data.layer ? LAYER_META[data.layer] : null;
   return (
     <div
-      className={`rounded border px-2.5 py-1.5 text-center ${
+      className={`border px-2.5 py-1.5 text-center ${
         empty
           ? "border-dashed border-zinc-800 bg-zinc-950"
           : accent
@@ -219,7 +219,7 @@ export function TypeMapScreen() {
     // shape reads without dozens of labels of noise on a dense ontology.
     const edges: Edge[] = rels.map((r) => {
       const count = st?.relationship_counts?.[r.name] ?? 0;
-      const stroke = count > 0 ? "#6b7280" : "#27272a";
+      const stroke = count > 0 ? "#726f63" : "#2a2822";
       return {
         id: r.name,
         source: r.from_entity,

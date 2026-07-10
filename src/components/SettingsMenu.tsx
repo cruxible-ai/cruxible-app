@@ -24,7 +24,7 @@ export function SettingsMenu() {
   return (
     <div ref={ref} className="relative">
       {open && (
-        <div className="absolute bottom-8 left-0 w-52 rounded border border-zinc-700 bg-zinc-900 p-3 shadow-lg">
+        <div className="absolute bottom-8 left-0 w-52 border border-zinc-700 bg-zinc-900 p-3 shadow-lg">
           <div className="pb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
             Display settings
           </div>
@@ -63,7 +63,7 @@ export function SettingsMenu() {
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center gap-2 rounded px-2 py-1 text-[14px] ${
+        className={`flex w-full items-center gap-2 px-2 py-1 text-[14px] ${
           open ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
         }`}
       >

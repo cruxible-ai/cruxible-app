@@ -225,7 +225,7 @@ function Canvas({
           : `relative flex flex-col ${className}`
       }
     >
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-zinc-800">
+      <div className="relative min-h-0 flex-1 overflow-hidden border border-zinc-800">
         <ReactFlow
           nodes={styledNodes}
           edges={styledEdges}
@@ -249,7 +249,7 @@ function Canvas({
             if (!pannedRef.current) setSelection(null);
           }}
         >
-          <Background color="#27272a" gap={24} />
+          <Background color="#2a2822" gap={24} />
           {children}
         </ReactFlow>
 
@@ -258,7 +258,7 @@ function Canvas({
         <button
           onClick={() => setFullscreen((f) => !f)}
           title={fullscreen ? "Exit full screen (Esc)" : "Full screen"}
-          className="absolute right-2 top-2 z-10 rounded border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+          className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
         >
           {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
         </button>
@@ -266,12 +266,12 @@ function Canvas({
         {panel && (
           <div
             style={{ width: PANEL_WIDTH }}
-            className="absolute bottom-2 right-2 top-12 z-10 overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur"
+            className="absolute bottom-2 right-2 top-12 z-10 overflow-y-auto border border-zinc-700 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur"
           >
             <button
               onClick={() => setSelection(null)}
               title="Close (Esc)"
-              className="absolute right-2 top-2 rounded p-0.5 text-zinc-500 hover:text-zinc-200"
+              className="absolute right-2 top-2 p-0.5 text-zinc-500 hover:text-zinc-200"
             >
               <X className="h-3.5 w-3.5" />
             </button>

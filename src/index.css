@@ -1,11 +1,31 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300..700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
-    monospace;
+  /* Brand fonts (dd-brand-f6-instrument): Roboto Flex for UI text,
+     JetBrains Mono for machine text — same faces as cruxible.ai. */
+  --font-sans: "Roboto Flex", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular,
+    Menlo, Consolas, monospace;
+
+  /* Warm neutral remap: the zinc scale re-anchored to the marketing
+     site's warm grays (fg #F2F0EA = 100, muted #A3A094 = 400, border
+     #58554B = 600, bg #09090B = 950) so every existing zinc-* usage
+     reads brand-warm instead of blue-gray. */
+  --color-zinc-50: #f7f5f0;
+  --color-zinc-100: #f2f0ea;
+  --color-zinc-200: #dedbd0;
+  --color-zinc-300: #c9c6ba;
+  --color-zinc-400: #a3a094;
+  --color-zinc-500: #726f63;
+  --color-zinc-600: #58554b;
+  --color-zinc-700: #403d34;
+  --color-zinc-800: #2a2822;
+  --color-zinc-900: #171612;
+  --color-zinc-950: #09090b;
 }
 
 :root {

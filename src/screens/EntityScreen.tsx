@@ -257,7 +257,7 @@ function NeighborRow({
   const evidence = edge.metadata.evidence;
 
   return (
-    <div className="rounded border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-1.5">
+    <div className="border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-1.5">
       <div className="flex flex-wrap items-center gap-2 text-[14px]">
         {isEntityRef(e) ? (
           <>

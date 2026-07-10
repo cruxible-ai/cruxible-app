@@ -25,7 +25,7 @@ import { LAYER_META, queryLayer, useLayerColoring } from "@/lib/kit-layer";
 import { useSettings } from "@/lib/settings";
 
 function navClass({ isActive }: { isActive: boolean }) {
-  return `block rounded px-2 py-1 text-[14px] ${
+  return `block px-2 py-1 text-[14px] ${
     isActive ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
   }`;
 }
@@ -154,11 +154,11 @@ export function AppShell() {
           )}
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("cruxible:jump"))}
-            className="flex w-full items-center gap-2 rounded px-2 py-1 text-[14px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            className="flex w-full items-center gap-2 px-2 py-1 text-[14px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
           >
             <Search className="h-3.5 w-3.5" />
             Jump to entity
-            <kbd className="ml-auto rounded border border-zinc-800 px-1 text-[10px] text-zinc-600">
+            <kbd className="ml-auto border border-zinc-800 px-1 text-[10px] text-zinc-600">
               ⌘K
             </kbd>
           </button>
@@ -169,7 +169,7 @@ export function AppShell() {
             to={`/i/${instanceId}/views`}
             end
             className={(s) =>
-              `block rounded px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${
+              `block px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${
                 s.isActive ? "text-zinc-300" : "text-zinc-600 hover:text-zinc-400"
               }`
             }

@@ -85,7 +85,7 @@ export function BrowseScreen() {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter this page…"
-            className="ml-auto w-48 rounded border border-zinc-800 bg-transparent px-2 py-0.5 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+            className="ml-auto w-48 border border-zinc-800 bg-transparent px-2 py-0.5 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
           />
         </div>
       </header>
@@ -112,7 +112,7 @@ export function BrowseScreen() {
                     sp.set("offset", String(Math.max(0, offset - PAGE_SIZE)));
                     setSearchParams(sp);
                   }}
-                  className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                  className="border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
                 >
                   prev
                 </button>
@@ -123,7 +123,7 @@ export function BrowseScreen() {
                     sp.set("offset", String(offset + PAGE_SIZE));
                     setSearchParams(sp);
                   }}
-                  className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                  className="border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
                 >
                   next
                 </button>

@@ -64,7 +64,7 @@ const MAX_NODES_CARDS = 600;
 const CARDS_PER_TYPE = 40;
 const EDGE_FETCH_LIMIT = 20000;
 const MINI_MAP_LAYER_DOT_COLORS: Record<KitLayer, string> = {
-  base: "#71717a",
+  base: "#726f63",
   domain: "#a78bfa",
 };
 
@@ -113,7 +113,7 @@ function DotNode({ data }: NodeProps<Node<DotNodeData>>) {
           1-hop neighborhood — the moments the dot count is small enough for
           text to help instead of overlap. */}
       <div
-        className={`pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-300 ${
+        className={`pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap bg-zinc-950/85 px-1 text-[9px] leading-3 text-zinc-300 ${
           data.matched || data.lit ? "" : "opacity-0 group-hover:opacity-100"
         }`}
       >
@@ -127,7 +127,7 @@ function CardNode({ data }: NodeProps<Node<DotNodeData>>) {
   const accent = data.layer ? LAYER_META[data.layer] : null;
   return (
     <div
-      className={`max-w-44 rounded border px-2 py-1 text-left ${
+      className={`max-w-44 border px-2 py-1 text-left ${
         accent
           ? `${accent.border} ${accent.borderHover} bg-zinc-900`
           : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
@@ -165,7 +165,7 @@ function OverflowNode({ data }: NodeProps<Node<{ entityType: string; count: numb
   return (
     <Link
       to={`/i/${instanceId}/browse/${data.entityType}`}
-      className="block max-w-44 rounded border border-dashed border-zinc-700 px-2 py-1 text-[10px] leading-4 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+      className="block max-w-44 border border-dashed border-zinc-700 px-2 py-1 text-[10px] leading-4 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
     >
       <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
       +{data.count} more · browse →
@@ -191,7 +191,7 @@ function MiniMapDot({ id, x, y, width, height }: MiniMapNodeProps) {
       ? data.color
       : layer === "base" || layer === "domain"
         ? MINI_MAP_LAYER_DOT_COLORS[layer]
-        : "#71717a";
+        : "#726f63";
 
   return (
     // r is in flow coordinates: the dots layout spans thousands of units, so
@@ -317,7 +317,7 @@ function GraphLegend({ kitLayers }: { kitLayers: boolean }) {
   const section = "text-[9px] font-semibold uppercase tracking-wider text-zinc-600";
   const row = "inline-flex items-center gap-1.5";
   return (
-    <div className="flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
+    <div className="flex flex-col gap-1 border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
       <span className={section}>Governed edges — review state</span>
       <span className={row}>
         <span className="h-px w-3 bg-emerald-500" /> Approved
@@ -1052,7 +1052,7 @@ export function StateGraphScreen() {
           {droppedEdges > 0 && !focus && ` · ${droppedEdges} edges to excluded or hidden entities not drawn`}
         </span>
         <span className="ml-auto flex items-center gap-2">
-          <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[12px]">
+          <span className="inline-flex overflow-hidden border border-zinc-800 text-[12px]">
             {(["dots", "cards"] as const).map((m) => (
               <button
                 key={m}
@@ -1068,7 +1068,7 @@ export function StateGraphScreen() {
           {/* Kit-layer hue is only an alternative when the instance spans layers. */}
           {layerColoring.enabled && (
             <span
-              className="inline-flex overflow-hidden rounded border border-zinc-800 text-[12px]"
+              className="inline-flex overflow-hidden border border-zinc-800 text-[12px]"
               title="Entity color coding"
             >
               {(["type", "kit"] as const).map((c) => (
@@ -1091,7 +1091,7 @@ export function StateGraphScreen() {
               if (e.key === "Enter") jumpToFirstMatch();
             }}
             placeholder="Find in graph…"
-            className="w-44 rounded border border-zinc-800 bg-transparent px-2 py-0.5 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+            className="w-44 border border-zinc-800 bg-transparent px-2 py-0.5 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
           />
           {search.trim() !== "" && (
             <span className="text-[12px] text-zinc-500">
@@ -1106,7 +1106,7 @@ export function StateGraphScreen() {
           <span>
             Focused on <span className="text-zinc-200">{labelFor(focus)}</span>
           </span>
-          <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[12px]">
+          <span className="inline-flex overflow-hidden border border-zinc-800 text-[12px]">
             {[1, 2].map((h) => (
               <button
                 key={h}
@@ -1181,7 +1181,7 @@ export function StateGraphScreen() {
             <div className="flex flex-col gap-1.5">
               <GraphLegend kitLayers={colorMode === "kit"} />
               {showDegenerateNotice && (
-                <div className="rounded border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[12px] text-amber-400">
+                <div className="border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[12px] text-amber-400">
                   Most of this graph's edges connect to entities not drawn — adjust the type
                   chips or use Find / focus.
                 </div>
@@ -1196,7 +1196,7 @@ export function StateGraphScreen() {
             zoomable
             className="!h-24 !w-36"
             bgColor="#09090b"
-            maskColor="rgba(24,24,27,0.7)"
+            maskColor="rgba(23,22,18,0.7)"
             nodeComponent={MiniMapDot}
           />
         </GraphCanvas>

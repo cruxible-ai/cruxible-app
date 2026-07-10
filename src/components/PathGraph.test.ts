@@ -101,7 +101,7 @@ describe("buildPathGraph", () => {
     const { edges } = buildPathGraph(ITEMS);
     const byId = Object.fromEntries(edges.map((e) => [e.id, e]));
     expect(byId["supplier_supplies_component|Supplier:s-ldo|Component:c-motor-a"]?.style?.stroke).toBe(
-      "#3f3f46",
+      "#403d34",
     );
     expect(byId["incident_affects_supplier|Incident:inc-gd|Supplier:s-ldo"]?.style?.stroke).toBe(
       "#10b981",

@@ -264,7 +264,7 @@ export function GroupScreen() {
           >
             <div className="space-y-2">
               {members.map((m, i) => (
-                <div key={i} className="rounded border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-2">
+                <div key={i} className="border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-2">
                   <div className="flex flex-wrap items-center gap-2 text-[14px]">
                     <span className="text-[12px] text-zinc-600">{m.from_type}</span>
                     <EntityLink entityType={m.from_type} entityId={m.from_id} />
@@ -336,7 +336,7 @@ export function GroupScreen() {
           </Panel>
 
           {group.status === "pending_review" && (
-            <div className="rounded border border-zinc-800/60 bg-zinc-900/30 px-3 py-2 text-[13px] text-zinc-500">
+            <div className="border border-zinc-800/60 bg-zinc-900/30 px-3 py-2 text-[13px] text-zinc-500">
               Resolve from the CLI:{" "}
               <code className="font-mono text-[12px] text-zinc-300">
                 cruxible group resolve --group {group.group_id} --action approve

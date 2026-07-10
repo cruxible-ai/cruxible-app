@@ -43,13 +43,13 @@ function ParamForm({ query }: { query: CatalogQuery }) {
           value={values[p] ?? ""}
           onChange={(e) => setValues((v) => ({ ...v, [p]: e.target.value }))}
           placeholder={p}
-          className="w-44 rounded border border-zinc-800 bg-transparent px-2 py-0.5 font-mono text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+          className="w-44 border border-zinc-800 bg-transparent px-2 py-0.5 font-mono text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
         />
       ))}
       <button
         type="submit"
         disabled={!complete}
-        className="rounded border border-zinc-700 px-2 py-0.5 text-[12px] text-zinc-200 enabled:hover:border-zinc-500 disabled:opacity-40"
+        className="border border-zinc-700 px-2 py-0.5 text-[12px] text-zinc-200 enabled:hover:border-zinc-500 disabled:opacity-40"
       >
         Run
       </button>

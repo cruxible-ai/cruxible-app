@@ -121,7 +121,7 @@ export function JumpPalette() {
       onClick={() => setOpen(false)}
     >
       <div
-        className="w-[34rem] max-w-[90vw] overflow-hidden rounded-md border border-zinc-700 bg-zinc-900 shadow-2xl"
+        className="w-[34rem] max-w-[90vw] overflow-hidden border border-zinc-700 bg-zinc-900 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-zinc-800 px-3 py-2">
@@ -147,7 +147,7 @@ export function JumpPalette() {
             placeholder="Jump to entity by id or title…"
             className="w-full bg-transparent text-[14px] text-zinc-100 placeholder-zinc-600 outline-none"
           />
-          <kbd className="rounded border border-zinc-700 px-1 text-[10px] text-zinc-500">esc</kbd>
+          <kbd className="border border-zinc-700 px-1 text-[10px] text-zinc-500">esc</kbd>
         </div>
         <div className="max-h-80 overflow-y-auto">
           {loading && (

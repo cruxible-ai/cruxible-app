@@ -17,7 +17,7 @@ import { parseCruxibleRef } from "@/lib/cruxible-ref";
  */
 
 const CHIP_BASE =
-  "inline-flex max-w-full items-center gap-1.5 rounded border px-1.5 py-px align-baseline text-[13px] leading-4";
+  "inline-flex max-w-full items-center gap-1.5 border px-1.5 py-px align-baseline text-[13px] leading-4";
 const CHIP_LIVE = `${CHIP_BASE} border-zinc-700 bg-zinc-900/70 text-zinc-200 no-underline hover:border-zinc-500 hover:text-white`;
 const CHIP_PENDING = `${CHIP_BASE} border-zinc-800 bg-zinc-900/40 text-zinc-500`;
 const CHIP_UNRESOLVED = `${CHIP_BASE} border-dashed border-zinc-700 bg-transparent text-zinc-500`;
@@ -51,7 +51,7 @@ export function CruxibleRefChip({ url, label }: { url: string; label?: string | 
     return (
       <code
         title="Unrecognized cruxible reference"
-        className="rounded bg-zinc-900 px-1 font-mono text-[13px] text-zinc-300"
+        className="bg-zinc-900 px-1 font-mono text-[13px] text-zinc-300"
       >
         {url}
       </code>

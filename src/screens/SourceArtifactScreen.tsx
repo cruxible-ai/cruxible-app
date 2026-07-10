@@ -59,11 +59,11 @@ function ChunkAnchor({ piece, highlighted }: { piece: DocPiece; highlighted: boo
   return (
     <div
       id={chunk.chunk_id}
-      className={`group relative -mx-2 scroll-mt-4 rounded px-2 py-0.5 transition-all duration-700 ${
+      className={`group relative -mx-2 scroll-mt-4 px-2 py-0.5 transition-all duration-700 ${
         highlighted ? "bg-sky-500/10 ring-1 ring-sky-400/40" : ""
       }`}
     >
-      <div className="absolute -top-2.5 right-0 z-10 hidden max-w-full items-center gap-2 rounded border border-zinc-800 bg-zinc-900/95 px-1.5 py-0.5 group-hover:flex">
+      <div className="absolute -top-2.5 right-0 z-10 hidden max-w-full items-center gap-2 border border-zinc-800 bg-zinc-900/95 px-1.5 py-0.5 group-hover:flex">
         {chunk.heading_path.length > 0 && (
           <span className="truncate text-[10px] text-zinc-500">
             {chunk.heading_path.join(" › ")}

@@ -77,7 +77,7 @@ export function QueryViewScreen() {
           view.data && (
             <span className="inline-flex items-center gap-2">
               {hasPaths && (
-                <span className="inline-flex overflow-hidden rounded border border-zinc-800 text-[12px]">
+                <span className="inline-flex overflow-hidden border border-zinc-800 text-[12px]">
                   {(["rows", "graph"] as const).map((mode) => (
                     <button
                       key={mode}
@@ -97,7 +97,7 @@ export function QueryViewScreen() {
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Filter this page…"
-                className="w-40 rounded border border-zinc-800 bg-transparent px-2 py-px text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
+                className="w-40 border border-zinc-800 bg-transparent px-2 py-px text-[12px] text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
               />
               <span className="font-mono">
                 {filter ? `${filteredItems.length} of ${view.data.total}` : `${view.data.total} total`}
@@ -125,7 +125,7 @@ export function QueryViewScreen() {
                   searchParams.set("offset", String(Math.max(0, offset - PAGE_SIZE)));
                   setSearchParams(searchParams);
                 }}
-                className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                className="border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
               >
                 Previous
               </button>
@@ -135,7 +135,7 @@ export function QueryViewScreen() {
                   searchParams.set("offset", String(offset + PAGE_SIZE));
                   setSearchParams(searchParams);
                 }}
-                className="rounded border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
+                className="border border-zinc-800 px-2 py-0.5 text-zinc-400 enabled:hover:bg-zinc-900 disabled:opacity-40"
               >
                 Next
               </button>

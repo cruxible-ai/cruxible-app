@@ -49,10 +49,10 @@ export function Prose({ text }: { text: string }) {
           ul: (p) => <ul className="my-1.5 list-disc space-y-0.5 pl-5" {...p} />,
           ol: (p) => <ol className="my-1.5 list-decimal space-y-0.5 pl-5" {...p} />,
           code: (p) => (
-            <code className="rounded bg-zinc-900 px-1 font-mono text-[13px] text-zinc-300" {...p} />
+            <code className="bg-zinc-900 px-1 font-mono text-[13px] text-zinc-300" {...p} />
           ),
           pre: (p) => (
-            <pre className="my-1.5 overflow-x-auto rounded border border-zinc-800 bg-zinc-900/60 p-2" {...p} />
+            <pre className="my-1.5 overflow-x-auto border border-zinc-800 bg-zinc-900/60 p-2" {...p} />
           ),
           a: ({ node: _node, href, children, ...rest }) => {
             if (href?.startsWith(CRUXIBLE_SCHEME)) {
