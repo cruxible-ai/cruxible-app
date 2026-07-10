@@ -411,8 +411,16 @@ export function CosmosDots({
       worker.onmessage = null;
       worker.terminate();
       graph.destroy();
-      // destroy() clears the canvas but leaves it in the DOM; drop it so a
-      // remount (StrictMode, data change) doesn't stack dead canvases.
+      // destroy() never releases the WebGL context (verified in dist) —
+      // without an explicit lose, dead contexts linger until GC and count
+      // against the browser's context cap.
+      container
+        .querySelector("canvas")
+        ?.getContext("webgl")
+        ?.getExtension("WEBGL_lose_context")
+        ?.loseContext();
+      // destroy() also leaves the canvas in the DOM; drop it so a remount
+      // (StrictMode, data change) doesn't stack dead canvases.
       container.replaceChildren();
       graphRef.current = null;
       positionsRef.current = null;

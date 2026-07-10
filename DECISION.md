@@ -56,14 +56,18 @@ deck.gl (the fallback) was not needed — cosmos meets every target.
 
 ## Noted tradeoffs
 
-- **cosmos is 2.0.0-beta.20.** API is stable enough in practice, but three
+- **cosmos is 2.0.0-beta.20.** API is stable enough in practice, but four
   dist behaviors are underdocumented (learned the hard way, all handled in
   CosmosDots): (1) `setPointColors`/`setLinkColors` docstrings claim 0–255
   RGB; the shader consumes raw 0–1 floats. (2) `setPointPositions` after the
   initial render only stages the buffer — `render()` must be called again to
   apply it (matters for streamed layout). (3) `destroy()` clears but does not
   remove its canvas from the container; a React remount must clear the
-  container or dead canvases stack. Pinned exact version in package.json.
+  container or dead canvases stack. (4) `destroy()` also never releases the
+  WebGL context — cleanup explicitly grabs `WEBGL_lose_context` and calls
+  `loseContext()` before dropping the canvas, otherwise every remount leaves
+  an undead context lingering until GC, counting against the browser's
+  per-page context cap. Pinned exact version in package.json.
 - **Hover picking costs a GPU readback every third frame** (`readPixels`
   pipeline sync, unconditional while the mouse is on canvas). On dense
   layouts the sync waits on the full link-overdraw frame and lands on the
@@ -71,6 +75,15 @@ deck.gl (the fallback) was not needed — cosmos meets every target.
   governor: `pixelRatio` drops from 2 to 1 above 30k drawn links, which
   returned wheel-zoom at 30k nodes / 83k links to p95 8.2 ms with zero long
   tasks (visual difference at dot scale: negligible).
+- **Selection lights slightly more than the old DOM renderer did.** Cosmos's
+  greyout is per-point: selecting a node's 1-hop set keeps every edge whose
+  two endpoints are both in that set lit — including neighbor↔neighbor edges,
+  where the DOM renderer lit only the edges incident to the selected node.
+  Inherent to the shader's endpoint-based dimming; arguably more informative
+  (the lit subgraph is the induced neighborhood), accepted as-is.
+- **Search rings cap at the first 150 visible matches** (`MATCH_RING_CAP`);
+  the old renderer ringed every match. Past that many, rings are noise — the
+  header match count and Enter-to-jump carry the rest.
 - **No edge picking in cosmos** (points only). Edge click is implemented
   app-side: nearest-edge hit test in screen space on canvas clicks that miss
   a point; lighting the edge = selecting its two endpoints (the shader then
