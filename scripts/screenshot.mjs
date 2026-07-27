@@ -10,7 +10,21 @@ const [, , urlPath = "/", outfile = "/tmp/shot.png", height = "900"] = process.a
 const host = process.env.UI_HOST ?? "localhost";
 const settleMs = Number(process.env.UI_SETTLE_MS ?? "400");
 
-const browser = await chromium.launch();
+// UI_HEADED=1 captures the WebGL state graph.
+//
+// Headless Chromium reports a working WebGL2 context (SwiftShader, all the
+// float-texture extensions present) and cosmos runs against it without a
+// single console error — it clears its background, the layout worker returns,
+// and the HTML overlays land in the right places. The point and link passes
+// simply never appear. Everything else in the app captures fine headless, so
+// this is opt-in: a real GPU context, in a window parked off-screen so a
+// capture cannot interrupt whatever is on the desktop.
+const headed = process.env.UI_HEADED === "1";
+const browser = await chromium.launch(
+  headed
+    ? { headless: false, args: ["--window-position=-3000,-3000", "--window-size=1460,960"] }
+    : {},
+);
 const page = await browser.newPage({ viewport: { width: 1440, height: Number(height) } });
 const errors = [];
 page.on("console", (msg) => {

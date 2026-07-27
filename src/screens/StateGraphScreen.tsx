@@ -28,6 +28,7 @@ import {
   PropertyList,
 } from "@/components/graph/PanelBits";
 import { isColdEntity, isColdStatus } from "@/lib/cold";
+import { focusInternalModel, useInternalModel } from "@/lib/internal-model";
 import { LAYER_META, useLayerColoring, type KitLayer } from "@/lib/kit-layer";
 import { buildTypeColors } from "@/lib/type-colors";
 import { useSettings } from "@/lib/settings";
@@ -109,14 +110,18 @@ function GraphLegend({ kitLayers }: { kitLayers: boolean }) {
 }
 
 /**
- * Last-chosen display options (color mode, type chips) per instance, applied
- * when the graph is opened WITHOUT explicit URL params. A shared link's params
- * always win over the remembered state; focus is navigation, not preference,
- * and is never stored.
+ * Last-chosen display options (scope, color mode, type chips, internal-model
+ * overrides) per instance, applied when the graph is opened WITHOUT explicit
+ * URL params. A shared link's params always win over the remembered state;
+ * focus is navigation, not preference, and is never stored.
  */
 interface GraphPrefs {
   color?: "type" | "kit" | undefined;
   types?: string[] | undefined;
+  scope?: "all" | "internal" | undefined;
+  /** Types the operator has promoted back out of the derived reference layer.
+   * The derivation supplies the default; this is the saved correction. */
+  internalTypes?: string[] | undefined;
 }
 
 function prefsKey(instanceId: string) {
@@ -189,8 +194,10 @@ function neighborhood(
  * The complete state graph: every live entity and edge on one canvas as
  * typed dots under a static force layout, with the shared GraphCanvas
  * selection model. Search highlights and jumps; "Isolate neighborhood" (URL
- * state) cuts the canvas down to k hops around one entity. Hide-cold applies;
- * dense types are sampled by degree when an instance exceeds the node budget.
+ * state) cuts the canvas down to k hops around one entity; the internal-model
+ * scope cuts the ingested reference layer down to the rows local judgment has
+ * actually touched. Hide-cold applies; dense types are sampled by degree when
+ * an instance exceeds the node budget.
  */
 export function StateGraphScreen() {
   const instanceId = useInstanceId();
@@ -198,6 +205,7 @@ export function StateGraphScreen() {
   const stats = useStats();
   const { settings } = useSettings();
   const layerColoring = useLayerColoring();
+  const internalModel = useInternalModel();
   const governedTypes = useGovernedRelationshipTypes();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
@@ -232,10 +240,30 @@ export function StateGraphScreen() {
       : null;
   }, [focus]);
   const focusInspect = useInspectEntity(focusRef?.type ?? "", focusRef?.id ?? "", !!focusRef);
+  // Scope: the whole instance, or only what bears on the internal model. Only
+  // offered where the ontology actually splits into a local layer and an
+  // ingested reference layer.
+  const scope: "all" | "internal" =
+    searchParams.get("scope") === "internal" && internalModel.available ? "internal" : "all";
   // Entity hue: per-type colors by default; kit-layer accents opt-in (and
   // only offered when the instance actually spans layers).
   const colorMode: "type" | "kit" =
     searchParams.get("color") === "kit" && layerColoring.enabled ? "kit" : "type";
+
+  // The saved correction to the derived split (see internal-model.ts): a type
+  // the operator has promoted back into their own model. Empty by default —
+  // the derivation is the default, this is the escape hatch.
+  const [promotedTypes, setPromotedTypes] = useState<ReadonlySet<string>>(
+    () => new Set(loadGraphPrefs(instanceId).internalTypes ?? []),
+  );
+  // Switching instances changes only the route param — this screen stays
+  // mounted, and the correction belongs to the instance it was made on.
+  const promotedFor = useRef(instanceId);
+  useEffect(() => {
+    if (promotedFor.current === instanceId) return;
+    promotedFor.current = instanceId;
+    setPromotedTypes(new Set(loadGraphPrefs(instanceId).internalTypes ?? []));
+  }, [instanceId]);
 
   // Opening the graph bare (sidebar click) restores the last-chosen options;
   // any explicit params (shared links, entity-page focus) win untouched.
@@ -246,10 +274,27 @@ export function StateGraphScreen() {
     if ([...searchParams.keys()].length > 0) return;
     const prefs = loadGraphPrefs(instanceId);
     const sp = new URLSearchParams();
+    if (prefs.scope === "internal") sp.set("scope", "internal");
     if (prefs.color === "kit") sp.set("color", "kit");
     if (prefs.types && prefs.types.length > 0) sp.set("types", prefs.types.join(","));
     if ([...sp.keys()].length > 0) setSearchParams(sp, { replace: true });
   }, [searchParams, setSearchParams, instanceId]);
+
+  function setScope(next: "all" | "internal") {
+    const sp = new URLSearchParams(searchParams);
+    if (next === "internal") sp.set("scope", "internal");
+    else sp.delete("scope");
+    setSearchParams(sp);
+    saveGraphPrefs(instanceId, { scope: next });
+  }
+
+  function togglePromoted(type: string) {
+    const next = new Set(promotedTypes);
+    if (next.has(type)) next.delete(type);
+    else next.add(type);
+    setPromotedTypes(next);
+    saveGraphPrefs(instanceId, { internalTypes: next.size > 0 ? [...next].sort() : undefined });
+  }
 
   function setColorMode(next: "type" | "kit") {
     const sp = new URLSearchParams(searchParams);
@@ -343,9 +388,16 @@ export function StateGraphScreen() {
   }
 
   // Entity rows + edge rows → the drawn graph's rows and links, in stages:
-  // collect, isolate, budget. All pure derivation from fetch results + URL
-  // state. Layout is downstream (the worker force layout).
-  const { rows, links, droppedEdges, sampledTypeCounts } = useMemo(() => {
+  // collect, isolate, scope, budget. All pure derivation from fetch results +
+  // URL state. Layout is downstream (the worker force layout).
+  const {
+    rows,
+    links,
+    droppedEdges,
+    scopeHiddenEdges,
+    sampledTypeCounts,
+    keptReferenceByType,
+  } = useMemo(() => {
     const rows: Array<{ id: string; data: DotNodeCore }> = [];
     const sampledTypeCounts = new Map<string, number>();
     for (let i = 0; i < includedTypes.length; i++) {
@@ -474,6 +526,33 @@ export function StateGraphScreen() {
     }
     let drawnRows = rows.filter((r) => present.has(r.id));
 
+    // Internal-model scope: drop the ingested reference bulk, keeping only the
+    // reference rows a judgment edge actually reaches. Skipped under focus —
+    // an isolated neighborhood is already legible, and the focused entity may
+    // itself be a reference row somebody navigated in from.
+    const keptReferenceByType = new Map<string, number>();
+    // Counted apart from `dropped`: an edge cut by the scope is deliberately
+    // out of frame, not evidence that the drawn selection is degenerate.
+    let scopeHiddenEdges = 0;
+    if (scope === "internal" && !focus) {
+      // Seed every reference type at zero, so a type the judgment never
+      // reaches reads "0/343" on its chip rather than silently claiming 343.
+      for (const r of drawnRows) {
+        const type = r.data.entityType;
+        if (internalModel.referenceEntityTypes.has(type) && !promotedTypes.has(type)) {
+          keptReferenceByType.set(type, 0);
+        }
+      }
+      const focused = focusInternalModel(drawnRows, links, internalModel, promotedTypes);
+      scopeHiddenEdges = links.length - focused.links.length;
+      drawnRows = focused.rows;
+      links = focused.links;
+      present = new Set(drawnRows.map((r) => r.id));
+      for (const [type, count] of focused.keptReferenceByType) {
+        keptReferenceByType.set(type, count);
+      }
+    }
+
     // Node budget: preserve every type, then keep each large type's
     // best-connected members by degree over the full fetched edge list.
     if (!focus && drawnRows.length > MAX_NODES_DOTS) {
@@ -537,7 +616,9 @@ export function StateGraphScreen() {
       rows: drawnRows,
       links,
       droppedEdges: dropped,
+      scopeHiddenEdges,
       sampledTypeCounts,
+      keptReferenceByType,
     };
     // search is deliberately NOT a dependency: match decoration happens in
     // the cheap passes below. Nor is anything color — see dotStyleFor.
@@ -550,6 +631,9 @@ export function StateGraphScreen() {
     hops,
     focusRef,
     focusInspect.data,
+    scope,
+    internalModel,
+    promotedTypes,
   ]);
 
   // Cheap per-keystroke pass: which drawn entities match the search.
@@ -641,6 +725,10 @@ export function StateGraphScreen() {
     fetchedEdges > 50 && droppedEdges / fetchedEdges > 0.9;
 
   const labelFor = (id: string) => rowById.get(id)?.title ?? id;
+  // Reference types the instance actually holds rows for, for the scope row.
+  const referenceTypes = typeCounts.filter(([type]) =>
+    internalModel.referenceEntityTypes.has(type),
+  );
 
   function jumpToFirstMatch() {
     if (!matchedIds) return;
@@ -712,8 +800,29 @@ export function StateGraphScreen() {
             ? `${rows.length.toLocaleString()} entities · ${drawnEdges.toLocaleString()} edges`
             : "The whole instance state on one canvas"}
           {droppedEdges > 0 && !focus && ` · ${droppedEdges.toLocaleString()} edges to excluded or hidden entities not drawn`}
+          {scopeHiddenEdges > 0 && ` · ${scopeHiddenEdges.toLocaleString()} reference-layer edges out of scope`}
         </span>
         <span className="ml-auto flex items-center gap-2">
+          {/* Scope is only a choice on an instance that actually carries an
+              ingested reference layer beside its local model. */}
+          {internalModel.available && (
+            <span
+              className="inline-flex overflow-hidden border border-zinc-800 text-[12px]"
+              title="Internal model: the entities and edges your own state is made of, plus only the reference rows your judgment has reached"
+            >
+              {(["all", "internal"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setScope(s)}
+                  className={`px-2 py-px ${
+                    scope === s ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {s === "all" ? "Everything" : "Internal model"}
+                </button>
+              ))}
+            </span>
+          )}
           {/* Kit-layer hue is only an alternative when the instance spans layers. */}
           {layerColoring.enabled && (
             <span
@@ -777,11 +886,11 @@ export function StateGraphScreen() {
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           {typeCounts.map(([type, count]) => {
             const active = includedTypes.includes(type);
-            const sampledCount = sampledTypeCounts.get(type);
+            const drawnCount = sampledTypeCounts.get(type) ?? keptReferenceByType.get(type);
             const countLabel =
-              sampledCount === undefined
+              drawnCount === undefined
                 ? count.toLocaleString()
-                : `${sampledCount.toLocaleString()}/${count.toLocaleString()}`;
+                : `${drawnCount.toLocaleString()}/${count.toLocaleString()}`;
             return (
               <button key={type} onClick={() => toggleType(type)} className={toggleChipClass(active)}>
                 {/* The chip doubles as the color legend for its type's dots. */}
@@ -803,13 +912,46 @@ export function StateGraphScreen() {
           </button>
         </div>
       )}
+      {scope === "internal" && !focus && referenceTypes.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[12px] text-zinc-500">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+            Reference layer
+          </span>
+          {referenceTypes.map(([type, count]) => {
+            const promoted = promotedTypes.has(type);
+            const kept = keptReferenceByType.get(type) ?? 0;
+            return (
+              <button
+                key={type}
+                onClick={() => togglePromoted(type)}
+                title={
+                  promoted
+                    ? `${humanize(type)} is being drawn in full. Click to return it to the reference layer.`
+                    : `Drawn only where a judgment edge reaches it. Click to treat ${humanize(type)} as part of the internal model.`
+                }
+                className={toggleChipClass(promoted)}
+              >
+                {humanize(type)}{" "}
+                <span className="font-mono text-[11px] text-zinc-500">
+                  {promoted ? count.toLocaleString() : `${kept.toLocaleString()}/${count.toLocaleString()}`}
+                </span>
+              </button>
+            );
+          })}
+          <span className="text-zinc-600">
+            {internalModel.source === "upstream_ownership"
+              ? "owned by the upstream release — this instance cannot write them"
+              : "ingested feeds, reached across governed edges"}
+          </span>
+        </div>
+      )}
       {projectedNodes === 0 && <EmptyState>No live entities in the selected types.</EmptyState>}
       {loading && <LoadState />}
       {hasSelection && !loading && glGraph && (
         <CosmosDots
           // Remount on graph-identity change so fit-view reframes the new shape
           // (focus in/out, hop change, type trades).
-          key={`dots:${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
+          key={`dots:${scope}:${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
           nodes={glGraph.nodes}
           edges={glGraph.edges}
           nodeColors={glNodeColors}

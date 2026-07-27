@@ -373,6 +373,9 @@ export function buildHandlers(baseUrl = "") {
       }),
     ),
     http.get(api("/schema"), () => HttpResponse.json(SCHEMA)),
+    // A kit-composed fixture tracks no upstream release; null is the answer
+    // the daemon actually gives there, not a stub for a missing route.
+    http.get(api("/state/status"), () => HttpResponse.json({ upstream: null })),
     http.get(api("/views/:queryName"), ({ params }) => {
       if (params.queryName === "blocked_work_items") {
         const items = WORK_ITEMS.filter((w) => w.properties.status === "blocked");

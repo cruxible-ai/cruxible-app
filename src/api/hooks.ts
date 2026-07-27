@@ -107,6 +107,29 @@ export function useInstanceSchema() {
   });
 }
 
+/**
+ * Upstream tracking metadata for a release-backed overlay: which entity and
+ * relationship types the upstream release OWNS (and this instance therefore
+ * cannot write). `upstream` is null on an instance that was composed from kits
+ * rather than pulled from a published state — the authoritative answer simply
+ * does not exist there, and callers fall back to derivation.
+ */
+export function useStateStatus() {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["state-status", instanceId],
+    staleTime: 5 * 60_000,
+    retry: false,
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/state/status", {
+          params: { path: { instance_id: instanceId } },
+        }),
+      ),
+  });
+}
+
 export function useInspectEntity(entityType: string, entityId: string, enabled = true) {
   const client = useApiClient();
   const instanceId = useInstanceId();
