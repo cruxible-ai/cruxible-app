@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useDereferenceEvidence, useInstanceId } from "@/api/hooks";
+import { useCurrentRevision, useDereference, useInstanceId } from "@/api/hooks";
+import { revisionNumber } from "@/api/governance-types";
 import { actionChipClass, Chip } from "./Chip";
 import { LoadState } from "./Panel";
 
@@ -8,6 +9,9 @@ export interface EvidenceRefData {
   source?: string;
   source_record_id?: string;
   artifact_id?: string;
+  /** The PHYSICAL revision this citation was made against, "artifact@N".
+   *  `artifact_id` alone is the logical artifact and floats to head. */
+  artifact_revision_id?: string;
   label?: string;
   metadata?: {
     heading_path?: string[];
@@ -16,10 +20,67 @@ export interface EvidenceRefData {
     chunk_id?: string;
     content_hash?: string;
     block_type?: string;
+    block_selector?: string;
   };
 }
 
-const STATUS_TONE = { available: "green", drifted: "amber", unavailable: "red" } as const;
+/**
+ * Pinned revision, plus a loud marker when the artifact has moved past it.
+ *
+ * The pin is the whole point of citing `artifact@N`: a settled decision keeps
+ * pointing at the bytes it was actually made against, and "which decisions
+ * rest on evidence that has since changed" becomes a lookup. There is no
+ * revision-impact read surface and no cheap current-revision route, so this
+ * asks the daemon to resolve the same locator UNPINNED and compares what comes
+ * back (~2 KB) — the per-artifact GET would ship every chunk instead.
+ */
+export function RevisionPin({ refData }: { refData: EvidenceRefData }) {
+  const pinned = refData.artifact_revision_id;
+  const meta = refData.metadata ?? {};
+  const pinnedNum = revisionNumber(pinned);
+  const locator =
+    pinned && refData.artifact_id
+      ? {
+          source_artifact_id: refData.artifact_id,
+          ...(meta.chunk_id ? { chunk_id: meta.chunk_id } : {}),
+          ...(meta.heading_path ? { heading_path: meta.heading_path } : {}),
+          ...(meta.block_selector ? { block_selector: meta.block_selector } : {}),
+        }
+      : null;
+  const current = useCurrentRevision(locator);
+  const currentNum = revisionNumber(current.data?.artifact_revision_id);
+
+  if (!pinned) return null;
+  const movedOn = pinnedNum !== null && currentNum !== null && currentNum > pinnedNum;
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        title={`Evidence pinned to ${pinned}`}
+        className={`border px-1 font-mono text-[11px] leading-4 ${
+          movedOn ? "border-amber-900 bg-amber-950/60 text-amber-400" : "border-zinc-800 text-zinc-500"
+        }`}
+      >
+        @{pinnedNum ?? pinned}
+      </span>
+      {movedOn && (
+        <span
+          className="font-sans text-[12px] text-amber-400"
+          title={`Cited at ${pinned}; the artifact is now at revision ${currentNum}. The claim still reads the bytes it was made against — but the world it cited has moved.`}
+        >
+          evidence has moved on → @{currentNum}
+        </span>
+      )}
+    </span>
+  );
+}
+
+const STATUS_TONE = {
+  available: "green",
+  drifted: "amber",
+  unavailable: "red",
+  revision_bytes_not_retained: "amber",
+} as const;
 
 /**
  * One source-evidence pointer: locator line always visible, dereferenced
@@ -31,24 +92,22 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
   const [open, setOpen] = useState(false);
   const instanceId = useInstanceId();
   const meta = refData.metadata ?? {};
+  // Read the bytes the claim actually cited: the pinned revision when the ref
+  // carries one, head otherwise. A ref without a pin floats, which is exactly
+  // what the pin exists to avoid.
   const locator =
     open && refData.artifact_id
       ? {
           source_artifact_id: refData.artifact_id,
+          artifact_revision_id: refData.artifact_revision_id,
           chunk_id: meta.chunk_id,
+          heading_path: meta.heading_path,
+          block_selector: meta.block_selector,
           expected_content_hash: meta.content_hash,
         }
       : null;
-  const deref = useDereferenceEvidence(locator);
-  const result = deref.data as
-    | {
-        status: "available" | "drifted" | "unavailable";
-        body?: string | null;
-        body_origin?: string | null;
-        reason?: string | null;
-        current_artifact_hash?: string | null;
-      }
-    | undefined;
+  const deref = useDereference(locator);
+  const result = deref.data;
 
   return (
     <div className="mt-0.5">
@@ -60,6 +119,7 @@ export function EvidenceRef({ refData }: { refData: EvidenceRefData }) {
         >
           {open ? "▾" : "▸"} {refData.artifact_id}
         </button>
+        <RevisionPin refData={refData} />
         {meta.chunk_id && <span className="text-zinc-600">{meta.chunk_id}</span>}
         {(meta.heading_path ?? []).length > 0 && (
           <span className="font-sans text-zinc-500">{(meta.heading_path ?? []).join(" › ")}</span>

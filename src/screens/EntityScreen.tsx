@@ -2,6 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import { useInspectEntity, useInstanceId, useQueryCatalog } from "@/api/hooks";
 import { actionChipClass, Chip } from "@/components/Chip";
 import { EntityLink } from "@/components/EntityLink";
+import { Corroboration, isContradicted } from "@/components/Corroboration";
+import type { CorroborationSummary } from "@/api/governance-types";
 import { EvidenceRef, type EvidenceRefData } from "@/components/EvidenceRef";
 import { MonoId } from "@/components/MonoId";
 import { Panel, LoadState, EmptyState } from "@/components/Panel";
@@ -18,6 +20,8 @@ interface NeighborEdge {
   relationship_type: string;
   edge_key: number;
   properties: Record<string, unknown>;
+  /** Present only once a claim has been attested; absent, never zeroed. */
+  corroboration?: CorroborationSummary;
   metadata: {
     provenance?: { source?: string; source_ref?: string; created_at?: string };
     assertion?: { review?: { status?: string; source?: string }; lifecycle?: { status?: string } };
@@ -255,9 +259,18 @@ function NeighborRow({
   const review = edge.metadata.assertion?.review?.status;
   const provenance = edge.metadata.provenance;
   const evidence = edge.metadata.evidence;
+  // A contradicted claim is restyled whole, not just badged: an unresolved
+  // contradiction is a property of the row, not a footnote on it.
+  const contradicted = isContradicted(edge.corroboration);
 
   return (
-    <div className="border border-zinc-800/60 bg-zinc-900/30 px-2.5 py-1.5">
+    <div
+      className={`border px-2.5 py-1.5 ${
+        contradicted
+          ? "border-red-900/70 border-l-2 border-l-red-500 bg-red-950/20"
+          : "border-zinc-800/60 bg-zinc-900/30"
+      }`}
+    >
       <div className="flex flex-wrap items-center gap-2 text-[14px]">
         {isEntityRef(e) ? (
           <>
@@ -273,6 +286,7 @@ function NeighborRow({
           <span className="text-zinc-500">(entity unavailable)</span>
         )}
         <span className="ml-auto flex items-center gap-2 text-[12px] text-zinc-500">
+          <Corroboration summary={edge.corroboration} />
           {review && !hideReview && <Chip value={review} />}
           {provenance?.source && !hideProvenance && (
             <span title={provenance.created_at}>
