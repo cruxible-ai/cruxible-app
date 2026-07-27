@@ -446,7 +446,9 @@ export function CosmosDots({
       // Worker emits raw d3 coordinates (origin-centered); map into cosmos
       // space in place. Everything downstream works in space coordinates.
       const positions = e.data.positions;
-      for (let i = 0; i < positions.length; i++) positions[i] = toSpace(positions[i]);
+      // Index is bounded by the loop, so the noUncheckedIndexedAccess widening
+      // to `undefined` is not reachable here.
+      for (let i = 0; i < positions.length; i++) positions[i] = toSpace(positions[i]!);
       targetPositions = positions;
       streamDone = e.data.done;
       if (!animFrame) {

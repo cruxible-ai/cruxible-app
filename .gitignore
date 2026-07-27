@@ -17,6 +17,10 @@ pnpm-debug.log*
 test-results
 playwright-report
 
+# Evidence captures from scripts/screenshot.mjs: shots of a local daemon's
+# real state, never a build input.
+screenshots
+
 # Renderer spike artifacts (fixtures are multi-MB API dumps; shots are local)
 spike/fixtures
 spike/shot-*.png
