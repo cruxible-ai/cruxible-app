@@ -1,17 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
-  Controls,
-  Handle,
-  MiniMap,
-  Position,
-  useReactFlow,
-  type Edge,
-  type MiniMapNodeProps,
-  type Node,
-  type NodeProps,
-} from "@xyflow/react";
-import {
   useEdgeList,
   useEntitiesForTypes,
   useInspectEntity,
@@ -20,7 +9,6 @@ import {
 } from "@/api/hooks";
 import {
   EdgeGovernancePanel,
-  edgeStroke,
   edgeStrokeRgba,
   useGovernedRelationshipTypes,
   type EdgeMetadata,
@@ -31,7 +19,7 @@ import { entityPath } from "@/components/EntityLink";
 import { MonoId } from "@/components/MonoId";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { actionChipClass, toggleChipClass } from "@/components/Chip";
-import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
+import type { GraphPanelApi, GraphSelection } from "@/components/graph/GraphCanvas";
 import {
   ConnectionList,
   PanelActions,
@@ -46,20 +34,15 @@ import { useSettings } from "@/lib/settings";
 import { humanize, matchesText } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
-/** Dots are GPU points now (CosmosDots) — the budget is a sanity ceiling
- * against pathological instances, not a DOM cost cap. Verified at this scale:
+/** Dots are GPU points (CosmosDots) — the budget is a sanity ceiling against
+ * pathological instances, not a DOM cost cap. Verified at this scale:
  * pans/zooms at refresh rate, select < 50ms (see DECISION.md). */
 const MAX_NODES_DOTS = 30000;
 const MIN_DOTS_PER_TYPE = 25;
-const MAX_NODES_CARDS = 600;
-/** Card mode shows each type's best-connected members and folds the rest
- * into one overflow card — reading titles is the mode's whole point, so it
- * shows the members most worth reading. */
-const CARDS_PER_TYPE = 40;
 /** Sized for the raised dots budget (daemon list accepts it; KEV ships 14k). */
 const EDGE_FETCH_LIMIT = 60000;
-/** Kit-layer hues as plain hex, for surfaces that can't take a Tailwind
- * class: the cards MiniMap and the WebGL dot colors. */
+/** Kit-layer hues as plain hex, for the WebGL dot colors (no Tailwind class
+ * reaches a GPU color buffer). */
 const LAYER_DOT_HEX: Record<KitLayer, string> = {
   base: "#726f63",
   domain: "#a78bfa",
@@ -77,201 +60,7 @@ interface DotNodeCore {
   properties: Record<string, unknown>;
 }
 
-type DotNodeData = DotNodeCore & {
-  showLabel: boolean;
-  matched: boolean;
-  /** Kit-layer accent, stamped at card build time in kit color mode. */
-  layer?: KitLayer | null;
-  /** Resolved dot hue (hex), stamped at card build time in type color mode. */
-  color?: string | null;
-  /** Stamped by GraphCanvas: node is in the selected neighborhood. */
-  lit?: boolean;
-  [key: string]: unknown;
-};
-
-// Dots mode renders through CosmosDots (WebGL points) — no per-dot React
-// component exists anymore. Cards below stay ReactFlow.
-
-function CardNode({ data }: NodeProps<Node<DotNodeData>>) {
-  const accent = data.layer ? LAYER_META[data.layer] : null;
-  return (
-    <div
-      className={`max-w-44 border px-2 py-1 text-left ${
-        accent
-          ? `${accent.border} ${accent.borderHover} bg-zinc-900`
-          : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
-      } ${data.matched ? "ring-2 ring-zinc-100" : ""}`}
-    >
-      <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
-      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wide text-zinc-500">
-        {data.color ? (
-          <span className="h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: data.color }} />
-        ) : (
-          accent && (
-            <span title={accent.label} className={`h-1 w-1 shrink-0 rounded-full ${accent.dot}`} />
-          )
-        )}
-        {data.entityType}
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="truncate text-[11px] leading-4 text-zinc-200">{data.title}</span>
-      </div>
-      <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
-    </div>
-  );
-}
-
-function ClusterLabelNode({ data }: NodeProps<Node<{ label: string; count: number; [key: string]: unknown }>>) {
-  return (
-    <div className="pointer-events-none text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
-      {data.label} <span className="font-mono normal-case text-zinc-600">{data.count}</span>
-    </div>
-  );
-}
-
-function OverflowNode({ data }: NodeProps<Node<{ entityType: string; count: number; [key: string]: unknown }>>) {
-  const instanceId = useInstanceId();
-  return (
-    <Link
-      to={`/i/${instanceId}/browse/${data.entityType}`}
-      className="block max-w-44 border border-dashed border-zinc-700 px-2 py-1 text-[11px] leading-4 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
-    >
-      <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
-      +{data.count} more · browse →
-      <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
-    </Link>
-  );
-}
-
-type MiniMapDotData = {
-  color?: string | null;
-  layer?: KitLayer | null;
-};
-
-function MiniMapDot({ id, x, y, width, height }: MiniMapNodeProps) {
-  const { getNode } = useReactFlow();
-  if (id.startsWith("__label:") || id.startsWith("__more:")) return null;
-
-  const node = getNode(id);
-  const data = node?.data as MiniMapDotData | undefined;
-  const layer = data?.layer;
-  const fill =
-    typeof data?.color === "string" && data.color
-      ? data.color
-      : layer === "base" || layer === "domain"
-        ? LAYER_DOT_HEX[layer]
-        : FALLBACK_DOT_HEX;
-
-  return (
-    // r is in flow coordinates: the dots layout spans thousands of units, so
-    // a node-true radius would scale to under a pixel in the minimap. 56
-    // units ≈ a 2px dot — visible without smearing into neighbors, and
-    // card-sized nodes still win via width/height.
-    <circle
-      cx={x + width / 2}
-      cy={y + height / 2}
-      r={Math.max(width, height, 56) / 2}
-      fill={fill}
-    />
-  );
-}
-
-const nodeTypes = {
-  card: CardNode,
-  clusterLabel: ClusterLabelNode,
-  overflowCard: OverflowNode,
-};
-
-/**
- * Card-mode layout: each type is a labeled near-square grid of cards packed
- * left-to-right into rows of a roughly square canvas, with the type's
- * overflow card (when capped) as the grid's last cell.
- */
-function layoutCardClusters(
-  rows: Array<{ id: string; data: DotNodeCore }>,
-  overflow: Map<string, number>,
-  decorate: (row: { id: string; data: DotNodeCore }) => Partial<DotNodeData>,
-): Node[] {
-  const COL_W = 190;
-  const ROW_H = 48;
-  const GAP_X = 200;
-  const GAP_Y = 170;
-  const LABEL_H = 30;
-
-  const byType = new Map<string, typeof rows>();
-  for (const r of rows) {
-    byType.set(r.data.entityType, [...(byType.get(r.data.entityType) ?? []), r]);
-  }
-  const clusters = [...byType.entries()]
-    .map(([type, members]) => {
-      const cells = members.length + (overflow.has(type) ? 1 : 0);
-      const cols = Math.ceil(Math.sqrt(cells));
-      return {
-        type,
-        members,
-        cols,
-        width: cols * COL_W,
-        height: Math.ceil(cells / cols) * ROW_H + LABEL_H,
-      };
-    })
-    .sort((a, b) => b.members.length - a.members.length);
-
-  const totalArea = clusters.reduce((s, c) => s + (c.width + GAP_X) * (c.height + GAP_Y), 0);
-  const targetRowWidth = Math.max(Math.sqrt(totalArea) * 1.35, ...clusters.map((c) => c.width));
-
-  const nodes: Node[] = [];
-  let x = 0;
-  let y = 0;
-  let rowHeight = 0;
-  for (const cluster of clusters) {
-    if (x > 0 && x + cluster.width > targetRowWidth) {
-      x = 0;
-      y += rowHeight + GAP_Y;
-      rowHeight = 0;
-    }
-    nodes.push({
-      id: `__label:${cluster.type}`,
-      type: "clusterLabel",
-      position: { x, y },
-      selectable: false,
-      draggable: false,
-      data: {
-        label: humanize(cluster.type),
-        count: cluster.members.length + (overflow.get(cluster.type) ?? 0),
-      },
-    });
-    cluster.members.forEach((row, i) => {
-      nodes.push({
-        id: row.id,
-        type: "card",
-        position: {
-          x: x + (i % cluster.cols) * COL_W,
-          y: y + LABEL_H + Math.floor(i / cluster.cols) * ROW_H,
-        },
-        // Nominal card size for the MiniMap's dimension check (see dot nodes).
-        initialWidth: 176,
-        initialHeight: 42,
-        data: { ...row.data, showLabel: true, ...decorate(row) },
-      });
-    });
-    if (overflow.has(cluster.type)) {
-      const i = cluster.members.length;
-      nodes.push({
-        id: `__more:${cluster.type}`,
-        type: "overflowCard",
-        position: {
-          x: x + (i % cluster.cols) * COL_W,
-          y: y + LABEL_H + Math.floor(i / cluster.cols) * ROW_H,
-        },
-        selectable: false,
-        data: { entityType: cluster.type, count: overflow.get(cluster.type)! },
-      });
-    }
-    x += cluster.width + GAP_X;
-    rowHeight = Math.max(rowHeight, cluster.height);
-  }
-  return nodes;
-}
+// Every node is a GPU point (CosmosDots) — no per-dot React component exists.
 
 /**
  * Governance-first legend: edge review state is the signal this graph
@@ -281,7 +70,7 @@ function layoutCardClusters(
  * enum presentation semantics are config-owned
  * (oq-enum-presentation-semantics).
  */
-function GraphLegend({ kitLayers, gl }: { kitLayers: boolean; gl?: boolean }) {
+function GraphLegend({ kitLayers }: { kitLayers: boolean }) {
   const section = "text-[10px] font-semibold uppercase tracking-wider text-zinc-600";
   const row = "inline-flex items-center gap-1.5";
   return (
@@ -302,15 +91,7 @@ function GraphLegend({ kitLayers, gl }: { kitLayers: boolean; gl?: boolean }) {
       </span>
       {/* GL lines can't dash — inactive lifecycle renders faint instead. */}
       <span className={row}>
-        {gl ? (
-          <span className="h-px w-3 bg-zinc-500 opacity-40" />
-        ) : (
-          <span
-            className="w-3 border-t border-dashed border-zinc-500"
-            style={{ height: 0 }}
-          />
-        )}{" "}
-        Inactive lifecycle{gl ? " (faint)" : ""}
+        <span className="h-px w-3 bg-zinc-500 opacity-40" /> Inactive lifecycle (faint)
       </span>
       {kitLayers && (
         <>
@@ -328,13 +109,12 @@ function GraphLegend({ kitLayers, gl }: { kitLayers: boolean; gl?: boolean }) {
 }
 
 /**
- * Last-chosen display options (dots/cards, color mode, type chips) per
- * instance, applied when the graph is opened WITHOUT explicit URL params.
- * A shared link's params always win over the remembered state; focus is
- * navigation, not preference, and is never stored.
+ * Last-chosen display options (color mode, type chips) per instance, applied
+ * when the graph is opened WITHOUT explicit URL params. A shared link's params
+ * always win over the remembered state; focus is navigation, not preference,
+ * and is never stored.
  */
 interface GraphPrefs {
-  view?: "dots" | "cards" | undefined;
   color?: "type" | "kit" | undefined;
   types?: string[] | undefined;
 }
@@ -374,9 +154,8 @@ interface EdgeRow {
   metadata?: EdgeMetadata | null;
 }
 
-// The force layout for dots mode lives in layout.worker.ts (same
-// deterministic d3-force pipeline, streamed off the main thread by
-// CosmosDots). Cards mode is a grid — no physics.
+// The force layout lives in layout.worker.ts (deterministic d3-force,
+// streamed off the main thread by CosmosDots).
 
 /** Node ids within `hops` of `rootId` over the drawn edges. */
 function neighborhood(
@@ -408,11 +187,10 @@ function neighborhood(
 
 /**
  * The complete state graph: every live entity and edge on one canvas as
- * status-colored dots under a static force layout, with the shared
- * GraphCanvas selection model. Search highlights and jumps; "Isolate
- * neighborhood" (URL state) cuts the canvas down to k hops around one
- * entity. Hide-cold applies; dots mode samples dense types by degree when an
- * instance exceeds the node budget.
+ * typed dots under a static force layout, with the shared GraphCanvas
+ * selection model. Search highlights and jumps; "Isolate neighborhood" (URL
+ * state) cuts the canvas down to k hops around one entity. Hide-cold applies;
+ * dense types are sampled by degree when an instance exceeds the node budget.
  */
 export function StateGraphScreen() {
   const instanceId = useInstanceId();
@@ -454,10 +232,6 @@ export function StateGraphScreen() {
       : null;
   }, [focus]);
   const focusInspect = useInspectEntity(focusRef?.type ?? "", focusRef?.id ?? "", !!focusRef);
-  // Two explicit renderings of the same graph: text-free dots for the whole
-  // instance, constrained cards when titles should read at a glance.
-  const mode: "dots" | "cards" = searchParams.get("view") === "cards" ? "cards" : "dots";
-  const maxNodes = mode === "cards" ? MAX_NODES_CARDS : MAX_NODES_DOTS;
   // Entity hue: per-type colors by default; kit-layer accents opt-in (and
   // only offered when the instance actually spans layers).
   const colorMode: "type" | "kit" =
@@ -472,19 +246,10 @@ export function StateGraphScreen() {
     if ([...searchParams.keys()].length > 0) return;
     const prefs = loadGraphPrefs(instanceId);
     const sp = new URLSearchParams();
-    if (prefs.view === "cards") sp.set("view", "cards");
     if (prefs.color === "kit") sp.set("color", "kit");
     if (prefs.types && prefs.types.length > 0) sp.set("types", prefs.types.join(","));
     if ([...sp.keys()].length > 0) setSearchParams(sp, { replace: true });
   }, [searchParams, setSearchParams, instanceId]);
-
-  function setMode(next: "dots" | "cards") {
-    const sp = new URLSearchParams(searchParams);
-    if (next === "cards") sp.set("view", "cards");
-    else sp.delete("view");
-    setSearchParams(sp);
-    saveGraphPrefs(instanceId, { view: next });
-  }
 
   function setColorMode(next: "type" | "kit") {
     const sp = new URLSearchParams(searchParams);
@@ -500,9 +265,9 @@ export function StateGraphScreen() {
     () => buildTypeColors(Object.keys(stats.data?.entity_counts ?? {})),
     [stats.data],
   );
-  // Hue resolution for the current color mode, applied at paint time (card
-  // build / GL color buffer) — never baked into the topology rows, so a
-  // color-mode toggle restyles in place instead of rebuilding the graph.
+  // Hue resolution for the current color mode, applied at paint time (the GL
+  // color buffer) — never baked into the topology rows, so a color-mode
+  // toggle restyles in place instead of rebuilding the graph.
   const dotStyleFor = useMemo(
     () =>
       (entityType: string): { color: string | null; layer: KitLayer | null } =>
@@ -527,61 +292,24 @@ export function StateGraphScreen() {
       .filter(([, count]) => count > 0);
   }, [stats.data, settings.hideCold]);
 
-  // Dots mode includes every selected type and enforces its budget inside the
+  // Every selected type is included; the node budget is enforced inside the
   // layout memo, after degree can be computed from the fetched edge list.
-  // Cards keep their existing smallest-first auto-fit behavior.
-  const { includedTypes, autoExcluded } = useMemo(() => {
-    if (typeFilter) {
-      return {
-        includedTypes: typeCounts.filter(([t]) => typeFilter.has(t)).map(([t]) => t),
-        autoExcluded: [] as string[],
-      };
-    }
-    if (mode === "dots") {
-      return {
-        includedTypes: typeCounts.map(([t]) => t),
-        autoExcluded: [] as string[],
-      };
-    }
-    const ascending = [...typeCounts].sort((a, b) => a[1] - b[1]);
-    const included: string[] = [];
-    let used = 0;
-    for (const [type, count] of ascending) {
-      // Card mode's per-type cap means a giant type only costs its cap.
-      const cost = mode === "cards" ? Math.min(count, CARDS_PER_TYPE) : count;
-      if (included.length > 0 && used + cost > maxNodes) continue;
-      included.push(type);
-      used += cost;
-    }
-    const order = typeCounts.map(([t]) => t);
-    return {
-      includedTypes: order.filter((t) => included.includes(t)),
-      autoExcluded: order.filter((t) => !included.includes(t)),
-    };
-  }, [typeCounts, typeFilter, mode, maxNodes]);
+  const includedTypes = useMemo(
+    () =>
+      typeFilter
+        ? typeCounts.filter(([t]) => typeFilter.has(t)).map(([t]) => t)
+        : typeCounts.map(([t]) => t),
+    [typeCounts, typeFilter],
+  );
 
   const projectedNodes = typeCounts
     .filter(([type]) => includedTypes.includes(type))
-    .reduce(
-      (s, [, n]) => s + (mode === "cards" ? Math.min(n, CARDS_PER_TYPE) : n),
-      0,
-    );
+    .reduce((s, [, n]) => s + n, 0);
   // A focused view is small by construction — always drawable.
-  const withinBudget =
-    !!focusRef ||
-    (projectedNodes > 0 &&
-      (mode === "dots" || projectedNodes <= maxNodes || !typeFilter));
+  const hasSelection = !!focusRef || projectedNodes > 0;
 
-  // Fetch scope follows the mode: cards draw at most CARDS_PER_TYPE members
-  // per type from a 600-node budget, so pulling the 30k dots budget per type
-  // there is pure waste. 600/type still lets the degree ranking pick each
-  // type's best-connected members from well beyond what it can draw.
-  const entityResults = useEntitiesForTypes(
-    includedTypes,
-    mode === "cards" ? MAX_NODES_CARDS : MAX_NODES_DOTS,
-    withinBudget,
-  );
-  const edgeList = useEdgeList(EDGE_FETCH_LIMIT, withinBudget);
+  const entityResults = useEntitiesForTypes(includedTypes, MAX_NODES_DOTS, hasSelection);
+  const edgeList = useEdgeList(EDGE_FETCH_LIMIT, hasSelection);
 
   function toggleType(type: string) {
     const next = new Set(typeFilter ?? includedTypes);
@@ -616,8 +344,8 @@ export function StateGraphScreen() {
 
   // Entity rows + edge rows → the drawn graph's rows and links, in stages:
   // collect, isolate, budget. All pure derivation from fetch results + URL
-  // state. Layout is downstream: grid for cards, worker force-layout for dots.
-  const { rows, links, droppedEdges, sampledTypeCounts, overflow } = useMemo(() => {
+  // state. Layout is downstream (the worker force layout).
+  const { rows, links, droppedEdges, sampledTypeCounts } = useMemo(() => {
     const rows: Array<{ id: string; data: DotNodeCore }> = [];
     const sampledTypeCounts = new Map<string, number>();
     for (let i = 0; i < includedTypes.length; i++) {
@@ -746,9 +474,9 @@ export function StateGraphScreen() {
     }
     let drawnRows = rows.filter((r) => present.has(r.id));
 
-    // Dots mode constraint: preserve every type, then keep each large type's
+    // Node budget: preserve every type, then keep each large type's
     // best-connected members by degree over the full fetched edge list.
-    if (mode === "dots" && !focus && drawnRows.length > MAX_NODES_DOTS) {
+    if (!focus && drawnRows.length > MAX_NODES_DOTS) {
       const degree = new Map<string, number>();
       for (const row of edgeRows) {
         const source = `${row.from_type}:${row.from_id}`;
@@ -805,51 +533,24 @@ export function StateGraphScreen() {
       drawnRows = drawnRows.filter((r) => present.has(r.id));
     }
 
-    // Card mode constraint: keep each type's best-connected members (degree
-    // over the drawn edges), fold the rest into one overflow card per type.
-    const overflow = new Map<string, number>();
-    if (mode === "cards") {
-      const degree = new Map<string, number>();
-      for (const l of links) {
-        degree.set(l.source, (degree.get(l.source) ?? 0) + 1);
-        degree.set(l.target, (degree.get(l.target) ?? 0) + 1);
-      }
-      const byType = new Map<string, typeof drawnRows>();
-      for (const r of drawnRows) {
-        byType.set(r.data.entityType, [...(byType.get(r.data.entityType) ?? []), r]);
-      }
-      const kept: typeof drawnRows = [];
-      for (const [type, members] of byType) {
-        // Focused views are already small — never fold a neighborhood member.
-        if (focus || members.length <= CARDS_PER_TYPE) {
-          kept.push(...members);
-          continue;
-        }
-        const sorted = [...members].sort(
-          (a, b) =>
-            (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0) || a.id.localeCompare(b.id),
-        );
-        kept.push(...sorted.slice(0, CARDS_PER_TYPE));
-        overflow.set(type, members.length - CARDS_PER_TYPE);
-      }
-      const keptIds = new Set(kept.map((r) => r.id));
-      dropped += links.filter(
-        (l) => !keptIds.has(l.source) || !keptIds.has(l.target),
-      ).length;
-      links = links.filter((l) => keptIds.has(l.source) && keptIds.has(l.target));
-      drawnRows = kept;
-    }
-
     return {
       rows: drawnRows,
       links,
       droppedEdges: dropped,
       sampledTypeCounts,
-      overflow,
     };
     // search is deliberately NOT a dependency: match decoration happens in
     // the cheap passes below. Nor is anything color — see dotStyleFor.
-  }, [entityResults, edgeList.data, includedTypes, settings.hideCold, focus, hops, mode, focusRef, focusInspect.data]);
+  }, [
+    entityResults,
+    edgeList.data,
+    includedTypes,
+    settings.hideCold,
+    focus,
+    hops,
+    focusRef,
+    focusInspect.data,
+  ]);
 
   // Cheap per-keystroke pass: which drawn entities match the search.
   const { matchedIds, matchCount } = useMemo(() => {
@@ -862,42 +563,11 @@ export function StateGraphScreen() {
     return { matchedIds, matchCount: matchedIds.size };
   }, [rows, search]);
 
-  // Cards mode: grid layout + SVG edges (ReactFlow, unchanged philosophy).
-  const cardGraph = useMemo(() => {
-    if (mode !== "cards") return null;
-    const nodes = layoutCardClusters(rows, overflow, (row) => ({
-      matched: matchedIds?.has(row.id) ?? false,
-      ...dotStyleFor(row.data.entityType),
-    }));
-    // Stroke alpha carries softness: GraphCanvas owns style.opacity for its
-    // selection dimming and would clobber a base opacity here.
-    const edges: Edge[] = links.map(({ row, source, target }) => {
-      const governed = governedTypes.has(row.relationship_type);
-      return {
-        id: `e${row.edge_key}`,
-        source,
-        target,
-        data: { row, governed, revealLabel: row.relationship_type.replaceAll("_", " ") },
-        style: {
-          ...edgeStroke(
-            governed,
-            row.metadata?.assertion?.review?.status,
-            row.metadata?.assertion?.lifecycle?.status,
-          ),
-          strokeWidth: 1.5,
-        },
-        animated: false,
-      };
-    });
-    return { nodes, edges };
-  }, [mode, rows, links, overflow, governedTypes, matchedIds, dotStyleFor]);
-
-  // Dots mode: flat GPU buffers for CosmosDots. No arrowheads at dot
-  // density — direction lives in the context panel. Topology only: dot hues
-  // travel separately (glNodeColors) so a color-mode toggle can't invalidate
-  // this identity and rebuild the graph.
+  // Flat GPU buffers for CosmosDots. No arrowheads at dot density —
+  // direction lives in the context panel. Topology only: dot hues travel
+  // separately (glNodeColors) so a color-mode toggle can't invalidate this
+  // identity and rebuild the graph.
   const glGraph = useMemo(() => {
-    if (mode !== "dots") return null;
     const nodes: GlDotNode[] = rows.map((r) => ({
       id: r.id,
       title: r.data.title,
@@ -917,7 +587,7 @@ export function StateGraphScreen() {
       };
     });
     return { nodes, edges };
-  }, [mode, rows, links, governedTypes]);
+  }, [rows, links, governedTypes]);
 
   // Dot hues, index-aligned with glGraph.nodes. The only thing a color-mode
   // toggle recomputes — CosmosDots pushes it through setPointColors.
@@ -948,7 +618,7 @@ export function StateGraphScreen() {
     () => new Map(links.map((l) => [`e${l.row.edge_key}`, l])),
     [links],
   );
-  // Minimal edge shape for the panel's ConnectionList (both modes).
+  // Minimal edge shape for the panel's ConnectionList.
   const panelEdges = useMemo(
     () =>
       links.map(({ row, source, target }) => ({
@@ -964,7 +634,7 @@ export function StateGraphScreen() {
   if (stats.error) return <LoadState error={stats.error} />;
 
   const loading =
-    withinBudget && (edgeList.isPending || entityResults.some((r) => r.isPending));
+    hasSelection && (edgeList.isPending || entityResults.some((r) => r.isPending));
   const drawnEdges = links.length;
   const fetchedEdges = drawnEdges + droppedEdges;
   const showDegenerateNotice =
@@ -980,7 +650,6 @@ export function StateGraphScreen() {
 
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
     if (selection.kind === "node") {
-      // Synthetic cluster labels / overflow cards carry no entity row.
       const d = rowById.get(selection.id);
       if (!d) return null;
       return (
@@ -1039,25 +708,12 @@ export function StateGraphScreen() {
       <header className="mb-3 flex items-baseline gap-3">
         <h1 className="text-[17px] font-semibold text-zinc-100">State graph</h1>
         <span className="text-[12px] text-zinc-600">
-          {withinBudget
-            ? `${rows.length} entities · ${drawnEdges} edges`
+          {hasSelection
+            ? `${rows.length.toLocaleString()} entities · ${drawnEdges.toLocaleString()} edges`
             : "The whole instance state on one canvas"}
-          {droppedEdges > 0 && !focus && ` · ${droppedEdges} edges to excluded or hidden entities not drawn`}
+          {droppedEdges > 0 && !focus && ` · ${droppedEdges.toLocaleString()} edges to excluded or hidden entities not drawn`}
         </span>
         <span className="ml-auto flex items-center gap-2">
-          <span className="inline-flex overflow-hidden border border-zinc-800 text-[12px]">
-            {(["dots", "cards"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`px-2 py-px ${
-                  mode === m ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {m === "dots" ? "Dots" : "Cards"}
-              </button>
-            ))}
-          </span>
           {/* Kit-layer hue is only an alternative when the instance spans layers. */}
           {layerColoring.enabled && (
             <span
@@ -1123,7 +779,9 @@ export function StateGraphScreen() {
             const active = includedTypes.includes(type);
             const sampledCount = sampledTypeCounts.get(type);
             const countLabel =
-              sampledCount === undefined ? String(count) : `${sampledCount}/${count}`;
+              sampledCount === undefined
+                ? count.toLocaleString()
+                : `${sampledCount.toLocaleString()}/${count.toLocaleString()}`;
             return (
               <button key={type} onClick={() => toggleType(type)} className={toggleChipClass(active)}>
                 {/* The chip doubles as the color legend for its type's dots. */}
@@ -1143,24 +801,11 @@ export function StateGraphScreen() {
           >
             {includedTypes.length === typeCounts.length ? "Deselect all" : "Select all"}
           </button>
-          {mode === "cards" && autoExcluded.length > 0 && (
-            <span className="text-[12px] text-zinc-600">
-              {autoExcluded.map(humanize).join(", ")} left out to fit the {maxNodes}-node budget —
-              toggle chips to trade
-            </span>
-          )}
         </div>
-      )}
-      {mode === "cards" && !withinBudget && projectedNodes > 0 && (
-        <EmptyState>
-          {projectedNodes.toLocaleString()} entities selected — this view draws up to {maxNodes}.
-          Narrow the type chips above (or hide cold entities in Settings) to bring the selection
-          under budget.
-        </EmptyState>
       )}
       {projectedNodes === 0 && <EmptyState>No live entities in the selected types.</EmptyState>}
       {loading && <LoadState />}
-      {withinBudget && !loading && glGraph && (
+      {hasSelection && !loading && glGraph && (
         <CosmosDots
           // Remount on graph-identity change so fit-view reframes the new shape
           // (focus in/out, hop change, type trades).
@@ -1168,31 +813,6 @@ export function StateGraphScreen() {
           nodes={glGraph.nodes}
           edges={glGraph.edges}
           nodeColors={glNodeColors}
-          renderPanel={renderPanel}
-          className="min-h-0 flex-1"
-          overlay={
-            <div className="flex flex-col gap-1.5">
-              <GraphLegend kitLayers={colorMode === "kit"} gl />
-              {showDegenerateNotice && (
-                <div className="border border-zinc-800 bg-zinc-950/90 px-2 py-1.5 text-[12px] text-amber-400">
-                  Most of this graph's edges connect to entities not drawn — adjust the type
-                  chips or use Find / focus.
-                </div>
-              )}
-            </div>
-          }
-          selectRequest={selectRequest}
-          matchedIds={matchedIds}
-        />
-      )}
-      {withinBudget && !loading && cardGraph && (
-        <GraphCanvas
-          // Remount on graph-identity change so fit-view reframes the new shape
-          // (mode switch, focus in/out, hop change, type trades).
-          key={`cards:${focus ?? "all"}:${hops}:${includedTypes.join("|")}`}
-          nodes={cardGraph.nodes}
-          edges={cardGraph.edges}
-          nodeTypes={nodeTypes}
           renderPanel={renderPanel}
           className="min-h-0 flex-1"
           overlay={
@@ -1207,17 +827,8 @@ export function StateGraphScreen() {
             </div>
           }
           selectRequest={selectRequest}
-        >
-          <Controls showInteractive={false} className="!shadow-none" />
-          <MiniMap
-            pannable
-            zoomable
-            className="!h-24 !w-36"
-            bgColor="#09090b"
-            maskColor="rgba(23,22,18,0.7)"
-            nodeComponent={MiniMapDot}
-          />
-        </GraphCanvas>
+          matchedIds={matchedIds}
+        />
       )}
     </div>
   );

@@ -33,7 +33,7 @@ daemon URL goes in `CRUXIBLE_DAEMON_URL`.
 | screen        | what it shows                                                            |
 | ------------- | ------------------------------------------------------------------------ |
 | Overview      | status meters per entity type, view cards, latest snapshots               |
-| State graph   | the whole instance as typed dots and governance-colored edges; search, focus, dual dot/card modes |
+| State graph   | the whole instance as typed dots and governance-colored edges; search, neighborhood focus, and an internal-model scope that drops the ingested reference bulk |
 | Type map      | the ontology: entity types with live counts, relationship types as edges, base/overlay layers |
 | Review groups | pending judgment: signal matrix, proposed edges with evidence, resolution rationale and actor |
 | Workflows     | grouped by class (decision proposals first, with pending-judgment counts); each workflow's declarative step pipeline |

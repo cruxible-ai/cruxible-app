@@ -648,7 +648,7 @@ export function CosmosDots({
         {overlay && <div className="absolute left-2 top-2 z-10">{overlay}</div>}
 
         {/* Canvas controls: zoom in/out, fit, fullscreen — square, warm-dark,
-            matching the ReactFlow Controls the cards mode keeps. */}
+            matching the ReactFlow Controls on the type map and path graphs. */}
         <div className="absolute bottom-2 left-2 z-10 flex flex-col border border-zinc-800 bg-zinc-950/90">
           <button
             onClick={() => zoomBy(1.5)}
