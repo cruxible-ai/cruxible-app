@@ -3,6 +3,13 @@ import { useParams } from "react-router-dom";
 import { useApiClient } from "./DataSourceContext";
 import { ApiError, unwrap } from "./data-source";
 import type { SourceArtifactListResult, SourceArtifactReadResult } from "./artifact-types";
+import type {
+  ContractListResult,
+  DereferenceResult,
+  ListEnvelope,
+  ReceiptDetail,
+  ReceiptListResult,
+} from "./governance-types";
 
 /** Instance id from the /i/:instanceId route segment. */
 export function useInstanceId(): string {
@@ -19,7 +26,7 @@ export type ViewParams = Record<string, string | number | undefined>;
  * only declares the reserved keys, so forwarded params go through a cast —
  * reported as contract friction.
  */
-export function useView(queryName: string, params?: ViewParams) {
+export function useView(queryName: string, params?: ViewParams, enabled = true) {
   const client = useApiClient();
   const instanceId = useInstanceId();
   // Receipted query runs are cached hard and keyed on graph structure: a
@@ -35,6 +42,10 @@ export function useView(queryName: string, params?: ViewParams) {
   const query = params as { limit?: number | null; offset?: number } | undefined;
   return useQuery({
     queryKey: ["view", instanceId, queryName, params ?? {}, structureKey],
+    // Callers that only know their query name conditionally (a view keyed on
+    // an entity property that may be absent) opt out rather than firing a
+    // request at an empty route.
+    enabled: enabled && queryName !== "",
     staleTime: 5 * 60 * 1000,
     queryFn: async () =>
       unwrap(
@@ -469,4 +480,246 @@ export function useStatusTotals(entityType: string, statusValues: string[]) {
       },
     })),
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// 0.3 governance read surfaces
+//
+// Outcome contracts are mounted but hidden from /openapi.json
+// (include_in_schema=False), and the receipt list route serves fields the
+// generated schema does not carry, so these go through loosened signatures
+// against hand-written types in src/api/governance-types.ts — the same
+// arrangement the source-artifact hooks above use. Delete the casts when
+// `pnpm gen:api` picks the routes up.
+// ─────────────────────────────────────────────────────────────────────
+
+type LooseGet = (
+  path: string,
+  init: {
+    params: {
+      path: Record<string, string>;
+      query?: Record<string, string | number | undefined>;
+    };
+  },
+) => Promise<{ data?: unknown; error?: unknown; response: Response }>;
+
+type LoosePost = (
+  path: string,
+  init: { params: { path: Record<string, string> }; body: Record<string, unknown> },
+) => Promise<{ data?: unknown; error?: unknown; response: Response }>;
+
+function useLooseGet(): LooseGet {
+  const client = useApiClient();
+  return client.GET as unknown as LooseGet;
+}
+
+function useLoosePost(): LoosePost {
+  const client = useApiClient();
+  return client.POST as unknown as LoosePost;
+}
+
+/**
+ * Polling receipt feed — the live activity stream's spine.
+ *
+ * The receipt list is the cheap half: newest first, six fields per row, no
+ * `committed` and no `actor_context`. It also cannot be filtered by actor,
+ * outcome, or time window over HTTP, and `read_revision` does NOT move when a
+ * receipt is written, so there is no cheap "anything new?" probe — polling the
+ * list itself is the probe. All four are reported as friction; see
+ * useReceiptDetails for the consequence.
+ */
+export function useReceiptFeed(limit = 60, intervalMs = 2500, live = true) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["receipt-feed", instanceId, limit],
+    staleTime: 0,
+    refetchInterval: live ? intervalMs : false,
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/list/{resource_type}", {
+          params: {
+            path: { instance_id: instanceId, resource_type: "receipts" },
+            query: { limit },
+          },
+        }),
+      ) as unknown as ReceiptListResult,
+  });
+}
+
+/**
+ * Full receipts for the ids currently on screen, one GET each.
+ *
+ * This N+1 is forced: `committed` (the ONLY committed-vs-refused
+ * discriminator) and `actor_context` (who did it) exist solely on the
+ * per-receipt route. Receipts are immutable, so each id is fetched exactly
+ * once and then cached for the session — a poll that returns no new ids costs
+ * nothing beyond the list call.
+ */
+export function useReceiptDetails(receiptIds: string[]) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQueries({
+    queries: receiptIds.map((receiptId) => ({
+      queryKey: ["receipt", instanceId, receiptId],
+      staleTime: Infinity,
+      gcTime: 30 * 60_000,
+      retry: false,
+      queryFn: async () =>
+        unwrap(
+          await client.GET("/api/v1/{instance_id}/receipts/{receipt_id}", {
+            params: { path: { instance_id: instanceId, receipt_id: receiptId } },
+          }),
+        ) as ReceiptDetail,
+    })),
+    combine: (results) => {
+      const byId = new Map<string, ReceiptDetail>();
+      results.forEach((r, i) => {
+        const id = receiptIds[i];
+        if (id && r.data) byId.set(id, r.data as ReceiptDetail);
+      });
+      return { byId, pending: results.some((r) => r.isPending) };
+    },
+  });
+}
+
+/**
+ * Resolution contracts for one entity type (or one subject).
+ *
+ * There is no batch "which of these ids have contracts" surface, so the queue
+ * view lists every contract for the type and joins client-side on
+ * `contract.entity_id` — reported as friction. Note `total` stays the
+ * unfiltered store count when `status` is passed, so paging + status filtering
+ * do not compose; the UI pages without a status filter.
+ */
+export function useOutcomeContracts(entityType?: string, entityId?: string, limit = 200) {
+  const get = useLooseGet();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["outcome-contracts", instanceId, entityType ?? null, entityId ?? null, limit],
+    retry: false,
+    staleTime: 10_000,
+    queryFn: async (): Promise<ContractListResult | null> => {
+      try {
+        return unwrap(
+          await get("/api/v1/{instance_id}/outcome-contracts", {
+            params: {
+              path: { instance_id: instanceId },
+              query: {
+                limit,
+                ...(entityType ? { entity_type: entityType } : {}),
+                ...(entityId ? { entity_id: entityId } : {}),
+              },
+            },
+          }),
+        ) as ContractListResult;
+      } catch (err) {
+        // Older daemons do not mount the route; "feature absent" is null, not
+        // an error, so the contract columns simply never render.
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
+    },
+  });
+}
+
+/** The due / overdue / contradicted outcome queues. */
+export function useOutcomeQueue(queue: "due" | "overdue" | "contradicted", limit = 100) {
+  const get = useLooseGet();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["outcome-queue", instanceId, queue, limit],
+    retry: false,
+    queryFn: async () => {
+      try {
+        return unwrap(
+          await get("/api/v1/{instance_id}/outcome-contracts/queue", {
+            params: { path: { instance_id: instanceId }, query: { queue, limit } },
+          }),
+        ) as ListEnvelope & { items: Record<string, unknown>[] };
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
+    },
+  });
+}
+
+/** One entity with its properties and metadata (lifecycle, last actor). */
+export function useEntity(entityType: string, entityId: string, enabled = true) {
+  const get = useLooseGet();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["entity", instanceId, entityType, entityId],
+    enabled: enabled && entityType !== "" && entityId !== "",
+    queryFn: async () =>
+      unwrap(
+        await get("/api/v1/{instance_id}/entities/{entity_type}/{entity_id}", {
+          params: {
+            path: { instance_id: instanceId, entity_type: entityType, entity_id: entityId },
+          },
+        }),
+      ) as {
+        found: boolean;
+        entity_type: string;
+        entity_id: string;
+        properties: Record<string, unknown>;
+        metadata: Record<string, unknown>;
+      },
+  });
+}
+
+export interface SourceLocator {
+  source_artifact_id: string;
+  artifact_revision_id?: string | undefined;
+  chunk_id?: string | undefined;
+  heading_path?: string[] | undefined;
+  block_selector?: string | undefined;
+  expected_content_hash?: string | undefined;
+}
+
+/**
+ * Dereference a source locator. Passing `artifact_revision_id` reads the
+ * PINNED revision; omitting it resolves against the artifact's current head
+ * and echoes back which revision that is.
+ */
+export function useDereference(locator: SourceLocator | null, enabled = true) {
+  const post = useLoosePost();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["dereference-locator", instanceId, locator],
+    enabled: enabled && locator !== null,
+    staleTime: 5 * 60_000,
+    retry: false,
+    queryFn: async () =>
+      unwrap(
+        await post("/api/v1/{instance_id}/source-evidence/dereference", {
+          params: { path: { instance_id: instanceId } },
+          body: {
+            source_artifact_id: locator!.source_artifact_id,
+            artifact_revision_id: locator!.artifact_revision_id ?? null,
+            chunk_id: locator!.chunk_id ?? null,
+            heading_path: locator!.heading_path ?? null,
+            block_selector: locator!.block_selector ?? null,
+            expected_content_hash: locator!.expected_content_hash ?? null,
+          },
+        }),
+      ) as DereferenceResult,
+  });
+}
+
+/**
+ * The artifact revision a pinned locator would resolve to TODAY.
+ *
+ * There is no route that reports an artifact's current revision cheaply: the
+ * artifact list omits `revision` entirely and the per-artifact GET ships every
+ * chunk (12 MB for the KEV catalog). An unpinned dereference of the same
+ * locator answers the question in ~2 KB and is what this uses — reported as
+ * friction, since "is my evidence current" should not require a workaround.
+ */
+export function useCurrentRevision(locator: SourceLocator | null, enabled = true) {
+  const unpinned: SourceLocator | null = locator
+    ? { ...locator, artifact_revision_id: undefined, expected_content_hash: undefined }
+    : null;
+  return useDereference(unpinned, enabled);
 }
