@@ -5,6 +5,9 @@ import { OverviewScreen } from "@/screens/OverviewScreen";
 import { QueryViewScreen } from "@/screens/QueryViewScreen";
 import { EntityScreen } from "@/screens/EntityScreen";
 import { ActivityScreen } from "@/screens/ActivityScreen";
+import { LiveFeedScreen } from "@/screens/LiveFeedScreen";
+import { TriageQueueScreen } from "@/screens/TriageQueueScreen";
+import { DecisionScreen } from "@/screens/DecisionScreen";
 import { GroupScreen } from "@/screens/GroupScreen";
 import { GroupsScreen } from "@/screens/GroupsScreen";
 import { StateGraphScreen } from "@/screens/StateGraphScreen";
@@ -42,7 +45,10 @@ export const router = createBrowserRouter([
       { path: "graph", element: <StateGraphScreen /> },
       { path: "groups", element: <GroupsScreen /> },
       { path: "groups/:groupId", element: <GroupScreen /> },
+      { path: "live", element: <LiveFeedScreen /> },
       { path: "activity", element: <ActivityScreen /> },
+      { path: "triage", element: <TriageQueueScreen /> },
+      { path: "triage/:decisionId", element: <DecisionScreen /> },
       { path: "workflows", element: <WorkflowsScreen /> },
       { path: "workflows/:workflowName", element: <WorkflowScreen /> },
       { path: "views", element: <ViewsIndexScreen /> },

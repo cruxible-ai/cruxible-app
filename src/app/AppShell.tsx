@@ -6,15 +6,19 @@ import {
   useQueryCatalog,
   useSourceArtifactsProbe,
   useStats,
+  useStatusTotals,
 } from "@/api/hooks";
+import { DECISION_TYPE } from "@/screens/TriageQueueScreen";
 import { humanize } from "@/lib/text";
 import {
+  Activity,
   FileText,
   GitPullRequest,
   History,
   LayoutDashboard,
   Network,
   Search,
+  ShieldAlert,
   Waypoints,
   Workflow,
 } from "lucide-react";
@@ -54,6 +58,11 @@ export function AppShell() {
   const groupTotal = (useGroups(undefined, 1).data as { total?: number } | undefined)?.total ?? 0;
   const pendingGroups =
     (useGroups("pending_review", 1).data as { total?: number } | undefined)?.total ?? 0;
+  // Triage nav is kit-aware: it appears only where the instance models triage
+  // decisions, and its badge counts the ones still waiting on a reviewer.
+  const triageCount = stats.data?.entity_counts?.[DECISION_TYPE] ?? 0;
+  const proposedDecisions =
+    useStatusTotals(DECISION_TYPE, triageCount > 0 ? ["proposed"] : [])[0]?.data?.total ?? 0;
 
   const views = (catalog.data?.items ?? []).filter(
     (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
@@ -138,6 +147,33 @@ export function AppShell() {
               )}
             </NavLink>
           )}
+          {/* Triage shows only when the instance actually models triage
+              decisions, the same kit-aware gating Sources uses. */}
+          {triageCount > 0 && (
+            <NavLink
+              to={`/i/${instanceId}/triage`}
+              className={(s) => `${navClass(s)} flex items-center justify-between`}
+            >
+              <span className="inline-flex items-center gap-2">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                Triage queue
+              </span>
+              {proposedDecisions > 0 && (
+                <span
+                  title={`${proposedDecisions} awaiting review`}
+                  className="font-mono text-[12px] text-amber-400/90"
+                >
+                  {proposedDecisions}
+                </span>
+              )}
+            </NavLink>
+          )}
+          <NavLink to={`/i/${instanceId}/live`} className={navClass}>
+            <span className="inline-flex items-center gap-2">
+              <Activity className="h-3.5 w-3.5" />
+              Live activity
+            </span>
+          </NavLink>
           <NavLink to={`/i/${instanceId}/activity`} className={navClass}>
             <span className="inline-flex items-center gap-2">
               <History className="h-3.5 w-3.5" />
