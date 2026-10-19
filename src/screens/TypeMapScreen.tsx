@@ -287,7 +287,7 @@ function KindPanel({
           <div className="text-[12px] text-zinc-400">
             {rule.rule === "minted" ? "minted ids" : "keyed by"}{" "}
             {(rule.keys ?? []).map((key) => (
-              <span key={key} className="mr-1.5 font-mono text-zinc-300">
+              <span key={key} className="mr-1.5 break-all font-mono text-zinc-300">
                 {key}
               </span>
             ))}

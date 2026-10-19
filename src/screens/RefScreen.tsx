@@ -81,6 +81,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function Value({ value, depth }: { value: unknown; depth: number }) {
+  if (value === undefined || value === null) return null;
   if (typeof value === "string") {
     if (looksLikeDateTime(value)) return <span title={value}>{formatDateTime(value)}</span>;
     // Digests (sha256:…) also parse as proposal ids; only link the other refs.
