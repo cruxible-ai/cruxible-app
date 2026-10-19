@@ -19,6 +19,7 @@ import {
   GET_BATCH_MAX,
   HISTORY_PAGE,
   INCOMING_PAGE,
+  LEDGER_PAGE,
   headQuery,
   inboxQuery,
   isReadRoute,
@@ -173,6 +174,22 @@ for (const ref of samples.slice(0, 2)) {
 // ClaimType cards (the type map loads one on click).
 for (const item of claimTypes.slice(0, 30)) {
   await call("post", `${P}/get`, { body: getBody({ ref: `ClaimType:${item.predicate}`, coordinate: C }) });
+}
+
+// Ledger: the first two generation pages and the proposals their rows peek.
+{
+  let cursor: string | undefined;
+  for (let page = 0; page < 2; page += 1) {
+    const result = await call<OrientResult>("get", `${P}/orient`, {
+      query: orientQuery({ coordinate: C, section: "generations", limit: LEDGER_PAGE, cursor }),
+    });
+    const rows = result?.generations ?? [];
+    if (page === 0) {
+      for (const row of rows.filter((r) => r.proposal).slice(0, 10)) await fetchCards([row.proposal!]).catch(() => null);
+    }
+    if (!result?.next_cursor) break;
+    cursor = result.next_cursor;
+  }
 }
 
 // Proposals: each status's first page, the cards of up to ten (the ledger's

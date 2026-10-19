@@ -54,7 +54,7 @@ test("fixture-backed inspection flow: overview, type map, Subject, neighborhood,
   await expect(page.getByText("lifecycle.state")).toBeVisible();
   await expect(page.getByRole("button", { name: /approve|activate|reject|withdraw/i })).toHaveCount(0);
   await page.locator("aside").getByRole("link", { name: "Ledger" }).click();
-  await expect(page.getByText("2 of 3 settled on this page")).toBeVisible();
+  await expect(page.getByRole("link", { name: "g42" })).toBeVisible();
   await page.locator("aside").getByRole("link", { name: "Beliefs" }).click();
   await page.getByRole("button", { name: /Stale beliefs/ }).click();
   await expect(page.getByText("Evidence expired", { exact: true })).toBeVisible();

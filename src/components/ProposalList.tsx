@@ -60,7 +60,8 @@ function ProposalRow({ entry }: { entry: Entry }) {
   );
 }
 
-function ProposalPeek({ id }: { id: string }) {
+/** A proposal's change set and reason, from one get (expanded rows). */
+export function ProposalPeek({ id }: { id: string }) {
   const read = useCard(id);
   const card = cardOf(read.data, "proposal");
   if (read.isPending) return <div className="ml-6 animate-pulse text-[12px] text-zinc-600">Reading…</div>;

@@ -4,7 +4,7 @@
  * that settled the assessment's status, and one awaiting approval).
  */
 import { defineFixture } from "../fixture";
-import { getBatchBody, proposalsQuery, reviewBody } from "@/api/requests";
+import { getBatchBody, LEDGER_PAGE, orientQuery, proposalsQuery, reviewBody } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./authored";
 
@@ -116,7 +116,47 @@ const reviewFixture = (id: string, response: Schemas["ProposalReview"], after?: 
     response,
   });
 
+const generations = defineFixture({
+  method: "get",
+  path: "/api/v1/{instance_id}/orient",
+  query: orientQuery({ coordinate: COORDINATE, section: "generations", limit: LEDGER_PAGE }),
+  response: {
+    tag: "playbill-orient-v1",
+    instance: "inst_fixture",
+    coordinate: COORDINATE,
+    generation: AT.generation,
+    accepted_at: "2026-10-19T09:30:00Z",
+    evaluation_time: NOW,
+    section: "generations",
+    generations: [
+      {
+        sequence: 42,
+        git_oid: COORDINATE.git_oid,
+        accepted_at: "2026-10-19T09:30:00Z",
+        changeset_digest: "sha256:" + "c".repeat(64),
+        proposal: ACCEPTED,
+        proposer: "release-owner",
+        approvals: ["security-lead"],
+        because: "Vendor advisory says rel-1 never shipped the build.",
+        members: 1,
+      },
+      {
+        sequence: 41,
+        git_oid: "3".repeat(40),
+        accepted_at: "2026-10-17T10:00:00Z",
+        proposal: ACCEPTED_OLDER,
+        proposer: "sbom-import",
+        because: "SBOM import of rel-1",
+        members: 14,
+      },
+      { sequence: 0, git_oid: "0".repeat(40), accepted_at: "2026-10-17T09:00:00Z", members: 0 },
+    ],
+    next_cursor: "g-page-2",
+  },
+});
+
 export default [
+  generations,
   list("settled", [
     entry(ACCEPTED, { actor_id: "release-owner", admitted_at: "2026-10-19T09:00:00Z", terminal_reason: "accepted" }),
     entry(ACCEPTED_OLDER, { admitted_at: "2026-10-17T10:00:00Z", actor_id: "sbom-import", terminal_reason: "accepted" }),

@@ -8,16 +8,17 @@ const ACCEPTED = "sha256:" + "6".repeat(64);
 const OPEN = "sha256:" + "a".repeat(64);
 
 describe("Ledger", () => {
-  it("lists accepted proposals newest first and peeks a change set", async () => {
+  it("lists accepted generations newest first with proposer, approvals, reason and a pin link", async () => {
     renderApp("/i/inst_fixture/ledger");
     const main = within(await screen.findByRole("main"));
-    expect(await main.findByText("2 of 3 settled on this page")).toBeInTheDocument();
-    expect(main.getByText(/Interim view/)).toBeInTheDocument();
-    const links = main.getAllByRole("link", { name: /^sha256:/ });
-    expect(links[0]).toHaveAttribute("href", `/i/inst_fixture/p/${encodeURIComponent(ACCEPTED)}`);
-    fireEvent.click(main.getByRole("button", { name: `Expand ${ACCEPTED}` }));
-    expect(await main.findByText("Vendor advisory says rel-1 never shipped the build.")).toBeInTheDocument();
-    expect(main.getByRole("link", { name: /CLM-0+a3/ })).toBeInTheDocument();
+    const g42 = await main.findByRole("link", { name: "g42" });
+    expect(g42).toHaveAttribute("href", "/i/inst_fixture?at=42");
+    expect(main.getByText("approved by security-lead")).toBeInTheDocument();
+    expect(main.getByText("14 members")).toBeInTheDocument();
+    expect(main.getByRole("button", { name: "Next page →" })).toBeInTheDocument();
+    fireEvent.click(main.getByRole("button", { name: "Expand generation 42" }));
+    expect(await main.findByRole("link", { name: /CLM-0+a3/ })).toBeInTheDocument();
+    expect(main.getAllByText("Vendor advisory says rel-1 never shipped the build.").length).toBeGreaterThan(1);
   });
 });
 

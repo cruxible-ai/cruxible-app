@@ -9,6 +9,7 @@ import {
   GET_BATCH_MAX,
   HISTORY_PAGE,
   INCOMING_PAGE,
+  LEDGER_PAGE,
   LINE_RUNS_PAGE,
   CLAIM_READ_BATCH_MAX,
   headQuery,
@@ -579,4 +580,15 @@ export function useInboxItem(itemId: string | null) {
         }),
       ),
   });
+}
+
+/**
+ * One page of the generation timeline, newest first from the page's pinned
+ * generation (orient section=generations, O(page)).
+ */
+export function useGenerations(cursor?: string) {
+  const orient = useOrientFetch();
+  return usePinnedQuery("generations", [cursor ?? null], (coordinate) =>
+    orient(coordinate, { section: "generations", limit: LEDGER_PAGE, ...(cursor !== undefined ? { cursor } : {}) }),
+  );
 }

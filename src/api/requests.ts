@@ -113,6 +113,9 @@ export function getBody(args: GetArgs): RequestBody<"/api/v1/{instance_id}/get",
   };
 }
 
+/** Accepted generations per ledger page. */
+export const LEDGER_PAGE = 50;
+
 /** Incoming links per page (get allows up to 200). */
 export const INCOMING_PAGE = 50;
 
