@@ -42,12 +42,13 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | Overview  | Subjects per kind, the Claim tally, artifact counts, orient's attention summary, the first `next` items, `next` health per component, installed kits |
 | Type map  | the ontology: Subject kinds with counts, Subject-valued ClaimTypes as kind links; per kind its identity rule and every ClaimType's cardinality, value type, evidence requirement and staleness; evidence rules per ClaimType |
 | Subject   | a Subject's card: every field's value and read flags, each Claim's verdict and contenders, capture admission; per Claim on expand its evidence (Captures, attestations, rationale), admission accounts and revisions; the field history, paged |
-| Neighborhood | a Subject's outgoing links (Subject-valued Claims), depth 1 or 2, at most 150 Subjects; incoming links shown as counts per node |
+| Neighborhood | a Subject's outgoing links (Subject-valued Claims), depth 1 or 2, at most 150 Subjects, plus the first page of what points at it; every node pages its incoming links |
 | Next      | the `next` queue, a page of 100 at a time, grouped by severity, filterable by family; each reason renders its own detail fields; repairs show as text with their CLI command |
 | Beliefs   | contested, stale and drifted beliefs: tabs over the `next` page in hand |
-| Proposals / Ledger | proposals by status; the ledger of accepted proposals (interim, until the daemon serves its generation timeline); each opens its review: members with field deltas and prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
+| Ledger    | accepted generations newest first: sequence (opens the instance pinned there), oid, proposer, approvals, reason, member count; a row expands to its change set |
+| Proposals | proposals by status; each opens its review: members with field deltas and prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
 | Lines     | every Line: Procedure, trigger, max authority, mandates, enablement, last run, inbox unread, `next` rows |
-| Line      | triggers, enablements, occurrences, recent runs, the Procedure's track record, measurement reviews and resolution dispositions, readings (paged), mandate scope and condition query, the Line's inbox (paged) |
+| Line      | triggers, enablements, occurrences, runs (paged), the Procedure's track record, measurement reviews and resolution dispositions, readings (paged), mandate scope and condition query, the Line's inbox (paged) |
 | Run       | nodes, the terminal refusal, terminal egress with the proposal produced, Captures read, receipt and attribution (withheld where the credential may not see them) |
 | Reference | any other ref `get` resolves (Claim, Capture, Line, run, …), its card field by field |
 
@@ -85,17 +86,21 @@ no proxy, no token in the client).
 
 ### No daemon handy
 
-`VITE_CRUXIBLE_FIXTURES=1 pnpm dev` serves the fixture world in
-`src/fixtures/recorded/` through an MSW worker at the network layer — same
-code paths, canned data. A fixture answers only the exact request it recorded
-(method, path, normalized query and body); anything else gets the daemon's
-error envelope.
+`VITE_CRUXIBLE_FIXTURES=1 pnpm dev` serves the recorded world in
+`src/fixtures/recorded/` (read from a security kit 1.1.0 gate world on the
+pinned core) through an MSW worker at the network layer — same code paths,
+canned data. `VITE_CRUXIBLE_FIXTURES=authored` serves the small hand-authored
+world in `src/fixtures/authored/` instead (contested slots, refusals, second
+pages; the Playwright smoke runs on it). A fixture answers only the exact
+request it recorded (method, path, normalized query and body); anything else
+gets the daemon's error envelope.
 
-To re-record from a daemon serving a scratch world (never a live state root):
-run the dev proxy against it, then
-`node scripts/record-fixtures.ts --base http://127.0.0.1:5173 --instance <id>`,
+To re-record, serve a scratch world (never a live state root) from a
+read-only daemon on a Unix socket, point the dev proxy at it with no token in
+the environment, then run
+`node scripts/record-fixtures.ts --base http://127.0.0.1:5173 --instance <id>`
 and `pnpm typecheck` (every recorded response is checked against the pinned
-contract).
+contract). The recorder replaces `src/fixtures/recorded/` only.
 
 ## Alpha caveats
 

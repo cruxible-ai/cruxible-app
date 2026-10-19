@@ -6,7 +6,8 @@ HOME and state root; no daemon runs). `pin.json` records the core commit it came
 currently **cruxible-core `f42e30daa`**.
 
 TypeScript types (`src/api/generated/`) are generated from this file, never hand-written,
-and the fixture responses under `src/fixtures/recorded/` are typechecked against them.
+and the fixture responses under `src/fixtures/recorded/` (recorded at this pin) and
+`src/fixtures/authored/` are typechecked against them.
 To pick up a contract change:
 
 ```sh
