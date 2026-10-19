@@ -1,167 +1,92 @@
 import { useMemo } from "react";
-import { useInstanceSchema } from "@/api/hooks";
+import { useKits } from "@/api/hooks";
+import type { InstalledKit } from "@/api/schemas";
 import { useSettings } from "@/lib/settings";
+import { buildTypeColors } from "@/lib/type-colors";
 
 /**
- * Kit-layer ("config locality") classification: which kit layer of a composed
- * instance owns each entity type. Multi-kit compose (`init --kit A --kit B`)
- * merges a base kit with domain overlays, and graph/type views color-accent
- * nodes by owning layer so the composed shape reads at a glance.
+ * Owner layers for the ontology: which kit a SubjectKind or ClaimType comes
+ * from, so the type map and sidebar can accent a composed instance by layer.
  *
- * INTERIM HEURISTIC — the daemon's /schema serves the fully composed config
- * with no per-type provenance (verified against a live composed instance:
- * `extends` is null post-compose and entity_types entries carry only
- * description/properties/constraints/write_policy/auth_managed). Until core
- * exposes ownership, we key on the agent-operation base kit's fixed
- * vocabulary: its eight entity types are "base", every other type is
- * "domain".
- *
- * The real fields this module is shaped to consume the moment core ships
- * them (proposed upstream):
- *
- *   schema.composed_from: [{ name: "agent-operation", role: "base" },
- *                          { name: "case-law-monitoring", role: "overlay" }]
- *   schema.entity_types[T].source_kit: "agent-operation"
- *
- * When both appear in a payload they win over the heuristic — no caller
- * changes needed. At that point flip the `colorByLayer` default in
- * settings.tsx to true (heuristic data ships default-off).
+ * No read serves ownership at the pinned contract (design gap G1:
+ * `KitReceipt.owns` exists only as a Document body, which READ_ONLY cannot
+ * read). Until GET /kits carries it, the layer is the identity's namespace
+ * (the first dotted segment: `security.vulnerability` -> `security`), which
+ * is how kits name what they ship, and the UI labels it as a namespace, not
+ * a kit. `kitOwnership` is the seam: when the regenerated InstalledKit gains
+ * `owns`, build the map there and every caller shows the owning kit.
  */
 
-export type KitLayer = "base" | "domain";
+export type OwnedKind = "SubjectKind" | "ClaimType";
 
-/** Entity types declared by kits/agent-operation/config.yaml (the only base kit). */
-const AGENT_OPERATION_BASE_TYPES: ReadonlySet<string> = new Set([
-  "Actor",
-  "SubjectRef",
-  "WorkItem",
-  "ReviewRequest",
-  "Decision",
-  "Risk",
-  "OpenQuestion",
-  "StateNote",
-]);
-
-/**
- * True for names in the agent-operation base vocabulary. INTERIM HEURISTIC:
- * this is still the same fixed-vocabulary fallback used for entity ownership
- * until core exposes real per-type provenance. Relationship names are not in
- * this set, so a query returning a domain relationship remains domain unless
- * its entry point is one of these base types.
- */
-export function isBaseVocabularyType(name: string | null | undefined): boolean {
-  return typeof name === "string" && AGENT_OPERATION_BASE_TYPES.has(name);
+export interface TypeOwner {
+  /** The kit id, or the namespace while ownership is not served. */
+  layer: string;
+  source: "kit" | "namespace";
 }
 
-/**
- * Presentation-layer query grouping: a named query belongs to the operation
- * layer when either its entry point or its declared return type names the
- * agent-operation base vocabulary. Everything else is domain.
- */
-export function queryLayer(query: {
-  entry_point?: string | null;
-  returns?: string | null;
-}): KitLayer {
-  return isBaseVocabularyType(query.entry_point) || isBaseVocabularyType(query.returns)
-    ? "base"
-    : "domain";
+/** `"SubjectKind:<kind>"` / `"ClaimType:<predicate>"` -> owning kit id. */
+export type KitOwnership = ReadonlyMap<string, string>;
+
+/** Owning kit per identity from GET /kits; null at the pinned contract (gap G1). */
+export function kitOwnership(kits: readonly InstalledKit[] | undefined): KitOwnership | null {
+  // InstalledKit has kit_id, version, drifted, providers, but not `owns` yet.
+  void kits;
+  return null;
 }
 
-interface ComposedFromEntry {
-  name?: string;
-  role?: string;
+/** First dotted segment of a kind or predicate; the whole name when undotted. */
+export function namespaceOf(name: string): string {
+  const dot = name.indexOf(".");
+  return dot > 0 ? name.slice(0, dot) : name;
 }
 
-interface LayeredSchemaShape {
-  composed_from?: ComposedFromEntry[];
-  entity_types?: Record<string, { source_kit?: string | null } | undefined>;
+export function ownerOf(kind: OwnedKind, name: string, ownership: KitOwnership | null): TypeOwner {
+  const kit = ownership?.get(`${kind}:${name}`);
+  return kit ? { layer: kit, source: "kit" } : { layer: namespaceOf(name), source: "namespace" };
 }
 
-/** Base kit name from the proposed composed_from field, if the payload has it. */
-function baseKitName(s: LayeredSchemaShape | undefined): string | null {
-  const composed = s?.composed_from;
-  if (!Array.isArray(composed) || composed.length === 0) return null;
-  const base = composed.find((k) => k?.role === "base") ?? composed[0];
-  return typeof base?.name === "string" ? base.name : null;
-}
-
-/** True when the payload carries real per-type provenance (future API field). */
-export function hasRealLayerData(schema: unknown): boolean {
-  const s = schema as LayeredSchemaShape | undefined;
-  if (!baseKitName(s)) return false;
-  return Object.values(s?.entity_types ?? {}).some(
-    (et) => typeof et?.source_kit === "string",
-  );
-}
-
-/**
- * Owning layer for one entity type. Real provenance fields win when present;
- * otherwise the agent-operation heuristic decides.
- */
-export function typeLayer(schema: unknown, entityType: string): KitLayer {
-  const s = schema as LayeredSchemaShape | undefined;
-  const base = baseKitName(s);
-  const sourceKit = s?.entity_types?.[entityType]?.source_kit;
-  if (base && typeof sourceKit === "string") {
-    return sourceKit === base ? "base" : "domain";
-  }
-  return isBaseVocabularyType(entityType) ? "base" : "domain";
-}
-
-/**
- * Coloring only means something when the ontology actually spans layers: a
- * single-kit instance (all base, or all domain) renders uniform and the
- * accents would be noise, so callers gate on this.
- */
-export function hasLayerSplit(schema: unknown): boolean {
-  const s = schema as LayeredSchemaShape | undefined;
-  const types = Object.keys(s?.entity_types ?? {});
-  if (types.length === 0) return false;
-  const layers = new Set(types.map((t) => typeLayer(schema, t)));
-  return layers.size > 1;
-}
-
-/**
- * Muted per-layer accents: base keeps the existing zinc look (toggling the
- * feature on must not restyle the operating layer), domain overlays get a
- * quiet violet tint — the one hue the status vocabulary doesn't use. Border
- * tints and small dots only; fills stay zinc.
- */
-export const LAYER_META: Record<
-  KitLayer,
-  { label: string; dot: string; border: string; borderHover: string }
-> = {
-  base: {
-    label: "Base kit",
-    dot: "bg-zinc-500",
-    border: "border-zinc-700",
-    borderHover: "hover:border-zinc-500",
-  },
-  domain: {
-    label: "Domain overlay",
-    dot: "bg-violet-400",
-    border: "border-violet-900",
-    borderHover: "hover:border-violet-700",
-  },
-};
-
-/**
- * Screen-side switch: the settings toggle AND a real layer split in the
- * current schema. `layerFor` is stable per schema payload so it can sit in
- * useMemo deps.
- */
-export function useLayerColoring(): {
+export interface LayerColoring {
+  /** The settings toggle AND more than one layer among the kinds shown. */
   enabled: boolean;
-  layerFor: (entityType: string) => KitLayer;
-} {
-  const schema = useInstanceSchema();
+  layers: { layer: string; color: string; source: TypeOwner["source"] }[];
+  ownerOfKind: (kind: string) => TypeOwner;
+  colorOf: (layer: string) => string;
+}
+
+/** Layer accents over a set of SubjectKinds; pure, for screens and tests. */
+export function layerColoring(
+  kinds: readonly string[],
+  ownership: KitOwnership | null,
+  setting: boolean,
+): LayerColoring {
+  const ownerOfKind = (kind: string) => ownerOf("SubjectKind", kind, ownership);
+  const owners = new Map<string, TypeOwner>();
+  for (const kind of kinds) {
+    const owner = ownerOfKind(kind);
+    owners.set(owner.layer, owner);
+  }
+  const names = [...owners.keys()].sort();
+  const colorOf = buildTypeColors(names);
+  return {
+    // Coloring only means something when the shown kinds span layers: a
+    // single-kit instance renders uniform and the accents would be noise.
+    enabled: setting && names.length > 1,
+    layers: names.map((layer) => ({ layer, color: colorOf(layer), source: owners.get(layer)!.source })),
+    ownerOfKind,
+    colorOf,
+  };
+}
+
+/** `layerColoring` over the given kinds, with the settings toggle and GET /kits. */
+export function useLayerColoring(kinds: readonly string[]): LayerColoring {
   const { settings } = useSettings();
-  const data = schema.data;
+  const kits = useKits();
+  const ownership = useMemo(() => kitOwnership(kits.data?.kits), [kits.data]);
+  // Keyed on the names, not the array identity, so callers can pass a fresh array.
+  const key = kinds.join("\n");
   return useMemo(
-    () => ({
-      enabled: settings.colorByLayer && hasLayerSplit(data),
-      layerFor: (entityType: string) => typeLayer(data, entityType),
-    }),
-    [data, settings.colorByLayer],
+    () => layerColoring(key === "" ? [] : key.split("\n"), ownership, settings.colorByLayer),
+    [key, ownership, settings.colorByLayer],
   );
 }

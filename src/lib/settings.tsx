@@ -9,20 +9,14 @@ import {
 
 /** Client-side display preferences, persisted per browser in localStorage. */
 export interface UiSettings {
-  /** Hide cold (terminal-status) entities on inspection surfaces. */
-  hideCold: boolean;
-  /** Accent graph/type views by owning kit layer (base kit vs domain overlay). */
+  /** Accent graph/type views by owner layer (kit, or namespace until kits serve ownership). */
   colorByLayer: boolean;
 }
 
-// Both ON by default (Robert, 2026-07-07): cold entities are noise on
-// inspection surfaces, and layer accents earn their place on composed
-// instances (single-layer instances never render them anyway).
-const DEFAULTS: UiSettings = { hideCold: true, colorByLayer: true };
-// v2: the provider persists on first mount, so every pre-default-flip browser
-// has {false,false} stored under the old key. New key = new defaults land
-// once; choices made from here on persist under v2.
-const STORAGE_KEY = "cruxible-ui-settings-v2";
+// On by default: layer accents earn their place on composed instances, and
+// single-layer instances never render them anyway.
+const DEFAULTS: UiSettings = { colorByLayer: true };
+const STORAGE_KEY = "cruxible-ui-settings-v3";
 
 interface SettingsValue {
   settings: UiSettings;
@@ -38,7 +32,8 @@ function load(): UiSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<UiSettings>) };
+    const stored = JSON.parse(raw) as Partial<UiSettings>;
+    return { colorByLayer: stored.colorByLayer ?? DEFAULTS.colorByLayer };
   } catch {
     return DEFAULTS;
   }

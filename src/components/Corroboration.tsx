@@ -1,5 +1,14 @@
 import { Check, TriangleAlert, X } from "lucide-react";
-import type { CorroborationSummary } from "@/api/governance-types";
+
+/** Attestation counts for one Claim (filled from GetEvidence.attestations by the Subject page). */
+export interface CorroborationSummary {
+  support_count?: number;
+  contradict_count?: number;
+  unsure_count?: number;
+  distinct_actor_count?: number;
+  open_contradiction?: boolean;
+  stale_content?: { support_count?: number; contradict_count?: number; unsure_count?: number };
+}
 
 /**
  * Corroboration badges for one claim: how many independent observations back

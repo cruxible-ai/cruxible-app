@@ -31,31 +31,16 @@ export function SettingsMenu() {
           <label className="flex cursor-pointer items-start gap-2">
             <input
               type="checkbox"
-              checked={settings.hideCold}
-              onChange={(e) => update({ hideCold: e.target.checked })}
-              className="mt-0.5 accent-zinc-400"
-            />
-            <span>
-              <span className="block text-[14px] text-zinc-200">Hide cold entities</span>
-              <span className="block text-[12px] leading-snug text-zinc-500">
-                Skip closed/retired items in browse lists and relationship
-                panels. Receipted query views are never filtered.
-              </span>
-            </span>
-          </label>
-          <label className="mt-2.5 flex cursor-pointer items-start gap-2">
-            <input
-              type="checkbox"
               checked={settings.colorByLayer}
               onChange={(e) => update({ colorByLayer: e.target.checked })}
               className="mt-0.5 accent-zinc-400"
             />
             <span>
-              <span className="block text-[14px] text-zinc-200">Color by kit layer</span>
+              <span className="block text-[14px] text-zinc-200">Color by layer</span>
               <span className="block text-[12px] leading-snug text-zinc-500">
-                Accent graph and type views by which kit layer owns each
-                entity type — base kit vs domain overlay. Only shows on
-                composed instances.
+                Accent the type map and sidebar by the layer each Subject kind
+                belongs to: its namespace until the daemon serves the owning
+                kit. Only shows when kinds span layers.
               </span>
             </span>
           </label>
