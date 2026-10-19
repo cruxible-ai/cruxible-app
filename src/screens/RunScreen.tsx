@@ -191,7 +191,7 @@ function EgressView({ egress }: { egress: Egress }) {
         {egress.settle_outcome && <Chip value={egress.settle_outcome} />}
       </div>
       {egress.proposal_id && (
-        <div>
+        <div className="break-all">
           proposal <RefLink value={egress.proposal_id} />
           {egress.accepted_git_oid && (
             <>
