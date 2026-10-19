@@ -21,7 +21,7 @@ describe("Overview", () => {
       "href",
       "/i/inst_fixture/s/security.assessment%2Frel-1-cve-2024-3094",
     );
-    expect(main.getByText("Claim conflicted")).toBeInTheDocument();
+    expect(main.getByText("Claims conflict")).toBeInTheDocument();
     expect(main.getByText("Line dispatch")).toBeInTheDocument();
     expect(await main.findByText("security.kev-catalog")).toBeInTheDocument();
   });

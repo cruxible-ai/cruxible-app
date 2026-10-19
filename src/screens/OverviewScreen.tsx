@@ -7,6 +7,8 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { formatDateTime, humanize } from "@/lib/text";
+import { REASONS } from "@/lib/next-reasons";
+import { SEVERITY_TONE } from "@/components/next/NextItemRow";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 const NEXT_PREVIEW = 8;
@@ -143,8 +145,6 @@ function AttentionPanel({ orient }: { orient: OrientResult }) {
   );
 }
 
-const SEVERITY_TONE = { blocking: "red", repair: "amber", warning: "zinc" } as const;
-
 function NextPanel({
   next,
   pending,
@@ -154,6 +154,8 @@ function NextPanel({
   pending: boolean;
   error: Error | null;
 }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
   return (
     <Panel
       title="Next"
@@ -173,7 +175,7 @@ function NextPanel({
           {next.items.slice(0, NEXT_PREVIEW).map((item) => (
             <div key={item.item_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-[13px]">
               <Chip value={item.severity} tone={SEVERITY_TONE[item.severity]} />
-              <span className="text-zinc-300">{humanize(item.reason)}</span>
+              <span className="text-zinc-300">{REASONS[item.reason].label}</span>
               <RefLink value={item.subject_identity} className="ml-auto" />
               {item.repair && (
                 <div className="w-full text-[12px] text-zinc-500">{item.repair.required_change}</div>
@@ -181,6 +183,11 @@ function NextPanel({
             </div>
           ))}
         </div>
+      )}
+      {next && next.total_items > 0 && (
+        <Link to={link(`/i/${instanceId}/next`)} className="mt-2 inline-block text-[12px] text-zinc-400 hover:text-zinc-200">
+          All next items →
+        </Link>
       )}
       {next && next.unobserved_domains.length > 0 && (
         <div className="mt-2 text-[12px] text-zinc-600">

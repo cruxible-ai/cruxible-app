@@ -9,6 +9,7 @@ import type { GetRefKind } from "../api/schemas.ts";
  *   security.vulnerability/cve-2024-3094   a Subject (kind/id)
  *   Subject:security.vulnerability/cve-…   the same, typed
  *   subjects/<kind>/<id>.json              the same, as its artifact path
+ *   claims/<xx>/CLM-….json                 a Claim, as its artifact path
  *   CLM-…  CAP-…  RUN-…  INB-…             a Claim, Capture, run, inbox item
  *   ClaimType:<predicate>  Line:<name>  Procedure:<name>  Mandate:<name> …
  *   Proposal:<id>  sha256:…  refs/…        a proposal
@@ -122,6 +123,8 @@ export function parseRef(raw: string): ParsedRef | null {
     const kind = TYPED_PREFIXES[value.slice(0, colon)];
     return kind ? typedRef(kind, value.slice(colon + 1)) : null;
   }
+  const claimPath = /^claims\/[0-9a-f]{2}\/(CLM-[0-9a-f]+)\.json$/.exec(value);
+  if (claimPath) return { kind: "claim", id: claimPath[1]! };
   if (value.startsWith("subjects/") && value.endsWith(".json")) {
     return subjectRef(value.slice("subjects/".length, -".json".length));
   }
@@ -183,13 +186,15 @@ export function refName(ref: ParsedRef): string {
 /**
  * The in-app route a ref opens, or null when the console has no screen for
  * it. ClaimTypes and SubjectKinds open on the type map, Subjects on their
- * Subject page; every other ref get resolves opens the reference card.
+ * Subject page, proposals on their review page; every other ref get resolves
+ * opens the reference card.
  */
 export function refRoute(instanceId: string, ref: ParsedRef): string | null {
   const base = `/i/${encodeURIComponent(instanceId)}`;
   if (ref.kind === "claim_type") return `${base}/map?claim_type=${encodeURIComponent(ref.name)}`;
   if (ref.kind === "subject_kind") return `${base}/map?kind=${encodeURIComponent(ref.name)}`;
   if (ref.kind === "subject") return `${base}/s/${encodeURIComponent(formatRef(ref))}`;
+  if (ref.kind === "proposal") return `${base}/p/${encodeURIComponent(ref.id)}`;
   const getRef = getRefOf(ref);
   return getRef === null ? null : `${base}/ref/${encodeURIComponent(getRef)}`;
 }

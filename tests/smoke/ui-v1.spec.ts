@@ -8,8 +8,8 @@ test("fixture-backed inspection flow: overview, type map, Subject, neighborhood,
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   const main = page.getByRole("main");
   await expect(main.getByText("Subjects by kind")).toBeVisible();
-  await expect(main.getByRole("link", { name: "security.vulnerability" })).toBeVisible();
-  await expect(main.getByText("Claim conflicted")).toBeVisible();
+  await expect(main.getByRole("link", { name: "security.vulnerability", exact: true })).toBeVisible();
+  await expect(main.getByText("Claims conflict")).toBeVisible();
   await expect(main.getByText("security.kev-catalog")).toBeVisible();
   await expect(page.locator("aside").getByText("Generation")).toBeVisible();
 

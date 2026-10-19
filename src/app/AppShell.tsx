@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Network, Search } from "lucide-react";
-import { useHead, useInstanceId, useOrientKinds } from "@/api/hooks";
+import { CircleAlert, LayoutDashboard, Network, Scale, Search } from "lucide-react";
+import { useHead, useInstanceId, useOrient, useOrientKinds } from "@/api/hooks";
 import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { useAtLink } from "@/lib/at";
@@ -23,6 +23,7 @@ export function AppShell() {
   const link = useAtLink();
   const head = useHead(null);
   const kinds = useOrientKinds();
+  const attention = useOrient().data?.attention;
   const kindRows = [...(kinds.data?.kinds ?? [])].sort((a, b) => a.kind.localeCompare(b.kind));
   const coloring = useLayerColoring(kindRows.map((k) => k.kind));
 
@@ -50,6 +51,21 @@ export function AppShell() {
               <span className="inline-flex items-center gap-2">
                 <Network className="h-3.5 w-3.5" />
                 Type map
+              </span>
+            </NavLink>
+            <NavLink to={link(`/i/${instanceId}/next`)} className={(s) => `${navClass(s)} flex items-center justify-between`}>
+              <span className="inline-flex items-center gap-2">
+                <CircleAlert className="h-3.5 w-3.5" />
+                Next
+              </span>
+              {(attention?.next_items ?? 0) > 0 && (
+                <span className="font-mono text-[12px] text-amber-400/90">{attention!.next_items}</span>
+              )}
+            </NavLink>
+            <NavLink to={link(`/i/${instanceId}/beliefs`)} className={navClass}>
+              <span className="inline-flex items-center gap-2">
+                <Scale className="h-3.5 w-3.5" />
+                Beliefs
               </span>
             </NavLink>
             <button

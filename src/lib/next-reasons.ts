@@ -1,0 +1,215 @@
+import type { NextReason } from "../api/schemas.ts";
+
+/**
+ * What the console knows about each `next` reason: a label, the family that
+ * groups it (the beliefs tabs filter by family), and the detail fields worth
+ * rendering. `NextItem.detail` is untyped in the contract (`detail: Any`,
+ * design gap G7), so each reason names its fields here, read with runtime
+ * type checks; anything else in a detail falls back to a JSON view. The
+ * table is total over the contract's reasons: a new reason fails to compile.
+ */
+
+export type NextFamily =
+  | "contested"
+  | "stale"
+  | "drifted"
+  | "evidence"
+  | "proposals"
+  | "lines"
+  | "projections"
+  | "predictions"
+  | "operations";
+
+export const FAMILY_LABEL: Record<NextFamily, string> = {
+  contested: "Contested beliefs",
+  stale: "Stale beliefs",
+  drifted: "Drifted citations",
+  evidence: "Evidence",
+  proposals: "Proposals",
+  lines: "Lines",
+  projections: "Projections and floor",
+  predictions: "Predictions",
+  operations: "Operations",
+};
+
+/** How a detail field renders. */
+export type FieldKind = "text" | "count" | "time" | "ref" | "capture" | "claim" | "list" | "digest";
+
+export interface FieldSpec {
+  key: string;
+  label: string;
+  kind: FieldKind;
+}
+
+export interface ReasonMeta {
+  label: string;
+  family: NextFamily;
+  fields: FieldSpec[];
+}
+
+const f = (key: string, label: string, kind: FieldKind = "text"): FieldSpec => ({ key, label, kind });
+
+export const REASONS: Record<NextReason, ReasonMeta> = {
+  claim_conflicted: {
+    label: "Claims conflict",
+    family: "contested",
+    fields: [f("predicate", "predicate"), f("qualifier", "qualifier"), f("contender_count", "contenders", "count"), f("suggested_qualifier_field", "split by")],
+  },
+  claim_contradicting_evidence_available: {
+    label: "Contradicting evidence attested",
+    family: "contested",
+    fields: [f("claim_id", "claim", "claim"), f("capture_digest", "capture", "capture"), f("attesting_principal", "by"), f("attested_at", "at", "time"), f("stance", "stance")],
+  },
+  claim_new_evidence_unreviewed: {
+    label: "New evidence, unreviewed",
+    family: "contested",
+    fields: [f("claim_id", "claim", "claim"), f("capture_digest", "capture", "capture"), f("attesting_principal", "by"), f("attested_at", "at", "time"), f("stance", "stance")],
+  },
+  claim_attestation_threshold_met: {
+    label: "Attestation threshold met",
+    family: "contested",
+    fields: [f("claim_identity", "claim", "ref"), f("rule_id", "rule"), f("stance", "stance")],
+  },
+  claim_stale_evidence: {
+    label: "Evidence expired",
+    family: "stale",
+    fields: [f("verdict", "verdict"), f("expired_capture_digests", "expired captures", "list"), f("last_expired_at", "last expired", "time")],
+  },
+  evidence_expiring: {
+    label: "Evidence expiring",
+    family: "stale",
+    fields: [f("predicate", "predicate"), f("expirations", "expirations", "list")],
+  },
+  claim_dependency_stale: {
+    label: "Derived from stale inputs",
+    family: "stale",
+    fields: [f("stale_inputs", "stale inputs", "list")],
+  },
+  claim_uncovered: {
+    label: "Not covered by admitted evidence",
+    family: "stale",
+    fields: [f("predicate", "predicate"), f("verdict", "verdict"), f("currency", "currency"), f("policy_hint", "hint")],
+  },
+  citation_drifted: {
+    label: "Cited source drifted",
+    family: "drifted",
+    fields: [f("citation_id", "citation"), f("source_id", "source"), f("expected_source_digest", "expected", "digest"), f("observed_source_digest", "observed", "digest")],
+  },
+  citation_source_unobserved: {
+    label: "Cited source not observed",
+    family: "drifted",
+    fields: [f("citation_id", "citation"), f("source_id", "source"), f("expected_source_digest", "expected", "digest")],
+  },
+  document_modified: {
+    label: "Document modified in the workspace",
+    family: "drifted",
+    fields: [f("document_id", "document"), f("source_id", "source"), f("accepted_body_digest", "accepted", "digest"), f("observed_source_digest", "observed", "digest")],
+  },
+  workspace_binding_missing: {
+    label: "Bound workspace file missing",
+    family: "drifted",
+    fields: [f("document_id", "document"), f("source_id", "source"), f("locator", "locator"), f("message", "")],
+  },
+  claim_new_evidence_supporting: {
+    label: "New supporting evidence",
+    family: "evidence",
+    fields: [f("claim_id", "claim", "claim"), f("capture_digest", "capture", "capture"), f("attesting_principal", "by"), f("attested_at", "at", "time")],
+  },
+  evidence_unavailable: {
+    label: "Evidence body unavailable",
+    family: "evidence",
+    fields: [f("capture_digest", "capture", "capture"), f("citation_id", "citation"), f("part", "part"), f("state", "state"), f("checked_at", "checked", "time")],
+  },
+  proposal_stale: {
+    label: "Proposal stale against accepted state",
+    family: "proposals",
+    fields: [f("proposal_id", "proposal", "ref"), f("target_ref", "target")],
+  },
+  proposal_awaiting_approval: {
+    label: "Proposal awaiting approval",
+    family: "proposals",
+    fields: [f("actor_id", "proposed by"), f("admitted_at", "admitted", "time"), f("signer_id", "signer"), f("eligible_approvals", "eligible approvals", "list")],
+  },
+  proposal_awaiting_activation: {
+    label: "Proposal awaiting activation",
+    family: "proposals",
+    fields: [f("admitted_at", "admitted", "time"), f("approvals", "approvals", "list"), f("target_ref", "target")],
+  },
+  line_coverage_gap: {
+    label: "Line coverage gap",
+    family: "lines",
+    fields: [f("since", "since", "time"), f("until", "until", "time"), f("detail", "")],
+  },
+  line_work_pending: {
+    label: "Line work pending",
+    family: "lines",
+    fields: [f("due", "due", "count"), f("oldest_eligible_at", "oldest", "time"), f("detail", "")],
+  },
+  line_disabled_by_upgrade: {
+    label: "Line disabled by upgrade",
+    family: "lines",
+    fields: [f("procedure_version", "version"), f("detail", "")],
+  },
+  line_settled_prior_refusals: {
+    label: "Line settled over prior refusals",
+    family: "lines",
+    fields: [f("settled_items_matching_refusals", "items", "list"), f("settled_runs", "runs", "list"), f("latest_run_id", "latest run"), f("latest_settled_at", "latest", "time")],
+  },
+  line_inbox_unread: {
+    label: "Line inbox unread",
+    family: "lines",
+    fields: [f("unread", "unread", "count"), f("availability", "availability"), f("detail", "")],
+  },
+  floor_invalid: { label: "Workspace floor invalid", family: "projections", fields: [f("state", "state"), f("message", "")] },
+  projection_dirty: {
+    label: "Projection edited",
+    family: "projections",
+    fields: [f("source_id", "source"), f("block_id", "block"), f("expected_body_digest", "expected", "digest"), f("observed_body_digest", "observed", "digest")],
+  },
+  projection_backing_stale: {
+    label: "Projection backing stale",
+    family: "projections",
+    fields: [f("source_id", "source"), f("block_id", "block"), f("backing_state", "backing"), f("stale_backings", "stale backings", "list")],
+  },
+  projection_marker_invalid: { label: "Projection marker invalid", family: "projections", fields: [f("source_id", "source"), f("block_id", "block")] },
+  unregistered_projection_block: { label: "Unregistered projection block", family: "projections", fields: [f("source_id", "source"), f("block_id", "block")] },
+  prediction_settleable: { label: "Prediction settleable", family: "predictions", fields: [f("bound_contract_id", "contract"), f("window", "window", "list")] },
+  prediction_window_unbindable: { label: "Prediction window unbindable", family: "predictions", fields: [f("code", "code")] },
+  mandate_expiring: { label: "Mandate expiring", family: "operations", fields: [f("procedure_identity", "procedure", "ref"), f("expires_at", "expires", "time"), f("grants", "grants", "list")] },
+  consumer_stalled: { label: "Consumer stalled", family: "operations", fields: [f("kind", "kind"), f("state", "state")] },
+  subject_kind_undeclared: { label: "Subject kind undeclared", family: "operations", fields: [f("kind", "kind"), f("live_subjects", "live Subjects", "count")] },
+  kit_resume_blocked: { label: "Kit resume blocked", family: "operations", fields: [f("kit_id", "kit"), f("version", "version"), f("actor_id", "actor"), f("recorded_at", "recorded", "time"), f("detail", "")] },
+};
+
+/** The beliefs tabs: next families about accepted Claims. */
+export const BELIEF_TABS = ["contested", "stale", "drifted"] as const satisfies readonly NextFamily[];
+export type BeliefTab = (typeof BELIEF_TABS)[number];
+
+export function familyOf(reason: NextReason): NextFamily {
+  return REASONS[reason].family;
+}
+
+/** A detail as a record, or null when the contract served something else. */
+export function detailRecord(detail: unknown): Record<string, unknown> | null {
+  return typeof detail === "object" && detail !== null && !Array.isArray(detail)
+    ? (detail as Record<string, unknown>)
+    : null;
+}
+
+/** The named fields present in a detail, and the rest (rendered as JSON). */
+export function splitDetail(reason: NextReason, detail: unknown) {
+  const record = detailRecord(detail);
+  if (!record) return { fields: [] as { spec: FieldSpec; value: unknown }[], rest: detail ?? null };
+  const specs = REASONS[reason].fields;
+  const fields = specs
+    .filter((spec) => record[spec.key] !== undefined && record[spec.key] !== null)
+    .map((spec) => ({ spec, value: record[spec.key] }));
+  const named = new Set(specs.map((spec) => spec.key));
+  const restEntries = Object.entries(record).filter(([key, value]) => !named.has(key) && value !== null);
+  return { fields, rest: restEntries.length ? Object.fromEntries(restEntries) : null };
+}
+
+/** The Capture handle get resolves for a capture digest: CAP- plus 12 hex. */
+export function captureHandle(digest: string): string {
+  return `CAP-${digest.replace(/^sha256:/, "").slice(0, 12)}`;
+}
