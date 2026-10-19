@@ -24,15 +24,16 @@ describe("Lines", () => {
 });
 
 describe("Line page", () => {
-  it("shows triggers, withheld enabler, runs with the history seam, track record, dispositions, mandate scope and condition, readings, inbox", async () => {
+  it("shows triggers, withheld enabler, runs paged, track record, dispositions, mandate scope and condition, readings, inbox", async () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const main = within(await screen.findByRole("main"));
     expect(await main.findByRole("heading", { name: "kev-triage" })).toBeInTheDocument();
     expect(main.getByText("daily at 06:00 UTC")).toBeInTheDocument();
     expect(main.getByText("withheld")).toBeInTheDocument();
-    expect(main.getByText("2 recent of 12")).toBeInTheDocument();
-    expect(main.getByText(/Older runs need the daemon's per-Line run history/)).toBeInTheDocument();
-    expect(main.getByRole("link", { name: "run-7" })).toHaveAttribute("href", "/i/inst_fixture/runs/run-7");
+    expect(await main.findByText("page 1 · 12 in all")).toBeInTheDocument();
+    expect(await main.findByRole("link", { name: "run-6" })).toBeInTheDocument();
+    expect(main.getAllByRole("link", { name: "run-7" })[0]).toHaveAttribute("href", "/i/inst_fixture/runs/run-7");
+    expect(main.getByRole("button", { name: "Older →" })).toBeInTheDocument();
     expect(await main.findByText("kev-triage-agreement")).toBeInTheDocument();
     expect(main.getByText("Missed a vendor backport.")).toBeInTheDocument();
     expect(await main.findByText(/otherwise propose/)).toBeInTheDocument();

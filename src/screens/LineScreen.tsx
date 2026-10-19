@@ -6,6 +6,7 @@ import {
   useInbox,
   useInboxItem,
   useInstanceId,
+  useLineRuns,
   useMandates,
   useNext,
   useReadings,
@@ -18,7 +19,7 @@ import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextItemRow } from "@/components/next/NextItemRow";
 import { useAtLink } from "@/lib/at";
-import { lineRunHistoryReader, nextRowsByLine, readMandateProof, runId } from "@/lib/lines";
+import { nextRowsByLine, readMandateProof, runId } from "@/lib/lines";
 import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -28,8 +29,8 @@ const INBOX_PAGE = 50;
 const RUN_TONE = (status: string) => (status === "succeeded" ? "green" : status === "running" ? "blue" : "red");
 
 /**
- * One Line: its card (triggers, enablements, due and waiting occurrences,
- * recent runs), its Procedure's track record and measurement reviews with
+ * One Line: its card (triggers, enablements, due and waiting occurrences),
+ * its runs paged newest first (get detail=runs), its Procedure's track record and measurement reviews with
  * their resolution dispositions, readings (paged), the mandates that bind
  * the Procedure with their scope and condition query, the Line's inbox
  * (paged), and its `next` rows. Every read is this Line's or its
@@ -70,7 +71,7 @@ export function LineScreen() {
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
         <OperationsPanel card={lineCard} />
-        <RunsPanel card={lineCard} />
+        <RunsPanel line={line} total={lineCard.runs_total ?? 0} />
       </div>
       <LineNextPanel line={line} />
       <ProcedurePanel procedure={procedure} />
@@ -141,13 +142,36 @@ function OperationsPanel({ card }: { card: LineCard }) {
   );
 }
 
-function RunsPanel({ card }: { card: LineCard }) {
+function RunsPanel({ line, total }: { line: string; total: number }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  const runs = card.recent_runs ?? [];
+  const [cursors, setCursors] = useState<string[]>([]);
+  const read = useLineRuns(line, cursors[cursors.length - 1]);
+  const runs = read.data?.runs?.runs ?? [];
   return (
-    <Panel title="Runs" meta={<span>{runs.length} recent of {card.runs_total ?? runs.length}</span>}>
-      {runs.length === 0 && <EmptyState>No runs yet.</EmptyState>}
+    <Panel
+      title="Runs"
+      meta={
+        <span className="flex gap-2">
+          {cursors.length > 0 && (
+            <button onClick={() => setCursors((c) => c.slice(0, -1))} className="hover:text-zinc-200">
+              ← Newer
+            </button>
+          )}
+          <span>
+            page {cursors.length + 1} · {total} in all
+          </span>
+          {read.data?.next_cursor && (
+            <button onClick={() => setCursors((c) => [...c, read.data!.next_cursor!])} className="hover:text-zinc-200">
+              Older →
+            </button>
+          )}
+        </span>
+      }
+    >
+      {read.isPending && <LoadState />}
+      {read.error && <LoadState error={read.error} />}
+      {read.data && runs.length === 0 && <EmptyState>No runs yet.</EmptyState>}
       <div className="space-y-0.5 text-[12px]">
         {runs.map((run) => (
           <div key={run.run} className="flex flex-wrap items-baseline gap-x-3">
@@ -162,11 +186,6 @@ function RunsPanel({ card }: { card: LineCard }) {
           </div>
         ))}
       </div>
-      {lineRunHistoryReader === null && (card.runs_total ?? 0) > runs.length && (
-        <div className="mt-2 text-[12px] text-zinc-600">
-          Older runs need the daemon's per-Line run history, which this version does not serve.
-        </div>
-      )}
     </Panel>
   );
 }

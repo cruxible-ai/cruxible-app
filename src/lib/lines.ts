@@ -1,29 +1,9 @@
-import type { NextItem, Schemas } from "../api/schemas.ts";
+import type { NextItem } from "../api/schemas.ts";
 
 /**
- * Line-screen helpers: the per-Line run history seam (design gap G4), the
- * typed reader for a Mandate's proof envelope, and grouping `next` rows by
- * the Line they are about.
+ * Line-screen helpers: the typed reader for a Mandate's proof envelope, and
+ * grouping `next` rows by the Line they are about.
  */
-
-type RunRow = Schemas["RunRow"];
-
-/** One page of a Line's runs, newest first. */
-export interface LineRunPage {
-  runs: RunRow[];
-  nextCursor: string | null;
-}
-
-/**
- * Core is building a paged per-Line run history over the journal's Line
- * partition (claude/app-read-gaps). Until the pinned contract serves it, a
- * Line shows the five recent runs its card carries and the total; implement
- * this over the new route and the Line page pages through every run.
- */
-export type LineRunHistoryReader = (line: string, cursor: string | null) => Promise<LineRunPage>;
-
-/** No per-Line run history is served at the pinned contract. */
-export const lineRunHistoryReader: LineRunHistoryReader | null = null;
 
 /** The bare run id a RunRow or ref carries (`ProcedureRun:` stripped). */
 export function runId(run: string): string {

@@ -20,6 +20,7 @@ import {
   HISTORY_PAGE,
   INCOMING_PAGE,
   LEDGER_PAGE,
+  LINE_RUNS_PAGE,
   headQuery,
   inboxQuery,
   isReadRoute,
@@ -220,6 +221,9 @@ const mandates = (await orientAll(C, "mandates")).flatMap((page) => page.mandate
 let runId: string | null = null;
 for (const line of lines.slice(0, 5)) {
   const [card] = await fetchCards([`Line:${line.line}`]).catch(() => [undefined]);
+  await call("post", `${P}/get`, {
+    body: getBody({ ref: `Line:${line.line}`, coordinate: C, detail: "runs", limit: LINE_RUNS_PAGE }),
+  });
   const procedure = line.procedure.replace(/^Procedure:/, "");
   await fetchCards([`Procedure:${procedure}`]).catch(() => null);
   await call("post", `${P}/procedures/{name}/readings`, { pathParams: { name: procedure }, body: readingsBody(C, 50) });

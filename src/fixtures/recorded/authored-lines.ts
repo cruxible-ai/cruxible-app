@@ -4,7 +4,7 @@
  * proof, a readings page, a Line inbox page and item, and a run's state.
  */
 import { defineFixture } from "../fixture";
-import { getBatchBody, getBody, inboxQuery, orientQuery, readingsBody } from "@/api/requests";
+import { getBatchBody, getBody, inboxQuery, LINE_RUNS_PAGE, orientQuery, readingsBody } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./authored";
 
@@ -118,6 +118,24 @@ export default [
   }),
   batch([`Line:${CVE}`, `Line:${KEV}`], [result(`Line:${CVE}`, "line", CVE_CARD), result(`Line:${KEV}`, "line", KEV_CARD)]),
   batch([`Line:${KEV}`], [result(`Line:${KEV}`, "line", KEV_CARD)]),
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get",
+    body: getBody({ ref: `Line:${KEV}`, coordinate: COORDINATE, detail: "runs", limit: LINE_RUNS_PAGE }),
+    response: {
+      ...result(`Line:${KEV}`, "line", KEV_CARD, "runs"),
+      runs: {
+        kind: "line_runs",
+        line: KEV,
+        runs: [
+          runRow("run-8", "succeeded", "2026-10-19T06:00:05Z", KEV, 6),
+          runRow("run-7", "node_refused", "2026-10-18T06:00:04Z", KEV, 4),
+          runRow("run-6", "succeeded", "2026-10-17T06:00:03Z", KEV, 6),
+        ],
+      },
+      next_cursor: "runs-page-2",
+    },
+  }),
   batch(
     [`Procedure:${PROCEDURE}`],
     [

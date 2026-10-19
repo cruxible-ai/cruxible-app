@@ -63,7 +63,7 @@ test("fixture-backed inspection flow: overview, type map, Subject, neighborhood,
   await page.locator("aside").getByRole("link", { name: "Lines" }).click();
   await page.getByRole("link", { name: "kev-triage", exact: true }).click();
   await expect(page).toHaveURL(/\/lines\/kev-triage$/);
-  await expect(page.getByText("2 recent of 12")).toBeVisible();
+  await expect(page.getByText("page 1 · 12 in all")).toBeVisible();
   await expect(page.getByText(/otherwise propose/)).toBeVisible();
   await page.getByRole("link", { name: "run-7", exact: true }).first().click();
   await expect(page).toHaveURL(/\/runs\/run-7$/);
