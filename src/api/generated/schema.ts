@@ -7688,6 +7688,8 @@ export interface components {
             evidence_rules?: components["schemas"]["GetEvidenceRule"][];
             /** Live Claims */
             live_claims: number;
+            /** Kit */
+            kit?: string | null;
             /**
              * Next
              * @default []
@@ -7963,6 +7965,41 @@ export interface components {
              */
             measurement_reviews?: components["schemas"]["ProcedureMeasurementReview"][];
         };
+        /**
+         * GetIncoming
+         * @description One page of the live Claims pointing at a Subject, in Claim id order.
+         *
+         *     Read through the object index one page at a time: a page costs its rows,
+         *     never the Subject's whole incoming set. ``get`` each Claim (or batch them)
+         *     for its verdict and value.
+         */
+        GetIncoming: {
+            /**
+             * Kind
+             * @default incoming
+             * @constant
+             */
+            kind?: "incoming";
+            /** Claims */
+            claims: components["schemas"]["GetIncomingClaim"][];
+        };
+        /**
+         * GetIncomingClaim
+         * @description One live Claim whose Subject-valued object is the Subject read.
+         *
+         *     ``subject`` is the asserting Subject (``kind/id``): a relation is stored
+         *     once, on it, so this is the edge read from its object's side.
+         */
+        GetIncomingClaim: {
+            /** Claim */
+            claim: string;
+            /** Subject */
+            subject: string;
+            /** Predicate */
+            predicate: string;
+            /** Qualifier */
+            qualifier?: string | null;
+        };
         /** GetLineCard */
         GetLineCard: {
             /** Line */
@@ -8112,6 +8149,28 @@ export interface components {
              * @enum {string}
              */
             state: "due" | "waiting";
+        };
+        /**
+         * GetLineRuns
+         * @description One page of a Line's Procedure runs, newest admission first.
+         *
+         *     Read through the run journal's per-Line partition index one page at a
+         *     time, keyed by each admission's immutable position: a run admitted or
+         *     finished between pages is never repeated or skipped, and a page costs its
+         *     rows, never the Line's whole run history. Runs are operational state, read
+         *     live at the current head. ``get ProcedureRun:<run>`` reads one.
+         */
+        GetLineRuns: {
+            /**
+             * Kind
+             * @default line_runs
+             * @constant
+             */
+            kind?: "line_runs";
+            /** Line */
+            line: string;
+            /** Runs */
+            runs: components["schemas"]["RunRow"][];
         };
         /**
          * GetLineTrigger
@@ -8595,7 +8654,7 @@ export interface components {
              * @default summary
              * @enum {string}
              */
-            detail?: "summary" | "evidence" | "why" | "history" | "proof" | "body";
+            detail?: "summary" | "evidence" | "why" | "history" | "incoming" | "runs" | "proof" | "body";
             range?: components["schemas"]["ByteRange"] | null;
             /** At */
             at?: components["schemas"]["AcceptedCoordinate"] | string | null;
@@ -8672,12 +8731,14 @@ export interface components {
              * Detail
              * @enum {string}
              */
-            detail: "summary" | "evidence" | "why" | "history" | "proof" | "body";
+            detail: "summary" | "evidence" | "why" | "history" | "incoming" | "runs" | "proof" | "body";
             /** Card */
             card?: components["schemas"]["GetClaimCard"] | components["schemas"]["GetSubjectCard"] | components["schemas"]["GetClaimTypeCard"] | components["schemas"]["GetDocumentCard"] | components["schemas"]["GetProcedureCard"] | components["schemas"]["GetBlueprintCard"] | components["schemas"]["GetQueryCard"] | components["schemas"]["GetCaptureContractCard"] | components["schemas"]["GetTriggerCard"] | components["schemas"]["GetSubjectKindCard"] | components["schemas"]["GetProposalCard"] | components["schemas"]["GetLineCard"] | components["schemas"]["GetCaptureCard"] | components["schemas"]["GetResolutionContractCard"] | components["schemas"]["GetMandateCard"] | components["schemas"]["GetProcedureRunCard"] | components["schemas"]["GetPrincipalCard"] | components["schemas"]["GetApprovalPolicyCard"] | components["schemas"]["GetProcedureRuntimePolicyCard"] | components["schemas"]["GetSourceAcquisitionPolicyCard"] | components["schemas"]["GetProviderInterfaceCard"] | components["schemas"]["GetProviderCard"] | null;
             evidence?: components["schemas"]["GetEvidence"] | null;
             /** History */
             history?: (components["schemas"]["GetHistory"] | components["schemas"]["GetSubjectHistory"]) | null;
+            incoming?: components["schemas"]["GetIncoming"] | null;
+            runs?: components["schemas"]["GetLineRuns"] | null;
             body?: components["schemas"]["GetBody"] | null;
             /** Why */
             why?: {
@@ -8920,6 +8981,8 @@ export interface components {
             uniqueness?: ("unique" | "hint") | null;
             /** Live Subjects */
             live_subjects: number;
+            /** Kit */
+            kit?: string | null;
             /**
              * Next
              * @default []
@@ -11515,6 +11578,54 @@ export interface components {
             generations_behind: number | null;
         };
         /**
+         * OrientGeneration
+         * @description One accepted generation, newest first: what accepted it and how much it changed.
+         *
+         *     ``changeset_digest`` names the change-set record; ``proposal`` is the
+         *     proposal whose admission it accepted (``get <proposal>`` reads its card and
+         *     changes), ``proposer`` the actor bound to it, and ``approvals`` the
+         *     approving signers in record order. ``because`` is that admission's
+         *     rationale, cut at 500 characters (``because_truncated``). ``members``
+         *     counts the change set's members; ``since(generation=sequence-1,
+         *     at=<this generation>)`` lists them. Genesis (sequence 0) carries only its
+         *     sequence, git oid and acceptance time. Pass ``sequence`` or ``git_oid`` as
+         *     ``at`` to read state as this generation left it.
+         */
+        OrientGeneration: {
+            /** Sequence */
+            sequence: number;
+            /** Git Oid */
+            git_oid: string;
+            /**
+             * Accepted At
+             * Format: date-time
+             */
+            accepted_at: string;
+            /** Changeset Digest */
+            changeset_digest?: string | null;
+            /** Proposal */
+            proposal?: string | null;
+            /** Proposer */
+            proposer?: string | null;
+            /**
+             * Approvals
+             * @default []
+             */
+            approvals?: string[];
+            /** Because */
+            because?: string | null;
+            /**
+             * Because Truncated
+             * @default false
+             */
+            because_truncated?: boolean;
+            /**
+             * Members
+             * @default 0
+             */
+            members?: number;
+        };
+        /**
          * OrientInterface
          * @description One live provider interface a Procedure node can call.
          *
@@ -11706,6 +11817,8 @@ export interface components {
          *     contract is required). A full descriptor also carries each described enum
          *     member, the role a write defaults to, and ``revision_evidence``: what a
          *     statement-changing revision keeps (``accumulate`` before v7).
+         *     ``kit`` (claim_types section only) is the installed kit that owns the
+         *     ClaimType: its receipt records the definition. Absent when no kit owns it.
          */
         OrientPredicate: {
             /** Name */
@@ -11744,6 +11857,8 @@ export interface components {
             stale_after?: string | null;
             /** Live Claims */
             live_claims?: number | null;
+            /** Kit */
+            kit?: string | null;
         };
         /** OrientPrediction */
         OrientPrediction: {
@@ -11812,8 +11927,9 @@ export interface components {
          *       ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an
          *       operational family:
          *       ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,
-         *       ``predictions``, ``mandates``), the principal registry (``principals``)
-         *       or the governed policies in force (``policies``), paged. The default map counts the
+         *       ``predictions``, ``mandates``), the principal registry (``principals``),
+         *       the governed policies in force (``policies``) or the accepted generations
+         *       newest first (``generations``), paged. The default map counts the
          *       operational families under ``artifacts`` and never inlines their rows.
          *
          *     ``next`` is rendered for the requesting surface.
@@ -11850,7 +11966,7 @@ export interface components {
             attention?: components["schemas"]["OrientAttention"] | null;
             kind_detail?: components["schemas"]["OrientKindDetail"] | null;
             /** Section */
-            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies") | null;
+            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations") | null;
             /** Documents */
             documents?: components["schemas"]["OrientDocument"][] | null;
             /** Procedures */
@@ -11879,6 +11995,8 @@ export interface components {
             principals?: components["schemas"]["PrincipalRecord"][] | null;
             /** Policies */
             policies?: components["schemas"]["PolicyInForce"][] | null;
+            /** Generations */
+            generations?: components["schemas"]["OrientGeneration"][] | null;
             /**
              * Truncated
              * @default false
@@ -11899,7 +12017,8 @@ export interface components {
          *
          *     ``rule`` is ``keys`` (named by its key ClaimTypes, in key order, ``unique``
          *     or ``hint``) or ``minted`` (core mints the id). A kind with no live
-         *     SubjectKind has no row: no new Subject of it can be created.
+         *     SubjectKind has no row: no new Subject of it can be created. ``kit`` is
+         *     the installed kit that owns the SubjectKind, absent when no kit owns it.
          */
         OrientSubjectKind: {
             /** Kind */
@@ -11916,6 +12035,8 @@ export interface components {
             keys?: string[];
             /** Uniqueness */
             uniqueness?: ("unique" | "hint") | null;
+            /** Kit */
+            kit?: string | null;
         };
         /**
          * OrientYou
@@ -23481,7 +23602,7 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: string | null;
-                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies") | null;
+                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations") | null;
                 limit?: number;
                 cursor?: string | null;
                 /** @description An accepted generation's Git OID, or a unique prefix of at least 12 hex characters; the four coordinate fields also pin one. */

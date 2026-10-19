@@ -4270,7 +4270,8 @@
                     "predictions",
                     "mandates",
                     "principals",
-                    "policies"
+                    "policies",
+                    "generations"
                   ],
                   "type": "string"
                 },
@@ -26118,6 +26119,17 @@
             "type": "integer",
             "title": "Live Claims"
           },
+          "kit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kit"
+          },
           "next": {
             "items": {
               "type": "string"
@@ -26902,6 +26914,66 @@
         "title": "GetHistory",
         "description": "One page of revisions, newest first; ``revision`` counts from the oldest.\n\nEach revision's value follows the summary card rule: a string over 500\ncharacters is a ``TruncatedText`` preview whose ``read_whole`` reads this\nrevision's whole value at its own generation."
       },
+      "GetIncoming": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "incoming",
+            "title": "Kind",
+            "default": "incoming"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/GetIncomingClaim"
+            },
+            "type": "array",
+            "title": "Claims"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claims"
+        ],
+        "title": "GetIncoming",
+        "description": "One page of the live Claims pointing at a Subject, in Claim id order.\n\nRead through the object index one page at a time: a page costs its rows,\nnever the Subject's whole incoming set. ``get`` each Claim (or batch them)\nfor its verdict and value."
+      },
+      "GetIncomingClaim": {
+        "properties": {
+          "claim": {
+            "type": "string",
+            "title": "Claim"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "predicate": {
+            "type": "string",
+            "title": "Predicate"
+          },
+          "qualifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualifier"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim",
+          "subject",
+          "predicate"
+        ],
+        "title": "GetIncomingClaim",
+        "description": "One live Claim whose Subject-valued object is the Subject read.\n\n``subject`` is the asserting Subject (``kind/id``): a relation is stored\nonce, on it, so this is the edge read from its object's side."
+      },
       "GetLineCard": {
         "properties": {
           "line": {
@@ -27197,6 +27269,35 @@
         ],
         "title": "GetLineOccurrence",
         "description": "One pending occurrence: ``due`` once its window has closed, else ``waiting``."
+      },
+      "GetLineRuns": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "line_runs",
+            "title": "Kind",
+            "default": "line_runs"
+          },
+          "line": {
+            "type": "string",
+            "title": "Line"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunRow"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "line",
+          "runs"
+        ],
+        "title": "GetLineRuns",
+        "description": "One page of a Line's Procedure runs, newest admission first.\n\nRead through the run journal's per-Line partition index one page at a\ntime, keyed by each admission's immutable position: a run admitted or\nfinished between pages is never repeated or skipped, and a page costs its\nrows, never the Line's whole run history. Runs are operational state, read\nlive at the current head. ``get ProcedureRun:<run>`` reads one."
       },
       "GetLineTrigger": {
         "properties": {
@@ -28258,6 +28359,8 @@
               "evidence",
               "why",
               "history",
+              "incoming",
+              "runs",
               "proof",
               "body"
             ],
@@ -28479,6 +28582,8 @@
               "evidence",
               "why",
               "history",
+              "incoming",
+              "runs",
               "proof",
               "body"
             ],
@@ -28592,6 +28697,26 @@
               }
             ],
             "title": "History"
+          },
+          "incoming": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GetIncoming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GetLineRuns"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "body": {
             "anyOf": [
@@ -29318,6 +29443,17 @@
           "live_subjects": {
             "type": "integer",
             "title": "Live Subjects"
+          },
+          "kit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kit"
           },
           "next": {
             "items": {
@@ -35029,6 +35165,96 @@
         "title": "OrientFloor",
         "description": "The workspace's greppable floor: the coordinate it is at, and how stale.\n\nOnly a client that sees the workspace (CLI, MCP, SDK) fills this in, from\nthe floor's own manifest; a daemon answer never carries it.\n``generations_behind`` counts accepted generations from the floor to this\nanswer's coordinate; ``None`` when the floor predates generation stamps."
       },
+      "OrientGeneration": {
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Sequence"
+          },
+          "git_oid": {
+            "type": "string",
+            "title": "Git Oid"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          },
+          "changeset_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changeset Digest"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal"
+          },
+          "proposer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposer"
+          },
+          "approvals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Approvals",
+            "default": []
+          },
+          "because": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Because"
+          },
+          "because_truncated": {
+            "type": "boolean",
+            "title": "Because Truncated",
+            "default": false
+          },
+          "members": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Members",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sequence",
+          "git_oid",
+          "accepted_at"
+        ],
+        "title": "OrientGeneration",
+        "description": "One accepted generation, newest first: what accepted it and how much it changed.\n\n``changeset_digest`` names the change-set record; ``proposal`` is the\nproposal whose admission it accepted (``get <proposal>`` reads its card and\nchanges), ``proposer`` the actor bound to it, and ``approvals`` the\napproving signers in record order. ``because`` is that admission's\nrationale, cut at 500 characters (``because_truncated``). ``members``\ncounts the change set's members; ``since(generation=sequence-1,\nat=<this generation>)`` lists them. Genesis (sequence 0) carries only its\nsequence, git oid and acceptance time. Pass ``sequence`` or ``git_oid`` as\n``at`` to read state as this generation left it."
+      },
       "OrientInterface": {
         "properties": {
           "name": {
@@ -35538,6 +35764,17 @@
               }
             ],
             "title": "Live Claims"
+          },
+          "kit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kit"
           }
         },
         "additionalProperties": false,
@@ -35549,7 +35786,7 @@
           "type"
         ],
         "title": "OrientPredicate",
-        "description": "One predicate of a kind: compact by default, in full under ``orient(kind=...)``.\n\n``name`` is the short name a query field uses against this kind; ``predicate``\nis the full ClaimType predicate. ``type`` is the value type: a JSON type,\n``date``/``datetime``, ``enum`` (with ``members``), ``subject`` or\n``subject:<kinds>`` for a Subject-valued predicate, or ``exact_content``.\n``evidence`` names the CaptureContracts the ClaimType admits; a digest that\nnames no accepted contract shows as ``unresolved:<short digest>``.\n``None`` (omitted on the wire) inherits the kind's evidence set; an empty\ntuple (``[]`` on the wire) explicitly admits no contracts. Standalone\ndescriptors always carry an explicit set.\n\n``description`` is the ClaimType's (v7) description: its first sentence, at\nmost 160 characters, in a compact descriptor; all of it in full.\n``evidence_requirement`` appears only when it is not ``self`` (``none``: the\nClaim's own origin supports it; ``captured``: a Capture under a declared\ncontract is required). A full descriptor also carries each described enum\nmember, the role a write defaults to, and ``revision_evidence``: what a\nstatement-changing revision keeps (``accumulate`` before v7)."
+        "description": "One predicate of a kind: compact by default, in full under ``orient(kind=...)``.\n\n``name`` is the short name a query field uses against this kind; ``predicate``\nis the full ClaimType predicate. ``type`` is the value type: a JSON type,\n``date``/``datetime``, ``enum`` (with ``members``), ``subject`` or\n``subject:<kinds>`` for a Subject-valued predicate, or ``exact_content``.\n``evidence`` names the CaptureContracts the ClaimType admits; a digest that\nnames no accepted contract shows as ``unresolved:<short digest>``.\n``None`` (omitted on the wire) inherits the kind's evidence set; an empty\ntuple (``[]`` on the wire) explicitly admits no contracts. Standalone\ndescriptors always carry an explicit set.\n\n``description`` is the ClaimType's (v7) description: its first sentence, at\nmost 160 characters, in a compact descriptor; all of it in full.\n``evidence_requirement`` appears only when it is not ``self`` (``none``: the\nClaim's own origin supports it; ``captured``: a Capture under a declared\ncontract is required). A full descriptor also carries each described enum\nmember, the role a write defaults to, and ``revision_evidence``: what a\nstatement-changing revision keeps (``accumulate`` before v7).\n``kit`` (claim_types section only) is the installed kit that owns the\nClaimType: its receipt records the definition. Absent when no kit owns it."
       },
       "OrientPrediction": {
         "properties": {
@@ -35796,7 +36033,8 @@
                   "predictions",
                   "mandates",
                   "principals",
-                  "policies"
+                  "policies",
+                  "generations"
                 ]
               },
               {
@@ -36001,6 +36239,20 @@
             ],
             "title": "Policies"
           },
+          "generations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OrientGeneration"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generations"
+          },
           "truncated": {
             "type": "boolean",
             "title": "Truncated",
@@ -36046,7 +36298,7 @@
           "evaluation_time"
         ],
         "title": "OrientResult",
-        "description": "One orient answer; which parts are present depends on the request.\n\n- no ``kind``/``section``: ``you``, ``kinds`` (paged by ``limit``/``cursor``),\n  ``artifacts``, ``queries`` and ``attention``;\n- ``kind``: ``kind_detail``;\n- ``section``: that section's rows (``documents``, ``procedures``,\n  ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an\n  operational family:\n  ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,\n  ``predictions``, ``mandates``), the principal registry (``principals``)\n  or the governed policies in force (``policies``), paged. The default map counts the\n  operational families under ``artifacts`` and never inlines their rows.\n\n``next`` is rendered for the requesting surface."
+        "description": "One orient answer; which parts are present depends on the request.\n\n- no ``kind``/``section``: ``you``, ``kinds`` (paged by ``limit``/``cursor``),\n  ``artifacts``, ``queries`` and ``attention``;\n- ``kind``: ``kind_detail``;\n- ``section``: that section's rows (``documents``, ``procedures``,\n  ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an\n  operational family:\n  ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,\n  ``predictions``, ``mandates``), the principal registry (``principals``),\n  the governed policies in force (``policies``) or the accepted generations\n  newest first (``generations``), paged. The default map counts the\n  operational families under ``artifacts`` and never inlines their rows.\n\n``next`` is rendered for the requesting surface."
       },
       "OrientSubjectKind": {
         "properties": {
@@ -36084,6 +36336,17 @@
               }
             ],
             "title": "Uniqueness"
+          },
+          "kit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kit"
           }
         },
         "additionalProperties": false,
@@ -36093,7 +36356,7 @@
           "rule"
         ],
         "title": "OrientSubjectKind",
-        "description": "One live SubjectKind: how core names a new Subject of the kind.\n\n``rule`` is ``keys`` (named by its key ClaimTypes, in key order, ``unique``\nor ``hint``) or ``minted`` (core mints the id). A kind with no live\nSubjectKind has no row: no new Subject of it can be created."
+        "description": "One live SubjectKind: how core names a new Subject of the kind.\n\n``rule`` is ``keys`` (named by its key ClaimTypes, in key order, ``unique``\nor ``hint``) or ``minted`` (core mints the id). A kind with no live\nSubjectKind has no row: no new Subject of it can be created. ``kit`` is\nthe installed kit that owns the SubjectKind, absent when no kit owns it."
       },
       "OrientYou": {
         "properties": {
