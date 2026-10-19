@@ -1,5 +1,7 @@
 /**
- * Hand-authored Subject reads for the fixture world (authored.ts): Subject
+ * Hand-authored Subject reads (the recorded world covers ordinary Subjects;
+ * these keep a contested slot with evidence both ways, a refused ref, and a
+ * second history page). Subject
  * cards (get-batch, as the app reads them), Claim verdict cards, admission
  * accounts, evidence, revisions, field history, and the neighborhood hops
  * around security.assessment/rel-1-cve-2024-3094.
@@ -244,7 +246,9 @@ function claimSet(subject: string) {
       body: claimReadBatchBody(ids, COORDINATE),
       response: { tag: "playbill-claim-read-batch-v1", coordinate: COORDINATE, claims: ids.map((id) => claimView(byId.get(id)!)) },
     }),
-    ...specs.flatMap((spec) => [
+    // Evidence and revisions only for the contested slot: the recorded world
+    // covers uncontested Claims.
+    ...specs.filter((spec) => spec.contenders).flatMap((spec) => [
       defineFixture({
         method: "post",
         path: "/api/v1/{instance_id}/get",
@@ -349,7 +353,9 @@ function incomingFixture(subject: string, claims: Schemas["GetIncomingClaim"][])
 }
 
 export default [
-  ...Object.keys(SUBJECTS).map((ref) => batch([ref], [subjectResult(ref)])),
+  // Cards for the two Subjects the authored tests open; the other three
+  // appear only inside the neighborhood hop batches below.
+  ...[ASSESSMENT, "security.vulnerability/cve-2024-3094"].map((ref) => batch([ref], [subjectResult(ref)])),
   defineErrorFixture({
     method: "post",
     path: "/api/v1/{instance_id}/get-batch",

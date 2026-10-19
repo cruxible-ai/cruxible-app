@@ -13,7 +13,6 @@ const ACCEPTED_OLDER = "sha256:" + "3".repeat(64);
 const REFUSED = "sha256:" + "4".repeat(64);
 const OPEN = "sha256:" + "a".repeat(64);
 const CLAIM_A3 = `CLM-${(0xa3).toString(16).padStart(32, "0")}`;
-const ASSESSMENT_PATH = "subjects/security.assessment/rel-1-cve-2024-3094.json";
 
 type Entry = Schemas["ProposalListEntry"];
 
@@ -163,7 +162,6 @@ export default [
     entry(REFUSED, { admitted_at: "2026-10-18T12:00:00Z", verdict: "refused", terminal_reason: "refused" }),
   ]),
   list("open", [entry(OPEN, { admitted_at: "2026-10-19T10:00:00Z", status: "open" })]),
-  list("incomplete", []),
   cardFixture(ACCEPTED, {
     proposal: ACCEPTED,
     status: "settled",
@@ -172,15 +170,6 @@ export default [
     admitted_at: "2026-10-19T09:00:00Z",
     rationale: "Vendor advisory says rel-1 never shipped the build.",
     changes: [{ path: `claims/00/${CLAIM_A3}.json`, change: "created" }],
-  }),
-  cardFixture(ACCEPTED_OLDER, {
-    proposal: ACCEPTED_OLDER,
-    status: "settled",
-    verdict: "candidate",
-    actor: "sbom-import",
-    admitted_at: "2026-10-17T10:00:00Z",
-    reason: "SBOM import of rel-1",
-    changes: [{ path: ASSESSMENT_PATH, change: "created" }],
   }),
   cardFixture(OPEN, {
     proposal: OPEN,
