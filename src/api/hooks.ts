@@ -75,7 +75,11 @@ export function usePin() {
   return { at, head, coordinate: head.data?.coordinate, generation: head.data?.generation };
 }
 
-/** A query pinned to the page coordinate; waits for it, keys on its git oid. */
+/**
+ * A query pinned to the page coordinate; waits for it and keys on its git
+ * oid. When the pin itself is refused (an `at` naming no accepted
+ * generation), the query fails with that refusal instead of waiting forever.
+ */
 function usePinnedQuery<T>(
   name: string,
   args: readonly unknown[],
@@ -83,12 +87,17 @@ function usePinnedQuery<T>(
   enabled = true,
 ) {
   const instanceId = useInstanceId();
-  const { coordinate } = usePin();
+  const { at, coordinate, head } = usePin();
+  const pinError = coordinate === undefined ? head.error : null;
   return useQuery({
-    queryKey: [name, instanceId, coordinate?.git_oid ?? null, ...args],
-    enabled: enabled && coordinate !== undefined,
+    queryKey: [name, instanceId, coordinate?.git_oid ?? (pinError ? `refused:${at}` : null), ...args],
+    enabled: enabled && (coordinate !== undefined || pinError !== null),
     staleTime: 60_000,
-    queryFn: () => fetch(coordinate!),
+    ...(pinError ? { retry: false } : {}),
+    queryFn: () => {
+      if (coordinate === undefined) throw pinError;
+      return fetch(coordinate);
+    },
   });
 }
 

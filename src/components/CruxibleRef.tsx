@@ -1,18 +1,26 @@
 import { Link } from "react-router-dom";
-import { useInspectEntity, useInstanceId, useQueryCatalog } from "@/api/hooks";
-import { entityPath } from "./EntityLink";
-import { humanize } from "@/lib/text";
-import { parseCruxibleRef } from "@/lib/cruxible-ref";
+import { useGet, useInstanceId } from "@/api/hooks";
+import { ApiError } from "@/api/data-source";
+import { useAtLink } from "@/lib/at";
+import {
+  formatRef,
+  getRefOf,
+  parseCruxibleUrl,
+  refKindLabel,
+  refName,
+  refRoute,
+  type ParsedRef,
+} from "@/lib/cruxible-ref";
 
 /**
- * Hydrated chip for a cruxible:// ref in agent-authored prose — the briefing
- * primitive: the agent arranges refs, state renders them. Refs only ever map
- * to in-app routes and the existing read hooks; nothing in a ref is executed.
+ * Hydrated chip for a cruxible:// ref in agent-authored prose: the agent
+ * arranges refs, state renders them. A ref only ever maps to an in-app route
+ * and one get read at the page's coordinate; nothing in a ref is executed.
  *
  * The dot is the TRUST cue separating state-backed elements from author
- * prose: emerald = confirmed against state, amber = state does not know this
- * ref, pulsing zinc = hydrating. Authored labels ([label](cruxible://…)) are
- * kept; bare refs show the hydrated title. Unresolved refs degrade to a
+ * prose: emerald = get resolved it at this generation, amber = state does not
+ * know this ref, pulsing zinc = hydrating. Authored labels ([label](cruxible://…))
+ * are kept; bare refs show the ref's name. Unresolved refs degrade to a
  * non-link chip so broken refs never break the prose flow.
  */
 
@@ -32,20 +40,16 @@ function Dot({ state }: { state: keyof typeof DOT }) {
   return <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[state]}`} />;
 }
 
-function TypeTag({ entityType }: { entityType: string }) {
-  return (
-    <span className="text-[10px] uppercase tracking-wide text-zinc-500">
-      {humanize(entityType)}
-    </span>
-  );
+function KindTag({ label }: { label: string }) {
+  return <span className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</span>;
 }
 
 /**
  * `label` is the author's link text when the ref was written as
- * [label](cruxible://…); undefined for bare refs (hydrated title shown).
+ * [label](cruxible://…); undefined for bare refs.
  */
 export function CruxibleRefChip({ url, label }: { url: string; label?: string | undefined }) {
-  const ref = parseCruxibleRef(url);
+  const ref = parseCruxibleUrl(url);
   if (!ref) {
     // Unknown ref form: inert code text, never a link, nothing fetched.
     return (
@@ -57,116 +61,69 @@ export function CruxibleRefChip({ url, label }: { url: string; label?: string | 
       </code>
     );
   }
-  switch (ref.kind) {
-    case "entity":
-      return <EntityRefChip entityType={ref.entityType} entityId={ref.entityId} label={label} />;
-    case "query":
-      return <QueryRefChip queryName={ref.queryName} label={label} />;
-    case "receipt":
-      return <ReceiptRefChip receiptId={ref.receiptId} label={label} />;
-  }
+  return <RefChip refValue={ref} label={label} />;
 }
 
-function EntityRefChip({
-  entityType,
-  entityId,
-  label,
-}: {
-  entityType: string;
-  entityId: string;
-  label?: string | undefined;
-}) {
+/** A chip for one parsed ref, hydrated through get at the page coordinate. */
+export function RefChip({ refValue, label }: { refValue: ParsedRef; label?: string | undefined }) {
   const instanceId = useInstanceId();
+  const link = useAtLink();
+  const getRef = getRefOf(refValue);
   // react-query dedupes by key, so N chips for one ref cost one request.
-  const inspect = useInspectEntity(entityType, entityId);
+  const read = useGet(getRef);
+  const text = label ?? refName(refValue);
+  const shown = formatRef(refValue);
+  const kindLabel = refKindLabel(refValue);
 
-  if (inspect.isPending) {
+  if (getRef === null) {
+    // Inbox items are not get refs; no screen reads them yet, so the chip is inert.
     return (
-      <span className={CHIP_PENDING}>
-        <Dot state="pending" />
-        <TypeTag entityType={entityType} />
-        {label ?? entityId}
+      <span className={CHIP_PENDING} title={shown}>
+        <KindTag label={kindLabel} />
+        <span className="font-mono text-[12px]">{text}</span>
       </span>
     );
   }
-  const data = inspect.data as
-    | { found?: boolean; properties?: Record<string, unknown> }
-    | undefined;
-  if (inspect.error || data?.found === false) {
-    return (
-      <span className={CHIP_UNRESOLVED} title={`${entityType}/${entityId} — not found in state`}>
-        <Dot state="unresolved" />
-        <TypeTag entityType={entityType} />
-        {label ?? entityId}
-      </span>
-    );
-  }
-  const props = data?.properties ?? {};
-  const title =
-    typeof props.title === "string"
-      ? props.title
-      : typeof props.name === "string"
-        ? props.name
-        : entityId;
-  return (
-    <Link
-      to={entityPath(instanceId, entityType, entityId)}
-      className={CHIP_LIVE}
-      title={`${entityType}/${entityId} — backed by state`}
-    >
-      <Dot state="live" />
-      <TypeTag entityType={entityType} />
-      <span>{label ?? title}</span>
-    </Link>
-  );
-}
-
-function QueryRefChip({ queryName, label }: { queryName: string; label?: string | undefined }) {
-  const instanceId = useInstanceId();
-  const catalog = useQueryCatalog();
-  const text = label ?? humanize(queryName);
-
-  if (catalog.isPending) {
+  if (read.isPending) {
     return (
       <span className={CHIP_PENDING}>
         <Dot state="pending" />
+        <KindTag label={kindLabel} />
         {text}
       </span>
     );
   }
-  const known = (catalog.data?.items ?? []).some((q) => q.name === queryName);
-  if (catalog.error || !known) {
+  if (read.error) {
+    // Only get's own refusal means "unknown ref"; a refused pin (?at=) or any
+    // other failure shows its message.
+    const missing =
+      read.error instanceof ApiError && read.error.errorCode === "cruxible.get.ref_not_found";
     return (
-      <span className={CHIP_UNRESOLVED} title={`query ${queryName} — not in the catalog`}>
+      <span
+        className={CHIP_UNRESOLVED}
+        title={`${shown}: ${missing ? "not found in accepted state" : read.error.message}`}
+      >
         <Dot state="unresolved" />
+        <KindTag label={kindLabel} />
         {text}
       </span>
     );
   }
-  return (
-    <Link
-      to={`/i/${instanceId}/views/${encodeURIComponent(queryName)}`}
-      className={CHIP_LIVE}
-      title={`query ${queryName} — backed by state`}
-    >
+  const route = refRoute(instanceId, refValue);
+  const body = (
+    <>
       <Dot state="live" />
-      {text}
-    </Link>
+      <KindTag label={kindLabel} />
+      <span>{text}</span>
+    </>
   );
-}
-
-function ReceiptRefChip({ receiptId, label }: { receiptId: string; label?: string | undefined }) {
-  const instanceId = useInstanceId();
-  // No hydration fetch: the receipt screen itself is the verification
-  // surface, so the chip only needs to route there.
-  return (
-    <Link
-      to={`/i/${instanceId}/receipts/${encodeURIComponent(receiptId)}`}
-      className={`${CHIP_LIVE} font-mono text-[12px]`}
-      title={`receipt ${receiptId}`}
-    >
-      <Dot state="live" />
-      {label ?? receiptId}
+  return route ? (
+    <Link to={link(route)} className={CHIP_LIVE} title={`${shown}: backed by state`}>
+      {body}
     </Link>
+  ) : (
+    <span className={CHIP_LIVE} title={`${shown}: backed by state`}>
+      {body}
+    </span>
   );
 }

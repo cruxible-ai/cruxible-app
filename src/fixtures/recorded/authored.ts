@@ -214,6 +214,14 @@ export default [
     response: { tag: "playbill-head-v1", instance: INSTANCE, coordinate: COORDINATE, generation: GENERATION },
   }),
 
+  // The head pinned by number (the at-picker's ?at=42) resolves to the same coordinate.
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/head",
+    query: headQuery(String(GENERATION)),
+    response: { tag: "playbill-head-v1", instance: INSTANCE, coordinate: COORDINATE, generation: GENERATION },
+  }),
+
   defineFixture({
     method: "get",
     path: "/api/v1/{instance_id}/orient",
