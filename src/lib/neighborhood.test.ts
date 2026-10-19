@@ -73,6 +73,17 @@ describe("neighborhood walk", () => {
     expect(calls).toEqual([["a.x/r"], ["a.x/ok", "a.x/gone"], ["a.x/ok"], ["a.x/gone"]]);
   });
 
+  it("draws one page of the root's incoming links one column to the left", async () => {
+    const { fetch } = world({ "a.x/r": ["b"], "a.x/p": ["r"] });
+    const graph = await walkNeighborhood("a.x/r", 1, kinds, fetch, 150, async (subject, cursor) => {
+      expect([subject, cursor]).toEqual(["a.x/r", null]);
+      return { claims: [{ subject: "a.x/p", predicate: "a.x.to", claim: "CLM-p" }], nextCursor: "more" };
+    });
+    expect(graph.nodes.find((n) => n.ref === "a.x/p")?.depth).toBe(-1);
+    expect(graph.edges.map((e) => `${e.source}>${e.target}`)).toContain("a.x/p>a.x/r");
+    expect(graph.incomingMore).toBe(true);
+  });
+
   it("batches a hop 64 refs per call", async () => {
     const fan = Array.from({ length: 100 }, (_, i) => `n${i}`);
     const { calls, fetch } = world({ "a.x/r": fan });

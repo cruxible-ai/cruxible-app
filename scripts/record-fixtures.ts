@@ -18,6 +18,7 @@ import {
   getBody,
   GET_BATCH_MAX,
   HISTORY_PAGE,
+  INCOMING_PAGE,
   headQuery,
   inboxQuery,
   isReadRoute,
@@ -30,7 +31,7 @@ import {
 } from "../src/api/requests.ts";
 import type { AcceptedCoordinate, GetResult, OrientResult } from "../src/api/schemas.ts";
 import { digest8, fixtureKey, normalizePath, normalizeQuery } from "../src/fixtures/key.ts";
-import { walkNeighborhood, type CardFetcher } from "../src/lib/neighborhood.ts";
+import { walkNeighborhood, type CardFetcher, type IncomingReader } from "../src/lib/neighborhood.ts";
 import { readMandateProof } from "../src/lib/lines.ts";
 
 const { values: args } = parseArgs({
@@ -158,7 +159,15 @@ for (const ref of samples.slice(0, 2)) {
     await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "evidence" }) });
     await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
   }
-  for (const depth of [1, 2]) await walkNeighborhood(ref, depth, orient?.kinds ?? [], fetchCards).catch(() => null);
+  const incoming: IncomingReader = async (subject, cursor) => {
+    const read = await call<GetResult>("post", `${P}/get`, {
+      body: getBody({ ref: subject, coordinate: C, detail: "incoming", limit: INCOMING_PAGE, ...(cursor ? { cursor } : {}) }),
+    });
+    return { claims: read?.incoming?.claims ?? [], nextCursor: read?.next_cursor ?? null };
+  };
+  for (const depth of [1, 2]) {
+    await walkNeighborhood(ref, depth, orient?.kinds ?? [], fetchCards, undefined, incoming).catch(() => null);
+  }
 }
 
 // ClaimType cards (the type map loads one on click).

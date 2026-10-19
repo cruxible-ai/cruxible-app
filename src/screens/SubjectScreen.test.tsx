@@ -7,6 +7,12 @@ afterEach(cleanup);
 const ASSESSMENT = "/i/inst_fixture/s/security.assessment%2Frel-1-cve-2024-3094";
 
 describe("Subject page", () => {
+  it("pages the Subjects pointing at this one", async () => {
+    renderApp("/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
+    expect(await screen.findByText("Pointed at by")).toBeInTheDocument();
+    expect(await screen.findByText("security.assessment.vulnerability")).toBeInTheDocument();
+  });
+
   it("shows the card: fields, values, Subject links, flags, verdicts and admission", async () => {
     renderApp(ASSESSMENT);
     expect(await screen.findByRole("heading", { name: "rel-1-cve-2024-3094" })).toBeInTheDocument();

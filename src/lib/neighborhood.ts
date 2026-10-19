@@ -10,10 +10,11 @@ import { isSubjectValued } from "./type-graph.ts";
  * 64 refs per call, every hop at the page coordinate). Each node costs its
  * own indexed Claims; a load is bounded by the node cap, never the instance.
  *
- * An edge is a card Claim whose ClaimType is Subject-valued by its orient
- * type ("subject:<kinds>"), never by the shape of the displayed string.
- * Incoming edges are only counted (the card's indexed `incoming_count`);
- * listing them needs a paged incoming read (design gap G2), see IncomingReader.
+ * An outgoing edge is a card Claim whose ClaimType is Subject-valued by its
+ * orient type ("subject:<kinds>"), never by the shape of the displayed string.
+ * The root's incoming links come from one page of `get detail=incoming`
+ * (keyset-paged over the indexed claims_by_object_subject); every node also
+ * carries its indexed `incoming_count`.
  */
 
 export const NEIGHBORHOOD_NODE_CAP = 150;
@@ -53,8 +54,10 @@ export interface Neighborhood {
   edges: NeighborhoodEdge[];
   /** True when the node cap stopped the walk. */
   capped: boolean;
-  /** get-batch calls the walk made (for the cost readout). */
+  /** Reads the walk made (get-batch calls plus the incoming page), for the cost readout. */
   calls: number;
+  /** The root has more incoming links than the one page drawn. */
+  incomingMore: boolean;
 }
 
 /** Reads summary cards for refs (≤ 64), in order; rejects when any ref fails. */
@@ -133,6 +136,7 @@ export async function walkNeighborhood(
   kinds: readonly OrientKind[],
   fetch: CardFetcher,
   cap = NEIGHBORHOOD_NODE_CAP,
+  incoming: IncomingReader | null = null,
 ): Promise<Neighborhood> {
   const maxDepth = Math.max(1, Math.min(depth, NEIGHBORHOOD_MAX_DEPTH));
   const predicates = predicateIndex(kinds);
@@ -195,28 +199,62 @@ export async function walkNeighborhood(
     for (const ref of next) place(ref, hop + 1, reads.get(ref)!);
     frontier = next;
   }
+  // The root's incoming links, one page, drawn one column to the left: the
+  // Subjects whose Subject-valued Claims point at the root.
+  let incomingMore = false;
+  if (incoming) {
+    counter.calls += 1;
+    const page = await incoming(rootRef, null);
+    incomingMore = page.nextCursor !== null;
+    const added: string[] = [];
+    for (const link of page.claims) {
+      const ref = parseRef(link.subject);
+      const source = ref?.kind === "subject" ? formatRef(ref) : link.subject;
+      if (!nodes.has(source) && !added.includes(source)) {
+        if (nodes.size + added.length >= cap) {
+          capped = true;
+          continue;
+        }
+        added.push(source);
+      }
+      const id = `${source}\n${link.predicate}\n${rootRef}`;
+      edges.set(id, {
+        id,
+        source,
+        target: rootRef,
+        field: link.predicate.split(".").pop() ?? link.predicate,
+        predicate: link.predicate,
+        cardinality: "one",
+        claim: link.claim,
+      });
+    }
+    if (added.length) {
+      const reads = await readCards(added, fetch, counter);
+      for (const ref of added) place(ref, -1, reads.get(ref)!);
+    }
+  }
   // Edges into targets that were never placed (cap) are dropped with the target.
-  for (const [id, edge] of edges) if (!nodes.has(edge.target)) edges.delete(id);
+  for (const [id, edge] of edges) if (!nodes.has(edge.target) || !nodes.has(edge.source)) edges.delete(id);
   for (const node of nodes.values()) {
     node.outgoingShown = [...edges.values()].filter((edge) => edge.source === node.ref).length;
   }
-  return { root: rootRef, depth: maxDepth, nodes: [...nodes.values()], edges: [...edges.values()], capped, calls: counter.calls };
+  return {
+    root: rootRef,
+    depth: maxDepth,
+    nodes: [...nodes.values()],
+    edges: [...edges.values()],
+    capped,
+    calls: counter.calls,
+    incomingMore,
+  };
 }
 
-// -- incoming edges (design gap G2) --------------------------------------------
+// -- incoming edges -----------------------------------------------------------
 
-/** One page of Subject-valued Claims that point at a Subject. */
+/** One page of Subject-valued Claims that point at a Subject (get detail=incoming). */
 export interface IncomingPage {
   claims: { subject: string; predicate: string; claim: string }[];
   nextCursor: string | null;
 }
 
-/**
- * The seam for the paged incoming read being built in core (claude/app-read-gaps):
- * once the pinned contract serves it, implement this over that route and the
- * neighborhood panel lists incoming edges. Until then only the count shows.
- */
 export type IncomingReader = (subject: string, cursor: string | null) => Promise<IncomingPage>;
-
-/** No incoming read is served at the pinned contract; set this when it is. */
-export const incomingReader: IncomingReader | null = null;

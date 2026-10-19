@@ -8,6 +8,8 @@ import {
   getBody,
   GET_BATCH_MAX,
   HISTORY_PAGE,
+  INCOMING_PAGE,
+  LINE_RUNS_PAGE,
   CLAIM_READ_BATCH_MAX,
   headQuery,
   inboxQuery,
@@ -31,7 +33,7 @@ import type {
   ProposalStatus,
 } from "./schemas";
 import { useAtParam } from "@/lib/at";
-import { walkNeighborhood } from "@/lib/neighborhood";
+import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
 
 /**
  * Read hooks over the playbill daemon. Every state read is pinned to one
@@ -518,18 +520,48 @@ export function useNeighborhood(root: string | null, depth: number) {
   return usePinnedQuery(
     "neighborhood",
     [root, depth],
-    (coordinate) =>
-      walkNeighborhood(root!, depth, kinds.data!.kinds, async (refs) => {
-        const batch = unwrap(
-          await client.POST("/api/v1/{instance_id}/get-batch", {
+    (coordinate) => {
+      const incoming: IncomingReader = async (subject, cursor) => {
+        const read = unwrap(
+          await client.POST("/api/v1/{instance_id}/get", {
             params: { path: { instance_id: instanceId } },
-            body: getBatchBody(refs, coordinate),
+            body: getBody({ ref: subject, coordinate, detail: "incoming", limit: INCOMING_PAGE, ...(cursor ? { cursor } : {}) }),
           }),
         );
-        return [...batch.results];
-      }),
+        return { claims: read.incoming?.claims ?? [], nextCursor: read.next_cursor ?? null };
+      };
+      return walkNeighborhood(
+        root!,
+        depth,
+        kinds.data!.kinds,
+        async (refs) => {
+          const batch = unwrap(
+            await client.POST("/api/v1/{instance_id}/get-batch", {
+              params: { path: { instance_id: instanceId } },
+              body: getBatchBody(refs, coordinate),
+            }),
+          );
+          return [...batch.results];
+        },
+        undefined,
+        incoming,
+      );
+    },
     root !== null && kinds.data !== undefined,
   );
+}
+
+/** One page of the Subject-valued Claims pointing at a Subject (keyset-paged). */
+export function useIncoming(ref: string | null, cursor?: string) {
+  return useGet(ref, "incoming", { limit: INCOMING_PAGE, ...(cursor !== undefined ? { cursor } : {}) });
+}
+
+/** One page of a Line's runs, newest first (keyset-paged). */
+export function useLineRuns(line: string | null, cursor?: string) {
+  return useGet(line === null ? null : `Line:${line}`, "runs", {
+    limit: LINE_RUNS_PAGE,
+    ...(cursor !== undefined ? { cursor } : {}),
+  });
 }
 
 /** One inbox item with its payload (head-only; O(1) by id). */

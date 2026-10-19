@@ -113,6 +113,12 @@ export function getBody(args: GetArgs): RequestBody<"/api/v1/{instance_id}/get",
   };
 }
 
+/** Incoming links per page (get allows up to 200). */
+export const INCOMING_PAGE = 50;
+
+/** Line runs per page (get allows up to 200). */
+export const LINE_RUNS_PAGE = 20;
+
 /** History rows per page (get allows up to 200). */
 export const HISTORY_PAGE = 20;
 

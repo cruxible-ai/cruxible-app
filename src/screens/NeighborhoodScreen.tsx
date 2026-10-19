@@ -6,6 +6,7 @@ import { actionChipClass, toggleChipClass } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
+import { IncomingList } from "@/components/IncomingList";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import { ConnectionList, PanelActions, PanelHeading, PanelSection } from "@/components/graph/PanelBits";
 import { LayerLegend } from "@/components/graph/LayerLegend";
@@ -13,7 +14,6 @@ import { useAtLink } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
 import { useLayerColoring } from "@/lib/kit-layer";
 import {
-  incomingReader,
   NEIGHBORHOOD_MAX_DEPTH,
   NEIGHBORHOOD_NODE_CAP,
   type Neighborhood,
@@ -95,9 +95,9 @@ function layout(graph: Neighborhood, colorOf: ((kind: string) => string) | null)
 
 /**
  * A Subject's outgoing neighborhood: depth 1 by default, 2 on request, at
- * most 150 Subjects, read hop by hop with get-batch at the page coordinate.
- * Incoming links show as counts on each node until core serves a paged
- * incoming read (gap G2).
+ * most 150 Subjects, read hop by hop with get-batch at the page coordinate,
+ * plus the first page of the root's incoming links in the column to its left.
+ * Every node carries its incoming count; its panel pages the full list.
  */
 export function NeighborhoodScreen() {
   const { ref: raw = "" } = useParams();
@@ -194,14 +194,8 @@ export function NeighborhoodScreen() {
             </div>
           )}
         </PanelSection>
-        <PanelSection title="Incoming">
-          <div className="text-[12px] text-zinc-400">
-            <span className="font-mono text-zinc-200">{node.incomingCount ?? "?"}</span> Subject-valued Claims
-            point here.
-            {incomingReader === null && (
-              <span className="text-zinc-600"> Listing them needs core's paged incoming read.</span>
-            )}
-          </div>
+        <PanelSection title={`Incoming (${node.incomingCount ?? "?"})`}>
+          <IncomingList subject={node.ref} total={node.incomingCount} />
         </PanelSection>
         {literals.length > 0 && (
           <PanelSection title="Fields">
@@ -235,8 +229,8 @@ export function NeighborhoodScreen() {
         </span>
         {graph.data && (
           <span className="text-[12px] text-zinc-600">
-            {graph.data.nodes.length} Subjects · {graph.data.edges.length} links · {graph.data.calls} get-batch
-            calls · outgoing only; ←n = incoming count
+            {graph.data.nodes.length} Subjects · {graph.data.edges.length} links · {graph.data.calls} reads ·
+            ←n = incoming count{graph.data.incomingMore && " · more incoming than drawn"}
           </span>
         )}
         {graph.data?.capped && (

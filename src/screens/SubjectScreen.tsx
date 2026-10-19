@@ -26,6 +26,7 @@ import { Corroboration, type CorroborationSummary } from "@/components/Corrobora
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
+import { IncomingList } from "@/components/IncomingList";
 import { useAtLink, withAt } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
 import { predicateIndex } from "@/lib/neighborhood";
@@ -95,7 +96,7 @@ export function SubjectScreen() {
             {kind}
           </Link>
           <Chip value={subject.lifecycle} />
-          <span className="text-zinc-500" title="Subject-valued Claims pointing at this Subject (counted; listing them awaits a core read)">
+          <span className="text-zinc-500" title="Subject-valued Claims pointing at this Subject">
             ← <span className="font-mono text-zinc-300">{subject.incoming_count}</span> incoming
           </span>
           <span className="text-zinc-600">
@@ -137,6 +138,12 @@ export function SubjectScreen() {
           ))}
         </div>
       </Panel>
+
+      {subject.incoming_count > 0 && (
+        <Panel title="Pointed at by" meta={<span>{subject.incoming_count}</span>}>
+          <IncomingList subject={subject.subject} total={subject.incoming_count} />
+        </Panel>
+      )}
 
       <HistoryPanel subjectRef={subject.subject} />
     </div>

@@ -6,7 +6,7 @@
  */
 import { defineErrorFixture, defineFixture } from "../fixture";
 import { errorEnvelope } from "../envelopes";
-import { claimReadBatchBody, getBatchBody, getBody, HISTORY_PAGE } from "@/api/requests";
+import { claimReadBatchBody, getBatchBody, getBody, HISTORY_PAGE, INCOMING_PAGE } from "@/api/requests";
 import type { CaptureAdmissionAccount, GetResult, Schemas } from "@/api/schemas";
 import { ACCEPTED_AT, AT, COORDINATE, NOW } from "./authored";
 
@@ -334,6 +334,20 @@ function historyFixture(subject: string) {
 
 const ASSESSMENT = "security.assessment/rel-1-cve-2024-3094";
 
+function incomingFixture(subject: string, claims: Schemas["GetIncomingClaim"][]) {
+  return defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get",
+    body: getBody({ ref: subject, coordinate: COORDINATE, detail: "incoming", limit: INCOMING_PAGE }),
+    response: {
+      ...subjectResult(subject),
+      detail: "incoming",
+      incoming: { kind: "incoming", claims },
+      next_cursor: null,
+    },
+  });
+}
+
 export default [
   ...Object.keys(SUBJECTS).map((ref) => batch([ref], [subjectResult(ref)])),
   defineErrorFixture({
@@ -371,6 +385,11 @@ export default [
       },
     },
   }),
+  incomingFixture(ASSESSMENT, []),
+  incomingFixture("security.vulnerability/cve-2024-3094", [
+    { claim: clm(0xa4), subject: ASSESSMENT, predicate: "security.assessment.vulnerability" },
+    { claim: clm(0xf1), subject: "security.vulnerability/cve-2024-6387", predicate: "security.vulnerability.related" },
+  ]),
   // Neighborhood hops from the assessment: depth 1, then depth 2.
   batch(
     ["security.release/rel-1", "security.vulnerability/cve-2024-3094"],
