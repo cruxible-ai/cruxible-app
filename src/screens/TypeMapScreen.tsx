@@ -280,7 +280,13 @@ function KindPanel({
         <span className="font-mono text-zinc-200">{subjects}</span> {subjects === 1 ? "Subject" : "Subjects"}
       </div>
       <div className="mt-0.5 text-[12px] text-zinc-500">
-        {owner.source === "kit" ? "kit" : "namespace"} <span className="font-mono">{owner.layer}</span>
+        {owner.source === "kit" ? (
+          <>
+            kit <span className="font-mono">{owner.layer}</span>
+          </>
+        ) : (
+          "authored in this instance"
+        )}
       </div>
       {rule && (
         <PanelSection title="Identity">
@@ -419,6 +425,8 @@ function ClaimTypeDetail({ descriptor, api }: { descriptor: OrientPredicate; api
       <div className="break-all font-mono text-[11px] text-zinc-500">{descriptor.predicate}</div>
       {descriptor.description && <div>{descriptor.description}</div>}
       <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
+        <dt className="text-zinc-600">kit</dt>
+        <dd className="font-mono">{descriptor.kit ?? cardOf(card.data, "claim_type")?.kit ?? "authored here"}</dd>
         <dt className="text-zinc-600">cardinality</dt>
         <dd>{descriptor.cardinality}</dd>
         <dt className="text-zinc-600">value</dt>

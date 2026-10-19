@@ -45,6 +45,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     roles: ["normative"],
     default_role: "normative",
     revision_evidence: "replace",
+    kit: "security",
     live_claims: 1,
   },
   {
@@ -58,6 +59,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     roles: ["normative"],
     default_role: "normative",
     revision_evidence: "replace",
+    kit: "security",
     live_claims: 2,
   },
   {
@@ -71,6 +73,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     roles: ["normative"],
     default_role: "normative",
     revision_evidence: "replace",
+    kit: "security",
     live_claims: 3,
   },
   {
@@ -86,6 +89,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     default_role: "observation",
     revision_evidence: "replace",
     stale_after: "1d",
+    kit: "security",
     live_claims: 3,
   },
   {
@@ -99,6 +103,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     roles: ["normative"],
     default_role: "normative",
     revision_evidence: "replace",
+    kit: "security",
     live_claims: 2,
   },
   {
@@ -112,6 +117,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     roles: ["normative"],
     default_role: "normative",
     revision_evidence: "replace",
+    kit: "security",
     live_claims: 2,
   },
   {
@@ -128,6 +134,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     default_role: "observation",
     revision_evidence: "accumulate",
     stale_after: "7d",
+    kit: "security",
     live_claims: 2,
   },
   {
@@ -141,6 +148,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     roles: ["normative"],
     default_role: "normative",
     revision_evidence: "replace",
+    kit: "security",
     live_claims: 1,
   },
 ];
@@ -224,6 +232,7 @@ const CLAIM_TYPE_STATUS: GetResult = {
         admission: "direct",
       },
     ],
+    kit: "security",
     live_claims: 2,
   },
 };
@@ -302,10 +311,10 @@ export default [
       ...BASE_ORIENT,
       section: "subject_kinds",
       subject_kinds: [
-        { kind: "security.assessment", rule: "keys", keys: ["security.assessment.release_id", "security.assessment.cve_id"], uniqueness: "unique" },
-        { kind: "security.product", rule: "keys", keys: ["security.product.name"], uniqueness: "unique" },
-        { kind: "security.release", rule: "keys", keys: ["security.release.product", "security.release.version"], uniqueness: "unique" },
-        { kind: "security.vulnerability", rule: "keys", keys: ["security.vulnerability.cve_id"], uniqueness: "unique" },
+        { kind: "security.assessment", rule: "keys", keys: ["security.assessment.release_id", "security.assessment.cve_id"], uniqueness: "unique", kit: "security" },
+        { kind: "security.product", rule: "keys", keys: ["security.product.name"], uniqueness: "unique", kit: "security" },
+        { kind: "security.release", rule: "keys", keys: ["security.release.product", "security.release.version"], uniqueness: "unique", kit: "security" },
+        { kind: "security.vulnerability", rule: "keys", keys: ["security.vulnerability.cve_id"], uniqueness: "unique", kit: "security" },
       ],
     },
   }),

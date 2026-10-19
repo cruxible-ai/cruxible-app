@@ -22,6 +22,7 @@ describe("Type map", () => {
     const panel = within(screen.getByText("Subject kind").closest("div.overflow-y-auto") as HTMLElement);
     expect(panel.getByText("security.vulnerability.cve_id")).toBeInTheDocument();
     expect(panel.getByText("kev_listed")).toBeInTheDocument();
+    expect(panel.getByText("security", { selector: "span.font-mono" })).toBeInTheDocument(); // owning kit
     expect(panel.getByText("security.assessment")).toBeInTheDocument(); // pointed at by
     const sample = await panel.findByRole("link", { name: "cve-2024-3094" });
     expect(sample).toHaveAttribute("href", "/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");

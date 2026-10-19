@@ -9,7 +9,7 @@ import {
 
 /** Client-side display preferences, persisted per browser in localStorage. */
 export interface UiSettings {
-  /** Accent graph/type views by owner layer (kit, or namespace until kits serve ownership). */
+  /** Accent graph/type views by owning kit. */
   colorByLayer: boolean;
 }
 

@@ -38,9 +38,9 @@ export function SettingsMenu() {
             <span>
               <span className="block text-[14px] text-zinc-200">Color by layer</span>
               <span className="block text-[12px] leading-snug text-zinc-500">
-                Accent the type map and sidebar by the layer each Subject kind
-                belongs to: its namespace until the daemon serves the owning
-                kit. Only shows when kinds span layers.
+                Accent the type map, sidebar and neighborhood by the kit that
+                owns each Subject kind (or this instance, for kinds authored
+                here). Only shows when kinds span kits.
               </span>
             </span>
           </label>
