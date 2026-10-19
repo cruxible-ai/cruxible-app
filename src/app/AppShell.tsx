@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Network } from "lucide-react";
+import { LayoutDashboard, Network, Search } from "lucide-react";
 import { useHead, useInstanceId, useOrientKinds } from "@/api/hooks";
+import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { useAtLink } from "@/lib/at";
 import { useLayerColoring } from "@/lib/kit-layer";
@@ -51,6 +52,14 @@ export function AppShell() {
                 Type map
               </span>
             </NavLink>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("cruxible:jump"))}
+              className="flex w-full items-center gap-2 px-2 py-1 text-[14px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            >
+              <Search className="h-3.5 w-3.5" />
+              Jump to ref
+              <kbd className="ml-auto border border-zinc-800 px-1 text-[10px] text-zinc-600">⌘K</kbd>
+            </button>
           </nav>
 
           <div className="mt-4">
@@ -97,6 +106,7 @@ export function AppShell() {
       <main className="min-w-0 flex-1 px-6 py-5">
         <Outlet />
       </main>
+      <JumpPalette />
     </div>
   );
 }

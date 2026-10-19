@@ -170,6 +170,7 @@ export function useOrientKinds() {
 /** All rows of one paged orient section, following next_cursor. */
 function useOrientSectionAll<K extends "claim_types" | "subject_kinds" | "lines" | "mandates">(
   section: K,
+  enabled = true,
 ) {
   const orient = useOrientFetch();
   return usePinnedQuery(`orient-section-${section}`, [], async (coordinate) => {
@@ -186,27 +187,27 @@ function useOrientSectionAll<K extends "claim_types" | "subject_kinds" | "lines"
       cursor = result.next_cursor;
     }
     return { rows, truncated: true };
-  });
+  }, enabled);
 }
 
 /** Every ClaimType with cardinality, value type, evidence and staleness rules. */
-export function useClaimTypes() {
-  return useOrientSectionAll("claim_types");
+export function useClaimTypes(enabled = true) {
+  return useOrientSectionAll("claim_types", enabled);
 }
 
 /** Every SubjectKind's identity rule. */
-export function useSubjectKinds() {
-  return useOrientSectionAll("subject_kinds");
+export function useSubjectKinds(enabled = true) {
+  return useOrientSectionAll("subject_kinds", enabled);
 }
 
 /** Every Line (lifecycle, procedure, authority, trigger, enablement). */
-export function useLines() {
-  return useOrientSectionAll("lines");
+export function useLines(enabled = true) {
+  return useOrientSectionAll("lines", enabled);
 }
 
 /** Every Mandate (procedure, grants, state, expiry). */
-export function useMandates() {
-  return useOrientSectionAll("mandates");
+export function useMandates(enabled = true) {
+  return useOrientSectionAll("mandates", enabled);
 }
 
 /** One kind's detail: incoming predicates and sample Subject ids. */
