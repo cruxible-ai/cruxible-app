@@ -142,6 +142,9 @@ export const CONSOLE_ACCESS_PROFILE = {
   permitted_access_classes: ["instance", "public"],
 } as const;
 
+/** The `next` page size every screen reads, so its pages share one cache entry. */
+export const NEXT_PAGE = 100;
+
 export interface NextArgs {
   coordinate: AcceptedCoordinate;
   evaluationTime: string;
