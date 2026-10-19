@@ -40,8 +40,8 @@ export function GraphCanvas(props: {
   overlay?: ReactNode;
   /** Rendered inside the ReactFlow element (Controls, MiniMap, ...). */
   children?: ReactNode;
-  /** External select-and-center request (e.g. a search hit); re-fires on nonce change. */
-  selectRequest?: { id: string; nonce: number } | null;
+  /** External selection request (a search hit, a URL param); re-fires on nonce change. */
+  selectRequest?: { id: string; nonce: number; kind?: GraphSelection["kind"] } | null;
 }) {
   return (
     <ReactFlowProvider>
@@ -107,7 +107,9 @@ function Canvas({
   );
 
   useEffect(() => {
-    if (selectRequest) select(selectRequest.id);
+    if (!selectRequest) return;
+    if (selectRequest.kind === "edge") setSelection({ kind: "edge", id: selectRequest.id });
+    else select(selectRequest.id);
     // Re-fire on nonce so repeating the same search hit still recenters.
   }, [selectRequest, select]);
 

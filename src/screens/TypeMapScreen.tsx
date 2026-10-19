@@ -1,98 +1,59 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { useInstanceId, useInstanceSchema, useStats } from "@/api/hooks";
+import { useClaimTypes, useGet, useOrientKind, useOrientKinds, useSubjectKinds } from "@/api/hooks";
+import { cardOf, type OrientPredicate, type OrientSubjectKind } from "@/api/schemas";
 import { LoadState } from "@/components/Panel";
-import { actionChipClass } from "@/components/Chip";
+import { RefLink } from "@/components/RefLink";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
-import {
-  ConnectionList,
-  PanelActions,
-  PanelHeading,
-  PanelSection,
-} from "@/components/graph/PanelBits";
+import { PanelHeading, PanelSection } from "@/components/graph/PanelBits";
 import { LayerLegend } from "@/components/graph/LayerLegend";
-import { LAYER_META, useLayerColoring, type KitLayer } from "@/lib/kit-layer";
-import { humanize } from "@/lib/text";
+import { useLayerColoring, type TypeOwner } from "@/lib/kit-layer";
+import {
+  buildTypeGraph,
+  edgeForPredicate,
+  isSubjectValued,
+  objectKinds,
+  type TypeGraphEdge,
+} from "@/lib/type-graph";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 type TypeNodeData = {
-  typeName: string;
-  count: number;
-  /** Owning kit layer; null when layer coloring is off. */
-  layer: KitLayer | null;
+  kind: string;
+  subjects: number;
+  referencedOnly: boolean;
+  /** Layer accent color; null when layer coloring is off. */
+  color: string | null;
   [key: string]: unknown;
 };
 
-interface SchemaRelationship {
-  name?: string;
-  from_entity?: string;
-  to_entity?: string;
-  description?: string | null;
-}
-
-interface SchemaPropertyDef {
-  type?: string;
-  primary_key?: boolean;
-  optional?: boolean;
-  enum_ref?: string | null;
-  enum?: string[] | null;
-}
-
-interface SchemaForMap {
-  entity_types?: Record<string, { properties?: Record<string, SchemaPropertyDef> }>;
-  // The live daemon serves relationships as a list of named specs; older
-  // payloads used a name-keyed dict. Normalize both.
-  relationships?: SchemaRelationship[] | Record<string, SchemaRelationship>;
-}
-
-function relationshipList(schema: SchemaForMap): Array<{
-  name: string;
-  from_entity: string;
-  to_entity: string;
-  description?: string | null;
-}> {
-  const raw = schema.relationships ?? [];
-  const entries = Array.isArray(raw)
-    ? raw.map((r) => [r.name ?? "", r] as const)
-    : Object.entries(raw).map(([name, r]) => [r.name ?? name, r] as const);
-  return entries
-    .filter(([name, r]) => name !== "" && !!r.from_entity && !!r.to_entity)
-    .map(([name, r]) => ({
-      name,
-      from_entity: r.from_entity!,
-      to_entity: r.to_entity!,
-      description: r.description ?? null,
-    }));
-}
-
 function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
-  const empty = data.count === 0;
-  const accent = data.layer ? LAYER_META[data.layer] : null;
+  const empty = data.subjects === 0;
   return (
     <div
       className={`border px-2.5 py-1.5 text-center ${
-        empty
+        data.referencedOnly
           ? "border-dashed border-zinc-800 bg-zinc-950"
-          : accent
-            ? `${accent.border} ${accent.borderHover} bg-zinc-900`
+          : empty
+            ? "border-dashed border-zinc-700 bg-zinc-950"
             : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
       }`}
+      style={data.color && !data.referencedOnly ? { borderColor: data.color } : undefined}
     >
       <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
       <div className="flex items-center justify-center gap-1.5">
-        {accent && (
+        {data.color && (
           <span
-            title={accent.label}
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${accent.dot} ${empty ? "opacity-40" : ""}`}
+            className={`h-1.5 w-1.5 shrink-0 rounded-full ${empty ? "opacity-40" : ""}`}
+            style={{ backgroundColor: data.color }}
           />
         )}
-        <span className={`text-[13px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-200"}`}>
-          {data.typeName}
+        <span className={`font-mono text-[12px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-200"}`}>
+          {data.kind}
         </span>
       </div>
       <div className={`font-mono text-[11px] ${empty ? "text-zinc-700" : "text-zinc-500"}`}>
-        {data.count}
+        {data.referencedOnly ? "not declared" : data.subjects}
       </div>
       <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
     </div>
@@ -103,13 +64,13 @@ const nodeTypes = { typeNode: TypeNode };
 
 /**
  * Greedy adjacency ordering for the circular layout: start from the
- * highest-degree type, then repeatedly place the unplaced type most connected
- * to what's already placed. Keeps related types in contiguous arcs so seam
+ * highest-degree kind, then repeatedly place the unplaced kind most connected
+ * to what's already placed. Keeps related kinds in contiguous arcs so seam
  * edges don't all cross the circle's center.
  */
-function orderByAdjacency(types: string[], pairs: Array<[string, string]>): string[] {
-  const degree = new Map<string, number>(types.map((t) => [t, 0]));
-  const adj = new Map<string, Map<string, number>>(types.map((t) => [t, new Map()]));
+function orderByAdjacency(kinds: string[], pairs: Array<[string, string]>): string[] {
+  const degree = new Map<string, number>(kinds.map((t) => [t, 0]));
+  const adj = new Map<string, Map<string, number>>(kinds.map((t) => [t, new Map()]));
   for (const [a, b] of pairs) {
     if (!degree.has(a) || !degree.has(b) || a === b) continue;
     degree.set(a, (degree.get(a) ?? 0) + 1);
@@ -118,7 +79,7 @@ function orderByAdjacency(types: string[], pairs: Array<[string, string]>): stri
     adj.get(b)!.set(a, (adj.get(b)!.get(a) ?? 0) + 1);
   }
   const placed: string[] = [];
-  const remaining = new Set(types);
+  const remaining = new Set(kinds);
   while (remaining.size > 0) {
     let best: string | null = null;
     let bestScore = -1;
@@ -138,209 +99,391 @@ function orderByAdjacency(types: string[], pairs: Array<[string, string]>): stri
   return placed;
 }
 
+function cardinalityMark(cardinality: string): string {
+  return cardinality === "many" ? "*" : "1";
+}
+
 /**
- * Type-level instance map: entity types as nodes with live counts,
- * relationship types as labeled edges with edge counts. The orientation view
- * for an unfamiliar instance. Types with zero rows render dashed/dim so the
- * populated shape of the state stands out against the declared ontology.
- * Selection follows the shared GraphCanvas model; browsing happens from the
- * context panel.
+ * The ontology at the pinned generation: SubjectKinds with their Subject
+ * counts, Subject-valued ClaimTypes as kind-to-kind edges, and per kind its
+ * identity rule and every ClaimType with cardinality, value type, evidence
+ * requirement and staleness. Evidence rules load per ClaimType on demand.
+ * `?kind=` and `?claim_type=` open the map on that kind or edge.
  */
 export function TypeMapScreen() {
-  const instanceId = useInstanceId();
-  const schema = useInstanceSchema();
-  const stats = useStats();
+  const kinds = useOrientKinds();
+  const claimTypes = useClaimTypes();
+  const subjectKinds = useSubjectKinds();
+  const [params] = useSearchParams();
   usePageTitle("Type map");
-  const layerColoring = useLayerColoring();
 
-  const { nodes, edges, counts } = useMemo(() => {
-    const s = schema.data as SchemaForMap | undefined;
-    const st = stats.data as
-      | { entity_counts?: Record<string, number>; relationship_counts?: Record<string, number> }
-      | undefined;
-    if (!s?.entity_types)
-      return {
-        nodes: [] as Node<TypeNodeData>[],
-        edges: [] as Edge[],
-        counts: {} as Record<string, number>,
-      };
+  const graph = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
+  const coloring = useLayerColoring(graph.nodes.map((n) => n.kind));
+  const fullByPredicate = useMemo(
+    () => new Map((claimTypes.data?.rows ?? []).map((row) => [row.predicate, row])),
+    [claimTypes.data],
+  );
+  const rulesByKind = useMemo(
+    () => new Map((subjectKinds.data?.rows ?? []).map((row) => [row.kind, row])),
+    [subjectKinds.data],
+  );
 
-    const typeNames = Object.keys(s.entity_types);
-    const rels = relationshipList(s);
+  const { nodes, edges } = useMemo(() => {
     const ordered = orderByAdjacency(
-      typeNames,
-      rels.map((r) => [r.from_entity, r.to_entity] as [string, string]),
+      graph.nodes.map((n) => n.kind),
+      graph.edges.map((e) => [e.source, e.target] as [string, string]),
     );
-
-    // Two concentric rings instead of one sparse circle: the best-connected
-    // types (up to a third) sit on a small inner ring, the rest on an outer
-    // ring kept tight enough that edges stay readable at fit-view zoom.
+    // Two concentric rings: the best-connected kinds (up to a third) on a
+    // small inner ring, the rest outside, tight enough to read at fit zoom.
     const degree = new Map<string, number>();
-    for (const r of rels) {
-      degree.set(r.from_entity, (degree.get(r.from_entity) ?? 0) + 1);
-      degree.set(r.to_entity, (degree.get(r.to_entity) ?? 0) + 1);
+    for (const e of graph.edges) {
+      degree.set(e.source, (degree.get(e.source) ?? 0) + 1);
+      degree.set(e.target, (degree.get(e.target) ?? 0) + 1);
     }
-    const byDegree = [...ordered].sort(
-      (a, b) => (degree.get(b) ?? 0) - (degree.get(a) ?? 0),
-    );
-    const innerCount =
-      ordered.length >= 6 ? Math.min(Math.floor(ordered.length / 3), 5) : 0;
+    const byDegree = [...ordered].sort((a, b) => (degree.get(b) ?? 0) - (degree.get(a) ?? 0));
+    const innerCount = ordered.length >= 6 ? Math.min(Math.floor(ordered.length / 3), 5) : 0;
     const inner = new Set(byDegree.slice(0, innerCount).filter((t) => (degree.get(t) ?? 0) >= 3));
     const innerOrdered = ordered.filter((t) => inner.has(t));
     const outerOrdered = ordered.filter((t) => !inner.has(t));
-    const outerRadius = Math.max(320, outerOrdered.length * 34);
+    const outerRadius = Math.max(320, outerOrdered.length * 38);
     const innerRadius = Math.max(140, outerRadius * 0.42);
+    const byKind = new Map(graph.nodes.map((n) => [n.kind, n]));
 
-    const place = (
-      names: string[],
-      radius: number,
-      angleOffset: number,
-    ): Node<TypeNodeData>[] =>
-      names.map((typeName, i) => {
-        const angle = (2 * Math.PI * i) / Math.max(names.length, 1) - Math.PI / 2 + angleOffset;
+    const place = (names: string[], radius: number, offset: number): Node<TypeNodeData>[] =>
+      names.map((kind, i) => {
+        const angle = (2 * Math.PI * i) / Math.max(names.length, 1) - Math.PI / 2 + offset;
+        const node = byKind.get(kind)!;
         return {
-          id: typeName,
+          id: kind,
           type: "typeNode",
           position: { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius },
           data: {
-            typeName,
-            count: st?.entity_counts?.[typeName] ?? 0,
-            layer: layerColoring.enabled ? layerColoring.layerFor(typeName) : null,
+            kind,
+            subjects: node.subjects,
+            referencedOnly: node.referencedOnly,
+            color: coloring.enabled ? coloring.colorOf(coloring.ownerOfKind(kind).layer) : null,
           },
         };
       });
 
-    const nodes: Node<TypeNodeData>[] = [
-      ...place(innerOrdered, innerRadius, Math.PI / 6),
-      ...place(outerOrdered, outerRadius, 0),
-    ];
-
-    // Empty relationships stay as unlabeled dashed strokes: the declared
-    // shape reads without dozens of labels of noise on a dense ontology.
-    const edges: Edge[] = rels.map((r) => {
-      const count = st?.relationship_counts?.[r.name] ?? 0;
-      const stroke = count > 0 ? "#726f63" : "#2a2822";
+    const nodes = [...place(innerOrdered, innerRadius, Math.PI / 6), ...place(outerOrdered, outerRadius, 0)];
+    const edges: Edge[] = graph.edges.map((e) => {
+      const stroke = "#726f63";
       return {
-        id: r.name,
-        source: r.from_entity,
-        target: r.to_entity,
-        ...(count > 0 ? { label: `${r.name.replaceAll("_", " ")} · ${count}` } : {}),
-        data: { labelClass: "text-zinc-300", count, description: r.description ?? null },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
-        style: {
-          stroke,
-          strokeWidth: count > 0 ? 1.5 : 1,
-          ...(count === 0 ? { strokeDasharray: "4 3" } : {}),
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        data: {
+          labelClass: "text-zinc-300",
+          revealLabel: e.predicates.map((p) => `${p.name} ${cardinalityMark(p.cardinality)}`).join(" · "),
         },
-        animated: false,
+        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
+        style: { stroke, strokeWidth: 1.25 },
       };
     });
+    return { nodes, edges };
+  }, [graph, coloring]);
 
-    return { nodes, edges, counts: st?.entity_counts ?? {} };
-  }, [schema.data, stats.data, layerColoring]);
+  const kindParam = params.get("kind");
+  const claimTypeParam = params.get("claim_type");
+  const [nonce] = useState(() => Date.now());
+  const selectRequest = useMemo(() => {
+    if (claimTypeParam) {
+      const edge = edgeForPredicate(graph.edges, claimTypeParam);
+      if (edge) return { id: edge.id, kind: "edge" as const, nonce };
+      const owner = (kinds.data?.kinds ?? []).find((k) =>
+        k.predicates.some((p) => p.predicate === claimTypeParam),
+      );
+      if (owner) return { id: owner.kind, nonce };
+    }
+    if (kindParam && graph.nodes.some((n) => n.kind === kindParam)) return { id: kindParam, nonce };
+    return null;
+  }, [kindParam, claimTypeParam, graph, kinds.data, nonce]);
 
-  if (schema.isPending || stats.isPending) return <LoadState />;
-  if (schema.error) return <LoadState error={schema.error} />;
-  if (stats.error) return <LoadState error={stats.error} />;
+  if (kinds.isPending) return <LoadState />;
+  if (kinds.error) return <LoadState error={kinds.error} />;
 
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
     if (selection.kind === "node") {
-      const count = counts[selection.id] ?? 0;
-      const propDefs = Object.entries(
-        (schema.data as SchemaForMap | undefined)?.entity_types?.[selection.id]?.properties ?? {},
-      );
+      const kind = (kinds.data?.kinds ?? []).find((k) => k.kind === selection.id);
       return (
-        <div>
-          <PanelHeading kicker="Entity type" title={humanize(selection.id)} />
-          <div className="text-[13px] text-zinc-400">
-            <span className="font-mono text-zinc-200">{count}</span> live{" "}
-            {count === 1 ? "row" : "rows"}
-          </div>
-          {layerColoring.enabled && (
-            <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-zinc-500">
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${LAYER_META[layerColoring.layerFor(selection.id)].dot}`}
-              />
-              {LAYER_META[layerColoring.layerFor(selection.id)].label}
-            </div>
-          )}
-          <PanelActions>
-            <Link to={`/i/${instanceId}/browse/${selection.id}`} className={actionChipClass}>
-              Browse rows →
-            </Link>
-          </PanelActions>
-          {propDefs.length > 0 && (
-            <PanelSection title="Properties">
-              <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[12px]">
-                {propDefs.map(([name, def]) => (
-                  <div key={name} className="contents">
-                    <dt className="font-mono text-zinc-400">{name}</dt>
-                    <dd className="text-zinc-600">
-                      {def.enum_ref ?? (def.enum ? "enum" : (def.type ?? "string"))}
-                      {def.primary_key ? " · pk" : def.optional === false ? " · required" : ""}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </PanelSection>
-          )}
-          <PanelSection title="Relationships">
-            <ConnectionList nodeId={selection.id} edges={edges} api={api} labelFor={humanize} />
-          </PanelSection>
-        </div>
+        <KindPanel
+          kind={selection.id}
+          subjects={kind?.subjects ?? 0}
+          predicates={kind?.predicates ?? []}
+          evidence={kind?.evidence ?? []}
+          rule={rulesByKind.get(selection.id)}
+          owner={coloring.ownerOfKind(selection.id)}
+          full={fullByPredicate}
+          focus={claimTypeParam}
+          edges={graph.edges}
+          api={api}
+        />
       );
     }
-    const edge = edges.find((e) => e.id === selection.id);
-    if (!edge) return null;
-    const data = edge.data as { count?: number; description?: string | null } | undefined;
-    return (
-      <div>
-        <PanelHeading kicker="Relationship type" title={selection.id.replaceAll("_", " ")} />
-        <div className="flex items-baseline gap-1.5 text-[13px]">
-          <button onClick={() => api.select(edge.source)} className="text-zinc-300 hover:underline">
-            {humanize(edge.source)}
-          </button>
-          <span className="text-zinc-600">→</span>
-          <button onClick={() => api.select(edge.target)} className="text-zinc-300 hover:underline">
-            {humanize(edge.target)}
-          </button>
-        </div>
-        <div className="mt-1 text-[13px] text-zinc-400">
-          {(data?.count ?? 0) > 0 ? (
-            <>
-              <span className="font-mono text-zinc-200">{data?.count}</span> live{" "}
-              {data?.count === 1 ? "edge" : "edges"}
-            </>
-          ) : (
-            "Declared but empty."
-          )}
-        </div>
-        {data?.description && (
-          <PanelSection title="Description">
-            <div className="text-[13px] leading-4 text-zinc-400">{data.description}</div>
-          </PanelSection>
-        )}
-      </div>
-    );
+    const edge = graph.edges.find((e) => e.id === selection.id);
+    return edge ? <EdgePanel edge={edge} full={fullByPredicate} focus={claimTypeParam} api={api} /> : null;
   }
 
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
-      <header className="mb-3 flex items-baseline gap-3">
+      <header className="mb-3 flex flex-wrap items-baseline gap-3">
         <h1 className="text-[17px] font-semibold text-zinc-100">Type map</h1>
         <span className="text-[12px] text-zinc-600">
-          {nodes.length} types · {edges.length} relationship types · dashed = declared but empty ·
-          click anything for context
+          {graph.nodes.length} Subject kinds · {graph.edges.length} kind links · dashed = no Subjects ·
+          click anything for its ClaimTypes
         </span>
+        {claimTypes.error && <span className="text-[12px] text-red-400">{claimTypes.error.message}</span>}
       </header>
       <GraphCanvas
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         renderPanel={renderPanel}
+        selectRequest={selectRequest}
         className="min-h-0 flex-1"
-        overlay={layerColoring.enabled ? <LayerLegend /> : undefined}
+        overlay={coloring.enabled ? <LayerLegend layers={coloring.layers} /> : undefined}
       />
+    </div>
+  );
+}
+
+function KindPanel({
+  kind,
+  subjects,
+  predicates,
+  evidence,
+  rule,
+  owner,
+  full,
+  focus,
+  edges,
+  api,
+}: {
+  kind: string;
+  subjects: number;
+  predicates: OrientPredicate[];
+  evidence: string[];
+  rule: OrientSubjectKind | undefined;
+  owner: TypeOwner;
+  full: Map<string, OrientPredicate>;
+  focus: string | null;
+  edges: TypeGraphEdge[];
+  api: GraphPanelApi;
+}) {
+  const detail = useOrientKind(kind);
+  const incoming = edges.filter((e) => e.target === kind && e.source !== kind);
+  return (
+    <div>
+      <PanelHeading kicker="Subject kind" title={kind} />
+      <div className="text-[13px] text-zinc-400">
+        <span className="font-mono text-zinc-200">{subjects}</span> {subjects === 1 ? "Subject" : "Subjects"}
+      </div>
+      <div className="mt-0.5 text-[12px] text-zinc-500">
+        {owner.source === "kit" ? "kit" : "namespace"} <span className="font-mono">{owner.layer}</span>
+      </div>
+      {rule && (
+        <PanelSection title="Identity">
+          <div className="text-[12px] text-zinc-400">
+            {rule.rule === "minted" ? "minted ids" : "keyed by"}{" "}
+            {(rule.keys ?? []).map((key) => (
+              <span key={key} className="mr-1.5 font-mono text-zinc-300">
+                {key}
+              </span>
+            ))}
+            {rule.uniqueness && <span className="text-zinc-600">({rule.uniqueness})</span>}
+          </div>
+        </PanelSection>
+      )}
+      {evidence.length > 0 && (
+        <PanelSection title="Evidence contracts">
+          <div className="flex flex-wrap gap-x-2 font-mono text-[12px] text-zinc-400">
+            {evidence.map((contract) => (
+              <span key={contract}>{contract}</span>
+            ))}
+          </div>
+        </PanelSection>
+      )}
+      <PanelSection title={`ClaimTypes (${predicates.length})`}>
+        <ClaimTypeList predicates={predicates} full={full} focus={focus} api={api} />
+      </PanelSection>
+      {incoming.length > 0 && (
+        <PanelSection title="Pointed at by">
+          {incoming.map((edge) => (
+            <button
+              key={edge.id}
+              onClick={() => api.select(edge.source)}
+              className="block w-full px-1 py-0.5 text-left text-[12px] hover:bg-zinc-900"
+            >
+              <span className="font-mono text-zinc-300">{edge.source}</span>{" "}
+              <span className="text-zinc-500">{edge.predicates.map((p) => p.name).join(", ")}</span>
+            </button>
+          ))}
+        </PanelSection>
+      )}
+      {(detail.data?.kind_detail?.sample_subject_ids?.length ?? 0) > 0 && (
+        <PanelSection title="Sample Subjects">
+          <div className="space-y-0.5 text-[12px]">
+            {detail.data!.kind_detail!.sample_subject_ids!.map((id) => (
+              <div key={id}>
+                <RefLink value={`${kind}/${id}`}>
+                  <span className="font-mono text-[12px]">{id}</span>
+                </RefLink>
+              </div>
+            ))}
+          </div>
+        </PanelSection>
+      )}
+    </div>
+  );
+}
+
+function EdgePanel({
+  edge,
+  full,
+  focus,
+  api,
+}: {
+  edge: TypeGraphEdge;
+  full: Map<string, OrientPredicate>;
+  focus: string | null;
+  api: GraphPanelApi;
+}) {
+  return (
+    <div>
+      <PanelHeading kicker="Kind link" title={`${edge.predicates.length} ClaimType${edge.predicates.length === 1 ? "" : "s"}`} />
+      <div className="flex flex-wrap items-baseline gap-1.5 text-[12px]">
+        <button onClick={() => api.select(edge.source)} className="font-mono text-zinc-300 hover:underline">
+          {edge.source}
+        </button>
+        <span className="text-zinc-600">→</span>
+        <button onClick={() => api.select(edge.target)} className="font-mono text-zinc-300 hover:underline">
+          {edge.target}
+        </button>
+      </div>
+      <PanelSection title="ClaimTypes">
+        <ClaimTypeList predicates={edge.predicates} full={full} focus={focus} api={api} />
+      </PanelSection>
+    </div>
+  );
+}
+
+/** One row per ClaimType; a row expands to its full descriptor and evidence rules. */
+function ClaimTypeList({
+  predicates,
+  full,
+  focus,
+  api,
+}: {
+  predicates: OrientPredicate[];
+  full: Map<string, OrientPredicate>;
+  focus: string | null;
+  api: GraphPanelApi;
+}) {
+  const [open, setOpen] = useState<string | null>(focus);
+  if (predicates.length === 0) return <div className="text-[12px] text-zinc-600">None.</div>;
+  return (
+    <div className="space-y-0.5">
+      {predicates.map((compact) => {
+        const descriptor = full.get(compact.predicate) ?? compact;
+        const expanded = open === compact.predicate;
+        return (
+          <div key={compact.predicate} className={expanded ? "border border-zinc-800 bg-zinc-900/40" : ""}>
+            <button
+              onClick={() => setOpen(expanded ? null : compact.predicate)}
+              className="flex w-full items-baseline gap-1.5 px-1 py-0.5 text-left text-[12px] hover:bg-zinc-900"
+              title={compact.predicate}
+            >
+              <span className="font-mono text-zinc-200">{compact.name}</span>
+              <span className="font-mono text-zinc-500">{cardinalityMark(compact.cardinality)}</span>
+              <span className="min-w-0 truncate text-zinc-500">{descriptor.type}</span>
+              {descriptor.evidence_requirement === "captured" && (
+                <span className="ml-auto shrink-0 text-amber-400/80">captured</span>
+              )}
+            </button>
+            {expanded && <ClaimTypeDetail descriptor={descriptor} api={api} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ClaimTypeDetail({ descriptor, api }: { descriptor: OrientPredicate; api: GraphPanelApi }) {
+  // Evidence rules live on the ClaimType card: one get, only when opened.
+  const card = useGet(`ClaimType:${descriptor.predicate}`);
+  const rules = cardOf(card.data, "claim_type")?.evidence_rules ?? [];
+  const targets = objectKinds(descriptor.type);
+  return (
+    <div className="space-y-1 px-1 pb-1.5 text-[12px] text-zinc-400">
+      <div className="break-all font-mono text-[11px] text-zinc-500">{descriptor.predicate}</div>
+      {descriptor.description && <div>{descriptor.description}</div>}
+      <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
+        <dt className="text-zinc-600">cardinality</dt>
+        <dd>{descriptor.cardinality}</dd>
+        <dt className="text-zinc-600">value</dt>
+        <dd className="break-words">
+          {targets.length > 0
+            ? targets.map((target) => (
+                <button key={target} onClick={() => api.select(target)} className="mr-1.5 font-mono hover:underline">
+                  {target}
+                </button>
+              ))
+            : isSubjectValued(descriptor.type)
+              ? "any Subject kind"
+              : descriptor.type}
+          {descriptor.members && ` (${descriptor.members.map(String).join(", ")})`}
+        </dd>
+        <dt className="text-zinc-600">evidence</dt>
+        <dd>
+          {descriptor.evidence_requirement ?? "self"}
+          {(descriptor.evidence?.length ?? 0) > 0 && (
+            <span className="font-mono text-zinc-500"> · {descriptor.evidence!.join(", ")}</span>
+          )}
+        </dd>
+        {descriptor.stale_after && (
+          <>
+            <dt className="text-zinc-600">stale after</dt>
+            <dd className="font-mono">{descriptor.stale_after}</dd>
+          </>
+        )}
+        {descriptor.revision_evidence && (
+          <>
+            <dt className="text-zinc-600">on revision</dt>
+            <dd>{descriptor.revision_evidence} evidence</dd>
+          </>
+        )}
+        {(descriptor.roles?.length ?? 0) > 0 && (
+          <>
+            <dt className="text-zinc-600">roles</dt>
+            <dd>
+              {descriptor.roles!.join(", ")}
+              {descriptor.default_role && ` (default ${descriptor.default_role})`}
+            </dd>
+          </>
+        )}
+        {descriptor.live_claims != null && (
+          <>
+            <dt className="text-zinc-600">live Claims</dt>
+            <dd className="font-mono">{descriptor.live_claims}</dd>
+          </>
+        )}
+      </dl>
+      {card.isPending && <div className="animate-pulse text-zinc-600">Loading evidence rules…</div>}
+      {card.error && <div className="text-red-400/80">{card.error.message}</div>}
+      {rules.length > 0 && (
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Evidence rules</div>
+          {rules.map((rule) => (
+            <div key={rule.rule_id} className="mt-0.5">
+              <span className="font-mono text-zinc-300">{rule.rule_id}</span>{" "}
+              <span className="text-zinc-500">
+                {rule.admission} · {rule.roles.join(", ")} · {rule.contracts.join(", ")}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
