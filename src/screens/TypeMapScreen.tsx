@@ -333,7 +333,7 @@ function KindPanel({
             {detail.data!.kind_detail!.sample_subject_ids!.map((id) => (
               <div key={id}>
                 <RefLink value={`${kind}/${id}`}>
-                  <span className="font-mono text-[12px]">{id}</span>
+                  <span className="break-all font-mono text-[12px]">{id}</span>
                 </RefLink>
               </div>
             ))}
