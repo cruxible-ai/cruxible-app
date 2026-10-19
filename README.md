@@ -41,7 +41,13 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | --------- | ---------------------------------------------------------------------------------- |
 | Overview  | Subjects per kind, the Claim tally, artifact counts, orient's attention summary, the first `next` items, `next` health per component, installed kits |
 | Type map  | the ontology: Subject kinds with counts, Subject-valued ClaimTypes as kind links; per kind its identity rule and every ClaimType's cardinality, value type, evidence requirement and staleness; evidence rules per ClaimType |
-| Reference | any ref `get` resolves (Subject, Claim, Capture, Line, run, …), its card field by field |
+| Subject   | a Subject's card: every field's value and read flags, each Claim's verdict and contenders, capture admission; per Claim on expand its evidence (Captures, attestations, rationale), admission accounts and revisions; the field history, paged |
+| Neighborhood | a Subject's outgoing links (Subject-valued Claims), depth 1 or 2, at most 150 Subjects; incoming links shown as counts per node |
+| Reference | any other ref `get` resolves (Claim, Capture, Line, run, …), its card field by field |
+
+**Jump palette** (⌘K): type any ref (`kind/id`, `CLM-…`, `Line:…`,
+`ClaimType:…`); it resolves with one read and completes Subject kinds, a
+kind's sample ids, ClaimTypes and Lines from orient.
 
 **Generation picker.** The sidebar shows the accepted generation every read is
 pinned to. Unpinned, reads follow the head (polled). Enter a generation number

@@ -122,10 +122,6 @@ export function NeighborhoodScreen() {
         : { nodes: [], edges: [] },
     [graph.data, coloring],
   );
-  const selectRequest = useMemo(
-    () => (graph.data ? { id: graph.data.root, nonce: graph.data.nodes.length } : null),
-    [graph.data],
-  );
 
   if (!ref) {
     return <div className="text-[14px] text-zinc-400">{raw} is not a Subject reference (kind/id).</div>;
@@ -255,7 +251,6 @@ export function NeighborhoodScreen() {
           edges={drawn.edges}
           nodeTypes={nodeTypes}
           renderPanel={renderPanel}
-          selectRequest={selectRequest}
           className="min-h-0 flex-1"
           overlay={coloring.enabled ? <LayerLegend layers={coloring.layers} /> : undefined}
         />

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Runs against `VITE_CRUXIBLE_FIXTURES=1` (playwright.config.ts): the MSW
 // worker serves src/fixtures/recorded/ at the network layer, offline.
-test("fixture-backed inspection flow: overview, type map, pinned generation", async ({ page }) => {
+test("fixture-backed inspection flow: overview, type map, Subject, neighborhood, palette, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
@@ -22,12 +22,29 @@ test("fixture-backed inspection flow: overview, type map, pinned generation", as
   await page.getByRole("button", { name: /^status/ }).click();
   await expect(page.getByText("osv-applicability", { exact: true })).toBeVisible();
 
-  // A sample Subject opens its reference card.
+  // A sample Subject opens its Subject page.
   await page.locator(".react-flow__node", { hasText: "security.vulnerability" }).click();
   await page.getByRole("link", { name: "cve-2024-3094" }).click();
-  await expect(page).toHaveURL(/\/ref\/security\.vulnerability%2Fcve-2024-3094$/);
-  await expect(page.getByRole("heading", { name: "security.vulnerability/cve-2024-3094" })).toBeVisible();
+  await expect(page).toHaveURL(/\/s\/security\.vulnerability%2Fcve-2024-3094$/);
+  await expect(page.getByRole("heading", { name: "cve-2024-3094" })).toBeVisible();
   await expect(page.getByText("CVE-2024-3094", { exact: true })).toBeVisible();
+
+  // Jump palette: type a ref, Enter opens its Subject page.
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByRole("textbox", { name: "Reference" }).fill("security.assessment/rel-1-cve-2024-3094");
+  await expect(page.getByRole("button", { name: /resolved/ })).toBeVisible();
+  await page.getByRole("textbox", { name: "Reference" }).press("Enter");
+  await expect(page).toHaveURL(/\/s\/security\.assessment%2Frel-1-cve-2024-3094$/);
+  await page.getByRole("button", { name: "Expand status" }).click();
+  await expect(page.getByText("OSV lists the release's xz package within the affected range.")).toBeVisible();
+
+  // Its neighborhood, then one more hop.
+  await page.getByRole("link", { name: "Neighborhood" }).click();
+  await expect(page.getByText(/3 Subjects · 2 links/)).toBeVisible();
+  await page.getByRole("button", { name: "depth 2" }).click();
+  await expect(page).toHaveURL(/graph\?depth=2$/);
+  await expect(page.getByText(/5 Subjects · 4 links/)).toBeVisible();
+  await expect(page.locator(".react-flow__node")).toHaveCount(5);
 
   // Pin a generation: links keep it, the picker names it, back to head drops it.
   await page.getByLabel("Pin generation").fill("42");
