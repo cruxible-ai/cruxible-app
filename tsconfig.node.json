@@ -24,6 +24,9 @@
     "src/api/requests.ts",
     "src/api/schemas.ts",
     "src/api/generated/schema.ts",
-    "src/fixtures/key.ts"
+    "src/fixtures/key.ts",
+    "src/lib/neighborhood.ts",
+    "src/lib/cruxible-ref.ts",
+    "src/lib/type-graph.ts"
   ]
 }

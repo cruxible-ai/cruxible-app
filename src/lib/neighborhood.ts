@@ -1,7 +1,8 @@
-import type { GetResult, OrientKind, OrientPredicate, Schemas } from "@/api/schemas";
-import { cardOf } from "@/api/schemas";
-import { formatRef, parseRef } from "./cruxible-ref";
-import { isSubjectValued } from "./type-graph";
+// Relative .ts imports: scripts/record-fixtures.ts runs this walk under Node.
+import type { GetResult, OrientKind, OrientPredicate, Schemas } from "../api/schemas.ts";
+import { cardOf } from "../api/schemas.ts";
+import { formatRef, parseRef } from "./cruxible-ref.ts";
+import { isSubjectValued } from "./type-graph.ts";
 
 /**
  * The neighborhood graph around one Subject: breadth-first over OUTGOING

@@ -1,4 +1,4 @@
-import type { OrientKind, OrientPredicate } from "@/api/schemas";
+import type { OrientKind, OrientPredicate } from "../api/schemas.ts";
 
 /**
  * The ontology as a graph: SubjectKinds are nodes, and every Subject-valued

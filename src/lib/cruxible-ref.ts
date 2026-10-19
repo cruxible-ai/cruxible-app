@@ -1,4 +1,4 @@
-import type { GetRefKind } from "@/api/schemas";
+import type { GetRefKind } from "../api/schemas.ts";
 
 /**
  * The reference grammar the daemon's `get` resolves, plus the inbox item id,

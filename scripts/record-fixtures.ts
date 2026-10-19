@@ -12,9 +12,12 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import {
+  CLAIM_READ_BATCH_MAX,
+  claimReadBatchBody,
   getBatchBody,
   getBody,
   GET_BATCH_MAX,
+  HISTORY_PAGE,
   headQuery,
   inboxQuery,
   isReadRoute,
@@ -26,6 +29,7 @@ import {
 } from "../src/api/requests.ts";
 import type { AcceptedCoordinate, GetResult, OrientResult } from "../src/api/schemas.ts";
 import { digest8, fixtureKey, normalizePath, normalizeQuery } from "../src/fixtures/key.ts";
+import { walkNeighborhood, type CardFetcher } from "../src/lib/neighborhood.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -124,8 +128,8 @@ await call("post", `${P}/next`, {
   body: nextBody({ coordinate: C, evaluationTime: new Date().toISOString(), limit: NEXT_PAGE }),
 });
 
-// Kind details for the three largest kinds; two of their sample Subjects with
-// history, and one get-batch hop over their Subject-valued Claims.
+// Kind details for the three largest kinds; for two sample Subjects, every
+// read the Subject page makes, and the neighborhood walk at depth 1 and 2.
 const kinds = [...(orient?.kinds ?? [])].sort((a, b) => b.subjects - a.subjects).slice(0, 3);
 const samples: string[] = [];
 for (const kind of kinds) {
@@ -134,19 +138,27 @@ for (const kind of kinds) {
   });
   for (const id of detail?.kind_detail?.sample_subject_ids?.slice(0, 1) ?? []) samples.push(`${kind.kind}/${id}`);
 }
-const subjectTypes = new Map(claimTypes.map((item) => [item.predicate, item.type]));
-const hop: string[] = [];
+const fetchCards: CardFetcher = async (refs) => {
+  const batch = await call<{ results: GetResult[] }>("post", `${P}/get-batch`, { body: getBatchBody(refs, C) });
+  if (!batch) throw new Error(`get-batch refused ${refs.join(", ")}`);
+  return batch.results;
+};
 for (const ref of samples.slice(0, 2)) {
-  const read = await call<GetResult>("post", `${P}/get`, { body: getBody({ ref, coordinate: C }) });
-  await call("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "history" }) });
-  const card = read?.card as { kind?: string; claims?: { predicate: string; value: unknown }[] } | undefined;
-  for (const claim of card?.claims ?? []) {
-    const full = `${card?.kind}.${claim.predicate}`;
-    const type = subjectTypes.get(full) ?? subjectTypes.get(claim.predicate) ?? "";
-    if (type.startsWith("subject") && typeof claim.value === "string") hop.push(claim.value);
+  const [read] = await fetchCards([ref]).catch(() => [undefined]);
+  await call("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
+  const card = read?.card as { claims?: { claim: string | string[] }[] } | undefined;
+  const ids = (card?.claims ?? []).flatMap((entry) => (Array.isArray(entry.claim) ? entry.claim : [entry.claim]));
+  for (let i = 0; i < ids.length; i += GET_BATCH_MAX) await fetchCards(ids.slice(i, i + GET_BATCH_MAX)).catch(() => null);
+  const full = ids.filter((id) => /^CLM-[0-9a-f]{32}$/.test(id));
+  for (let i = 0; i < full.length; i += CLAIM_READ_BATCH_MAX) {
+    await call("post", `${P}/claims/read-batch`, { body: claimReadBatchBody(full.slice(i, i + CLAIM_READ_BATCH_MAX), C) });
   }
+  for (const id of ids.slice(0, 6)) {
+    await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "evidence" }) });
+    await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
+  }
+  for (const depth of [1, 2]) await walkNeighborhood(ref, depth, orient?.kinds ?? [], fetchCards).catch(() => null);
 }
-if (hop.length) await call("post", `${P}/get-batch`, { body: getBatchBody(hop.slice(0, GET_BATCH_MAX), C) });
 
 // ClaimType cards (the type map loads one on click).
 for (const item of claimTypes.slice(0, 30)) {
@@ -167,7 +179,7 @@ for (const status of ["open", "settled"] as const) {
   }
 }
 
-// Lines: each card and inbox; one run's card and state.
+// Lines: each card and inbox; one run's card and state (later slices' reads).
 let runId: string | null = null;
 for (const line of lines.slice(0, 5)) {
   const card = await call<GetResult>("post", `${P}/get`, {
