@@ -6,7 +6,7 @@
 import { defineFixture } from "../fixture";
 import { getBatchBody, getBody, inboxQuery, LINE_RUNS_PAGE, orientQuery, readingsBody } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
-import { AT, COORDINATE, NOW } from "./authored";
+import { AT, COORDINATE, NOW } from "./world";
 
 const ORIENT_PAGE = 500;
 const KEV = "kev-triage";
@@ -101,8 +101,8 @@ export default [
       ...BASE_ORIENT,
       section: "lines",
       lines: [
-        { line: CVE, lifecycle: "live", procedure: "Procedure:security.cve-applicability", authority: "propose", trigger: "capture_landing", enablement: "stopped", due: 0, waiting: 0 },
-        { line: KEV, lifecycle: "live", procedure: `Procedure:${PROCEDURE}`, authority: "settle", trigger: "cadence", enablement: "running", due: 0, waiting: 1 },
+        { line: `Line:${CVE}`, lifecycle: "live", procedure: "Procedure:security.cve-applicability", authority: "propose", trigger: "capture_landing", enablement: "stopped", due: 0, waiting: 0 },
+        { line: `Line:${KEV}`, lifecycle: "live", procedure: `Procedure:${PROCEDURE}`, authority: "settle", trigger: "cadence", enablement: "running", due: 0, waiting: 1 },
       ],
     },
   }),

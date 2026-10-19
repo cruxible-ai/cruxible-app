@@ -31,7 +31,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ...webServerEnv,
-      VITE_CRUXIBLE_FIXTURES: "1",
+      VITE_CRUXIBLE_FIXTURES: process.env.UI_SMOKE_WORLD ?? "authored",
       VITE_CRUXIBLE_INSTANCE_ID: "inst_fixture",
     },
   },

@@ -6,7 +6,7 @@ import { http } from "msw";
 import { server } from "@/test/msw-server";
 import { DataSourceProvider } from "@/api/DataSourceContext";
 import { createApiClient } from "@/api/data-source";
-import { buildHandlers } from "@/fixtures/handlers";
+import { AUTHORED, buildHandlers } from "@/fixtures/handlers";
 import { Prose } from "./Prose";
 
 const BASE = "https://cloud.example";
@@ -37,7 +37,7 @@ function renderProse(text: string, initial = "/i/inst_fixture") {
 
 describe("cruxible:// refs in Prose", () => {
   it("hydrates a bare Subject ref into a linked chip", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     renderProse("Blocking: cruxible://security.vulnerability/cve-2024-3094 needs a look.");
 
     const link = await screen.findByRole("link", { name: /cve-2024-3094/ });
@@ -46,7 +46,7 @@ describe("cruxible:// refs in Prose", () => {
   });
 
   it("keeps the page's ?at= pin on the chip's link", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     renderProse("See cruxible://security.vulnerability/cve-2024-3094.", "/i/inst_fixture?at=42");
     const link = await screen.findByRole("link", { name: /cve-2024-3094/ });
     expect(link).toHaveAttribute(
@@ -56,7 +56,7 @@ describe("cruxible:// refs in Prose", () => {
   });
 
   it("fails the chip with the pin's refusal when ?at= names no accepted generation", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     renderProse("See cruxible://security.vulnerability/cve-2024-3094.", "/i/inst_fixture?at=7");
     // head?at=7 is unrecorded (404): the chip must settle, not hydrate forever.
     expect(await screen.findByTitle(/no recorded fixture/)).toHaveTextContent("cve-2024-3094");
@@ -64,7 +64,7 @@ describe("cruxible:// refs in Prose", () => {
   });
 
   it("renders the unresolved chip for a ref state does not know, without breaking the prose", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     const { container } = renderProse(
       "Gone: cruxible://security.vulnerability/cve-1999-0001. Rest of the sentence survives.",
     );
@@ -76,7 +76,7 @@ describe("cruxible:// refs in Prose", () => {
   });
 
   it("keeps the author's label in the [label](cruxible://…) form", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     renderProse("See [the backdoor](cruxible://security.vulnerability/cve-2024-3094) first.");
 
     const link = await screen.findByRole("link", { name: /the backdoor/ });
@@ -84,7 +84,7 @@ describe("cruxible:// refs in Prose", () => {
   });
 
   it("routes ClaimType refs to the type map", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     renderProse("Rule: cruxible://ClaimType:security.assessment.status.");
 
     const link = await screen.findByRole("link", { name: /security\.assessment\.status/ });
@@ -107,7 +107,7 @@ describe("cruxible:// refs in Prose", () => {
         gets += 1;
         return undefined; // fall through to the fixture handlers
       }),
-      ...buildHandlers(BASE),
+      ...buildHandlers(BASE, AUTHORED),
     );
     renderProse(
       "First cruxible://security.vulnerability/cve-2024-3094 then [again](cruxible://security.vulnerability/cve-2024-3094).",

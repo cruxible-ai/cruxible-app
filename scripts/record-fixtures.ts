@@ -34,7 +34,7 @@ import {
 import type { AcceptedCoordinate, GetResult, OrientResult } from "../src/api/schemas.ts";
 import { digest8, fixtureKey, normalizePath, normalizeQuery } from "../src/fixtures/key.ts";
 import { walkNeighborhood, type CardFetcher, type IncomingReader } from "../src/lib/neighborhood.ts";
-import { readMandateProof } from "../src/lib/lines.ts";
+import { lineName, readMandateProof } from "../src/lib/lines.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -147,7 +147,7 @@ const fetchCards: CardFetcher = async (refs) => {
   if (!batch) throw new Error(`get-batch refused ${refs.join(", ")}`);
   return batch.results;
 };
-for (const ref of samples.slice(0, 2)) {
+for (const ref of samples.slice(0, 3)) {
   const [read] = await fetchCards([ref]).catch(() => [undefined]);
   await call("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
   const card = read?.card as { claims?: { claim: string | string[] }[] } | undefined;
@@ -178,6 +178,9 @@ for (const item of claimTypes.slice(0, 30)) {
 }
 
 // Ledger: the first two generation pages and the proposals their rows peek.
+// Member counts per proposal pick a small accepted proposal to review below:
+// a review loads every member (not paged), so a large one makes a huge fixture.
+const membersByProposal = new Map<string, number>();
 {
   let cursor: string | undefined;
   for (let page = 0; page < 2; page += 1) {
@@ -185,6 +188,7 @@ for (const item of claimTypes.slice(0, 30)) {
       query: orientQuery({ coordinate: C, section: "generations", limit: LEDGER_PAGE, cursor }),
     });
     const rows = result?.generations ?? [];
+    for (const row of rows) if (row.proposal) membersByProposal.set(row.proposal, row.members ?? 0);
     if (page === 0) {
       for (const row of rows.filter((r) => r.proposal).slice(0, 10)) await fetchCards([row.proposal!]).catch(() => null);
     }
@@ -204,7 +208,10 @@ for (const status of ["open", "incomplete", "settled"] as const) {
   );
   const entries = list?.entries ?? [];
   for (const entry of entries.slice(0, 10)) await fetchCards([entry.proposal_id]).catch(() => null);
-  const first = entries.find((entry) => entry.terminal_reason === "accepted") ?? entries[0];
+  const small = entries
+    .filter((entry) => entry.terminal_reason === "accepted" && (membersByProposal.get(entry.proposal_id) ?? 0) > 0)
+    .sort((a, b) => membersByProposal.get(a.proposal_id)! - membersByProposal.get(b.proposal_id)!);
+  const first = small[0] ?? entries[0];
   if (first) {
     await call("post", `${P}/proposals/{proposal_id}/review`, {
       pathParams: { proposal_id: first.proposal_id },
@@ -215,14 +222,15 @@ for (const status of ["open", "incomplete", "settled"] as const) {
 
 // Lines: the index's card batches (request order), then for up to five Lines
 // every read the Line page makes, and one run's card and state.
-const lineRefs = lines.map((line) => `Line:${line.line}`);
+const lineRefs = lines.map((line) => `Line:${lineName(line.line)}`);
 for (let i = 0; i < lineRefs.length; i += GET_BATCH_MAX) await fetchCards(lineRefs.slice(i, i + GET_BATCH_MAX)).catch(() => null);
 const mandates = (await orientAll(C, "mandates")).flatMap((page) => page.mandates ?? []);
 let runId: string | null = null;
 for (const line of lines.slice(0, 5)) {
-  const [card] = await fetchCards([`Line:${line.line}`]).catch(() => [undefined]);
+  const name = lineName(line.line);
+  const [card] = await fetchCards([`Line:${name}`]).catch(() => [undefined]);
   await call("post", `${P}/get`, {
-    body: getBody({ ref: `Line:${line.line}`, coordinate: C, detail: "runs", limit: LINE_RUNS_PAGE }),
+    body: getBody({ ref: `Line:${name}`, coordinate: C, detail: "runs", limit: LINE_RUNS_PAGE }),
   });
   const procedure = line.procedure.replace(/^Procedure:/, "");
   await fetchCards([`Procedure:${procedure}`]).catch(() => null);
@@ -236,7 +244,7 @@ for (const line of lines.slice(0, 5)) {
     if (query) await fetchCards([query]).catch(() => null);
   }
   const inbox = await call<{ entries: { item: { item_id: string } }[] }>("get", `${P}/inbox`, {
-    query: inboxQuery(line.line, undefined, 50),
+    query: inboxQuery(name, undefined, 50),
   });
   const first = inbox?.entries[0]?.item.item_id;
   if (first) await call("get", `${P}/inbox/{item_id}`, { pathParams: { item_id: first } });

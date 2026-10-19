@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { server } from "@/test/msw-server";
 import { ApiError, createApiClient, unwrap } from "@/api/data-source";
 import { getBatchBody, headQuery, NEXT_PAGE, nextBody, orientQuery } from "@/api/requests";
-import { buildHandlers, FIXTURE_INSTANCE_ID, FIXTURES } from "./handlers";
+import { AUTHORED, buildHandlers, FIXTURE_INSTANCE_ID, RECORDED } from "./handlers";
 
 const BASE = "https://fixtures.example";
 const path = { instance_id: FIXTURE_INSTANCE_ID };
@@ -10,7 +10,7 @@ const path = { instance_id: FIXTURE_INSTANCE_ID };
 /** Fixtures mode must answer the app's own requests, keyed exactly. */
 describe("recorded fixture handlers", () => {
   it("serves the head and the reads pinned to its coordinate", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     const client = createApiClient({ baseUrl: BASE });
 
     const head = unwrap(
@@ -39,7 +39,7 @@ describe("recorded fixture handlers", () => {
   });
 
   it("serves recorded refusals with their status and envelope", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     const client = createApiClient({ baseUrl: BASE });
     const head = unwrap(await client.GET("/api/v1/{instance_id}/head", { params: { path } }));
     const err = await client
@@ -54,7 +54,7 @@ describe("recorded fixture handlers", () => {
   });
 
   it("answers an unrecorded request with a 404 envelope, never a near match", async () => {
-    server.use(...buildHandlers(BASE));
+    server.use(...buildHandlers(BASE, AUTHORED));
     const client = createApiClient({ baseUrl: BASE });
     const head = unwrap(await client.GET("/api/v1/{instance_id}/head", { params: { path } }));
     const err = await client
@@ -67,8 +67,10 @@ describe("recorded fixture handlers", () => {
     expect((err as ApiError).errorType).toBe("FixtureNotRecorded");
   });
 
-  it("keys every fixture uniquely", () => {
-    const keys = FIXTURES.map((fixture) => fixture.key);
-    expect(new Set(keys).size).toBe(keys.length);
+  it("keys every fixture of each world uniquely", () => {
+    for (const world of [AUTHORED, RECORDED]) {
+      const keys = world.map((fixture) => fixture.key);
+      expect(new Set(keys).size).toBe(keys.length);
+    }
   });
 });

@@ -6,7 +6,7 @@
 import { defineFixture } from "../fixture";
 import { getBatchBody, LEDGER_PAGE, orientQuery, proposalsQuery, reviewBody } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
-import { AT, COORDINATE, NOW } from "./authored";
+import { AT, COORDINATE, NOW } from "./world";
 
 const ACCEPTED = "sha256:" + "6".repeat(64);
 const ACCEPTED_OLDER = "sha256:" + "3".repeat(64);

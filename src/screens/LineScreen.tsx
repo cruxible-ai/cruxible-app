@@ -19,7 +19,7 @@ import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextItemRow } from "@/components/next/NextItemRow";
 import { useAtLink } from "@/lib/at";
-import { nextRowsByLine, readMandateProof, runId } from "@/lib/lines";
+import { lineName, nextRowsByLine, readMandateProof, runId } from "@/lib/lines";
 import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -37,7 +37,8 @@ const RUN_TONE = (status: string) => (status === "succeeded" ? "green" : status 
  * Procedure's own, a page at a time.
  */
 export function LineScreen() {
-  const { line = "" } = useParams();
+  const { line: raw = "" } = useParams();
+  const line = lineName(raw);
   const card = useCard(`Line:${line}`);
   const lineCard = cardOf(card.data, "line");
   usePageTitle(`Line ${line}`);

@@ -7,7 +7,7 @@ import { Chip } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
-import { nextRowsByLine, runId, unreadOf } from "@/lib/lines";
+import { lineName, nextRowsByLine, runId, unreadOf } from "@/lib/lines";
 import { REASONS } from "@/lib/next-reasons";
 import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -30,14 +30,15 @@ export function LinesScreen() {
   const next = useNext({ limit: NEXT_PAGE });
   usePageTitle("Lines");
   const rows = lines.data?.rows ?? [];
-  const cards = useGetBatch(rows.map((row) => `Line:${row.line}`));
+  // orient names Lines `Line:<name>`; the app routes and reads by bare name.
+  const cards = useGetBatch(rows.map((row) => `Line:${lineName(row.line)}`));
   const lastRun = useMemo(() => {
     const byLine = new Map<string, RunRow>();
     // get-batch answers in request order: result i is rows[i]'s card.
     cards.results.forEach((result, i) => {
       const run = cardOf(result, "line")?.recent_runs?.[0];
       const line = rows[i]?.line;
-      if (run && line) byLine.set(line, run);
+      if (run && line) byLine.set(lineName(line), run);
     });
     return byLine;
   }, [cards.results, rows]);
@@ -76,18 +77,19 @@ export function LinesScreen() {
                 </thead>
                 <tbody>
                   {rows.map((row) => {
+                    const name = lineName(row.line);
                     const procedure = row.procedure.replace(/^Procedure:/, "");
-                    const run = lastRun.get(row.line);
-                    const nextRows = nextByLine.get(row.line) ?? [];
+                    const run = lastRun.get(name);
+                    const nextRows = nextByLine.get(name) ?? [];
                     const unread = unreadOf(nextRows);
                     return (
-                      <tr key={row.line} className="border-t border-zinc-900 align-top">
+                      <tr key={name} className="border-t border-zinc-900 align-top">
                         <td className="py-1 pr-3">
                           <Link
-                            to={link(`/i/${instanceId}/lines/${encodeURIComponent(row.line)}`)}
+                            to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)}
                             className="font-mono text-[12px] text-zinc-200 hover:underline"
                           >
-                            {row.line}
+                            {name}
                           </Link>
                           {row.lifecycle === "retired" && <span className="ml-1.5 text-[11px] text-zinc-600">retired</span>}
                         </td>

@@ -16,15 +16,18 @@ const queryClient = new QueryClient({
   },
 });
 
-// Dev fixtures mode: serve the miniature fixture instance through an MSW
-// worker at the network layer. The app still goes through the same
+// Dev fixtures mode: serve a fixture world through an MSW worker at the
+// network layer (VITE_CRUXIBLE_FIXTURES=1 the recorded daemon world,
+// =authored the hand-authored one). The app still goes through the same
 // data-source boundary; nothing else changes.
-if (import.meta.env.DEV && import.meta.env.VITE_CRUXIBLE_FIXTURES === "1") {
-  const [{ setupWorker }, { buildHandlers }] = await Promise.all([
+const fixtureWorld = import.meta.env.VITE_CRUXIBLE_FIXTURES;
+if (import.meta.env.DEV && (fixtureWorld === "1" || fixtureWorld === "authored")) {
+  const [{ setupWorker }, handlers] = await Promise.all([
     import("msw/browser"),
     import("./fixtures/handlers"),
   ]);
-  await setupWorker(...buildHandlers()).start({ onUnhandledRequest: "bypass" });
+  const world = fixtureWorld === "authored" ? handlers.AUTHORED : handlers.FIXTURES;
+  await setupWorker(...handlers.buildHandlers("", world)).start({ onUnhandledRequest: "bypass" });
 }
 
 createRoot(document.getElementById("root")!).render(

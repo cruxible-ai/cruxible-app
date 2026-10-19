@@ -8,7 +8,7 @@ import { defineErrorFixture, defineFixture } from "../fixture";
 import { errorEnvelope } from "../envelopes";
 import { claimReadBatchBody, getBatchBody, getBody, HISTORY_PAGE, INCOMING_PAGE } from "@/api/requests";
 import type { CaptureAdmissionAccount, GetResult, Schemas } from "@/api/schemas";
-import { ACCEPTED_AT, AT, COORDINATE, NOW } from "./authored";
+import { ACCEPTED_AT, AT, COORDINATE, NOW } from "./world";
 
 const clm = (n: number) => `CLM-${n.toString(16).padStart(32, "0")}`;
 

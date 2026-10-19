@@ -4,15 +4,20 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { DataSourceProvider } from "@/api/DataSourceContext";
 import { createApiClient } from "@/api/data-source";
 import { routes } from "@/app/router";
-import { buildHandlers } from "@/fixtures/handlers";
+import { AUTHORED, buildHandlers } from "@/fixtures/handlers";
+import type { RecordedFixture } from "@/fixtures/fixture";
 import { SettingsProvider } from "@/lib/settings";
 import { server } from "./msw-server";
 
 export const TEST_BASE = "https://fixtures.example";
 
-/** Render the real app routes at `path`, served by the recorded fixture world. */
-export function renderApp(path: string): RenderResult {
-  server.use(...buildHandlers(TEST_BASE));
+/**
+ * Render the real app routes at `path`, served by a fixture world: the
+ * hand-authored one by default (stable cases: refusals, contested slots,
+ * paging), or `RECORDED` for tests that check real daemon responses render.
+ */
+export function renderApp(path: string, fixtures: RecordedFixture[] = AUTHORED): RenderResult {
+  server.use(...buildHandlers(TEST_BASE, fixtures));
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
