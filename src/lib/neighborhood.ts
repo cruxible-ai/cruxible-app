@@ -216,3 +216,6 @@ export interface IncomingPage {
  * neighborhood panel lists incoming edges. Until then only the count shows.
  */
 export type IncomingReader = (subject: string, cursor: string | null) => Promise<IncomingPage>;
+
+/** No incoming read is served at the pinned contract; set this when it is. */
+export const incomingReader: IncomingReader | null = null;
