@@ -43,6 +43,9 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | Type map  | the ontology: Subject kinds with counts, Subject-valued ClaimTypes as kind links; per kind its identity rule and every ClaimType's cardinality, value type, evidence requirement and staleness; evidence rules per ClaimType |
 | Subject   | a Subject's card: every field's value and read flags, each Claim's verdict and contenders, capture admission; per Claim on expand its evidence (Captures, attestations, rationale), admission accounts and revisions; the field history, paged |
 | Neighborhood | a Subject's outgoing links (Subject-valued Claims), depth 1 or 2, at most 150 Subjects; incoming links shown as counts per node |
+| Next      | the `next` queue, a page of 100 at a time, grouped by severity, filterable by family; each reason renders its own detail fields; repairs show as text with their CLI command |
+| Beliefs   | contested, stale and drifted beliefs: tabs over the `next` page in hand |
+| Proposals / Ledger | proposals by status; the ledger of accepted proposals (interim, until the daemon serves its generation timeline); each opens its review: members with field deltas and prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
 | Reference | any other ref `get` resolves (Claim, Capture, Line, run, …), its card field by field |
 
 **Jump palette** (⌘K): type any ref (`kind/id`, `CLM-…`, `Line:…`,

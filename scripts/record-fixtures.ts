@@ -165,12 +165,18 @@ for (const item of claimTypes.slice(0, 30)) {
   await call("post", `${P}/get`, { body: getBody({ ref: `ClaimType:${item.predicate}`, coordinate: C }) });
 }
 
-// Proposals and one review per status.
-for (const status of ["open", "settled"] as const) {
-  const list = await call<{ entries: { proposal_id: string }[] }>("get", `${P}/proposals`, {
-    query: proposalsQuery(status, 50),
-  });
-  const first = list?.entries[0];
+// Proposals: each status's first page, the cards of up to ten (the ledger's
+// peek and the proposal page read them through get-batch), and one review per
+// status (preferring an accepted proposal for settled).
+for (const status of ["open", "incomplete", "settled"] as const) {
+  const list = await call<{ entries: { proposal_id: string; terminal_reason?: string | null }[] }>(
+    "get",
+    `${P}/proposals`,
+    { query: proposalsQuery(status, 50) },
+  );
+  const entries = list?.entries ?? [];
+  for (const entry of entries.slice(0, 10)) await fetchCards([entry.proposal_id]).catch(() => null);
+  const first = entries.find((entry) => entry.terminal_reason === "accepted") ?? entries[0];
   if (first) {
     await call("post", `${P}/proposals/{proposal_id}/review`, {
       pathParams: { proposal_id: first.proposal_id },
