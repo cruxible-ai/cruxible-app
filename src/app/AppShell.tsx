@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { CircleAlert, GitPullRequest, History, LayoutDashboard, Network, Scale, Search } from "lucide-react";
+import { CircleAlert, GitPullRequest, History, LayoutDashboard, Network, Scale, Search, Workflow } from "lucide-react";
 import { useHead, useInstanceId, useOrient, useOrientKinds } from "@/api/hooks";
 import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
@@ -76,6 +76,12 @@ export function AppShell() {
               {(attention?.open_proposals ?? 0) > 0 && (
                 <span className="font-mono text-[12px] text-amber-400/90">{attention!.open_proposals}</span>
               )}
+            </NavLink>
+            <NavLink to={link(`/i/${instanceId}/lines`)} className={navClass}>
+              <span className="inline-flex items-center gap-2">
+                <Workflow className="h-3.5 w-3.5" />
+                Lines
+              </span>
             </NavLink>
             <NavLink to={link(`/i/${instanceId}/ledger`)} className={navClass}>
               <span className="inline-flex items-center gap-2">

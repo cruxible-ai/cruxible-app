@@ -531,3 +531,20 @@ export function useNeighborhood(root: string | null, depth: number) {
     root !== null && kinds.data !== undefined,
   );
 }
+
+/** One inbox item with its payload (head-only; O(1) by id). */
+export function useInboxItem(itemId: string | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["inbox-item", instanceId, itemId],
+    enabled: itemId !== null,
+    staleTime: 60_000,
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/inbox/{item_id}", {
+          params: { path: { instance_id: instanceId, item_id: itemId! } },
+        }),
+      ),
+  });
+}

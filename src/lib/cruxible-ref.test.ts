@@ -61,6 +61,8 @@ describe("ref grammar", () => {
     expect(refRoute("inst", parseRef("CLM-1")!)).toBe("/i/inst/ref/CLM-1");
     expect(refRoute("inst", parseRef("INB-1")!)).toBeNull();
     expect(refRoute("inst", parseRef("sha256:ab")!)).toBe("/i/inst/p/sha256%3Aab");
+    expect(refRoute("inst", parseRef("Line:kev-triage")!)).toBe("/i/inst/lines/kev-triage");
+    expect(refRoute("inst", parseRef("ProcedureRun:run-7")!)).toBe("/i/inst/runs/run-7");
     expect(parseRef("claims/0a/CLM-0a12.json")).toEqual({ kind: "claim", id: "CLM-0a12" });
   });
 

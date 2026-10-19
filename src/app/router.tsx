@@ -10,6 +10,9 @@ import { NextScreen } from "@/screens/NextScreen";
 import { BeliefsScreen } from "@/screens/BeliefsScreen";
 import { LedgerScreen, ProposalsScreen } from "@/screens/LedgerScreen";
 import { ProposalScreen } from "@/screens/ProposalScreen";
+import { LinesScreen } from "@/screens/LinesScreen";
+import { LineScreen } from "@/screens/LineScreen";
+import { RunScreen } from "@/screens/RunScreen";
 import { loadConfig } from "@/config";
 
 function RootRedirect() {
@@ -40,6 +43,9 @@ export const routes = [
       { path: "ledger", element: <LedgerScreen /> },
       { path: "proposals", element: <ProposalsScreen /> },
       { path: "p/:id", element: <ProposalScreen /> },
+      { path: "lines", element: <LinesScreen /> },
+      { path: "lines/:line", element: <LineScreen /> },
+      { path: "runs/:run", element: <RunScreen /> },
     ],
   },
 ];
