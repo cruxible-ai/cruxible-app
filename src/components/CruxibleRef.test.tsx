@@ -41,7 +41,7 @@ describe("cruxible:// refs in Prose", () => {
     renderProse("Blocking: cruxible://security.vulnerability/cve-2024-3094 needs a look.");
 
     const link = await screen.findByRole("link", { name: /cve-2024-3094/ });
-    expect(link).toHaveAttribute("href", "/i/inst_fixture/ref/security.vulnerability%2Fcve-2024-3094");
+    expect(link).toHaveAttribute("href", "/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
     expect(link).toHaveAttribute("title", expect.stringContaining("backed by state"));
   });
 
@@ -51,7 +51,7 @@ describe("cruxible:// refs in Prose", () => {
     const link = await screen.findByRole("link", { name: /cve-2024-3094/ });
     expect(link).toHaveAttribute(
       "href",
-      "/i/inst_fixture/ref/security.vulnerability%2Fcve-2024-3094?at=42",
+      "/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094?at=42",
     );
   });
 
@@ -80,7 +80,7 @@ describe("cruxible:// refs in Prose", () => {
     renderProse("See [the backdoor](cruxible://security.vulnerability/cve-2024-3094) first.");
 
     const link = await screen.findByRole("link", { name: /the backdoor/ });
-    expect(link).toHaveAttribute("href", "/i/inst_fixture/ref/security.vulnerability%2Fcve-2024-3094");
+    expect(link).toHaveAttribute("href", "/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
   });
 
   it("routes ClaimType refs to the type map", async () => {
@@ -100,10 +100,10 @@ describe("cruxible:// refs in Prose", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("issues a single get when the same ref repeats", async () => {
+  it("issues a single read when the same ref repeats", async () => {
     let gets = 0;
     server.use(
-      http.post(`${BASE}/api/v1/:instance/get`, () => {
+      http.post(`${BASE}/api/v1/:instance/get-batch`, () => {
         gets += 1;
         return undefined; // fall through to the fixture handlers
       }),

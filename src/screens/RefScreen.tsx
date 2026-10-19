@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useGet } from "@/api/hooks";
+import { useCard } from "@/api/hooks";
 import { Panel, LoadState } from "@/components/Panel";
 import { Chip } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
@@ -17,7 +17,7 @@ export function RefScreen() {
   const { ref: raw = "" } = useParams();
   const ref = parseRef(raw);
   const getRef = ref ? getRefOf(ref) : null;
-  const read = useGet(getRef);
+  const read = useCard(getRef);
   usePageTitle(ref ? formatRef(ref) : raw);
 
   if (!ref || getRef === null) {

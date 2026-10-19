@@ -4,6 +4,7 @@ import { RouteError } from "./RouteError";
 import { OverviewScreen } from "@/screens/OverviewScreen";
 import { TypeMapScreen } from "@/screens/TypeMapScreen";
 import { RefScreen } from "@/screens/RefScreen";
+import { SubjectScreen } from "@/screens/SubjectScreen";
 import { loadConfig } from "@/config";
 
 function RootRedirect() {
@@ -27,6 +28,7 @@ export const routes = [
       { index: true, element: <OverviewScreen /> },
       { path: "map", element: <TypeMapScreen /> },
       { path: "ref/:ref", element: <RefScreen /> },
+      { path: "s/:ref", element: <SubjectScreen /> },
     ],
   },
 ];

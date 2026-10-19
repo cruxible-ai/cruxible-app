@@ -19,7 +19,7 @@ describe("Overview", () => {
     const subject = await main.findByRole("link", { name: "security.assessment/rel-1-cve-2024-3094" });
     expect(subject).toHaveAttribute(
       "href",
-      "/i/inst_fixture/ref/security.assessment%2Frel-1-cve-2024-3094",
+      "/i/inst_fixture/s/security.assessment%2Frel-1-cve-2024-3094",
     );
     expect(main.getByText("Claim conflicted")).toBeInTheDocument();
     expect(main.getByText("Line dispatch")).toBeInTheDocument();

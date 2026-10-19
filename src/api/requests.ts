@@ -113,6 +113,9 @@ export function getBody(args: GetArgs): RequestBody<"/api/v1/{instance_id}/get",
   };
 }
 
+/** History rows per page (get allows up to 200). */
+export const HISTORY_PAGE = 20;
+
 /** At most 64 refs per call (the route's cap); summary cards, no name suggestions. */
 export const GET_BATCH_MAX = 64;
 
@@ -202,6 +205,9 @@ export function readingsBody(
 ): RequestBody<"/api/v1/{instance_id}/procedures/{name}/readings", "post"> {
   return { at: coordinate, limit, ...(cursor !== undefined ? { cursor } : {}) };
 }
+
+/** Claim ids per claims/read-batch call (the route's cap). */
+export const CLAIM_READ_BATCH_MAX = 256;
 
 export function claimReadBatchBody(
   claimIds: string[],

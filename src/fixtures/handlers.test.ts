@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { server } from "@/test/msw-server";
 import { ApiError, createApiClient, unwrap } from "@/api/data-source";
-import { getBody, headQuery, NEXT_PAGE, nextBody, orientQuery } from "@/api/requests";
+import { getBatchBody, headQuery, NEXT_PAGE, nextBody, orientQuery } from "@/api/requests";
 import { buildHandlers, FIXTURE_INSTANCE_ID, FIXTURES } from "./handlers";
 
 const BASE = "https://fixtures.example";
@@ -43,9 +43,9 @@ describe("recorded fixture handlers", () => {
     const client = createApiClient({ baseUrl: BASE });
     const head = unwrap(await client.GET("/api/v1/{instance_id}/head", { params: { path } }));
     const err = await client
-      .POST("/api/v1/{instance_id}/get", {
+      .POST("/api/v1/{instance_id}/get-batch", {
         params: { path },
-        body: getBody({ ref: "security.vulnerability/cve-1999-0001", coordinate: head.coordinate }),
+        body: getBatchBody(["security.vulnerability/cve-1999-0001"], head.coordinate),
       })
       .then(unwrap)
       .catch((e: unknown) => e);

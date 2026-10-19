@@ -4,16 +4,16 @@
  * Requests are built with the app's own builders, so keys match what the app
  * sends; responses are typed against the pinned contract by defineFixture.
  */
-import { defineErrorFixture, defineFixture } from "../fixture";
-import { errorEnvelope } from "../envelopes";
+import { defineFixture } from "../fixture";
 import {
+  getBatchBody,
   getBody,
   headQuery,
   NEXT_PAGE,
   nextBody,
   orientQuery,
 } from "@/api/requests";
-import type { AcceptedCoordinate, OrientPredicate } from "@/api/schemas";
+import type { AcceptedCoordinate, GetResult, OrientPredicate } from "@/api/schemas";
 
 const ORIENT_PAGE = 500;
 
@@ -24,11 +24,11 @@ export const COORDINATE: AcceptedCoordinate = {
   generation_root: "sha256:1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d",
   compiler_digest: "sha256:7e9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a",
 };
-const GENERATION = 42;
-const SHORT_OID = COORDINATE.git_oid.slice(0, 12);
-const AT = { git_oid: SHORT_OID, generation: GENERATION };
-const ACCEPTED_AT = "2026-10-19T09:30:00Z";
-const NOW = "2026-10-19T12:00:00Z";
+export const GENERATION = 42;
+export const SHORT_OID = COORDINATE.git_oid.slice(0, 12);
+export const AT = { git_oid: SHORT_OID, generation: GENERATION };
+export const ACCEPTED_AT = "2026-10-19T09:30:00Z";
+export const NOW = "2026-10-19T12:00:00Z";
 const INSTANCE = "inst_fixture";
 
 // -- ClaimTypes ---------------------------------------------------------------
@@ -196,6 +196,37 @@ const KINDS = [
     ],
   },
 ];
+
+const CLAIM_TYPE_STATUS: GetResult = {
+  tag: "playbill-get-result-v1",
+  ref: "ClaimType:security.assessment.status",
+  kind: "claim_type",
+  detail: "summary",
+  coordinate: AT,
+  evaluation_time: NOW,
+  card: {
+    predicate: "security.assessment.status",
+    subject_kinds: ["security.assessment"],
+    object: "enum",
+    cardinality: "one",
+    members: ["affected", "not_affected", "under_investigation"],
+    description: "Whether the release is affected by the CVE.",
+    roles: ["observation", "normative"],
+    default_role: "observation",
+    evidence_requirement: "captured",
+    revision_evidence: "accumulate",
+    evidence: ["security.osv-applicability-v1"],
+    evidence_rules: [
+      {
+        rule_id: "osv-applicability",
+        roles: ["observation"],
+        contracts: ["security.osv-applicability-v1"],
+        admission: "direct",
+      },
+    ],
+    live_claims: 2,
+  },
+};
 
 const BASE_ORIENT = {
   tag: "playbill-orient-v1" as const,
@@ -376,71 +407,15 @@ export default [
     method: "post",
     path: "/api/v1/{instance_id}/get",
     body: getBody({ ref: "ClaimType:security.assessment.status", coordinate: COORDINATE }),
-    response: {
-      tag: "playbill-get-result-v1",
-      ref: "ClaimType:security.assessment.status",
-      kind: "claim_type",
-      detail: "summary",
-      coordinate: AT,
-      evaluation_time: NOW,
-      card: {
-        predicate: "security.assessment.status",
-        subject_kinds: ["security.assessment"],
-        object: "enum",
-        cardinality: "one",
-        members: ["affected", "not_affected", "under_investigation"],
-        description: "Whether the release is affected by the CVE.",
-        roles: ["observation", "normative"],
-        default_role: "observation",
-        evidence_requirement: "captured",
-        revision_evidence: "accumulate",
-        evidence: ["security.osv-applicability-v1"],
-        evidence_rules: [
-          {
-            rule_id: "osv-applicability",
-            roles: ["observation"],
-            contracts: ["security.osv-applicability-v1"],
-            admission: "direct",
-          },
-        ],
-        live_claims: 2,
-      },
-    },
+    response: CLAIM_TYPE_STATUS,
   }),
 
+  // The ClaimType chip in prose reads the same card through get-batch.
   defineFixture({
     method: "post",
-    path: "/api/v1/{instance_id}/get",
-    body: getBody({ ref: "security.vulnerability/cve-2024-3094", coordinate: COORDINATE }),
-    response: {
-      tag: "playbill-get-result-v1",
-      ref: "security.vulnerability/cve-2024-3094",
-      kind: "subject",
-      detail: "summary",
-      coordinate: AT,
-      evaluation_time: NOW,
-      card: {
-        subject: "security.vulnerability/cve-2024-3094",
-        kind: "security.vulnerability",
-        lifecycle: "live",
-        claims: [
-          { predicate: "cve_id", claim: "CLM-1a2b3c4d5e6f", value: "CVE-2024-3094" },
-          { predicate: "kev_listed", claim: "CLM-2b3c4d5e6f7a", value: true, flags: ["stale"] },
-        ],
-        incoming_count: 2,
-      },
-    },
+    path: "/api/v1/{instance_id}/get-batch",
+    body: getBatchBody(["ClaimType:security.assessment.status"], COORDINATE),
+    response: { tag: "playbill-get-batch-result-v1", coordinate: COORDINATE, results: [CLAIM_TYPE_STATUS] },
   }),
 
-  defineErrorFixture({
-    method: "post",
-    path: "/api/v1/{instance_id}/get",
-    body: getBody({ ref: "security.vulnerability/cve-1999-0001", coordinate: COORDINATE }),
-    status: 404,
-    response: errorEnvelope(
-      "ReadRefusalError",
-      "no accepted Subject 'security.vulnerability/cve-1999-0001'",
-      "cruxible.get.ref_not_found",
-    ),
-  }),
 ];

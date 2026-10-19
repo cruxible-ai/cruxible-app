@@ -7,6 +7,8 @@ import {
   getBatchBody,
   getBody,
   GET_BATCH_MAX,
+  HISTORY_PAGE,
+  CLAIM_READ_BATCH_MAX,
   headQuery,
   inboxQuery,
   nextBody,
@@ -19,6 +21,7 @@ import {
 } from "./requests";
 import type {
   AcceptedCoordinate,
+  ClaimViewRecord,
   GetDetail,
   GetResult,
   Head,
@@ -28,6 +31,7 @@ import type {
   ProposalStatus,
 } from "./schemas";
 import { useAtParam } from "@/lib/at";
+import { walkNeighborhood } from "@/lib/neighborhood";
 
 /**
  * Read hooks over the playbill daemon. Every state read is pinned to one
@@ -304,24 +308,6 @@ export function useStateQuery(args: QueryArgs | null) {
   );
 }
 
-/** Up to 256 Claims' view records (admission accounts) at the page coordinate. */
-export function useClaimReadBatch(claimIds: string[]) {
-  const client = useApiClient();
-  const instanceId = useInstanceId();
-  return usePinnedQuery(
-    "claims-read-batch",
-    [claimIds],
-    async (coordinate) =>
-      unwrap(
-        await client.POST("/api/v1/{instance_id}/claims/read-batch", {
-          params: { path: { instance_id: instanceId } },
-          body: claimReadBatchBody(claimIds, coordinate),
-        }),
-      ),
-    claimIds.length > 0,
-  );
-}
-
 /**
  * One page of the `next` queue and its health status, at the page coordinate
  * and evaluated now. `next` has no server-side filter; screens group and
@@ -428,5 +414,119 @@ export function useReadings(procedure: string | null, limit = 50, cursor?: strin
         }),
       ),
     procedure !== null,
+  );
+}
+
+/**
+ * One ref's summary card through get-batch with name suggestions off. A
+ * missing Subject then refuses from the identity indexes alone: `/get` would
+ * compute nearest names over every Subject of the instance first.
+ */
+export function useCard(ref: string | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return usePinnedQuery(
+    "card",
+    [ref],
+    async (coordinate): Promise<GetResult> => {
+      const batch = unwrap(
+        await client.POST("/api/v1/{instance_id}/get-batch", {
+          params: { path: { instance_id: instanceId } },
+          body: getBatchBody([ref!], coordinate),
+        }),
+      );
+      return batch.results[0]!;
+    },
+    ref !== null && ref !== "",
+  );
+}
+
+/** A Subject's field history (stated/changed/reobserved/retired), one page. */
+export function useSubjectHistory(ref: string | null, cursor?: string) {
+  return useGet(ref, "history", { limit: HISTORY_PAGE, ...(cursor !== undefined ? { cursor } : {}) });
+}
+
+/** A Claim's evidence: captures, attestations, rationale (on expand only). */
+export function useClaimEvidence(claimId: string | null) {
+  return useGet(claimId, "evidence");
+}
+
+/** A Claim's revisions (on expand only). */
+export function useClaimRevisions(claimId: string | null) {
+  return useGet(claimId, "history", { limit: HISTORY_PAGE });
+}
+
+/** The Claim id a view record reads (its envelope identity, `Claim:CLM-…`). */
+export function claimIdOfView(view: ClaimViewRecord): string | null {
+  const identity = (view.envelope as { identity?: unknown }).identity;
+  return typeof identity === "string" ? identity.replace(/^Claim:/, "") : null;
+}
+
+const FULL_CLAIM_ID = /^CLM-[0-9a-f]{32}$/;
+
+/**
+ * Capture admission accounts per Claim through claims/read-batch, 256 ids per
+ * call. Only full Claim ids are sent: the route resolves a CLM- prefix by
+ * listing every Claim of the instance.
+ */
+export function useAdmissionAccounts(claimIds: string[]) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  const { coordinate } = usePin();
+  const ids = [...new Set(claimIds.filter((id) => FULL_CLAIM_ID.test(id)))];
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += CLAIM_READ_BATCH_MAX) chunks.push(ids.slice(i, i + CLAIM_READ_BATCH_MAX));
+  return useQueries({
+    queries: chunks.map((chunk) => ({
+      queryKey: ["admission", instanceId, coordinate?.git_oid ?? null, chunk],
+      enabled: coordinate !== undefined,
+      staleTime: 60_000,
+      queryFn: async () =>
+        unwrap(
+          await client.POST("/api/v1/{instance_id}/claims/read-batch", {
+            params: { path: { instance_id: instanceId } },
+            body: claimReadBatchBody(chunk, coordinate!),
+          }),
+        ),
+    })),
+    combine: (results) => {
+      const byClaim = new Map<string, ClaimViewRecord["admission_accounts"]>();
+      results.forEach((result, i) => {
+        result.data?.claims.forEach((view, j) => {
+          const id = claimIdOfView(view) ?? chunks[i]![j];
+          if (id) byClaim.set(id, view.admission_accounts);
+        });
+      });
+      return {
+        isPending: results.some((r) => r.isPending),
+        error: results.find((r) => r.error)?.error ?? null,
+        byClaim,
+      };
+    },
+  });
+}
+
+/**
+ * The outgoing neighborhood of one Subject, depth 1 or 2, capped at 150
+ * nodes: ⌈frontier/64⌉ get-batch calls per hop at the page coordinate.
+ */
+export function useNeighborhood(root: string | null, depth: number) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  const kinds = useOrientKinds();
+  return usePinnedQuery(
+    "neighborhood",
+    [root, depth],
+    (coordinate) =>
+      walkNeighborhood(root!, depth, kinds.data!.kinds, async (refs) => {
+        const batch = unwrap(
+          await client.POST("/api/v1/{instance_id}/get-batch", {
+            params: { path: { instance_id: instanceId } },
+            body: getBatchBody(refs, coordinate),
+          }),
+        );
+        return [...batch.results];
+      }),
+    root !== null && kinds.data !== undefined,
   );
 }

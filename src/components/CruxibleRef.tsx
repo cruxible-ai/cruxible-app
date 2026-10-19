@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useGet, useInstanceId } from "@/api/hooks";
+import { useCard, useInstanceId } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
 import { useAtLink } from "@/lib/at";
 import {
@@ -70,7 +70,7 @@ export function RefChip({ refValue, label }: { refValue: ParsedRef; label?: stri
   const link = useAtLink();
   const getRef = getRefOf(refValue);
   // react-query dedupes by key, so N chips for one ref cost one request.
-  const read = useGet(getRef);
+  const read = useCard(getRef);
   const text = label ?? refName(refValue);
   const shown = formatRef(refValue);
   const kindLabel = refKindLabel(refValue);

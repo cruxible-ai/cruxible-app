@@ -54,10 +54,11 @@ describe("ref grammar", () => {
     expect(formatRef(parseRef("QueryDefinition:q")!)).toBe("query:q");
   });
 
-  it("routes ClaimTypes and SubjectKinds to the type map, everything get-able to its card", () => {
+  it("routes ClaimTypes and SubjectKinds to the type map, Subjects to their page, the rest to the card", () => {
     expect(refRoute("inst", parseRef("ClaimType:a.b.c")!)).toBe("/i/inst/map?claim_type=a.b.c");
     expect(refRoute("inst", parseRef("SubjectKind:a.b")!)).toBe("/i/inst/map?kind=a.b");
-    expect(refRoute("inst", parseRef("a.b/c")!)).toBe("/i/inst/ref/a.b%2Fc");
+    expect(refRoute("inst", parseRef("a.b/c")!)).toBe("/i/inst/s/a.b%2Fc");
+    expect(refRoute("inst", parseRef("CLM-1")!)).toBe("/i/inst/ref/CLM-1");
     expect(refRoute("inst", parseRef("INB-1")!)).toBeNull();
   });
 

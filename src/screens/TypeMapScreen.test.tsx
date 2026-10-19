@@ -24,7 +24,7 @@ describe("Type map", () => {
     expect(panel.getByText("kev_listed")).toBeInTheDocument();
     expect(panel.getByText("security.assessment")).toBeInTheDocument(); // pointed at by
     const sample = await panel.findByRole("link", { name: "cve-2024-3094" });
-    expect(sample).toHaveAttribute("href", "/i/inst_fixture/ref/security.vulnerability%2Fcve-2024-3094");
+    expect(sample).toHaveAttribute("href", "/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
   });
 
   it("opens on ?claim_type= with the ClaimType's evidence rules from its card", async () => {
