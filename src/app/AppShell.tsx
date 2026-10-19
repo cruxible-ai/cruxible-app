@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { CircleAlert, LayoutDashboard, Network, Scale, Search } from "lucide-react";
+import { CircleAlert, GitPullRequest, History, LayoutDashboard, Network, Scale, Search } from "lucide-react";
 import { useHead, useInstanceId, useOrient, useOrientKinds } from "@/api/hooks";
 import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
@@ -66,6 +66,21 @@ export function AppShell() {
               <span className="inline-flex items-center gap-2">
                 <Scale className="h-3.5 w-3.5" />
                 Beliefs
+              </span>
+            </NavLink>
+            <NavLink to={link(`/i/${instanceId}/proposals`)} className={(s) => `${navClass(s)} flex items-center justify-between`}>
+              <span className="inline-flex items-center gap-2">
+                <GitPullRequest className="h-3.5 w-3.5" />
+                Proposals
+              </span>
+              {(attention?.open_proposals ?? 0) > 0 && (
+                <span className="font-mono text-[12px] text-amber-400/90">{attention!.open_proposals}</span>
+              )}
+            </NavLink>
+            <NavLink to={link(`/i/${instanceId}/ledger`)} className={navClass}>
+              <span className="inline-flex items-center gap-2">
+                <History className="h-3.5 w-3.5" />
+                Ledger
               </span>
             </NavLink>
             <button

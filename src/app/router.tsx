@@ -8,6 +8,8 @@ import { SubjectScreen } from "@/screens/SubjectScreen";
 import { NeighborhoodScreen } from "@/screens/NeighborhoodScreen";
 import { NextScreen } from "@/screens/NextScreen";
 import { BeliefsScreen } from "@/screens/BeliefsScreen";
+import { LedgerScreen, ProposalsScreen } from "@/screens/LedgerScreen";
+import { ProposalScreen } from "@/screens/ProposalScreen";
 import { loadConfig } from "@/config";
 
 function RootRedirect() {
@@ -35,6 +37,9 @@ export const routes = [
       { path: "s/:ref/graph", element: <NeighborhoodScreen /> },
       { path: "next", element: <NextScreen /> },
       { path: "beliefs", element: <BeliefsScreen /> },
+      { path: "ledger", element: <LedgerScreen /> },
+      { path: "proposals", element: <ProposalsScreen /> },
+      { path: "p/:id", element: <ProposalScreen /> },
     ],
   },
 ];
