@@ -16,7 +16,7 @@
     "test:smoke": "playwright test",
     "test:watch": "vitest",
     "typecheck": "tsc -b",
-    "gen:api": "openapi-typescript api/openapi.json -o src/api/generated/schema.ts"
+    "gen:api": "node scripts/gen-api.mjs"
   },
   "dependencies": {
     "@cosmograph/cosmos": "2.0.0-beta.20",

@@ -1,17 +1,22 @@
 # Pinned daemon contract
 
-`openapi.json` is the inter-repo contract with the cruxible-core daemon, fetched from
-`http://127.0.0.1:8119/openapi.json` while the daemon ran **cruxible-core commit `d2d9f8e`**.
+`openapi.json` is the inter-repo contract with the cruxible-core daemon. It is generated
+offline from a core checkout (the FastAPI app is built in-process against a throwaway
+HOME and state root; no daemon runs). `pin.json` records the core commit it came from:
+currently **cruxible-core `879b6a025`**.
 
-TypeScript types (`src/api/generated/`) and MSW mocks are generated from this file —
-never hand-written. To pick up a contract change:
+TypeScript types (`src/api/generated/`) are generated from this file, never hand-written,
+and the fixture responses under `src/fixtures/recorded/` are typechecked against them.
+To pick up a contract change:
 
 ```sh
-# daemon must be running; token comes from your shell env
-curl -s -H "Authorization: Bearer $CRUXIBLE_SERVER_BEARER_TOKEN" \
-  http://127.0.0.1:8119/openapi.json | python3 -m json.tool > api/openapi.json
-pnpm gen:api
+CRUXIBLE_CORE_DIR=~/path/to/cruxible-core \
+PYTHON=~/path/to/cruxible-core/.venv/bin/python \
+  scripts/pin-openapi.sh        # writes openapi.json + pin.json, runs pnpm gen:api
 ```
 
-Update the pinned commit hash above in the same change. Contract drift is supposed to
-show up as a regeneration diff in review, not as a runtime surprise.
+The script refuses a core checkout with uncommitted changes. Regeneration is
+byte-stable: running it twice yields the same file. Re-record the fixtures
+(`scripts/record-fixtures.ts`) whenever the pin moves; `pnpm typecheck` fails on any
+recorded response that no longer matches the schema. Contract drift is supposed to show
+up as a regeneration diff in review, not as a runtime surprise.
