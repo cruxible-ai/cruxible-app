@@ -1,250 +1,337 @@
 import { Link } from "react-router-dom";
-import {
-  useInstanceId,
-  useQueryCatalog,
-  useSnapshots,
-  useStats,
-  useView,
-} from "@/api/hooks";
-import { SEGMENT_FILLS, TONE_ORDER, toneFor } from "@/components/Chip";
-import { Panel, LoadState } from "@/components/Panel";
+import { useInstanceId, useKits, useNext, useOrient } from "@/api/hooks";
+import { NEXT_PAGE } from "@/api/requests";
+import type { NextHealth, NextResult, OrientResult } from "@/api/schemas";
+import { Chip } from "@/components/Chip";
+import { EmptyState, LoadState, Panel } from "@/components/Panel";
+import { RefLink } from "@/components/RefLink";
+import { useAtLink } from "@/lib/at";
 import { formatDateTime, humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { useSettings } from "@/lib/settings";
-import { queryLayer } from "@/lib/kit-layer";
-import { QueryItems } from "@/components/QueryItems";
-import { ReceiptBar } from "@/components/ReceiptBar";
 
-const PREVIEW_LIMIT = 5;
+const NEXT_PREVIEW = 8;
 
 /**
- * Orientation point: every parameterless collection query in the instance's
- * catalog rendered as a view card with its top items. Replaces ad hoc CLI
- * sampling for "what's going on right now".
+ * Orientation point at the pinned generation: what kinds of Subjects exist
+ * and how many, how many Claims stand or conflict, what the instance's
+ * artifacts are, and what `next` says needs attention now.
  */
 export function OverviewScreen() {
-  const instanceId = useInstanceId();
-  const stats = useStats();
-  const catalog = useQueryCatalog();
+  const orient = useOrient();
+  const next = useNext({ limit: NEXT_PAGE });
   usePageTitle("Overview");
 
-  const catalogViews = (catalog.data?.items ?? []).filter(
-    (q) => q.mode === "collection" && (q.required_params ?? []).length === 0,
-  );
-  const views = [
-    ...catalogViews.filter((q) => queryLayer(q) === "domain"),
-    ...catalogViews.filter((q) => queryLayer(q) === "base"),
-  ];
+  if (orient.isPending) return <LoadState />;
+  if (orient.error) return <LoadState error={orient.error} />;
+  const o = orient.data;
 
   return (
-    <div>
+    <div className="max-w-6xl">
       <header className="mb-4">
         <h1 className="text-[17px] font-semibold text-zinc-100">Overview</h1>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-zinc-500">
-          {stats.data && (
-            <>
-              <span>{stats.data.entity_count} entities</span>
-              <span>{stats.data.edge_count} edges</span>
-              {stats.data.head_snapshot_id && (
-                <span>
-                  head snapshot{" "}
-                  <span className="font-mono">{stats.data.head_snapshot_id}</span>
-                </span>
-              )}
-            </>
+          <span>
+            generation <span className="font-mono text-zinc-300">{o.generation}</span>
+          </span>
+          <span className="font-mono" title={o.coordinate.git_oid}>
+            {o.coordinate.git_oid.slice(0, 12)}
+          </span>
+          <span title={o.accepted_at}>accepted {formatDateTime(o.accepted_at)}</span>
+          {o.floor && (
+            <span>
+              floor at <span className="font-mono">{o.floor.at}</span>
+              {o.floor.generations_behind != null && ` (${o.floor.generations_behind} behind)`}
+            </span>
           )}
+          {o.you?.actor && <span>reading as {o.you.actor}</span>}
         </div>
       </header>
 
-      <div className="mb-3 space-y-3">
-        <StatusMatrix />
-        <SnapshotStrip />
-      </div>
-
-      {catalog.isPending && <LoadState />}
-      {catalog.error && <LoadState error={catalog.error} />}
-
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
-        {views.map((q) => (
-          <div key={q.name} className="min-w-0">
-            <ViewCard
-              instanceId={instanceId}
-              name={q.name ?? ""}
-              description={q.description ?? undefined}
-              returnsType={q.returns ?? undefined}
-            />
-          </div>
-        ))}
+        <KindsPanel orient={o} />
+        <AttentionPanel orient={o} />
+        <NextPanel next={next.data} pending={next.isPending} error={next.error} />
+        <HealthPanel next={next.data} pending={next.isPending} />
+        <CountsPanel orient={o} />
+        <KitsPanel />
       </div>
-
     </div>
   );
 }
 
-/**
- * State by status as one aligned meter per entity type: a segmented bar
- * (proportions at a glance, 2px gaps, per-segment tooltip + click-through)
- * with the total at a fixed right edge. Segments order by semantic phase:
- * alive, awaiting, planned, attention, cold. One legend explains the tones.
- */
-function StatusMatrix() {
-  const stats = useStats();
+function KindsPanel({ orient }: { orient: OrientResult }) {
   const instanceId = useInstanceId();
-  // Same display preference the sidebar and browse surfaces use — one
-  // hide-cold, not a per-screen toggle.
-  const { settings } = useSettings();
-  const hideCold = settings.hideCold;
-
-  if (!stats.data) return null;
-  const statusCounts = (stats.data.status_counts ?? {}) as Record<
-    string,
-    Record<string, number>
-  >;
-  const rows = Object.entries(statusCounts)
-    .map(([type, counts]) => {
-      const present = Object.entries(counts)
-        .filter(([status, n]) => n > 0 && !(hideCold && toneFor(status) === "zinc"))
-        .sort(
-          (a, b) => TONE_ORDER.indexOf(toneFor(a[0])) - TONE_ORDER.indexOf(toneFor(b[0])),
-        );
-      return { type, present, total: present.reduce((s, [, n]) => s + n, 0) };
-    })
-    .filter((r) => r.total > 0)
-    .sort((a, b) => b.total - a.total);
-  const max = rows[0]?.total ?? 1;
-
+  const link = useAtLink();
+  const kinds = [...(orient.kinds ?? [])].sort((a, b) => b.subjects - a.subjects);
+  const max = Math.max(1, ...kinds.map((k) => k.subjects));
   return (
     <Panel
-      title="State by status"
-      meta={hideCold ? <span className="text-zinc-600">Cold hidden by settings</span> : undefined}
+      title="Subjects by kind"
+      meta={orient.next_cursor ? <span>first {kinds.length} kinds</span> : <span>{kinds.length} kinds</span>}
     >
-      <div className="space-y-2">
-        {rows.map(({ type, present, total }) => (
-          <div key={type} className="flex items-center gap-3 text-[14px]">
+      {kinds.length === 0 && <EmptyState>No Subject kinds yet.</EmptyState>}
+      <div className="space-y-1.5">
+        {kinds.map((kind) => (
+          <div key={kind.kind} className="flex items-center gap-3 text-[13px]">
             <Link
-              to={`/i/${instanceId}/browse/${type}`}
-              className="w-32 shrink-0 text-zinc-300 hover:underline"
+              to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(kind.kind)}`)}
+              className="w-56 shrink-0 truncate font-mono text-[12px] text-zinc-300 hover:underline"
+              title={kind.kind}
             >
-              {humanize(type)}
+              {kind.kind}
             </Link>
             <div className="flex-1">
               <div
-                className="flex h-2 overflow-hidden rounded-full"
-                style={{ width: `${Math.max((total / max) * 100, 3)}%` }}
-              >
-              {present.map(([status, n]) => (
-                <Link
-                  key={status}
-                  to={`/i/${instanceId}/browse/${type}?status=${encodeURIComponent(status)}`}
-                  title={`${humanize(status)} · ${n}`}
-                  style={{ flexGrow: n }}
-                  className={`${SEGMENT_FILLS[toneFor(status)]} min-w-[6px] border-r-2 border-zinc-950 last:border-r-0 hover:opacity-80`}
-                />
-              ))}
-              </div>
+                className="h-2 rounded-full bg-zinc-500"
+                style={{ width: `${Math.max((kind.subjects / max) * 100, kind.subjects ? 2 : 0)}%` }}
+              />
             </div>
-            <span className="w-8 shrink-0 text-right font-mono text-[13px] text-zinc-400">
-              {total}
+            <span className="w-12 shrink-0 text-right font-mono text-zinc-400">{kind.subjects}</span>
+            <span className="w-24 shrink-0 text-right text-[12px] text-zinc-600">
+              {kind.predicates.length} ClaimTypes
             </span>
           </div>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-zinc-500">
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active / approved</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Awaiting review</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> Planned</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Blocked / changes requested</span>
-        {!hideCold && (<span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-zinc-500" /> Cold</span>)}
-      </div>
     </Panel>
   );
 }
 
-/**
- * The instance's immutable history in one line per snapshot: id, when, and
- * the config/lock digests that pin what produced it. Read-only orientation —
- * snapshot/publish operations stay on the CLI.
- */
-function SnapshotStrip() {
-  const snapshots = useSnapshots();
-  const items = ((snapshots.data as
-    | {
-        items?: Array<{
-          snapshot_id?: string;
-          created_at?: string;
-          label?: string | null;
-          config_digest?: string;
-          lock_digest?: string;
-        }>;
-      }
-    | undefined)?.items ?? []);
-  const total = (snapshots.data as { total?: number } | undefined)?.total ?? items.length;
-  if (items.length === 0) return null;
-  const shown = items.slice(0, 3);
+function AttentionPanel({ orient }: { orient: OrientResult }) {
+  const attention = orient.attention;
+  if (!attention) return null;
+  const enablements = attention.enablements;
   return (
-    <Panel title="Snapshots" meta={<span className="font-mono">{total}</span>}>
+    <Panel title="Attention">
+      <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
+        <dt className="text-zinc-500">Next items</dt>
+        <dd className="font-mono text-zinc-200">{attention.next_items}</dd>
+        <dt className="text-zinc-500">Open proposals</dt>
+        <dd className="font-mono text-zinc-200">{attention.open_proposals}</dd>
+        {enablements && (
+          <>
+            <dt className="text-zinc-500">Lines</dt>
+            <dd className="text-zinc-300">
+              {enablements.running ?? 0} running · {enablements.stalled ?? 0} stalled ·{" "}
+              {enablements.stopped ?? 0} stopped
+            </dd>
+          </>
+        )}
+      </dl>
+      {(enablements?.needs_attention?.length ?? 0) > 0 && (
+        <div className="mt-2 text-[12px] text-amber-400/90">
+          Needs attention: {enablements!.needs_attention!.join(", ")}
+        </div>
+      )}
+      {(attention.top?.length ?? 0) > 0 && (
+        <ul className="mt-2 space-y-0.5 text-[12px] text-zinc-400">
+          {attention.top!.map((line) => (
+            <li key={line} className="font-mono">
+              {line}
+            </li>
+          ))}
+        </ul>
+      )}
+      {(attention.notes?.length ?? 0) > 0 && (
+        <ul className="mt-2 space-y-0.5 text-[12px] text-zinc-500">
+          {attention.notes!.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+const SEVERITY_TONE = { blocking: "red", repair: "amber", warning: "zinc" } as const;
+
+function NextPanel({
+  next,
+  pending,
+  error,
+}: {
+  next: NextResult | undefined;
+  pending: boolean;
+  error: Error | null;
+}) {
+  return (
+    <Panel
+      title="Next"
+      meta={
+        next ? (
+          <span>
+            {Math.min(next.items.length, NEXT_PREVIEW)} of <span className="font-mono">{next.total_items}</span>
+          </span>
+        ) : undefined
+      }
+    >
+      {pending && <LoadState />}
+      {error && <LoadState error={error} />}
+      {next && next.items.length === 0 && <EmptyState>Nothing needs attention.</EmptyState>}
+      {next && (
+        <div className="divide-y divide-zinc-800/60">
+          {next.items.slice(0, NEXT_PREVIEW).map((item) => (
+            <div key={item.item_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-[13px]">
+              <Chip value={item.severity} tone={SEVERITY_TONE[item.severity]} />
+              <span className="text-zinc-300">{humanize(item.reason)}</span>
+              <RefLink value={item.subject_identity} className="ml-auto" />
+              {item.repair && (
+                <div className="w-full text-[12px] text-zinc-500">{item.repair.required_change}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {next && next.unobserved_domains.length > 0 && (
+        <div className="mt-2 text-[12px] text-zinc-600">
+          Not observed from here: {next.unobserved_domains.map(humanize).join(", ")}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+const HEALTH_ROWS = [
+  "instance",
+  "floor",
+  "ledger_mirror",
+  "provider_lane",
+  "procedure_catalog",
+  "compiler",
+  "line_dispatch",
+  "consumers",
+  "triggers",
+] as const;
+
+const GOOD = new Set(["current", "active", "available", "complete", "idle", "running", "scheduled"]);
+const BAD = new Set(["stalled", "stale", "invalid", "missing", "unavailable", "gone", "ambiguous"]);
+const NEUTRAL_PREFIX = "not_";
+
+function healthTone(state: string) {
+  if (GOOD.has(state)) return "green" as const;
+  if (BAD.has(state)) return "red" as const;
+  if (state.startsWith(NEUTRAL_PREFIX) || state === "decommissioned") return "zinc" as const;
+  return "amber" as const;
+}
+
+function HealthPanel({ next, pending }: { next: NextResult | undefined; pending: boolean }) {
+  const status = next?.status;
+  return (
+    <Panel
+      title="Health"
+      meta={status?.blocking ? <span className="text-red-400">blocking</span> : undefined}
+    >
+      {pending && <LoadState />}
+      {status && (
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
+          {HEALTH_ROWS.map((row) => {
+            const health: NextHealth = status[row];
+            return (
+              <div key={row} className="contents">
+                <dt className="text-zinc-500">{humanize(row)}</dt>
+                <dd className="flex flex-wrap items-baseline gap-2">
+                  <Chip value={health.state} tone={healthTone(health.state)} />
+                  {health.repair && (
+                    <span className="text-[12px] text-zinc-500">{health.repair.required_change}</span>
+                  )}
+                </dd>
+              </div>
+            );
+          })}
+          {(status.held ?? 0) > 0 && (
+            <>
+              <dt className="text-zinc-500">Held</dt>
+              <dd className="font-mono text-zinc-300">{status.held}</dd>
+            </>
+          )}
+        </dl>
+      )}
+    </Panel>
+  );
+}
+
+function CountsPanel({ orient }: { orient: OrientResult }) {
+  const a = orient.artifacts;
+  if (!a) return null;
+  const claims = a.claims;
+  const artifacts: [string, number | undefined][] = [
+    ["ClaimTypes", a.claim_types],
+    ["Procedures", a.procedures],
+    ["Lines", a.lines],
+    ["Runs", a.runs],
+    ["Running", a.running],
+    ["Mandates", a.mandates],
+    ["Captures", a.captures],
+    ["Capture contracts", a.capture_contracts],
+    ["Documents", a.documents],
+    ["Queries", a.queries],
+    ["Interfaces", a.interfaces],
+  ];
+  return (
+    <Panel title="State">
+      {claims && (
+        <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
+          <Count label="accepted Claims" value={claims.accepted} />
+          <Count label="conflicted" value={claims.conflicted} tone={claims.conflicted ? "text-red-400" : undefined} />
+          <Count label="overturned" value={claims.overturned} />
+          <Count label="refused" value={claims.refused} />
+          <Count label="retired" value={claims.retired} />
+        </div>
+      )}
+      <dl className="grid grid-cols-[max-content_max-content_max-content_max-content] gap-x-4 gap-y-0.5 text-[13px]">
+        {artifacts.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-zinc-500">{label}</dt>
+            <dd className="font-mono text-zinc-300">{value ?? 0}</dd>
+          </div>
+        ))}
+      </dl>
+    </Panel>
+  );
+}
+
+function Count({ label, value, tone }: { label: string; value: number | undefined; tone?: string | undefined }) {
+  return (
+    <span>
+      <span className={`font-mono ${tone ?? "text-zinc-200"}`}>{value ?? 0}</span>{" "}
+      <span className="text-zinc-500">{label}</span>
+    </span>
+  );
+}
+
+function KitsPanel() {
+  const kits = useKits();
+  const rows = kits.data?.kits ?? [];
+  return (
+    <Panel title="Kits" meta={kits.data ? <span>{rows.length} installed</span> : undefined}>
+      {kits.isPending && <LoadState />}
+      {kits.error && <LoadState error={kits.error} />}
+      {kits.data && rows.length === 0 && <EmptyState>No kits installed.</EmptyState>}
       <div className="divide-y divide-zinc-800/60">
-        {shown.map((s) => (
-          <div key={s.snapshot_id} className="flex flex-wrap items-baseline gap-x-3 py-1 text-[13px]">
-            <span className="font-mono text-zinc-300">{s.snapshot_id}</span>
-            {s.label && <span className="text-zinc-400">{s.label}</span>}
-            {s.created_at && (
-              <span className="text-zinc-500" title={s.created_at}>
-                {formatDateTime(s.created_at)}
-              </span>
-            )}
-            {s.config_digest && (
-              <span
-                className="ml-auto truncate font-mono text-[11px] text-zinc-600"
-                title={`config ${s.config_digest}${s.lock_digest ? ` · lock ${s.lock_digest}` : ""}`}
-              >
-                {s.config_digest.slice(0, 23)}…
-              </span>
+        {rows.map((kit) => (
+          <div key={kit.kit_id} className="py-1 text-[13px]">
+            <div className="flex flex-wrap items-baseline gap-x-3">
+              <span className="font-mono text-zinc-200">{kit.kit_id}</span>
+              <span className="font-mono text-zinc-500">{kit.version}</span>
+              {(kit.drifted?.length ?? 0) > 0 && (
+                <span className="text-amber-400/90">{kit.drifted!.length} drifted</span>
+              )}
+              {kit.latest_available && kit.latest_available !== kit.version && (
+                <span className="text-zinc-500">latest {kit.latest_available}</span>
+              )}
+            </div>
+            {(kit.providers?.length ?? 0) > 0 && (
+              <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-zinc-500">
+                {kit.providers!.map((provider) => (
+                  <span key={provider.provider_id}>
+                    {provider.provider_id} <Chip value={provider.state} tone={provider.state === "missing" ? "red" : provider.state === "differs" ? "amber" : "green"} />
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         ))}
       </div>
-      {total > shown.length && (
-        <div className="mt-1 text-[12px] text-zinc-600">{total - shown.length} older</div>
-      )}
-    </Panel>
-  );
-}
-
-function ViewCard({
-  instanceId,
-  name,
-  description,
-  returnsType,
-}: {
-  instanceId: string;
-  name: string;
-  description?: string | undefined;
-  returnsType?: string | undefined;
-}) {
-  const view = useView(name, { limit: PREVIEW_LIMIT });
-  return (
-    <Panel
-      title={
-        <Link to={`/i/${instanceId}/views/${name}`} className="hover:underline">
-          {humanize(name)}
-        </Link>
-      }
-      meta={
-        view.data ? (
-          <span className="font-mono">{view.data.total}</span>
-        ) : undefined
-      }
-    >
-      {description && <p className="mb-2 text-[13px] text-zinc-500">{description}</p>}
-      {view.isPending && <LoadState />}
-      {view.error && <LoadState error={view.error} />}
-      {view.data && (
-        <>
-          <QueryItems result={view.data} linkType={returnsType} compact />
-          <ReceiptBar result={view.data} />
-        </>
-      )}
     </Panel>
   );
 }
