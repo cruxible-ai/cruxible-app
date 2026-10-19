@@ -1,10 +1,9 @@
 # Cruxible App
 
 Read-only inspection console for a [Cruxible](https://github.com/cruxible-ai/cruxible)
-daemon — the hard state layer for AI agents. The daemon holds the state
-(entities, relationships, review queues, receipts, workflows, traces); this
-app lets you look at it: the state graph, pending judgment, and the evidence
-chain behind every answer.
+daemon — the hard state layer for AI agents. The daemon holds accepted state
+(Subjects, Claims and their evidence, proposals, Lines and runs); this app lets
+you look at it at any accepted generation.
 
 **Status: alpha.** Read-only by design — judgment stays on the attributed
 CLI/MCP surface. See [caveats](#alpha-caveats).
@@ -12,8 +11,7 @@ CLI/MCP surface. See [caveats](#alpha-caveats).
 ## Run
 
 Requires Node ≥ 22 and pnpm, plus a running Cruxible daemon
-([quickstart](https://github.com/cruxible-ai/cruxible/blob/main/docs/quickstart.md);
-default `http://127.0.0.1:8100`).
+([quickstart](https://github.com/cruxible-ai/cruxible/blob/main/docs/quickstart.md)).
 
 ```sh
 git clone https://github.com/cruxible-ai/cruxible-app.git && cd cruxible-app
@@ -22,40 +20,48 @@ cp .env.example .env.local          # set VITE_CRUXIBLE_INSTANCE_ID to your inst
 pnpm dev                            # http://localhost:5173
 ```
 
-Against an auth-off sandbox daemon no token is needed. With auth on, mint a
-read-only credential (`cruxible credential mint --label ui --mode read_only`)
-and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev` — the dev
-proxy injects it server-side; tokens never live in env files. A non-default
-daemon URL goes in `CRUXIBLE_DAEMON_URL`.
+**Unix socket (local default).** Start the daemon read-only so the console
+cannot mutate even by mistake, and point the dev proxy at its socket:
+
+```sh
+cruxible server start --socket "$SOCK" --capability-ceiling read_only
+CRUXIBLE_SERVER_SOCKET="$SOCK" pnpm dev
+```
+
+A socket daemon runs with auth off, so no token is needed.
+
+**TCP.** A TCP daemon requires `--auth`. Mint a read-only credential
+(`cruxible credential mint --principal-id <owner> --mode read_only --label console`)
+and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
+`CRUXIBLE_DAEMON_URL` when the daemon is not on `http://127.0.0.1:8100`.
 
 ## Screens
 
-| screen        | what it shows                                                            |
-| ------------- | ------------------------------------------------------------------------ |
-| Overview      | status meters per entity type, view cards, latest snapshots               |
-| State graph   | the whole instance as typed dots and governance-colored edges; search, neighborhood focus, and an internal-model scope that drops the ingested reference bulk |
-| Type map      | the ontology: entity types with live counts, relationship types as edges, base/overlay layers |
-| Review groups | pending judgment: signal matrix, proposed edges with evidence, resolution rationale and actor |
-| Workflows     | grouped by class (decision proposals first, with pending-judgment counts); each workflow's declarative step pipeline |
-| Views         | every named query — standing views in the sidebar, parameterized views with inline forms |
-| Entity        | properties, every relationship with its trust metadata, context queries, focus-in-graph |
-| Traces        | provider execution records: pinned digests, runtime, input/output payloads |
-| Receipt       | the full trust artifact behind a query: operation, node trail, raw envelope |
-| Activity      | recent receipts across the instance                                       |
-| Sources       | registered source artifacts and their chunked content                     |
+| screen    | what it shows                                                                      |
+| --------- | ---------------------------------------------------------------------------------- |
+| Overview  | Subjects per kind, the Claim tally, artifact counts, orient's attention summary, the first `next` items, `next` health per component, installed kits |
+| Type map  | the ontology: Subject kinds with counts, Subject-valued ClaimTypes as kind links; per kind its identity rule and every ClaimType's cardinality, value type, evidence requirement and staleness; evidence rules per ClaimType |
+| Reference | any ref `get` resolves (Subject, Claim, Capture, Line, run, …), its card field by field |
+
+**Generation picker.** The sidebar shows the accepted generation every read is
+pinned to. Unpinned, reads follow the head (polled). Enter a generation number
+or a git oid prefix to pin `?at=`; every link keeps the pin until "Back to
+head". Generations older than the last 64 rebuild their projection on the
+daemon, so the picker warns before binding one.
 
 ## Environment
 
 | variable                       | purpose                                              | default                 |
 | ------------------------------ | ---------------------------------------------------- | ----------------------- |
-| `CRUXIBLE_DAEMON_URL`          | daemon origin the dev proxy targets                  | `http://127.0.0.1:8100` |
+| `CRUXIBLE_SERVER_SOCKET`       | daemon Unix socket the dev proxy targets             | unset                   |
+| `CRUXIBLE_DAEMON_URL`          | daemon origin the dev proxy targets (TCP)            | `http://127.0.0.1:8100` |
 | `CRUXIBLE_SERVER_BEARER_TOKEN` | daemon bearer token, injected by the proxy           | unset                   |
 | `VITE_CRUXIBLE_INSTANCE_ID`    | instance to land on at `/` (in `.env.local`)         | unset                   |
 
 ### How the token is handled
 
 The daemon has no CORS, so the Vite dev server fronts it: `vite.config.ts`
-proxies `/api` to `CRUXIBLE_DAEMON_URL` and, on each proxied request, sets
+proxies `/api` to the socket or URL and, on each proxied request, sets
 `Authorization: Bearer $CRUXIBLE_SERVER_BEARER_TOKEN` (unless the request
 already carries one). The token is read from the shell environment of the
 **dev-server process** — it is deliberately not a `VITE_`-prefixed variable,
@@ -67,29 +73,29 @@ no proxy, no token in the client).
 
 ### No daemon handy
 
-`VITE_CRUXIBLE_FIXTURES=1 pnpm dev` serves a miniature fixture instance
-through an MSW worker at the network layer — same code paths, canned data.
+`VITE_CRUXIBLE_FIXTURES=1 pnpm dev` serves the fixture world in
+`src/fixtures/recorded/` through an MSW worker at the network layer — same
+code paths, canned data. A fixture answers only the exact request it recorded
+(method, path, normalized query and body); anything else gets the daemon's
+error envelope.
 
-## Screenshots
-
-Captured against the supply-chain demo instance from the
-[core quickstart](https://github.com/cruxible-ai/cruxible/blob/main/docs/quickstart.md).
-
-![State graph: the whole instance as typed dots, edge strokes carrying governance review state](docs/screenshots/ui_state_graph.png)
-
-![Review group: signal matrix, proposed edges with matching evidence, provenance rail](docs/screenshots/ui_group_review.png)
-
-![Type map: base and overlay entity types with live counts, relationship types as labeled edges](docs/screenshots/ui_type_map.png)
+To re-record from a daemon serving a scratch world (never a live state root):
+run the dev proxy against it, then
+`node scripts/record-fixtures.ts --base http://127.0.0.1:5173 --instance <id>`,
+and `pnpm typecheck` (every recorded response is checked against the pinned
+contract).
 
 ## Alpha caveats
 
-- **Read-only.** The UI performs GET requests exclusively; all writes go
-  through the daemon's CLI/MCP surfaces.
+- **Read-only.** The client refuses any route outside a read allow-list
+  (`src/api/requests.ts`) before a request is sent. Several reads are POSTs
+  (`get`, `query`, `next`, proposal review); the routes that start runs,
+  record measurements or evaluate Lines are not on the list.
 - **Localhost.** Built for a daemon on your own machine. There is no login
   screen, no session handling, no multi-user story.
 - **Pinned API surface.** Types are generated from `api/openapi.json`, pinned
-  to the cruxible-core 0.2 contract (see `api/README.md`). Other daemon
-  versions may render incompletely.
+  to a cruxible-core commit (see `api/README.md`). Other daemon versions may
+  render incompletely.
 - Screens, routes, and visual details will change without notice.
 
 ## Architecture invariants
@@ -99,16 +105,19 @@ Captured against the supply-chain demo instance from the
    (`src/api/hooks.ts`) only — never fetch, never import fixtures.
 2. **Generated contract** (`src/api/generated/`): regenerated from the pinned
    spec via `pnpm gen:api`, never hand-edited.
-3. **Read-only**: the UI performs GET requests exclusively.
+3. **One coordinate per page**: the page's `?at=` (or the head) resolves once
+   through `GET /head`; every state read carries that full coordinate.
+4. **Read-only**: only allow-listed read routes ever leave the app.
 
 ## Commands
 
-| command        | what                                          |
-| -------------- | --------------------------------------------- |
-| `pnpm dev`     | dev server with daemon proxy                  |
-| `pnpm build`   | typecheck + production bundle                 |
-| `pnpm test`    | vitest                                        |
-| `pnpm gen:api` | regenerate types from the pinned spec         |
+| command           | what                                                  |
+| ----------------- | ----------------------------------------------------- |
+| `pnpm dev`        | dev server with daemon proxy                          |
+| `pnpm build`      | typecheck + production bundle                         |
+| `pnpm test`       | vitest                                                |
+| `pnpm test:smoke` | Playwright over the fixture world (offline)           |
+| `pnpm gen:api`    | regenerate types from the pinned spec                 |
 
 ## License
 
