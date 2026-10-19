@@ -25,11 +25,13 @@ import {
   nextBody,
   orientQuery,
   proposalsQuery,
+  readingsBody,
   reviewBody,
 } from "../src/api/requests.ts";
 import type { AcceptedCoordinate, GetResult, OrientResult } from "../src/api/schemas.ts";
 import { digest8, fixtureKey, normalizePath, normalizeQuery } from "../src/fixtures/key.ts";
 import { walkNeighborhood, type CardFetcher } from "../src/lib/neighborhood.ts";
+import { readMandateProof } from "../src/lib/lines.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -122,7 +124,6 @@ const [orient] = await orientAll(C);
 const claimTypes = (await orientAll(C, "claim_types")).flatMap((page) => page.claim_types ?? []);
 await orientAll(C, "subject_kinds");
 const lines = (await orientAll(C, "lines")).flatMap((page) => page.lines ?? []);
-await orientAll(C, "mandates");
 await call("get", `${P}/kits`);
 await call("post", `${P}/next`, {
   body: nextBody({ coordinate: C, evaluationTime: new Date().toISOString(), limit: NEXT_PAGE }),
@@ -185,18 +186,35 @@ for (const status of ["open", "incomplete", "settled"] as const) {
   }
 }
 
-// Lines: each card and inbox; one run's card and state (later slices' reads).
+// Lines: the index's card batches (request order), then for up to five Lines
+// every read the Line page makes, and one run's card and state.
+const lineRefs = lines.map((line) => `Line:${line.line}`);
+for (let i = 0; i < lineRefs.length; i += GET_BATCH_MAX) await fetchCards(lineRefs.slice(i, i + GET_BATCH_MAX)).catch(() => null);
+const mandates = (await orientAll(C, "mandates")).flatMap((page) => page.mandates ?? []);
 let runId: string | null = null;
 for (const line of lines.slice(0, 5)) {
-  const card = await call<GetResult>("post", `${P}/get`, {
-    body: getBody({ ref: `Line:${line.line}`, coordinate: C }),
+  const [card] = await fetchCards([`Line:${line.line}`]).catch(() => [undefined]);
+  const procedure = line.procedure.replace(/^Procedure:/, "");
+  await fetchCards([`Procedure:${procedure}`]).catch(() => null);
+  await call("post", `${P}/procedures/{name}/readings`, { pathParams: { name: procedure }, body: readingsBody(C, 50) });
+  for (const mandate of mandates.filter((m) => m.procedure.replace(/^Procedure:/, "") === procedure)) {
+    const name = mandate.mandate.replace(/^(Procedure)?Mandate:/, "");
+    const proofRead = await call<GetResult>("post", `${P}/get`, {
+      body: getBody({ ref: `Mandate:${name}`, coordinate: C, detail: "proof" }),
+    });
+    const query = readMandateProof(proofRead?.proof as Record<string, unknown> | undefined)?.condition?.query;
+    if (query) await fetchCards([query]).catch(() => null);
+  }
+  const inbox = await call<{ entries: { item: { item_id: string } }[] }>("get", `${P}/inbox`, {
+    query: inboxQuery(line.line, undefined, 50),
   });
-  await call("get", `${P}/inbox`, { query: inboxQuery(line.line, undefined, 50) });
+  const first = inbox?.entries[0]?.item.item_id;
+  if (first) await call("get", `${P}/inbox/{item_id}`, { pathParams: { item_id: first } });
   const recent = (card?.card as { recent_runs?: { run: string }[] } | undefined)?.recent_runs ?? [];
   runId ??= recent[0]?.run.replace(/^ProcedureRun:/, "") ?? null;
 }
 if (runId) {
-  await call("post", `${P}/get`, { body: getBody({ ref: `ProcedureRun:${runId}`, coordinate: C }) });
+  await fetchCards([`ProcedureRun:${runId}`]).catch(() => null);
   await call("get", `${P}/procedure-runs/{run_id}`, { pathParams: { run_id: runId } });
 }
 

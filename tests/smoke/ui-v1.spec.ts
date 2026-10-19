@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Runs against `VITE_CRUXIBLE_FIXTURES=1` (playwright.config.ts): the MSW
 // worker serves src/fixtures/recorded/ at the network layer, offline.
-test("fixture-backed inspection flow: overview, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, pin", async ({ page }) => {
+test("fixture-backed inspection flow: overview, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines, run, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
@@ -58,6 +58,16 @@ test("fixture-backed inspection flow: overview, type map, Subject, neighborhood,
   await page.locator("aside").getByRole("link", { name: "Beliefs" }).click();
   await page.getByRole("button", { name: /Stale beliefs/ }).click();
   await expect(page.getByText("Evidence expired", { exact: true })).toBeVisible();
+
+  // Lines -> a Line -> one of its runs.
+  await page.locator("aside").getByRole("link", { name: "Lines" }).click();
+  await page.getByRole("link", { name: "kev-triage", exact: true }).click();
+  await expect(page).toHaveURL(/\/lines\/kev-triage$/);
+  await expect(page.getByText("2 recent of 12")).toBeVisible();
+  await expect(page.getByText(/otherwise propose/)).toBeVisible();
+  await page.getByRole("link", { name: "run-7", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/runs\/run-7$/);
+  await expect(page.getByText("guard_refused")).toBeVisible();
 
   // Pin a generation: links keep it, the picker names it, back to head drops it.
   await page.getByLabel("Pin generation").fill("42");

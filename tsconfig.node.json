@@ -27,6 +27,7 @@
     "src/fixtures/key.ts",
     "src/lib/neighborhood.ts",
     "src/lib/cruxible-ref.ts",
-    "src/lib/type-graph.ts"
+    "src/lib/type-graph.ts",
+    "src/lib/lines.ts"
   ]
 }

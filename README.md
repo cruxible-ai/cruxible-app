@@ -46,6 +46,9 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | Next      | the `next` queue, a page of 100 at a time, grouped by severity, filterable by family; each reason renders its own detail fields; repairs show as text with their CLI command |
 | Beliefs   | contested, stale and drifted beliefs: tabs over the `next` page in hand |
 | Proposals / Ledger | proposals by status; the ledger of accepted proposals (interim, until the daemon serves its generation timeline); each opens its review: members with field deltas and prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
+| Lines     | every Line: Procedure, trigger, max authority, mandates, enablement, last run, inbox unread, `next` rows |
+| Line      | triggers, enablements, occurrences, recent runs, the Procedure's track record, measurement reviews and resolution dispositions, readings (paged), mandate scope and condition query, the Line's inbox (paged) |
+| Run       | nodes, the terminal refusal, terminal egress with the proposal produced, Captures read, receipt and attribution (withheld where the credential may not see them) |
 | Reference | any other ref `get` resolves (Claim, Capture, Line, run, …), its card field by field |
 
 **Jump palette** (⌘K): type any ref (`kind/id`, `CLM-…`, `Line:…`,
