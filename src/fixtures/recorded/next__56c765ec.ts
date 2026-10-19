@@ -13,7 +13,7 @@ export default defineFixture({
       "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
       "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
     },
-    "evaluation_time": "2026-10-19T22:13:00.824Z",
+    "evaluation_time": "2026-10-19T22:16:28.820Z",
     "access_profile": {
       "tag": "playbill-coverage-access-profile-v1",
       "profile_id": "console",
@@ -34,7 +34,7 @@ export default defineFixture({
       "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
       "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
     },
-    "evaluation_time": "2026-10-19T22:13:00.824000Z",
+    "evaluation_time": "2026-10-19T22:16:28.820000Z",
     "observed_domains": [
       "accepted_state"
     ],
@@ -461,7 +461,7 @@ export default defineFixture({
     ],
     "total_items": 6,
     "next_cursor": null,
-    "result_digest": "sha256:9ab1ed08429fb3174e2d9262be71c007029698a1afa2048491f99956568d49bd",
+    "result_digest": "sha256:12fc953de3479e7d5ea7fdfd47521400508c85b22ec1952d8282c81851f1776a",
     "delta_since": null,
     "attestation_head_digest": "sha256:e0966becb8965e9dd07b22663a268118df10709dd80ed3ebfd9a673a180fecc5"
   }

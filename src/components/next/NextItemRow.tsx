@@ -29,7 +29,14 @@ function FieldValue({ spec, value }: { spec: FieldSpec; value: unknown }) {
       <span className="flex flex-wrap gap-x-2">
         {value.slice(0, 8).map((item, i) => (
           <span key={i}>
-            {typeof item === "string" ? (
+            {typeof item === "object" && item !== null && typeof (item as { capture_digest?: unknown }).capture_digest === "string" ? (
+              <span>
+                <RefLink value={captureHandle((item as { capture_digest: string }).capture_digest)} />
+                {typeof (item as { expires_at?: unknown }).expires_at === "string" && (
+                  <span className="text-zinc-500"> expires {formatDateTime((item as { expires_at: string }).expires_at)}</span>
+                )}
+              </span>
+            ) : typeof item === "string" ? (
               spec.key.includes("capture") ? <RefLink value={captureHandle(item)} /> : parseRef(item) ? <RefLink value={item} /> : <span className="font-mono">{item}</span>
             ) : (
               <code className="font-mono text-[11px] text-zinc-500">{JSON.stringify(item)}</code>

@@ -147,7 +147,15 @@ const fetchCards: CardFetcher = async (refs) => {
   if (!batch) throw new Error(`get-batch refused ${refs.join(", ")}`);
   return batch.results;
 };
-for (const ref of samples.slice(0, 3)) {
+const incoming: IncomingReader = async (subject, cursor) => {
+  const read = await call<GetResult>("post", `${P}/get`, {
+    body: getBody({ ref: subject, coordinate: C, detail: "incoming", limit: INCOMING_PAGE, ...(cursor ? { cursor } : {}) }),
+  });
+  return { claims: read?.incoming?.claims ?? [], nextCursor: read?.next_cursor ?? null };
+};
+
+/** Every read the Subject page and the neighborhood (depth 1 and 2) make for one Subject. */
+async function recordSubject(ref: string) {
   const [read] = await fetchCards([ref]).catch(() => [undefined]);
   await call("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
   const card = read?.card as { claims?: { claim: string | string[] }[] } | undefined;
@@ -161,15 +169,26 @@ for (const ref of samples.slice(0, 3)) {
     await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "evidence" }) });
     await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
   }
-  const incoming: IncomingReader = async (subject, cursor) => {
-    const read = await call<GetResult>("post", `${P}/get`, {
-      body: getBody({ ref: subject, coordinate: C, detail: "incoming", limit: INCOMING_PAGE, ...(cursor ? { cursor } : {}) }),
-    });
-    return { claims: read?.incoming?.claims ?? [], nextCursor: read?.next_cursor ?? null };
-  };
+  const walked = [];
   for (const depth of [1, 2]) {
-    await walkNeighborhood(ref, depth, orient?.kinds ?? [], fetchCards, undefined, incoming).catch(() => null);
+    const graph = await walkNeighborhood(ref, depth, orient?.kinds ?? [], fetchCards, undefined, incoming).catch(() => null);
+    if (graph) walked.push(graph);
   }
+  return walked;
+}
+
+// Sample Subjects, then the most pointed-at Subject their walks reached (a
+// hub shows the incoming column and a fuller neighborhood).
+const seen = new Map<string, number>();
+for (const ref of samples.slice(0, 3)) {
+  for (const graph of await recordSubject(ref)) {
+    for (const node of graph.nodes) if (node.card) seen.set(node.ref, node.incomingCount ?? 0);
+  }
+}
+const hub = [...seen.entries()].filter(([ref]) => !samples.includes(ref)).sort((a, b) => b[1] - a[1])[0];
+if (hub) {
+  console.log(`hub ${hub[0]} (${hub[1]} incoming)`);
+  await recordSubject(hub[0]);
 }
 
 // ClaimType cards (the type map loads one on click).

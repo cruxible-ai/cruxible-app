@@ -19,7 +19,7 @@ import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextItemRow } from "@/components/next/NextItemRow";
 import { useAtLink } from "@/lib/at";
-import { lineName, nextRowsByLine, readMandateProof, runId } from "@/lib/lines";
+import { lineName, nextRowsByLine, readMandateProof, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -176,8 +176,12 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
       <div className="space-y-0.5 text-[12px]">
         {runs.map((run) => (
           <div key={run.run} className="flex flex-wrap items-baseline gap-x-3">
-            <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="font-mono text-zinc-200 hover:underline">
-              {runId(run.run)}
+            <Link
+              to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)}
+              className="font-mono text-zinc-200 hover:underline"
+              title={runId(run.run)}
+            >
+              {shortRunId(run.run)}
             </Link>
             <Chip value={run.status} tone={RUN_TONE(run.status)} />
             <span className="text-zinc-500" title={run.started_at}>
@@ -407,8 +411,12 @@ function ReadingsPanel({ procedure }: { procedure: string }) {
                     <td className="pr-3 text-zinc-300">{reading.value !== undefined && <ShownValue value={reading.value} />}</td>
                     <td>
                       {reading.run_id && (
-                        <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(reading.run_id)}`)} className="font-mono text-zinc-300 hover:underline">
-                          {reading.run_id}
+                        <Link
+                          to={link(`/i/${instanceId}/runs/${encodeURIComponent(reading.run_id)}`)}
+                          className="font-mono text-zinc-300 hover:underline"
+                          title={reading.run_id}
+                        >
+                          {shortRunId(reading.run_id)}
                         </Link>
                       )}
                     </td>
@@ -472,7 +480,12 @@ function InboxPanel({ line }: { line: string }) {
                 <span className="text-zinc-500">×{envelope.occurrences}</span>
                 {last && (
                   <span className="text-zinc-500">
-                    last {formatDateTime(last.posted_at)} by <RefLink value={`ProcedureRun:${last.run_id}`} />
+                    last {formatDateTime(last.posted_at)} by{" "}
+                    <RefLink value={`ProcedureRun:${last.run_id}`}>
+                      <span className="font-mono" title={last.run_id}>
+                        {shortRunId(last.run_id)}
+                      </span>
+                    </RefLink>
                   </span>
                 )}
               </div>

@@ -10,6 +10,12 @@ export function runId(run: string): string {
   return run.replace(/^ProcedureRun:/, "");
 }
 
+/** A run id short enough for a list row: `RUN-` plus 12 hex (full id in the title). */
+export function shortRunId(run: string): string {
+  const id = runId(run);
+  return /^RUN-[0-9a-f]{20,}$/.test(id) ? `${id.slice(0, 16)}…` : id;
+}
+
 /** The bare Line name (`Line:` stripped). */
 export function lineName(line: string): string {
   return line.replace(/^Line:/, "");

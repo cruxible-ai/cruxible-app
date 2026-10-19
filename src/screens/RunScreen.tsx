@@ -32,7 +32,7 @@ export function RunScreen() {
     <div className="max-w-6xl space-y-3">
       <header>
         <div className="text-[10px] uppercase tracking-wide text-zinc-500">Procedure run</div>
-        <h1 className="font-mono text-[17px] font-semibold text-zinc-100">{run}</h1>
+        <h1 className="break-all font-mono text-[17px] font-semibold text-zinc-100">{run}</h1>
         {runCard && (
           <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
             <Chip value={runCard.status} tone={runCard.status === "succeeded" ? "green" : runCard.status === "running" ? "blue" : "red"} />

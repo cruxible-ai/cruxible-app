@@ -354,7 +354,7 @@ export default defineFixture({
             "card"
           ]
         },
-        "evaluation_time": "2026-10-19T22:13:04.457652Z"
+        "evaluation_time": "2026-10-19T22:16:34.234638Z"
       }
     ]
   }

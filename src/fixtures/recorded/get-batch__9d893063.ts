@@ -65,7 +65,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:c91316aaa87c937e24e5722510dbb12fd8607be2f56bec0ddb07b7a3236321d1"
                 }
               ],
-              "evaluated_until": "2026-10-19T22:12:21.778698Z",
+              "evaluated_until": "2026-10-19T22:16:23.436465Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -196,7 +196,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-19T22:13:04.017514Z"
+        "evaluation_time": "2026-10-19T22:16:33.865080Z"
       }
     ]
   }
