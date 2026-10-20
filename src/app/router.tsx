@@ -14,6 +14,7 @@ import { ProposalScreen } from "@/screens/ProposalScreen";
 import { LinesScreen } from "@/screens/LinesScreen";
 import { LineScreen } from "@/screens/LineScreen";
 import { RunScreen } from "@/screens/RunScreen";
+import { StateGraphScreen } from "@/screens/StateGraphScreen";
 import { loadConfig } from "@/config";
 
 function RootRedirect() {
@@ -36,6 +37,7 @@ export const routes = [
     children: [
       { index: true, element: <OverviewScreen /> },
       { path: "map", element: <TypeMapScreen /> },
+      { path: "graph", element: <StateGraphScreen /> },
       { path: "ref/:ref", element: <RefScreen /> },
       { path: "s/:ref", element: <SubjectScreen /> },
       { path: "s/:ref/graph", element: <NeighborhoodScreen /> },

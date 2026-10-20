@@ -113,6 +113,9 @@ export function getBody(args: GetArgs): RequestBody<"/api/v1/{instance_id}/get",
   };
 }
 
+/** Whole-graph page size (orient section=graph; the route's cap). */
+export const GRAPH_PAGE = 500;
+
 /** Accepted generations per ledger page. */
 export const LEDGER_PAGE = 50;
 

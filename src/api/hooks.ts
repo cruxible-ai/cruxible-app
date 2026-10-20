@@ -8,6 +8,7 @@ import {
   getBody,
   GET_BATCH_MAX,
   HISTORY_PAGE,
+  GRAPH_PAGE,
   INCOMING_PAGE,
   LEDGER_PAGE,
   LINE_RUNS_PAGE,
@@ -23,6 +24,7 @@ import {
   type QueryArgs,
 } from "./requests";
 import type {
+  Schemas,
   AcceptedCoordinate,
   ClaimViewRecord,
   GetDetail,
@@ -590,5 +592,76 @@ export function useGenerations(cursor?: string) {
   const orient = useOrientFetch();
   return usePinnedQuery("generations", [cursor ?? null], (coordinate) =>
     orient(coordinate, { section: "generations", limit: LEDGER_PAGE, ...(cursor !== undefined ? { cursor } : {}) }),
+  );
+}
+
+/** The whole-graph read's first page (carries totals.subjects); only when asked. */
+export function useGraphFirstPage(enabled: boolean) {
+  const orient = useOrientFetch();
+  return usePinnedQuery(
+    "graph-first",
+    [],
+    (coordinate) => orient(coordinate, { section: "graph", limit: GRAPH_PAGE }),
+    enabled,
+  );
+}
+
+export interface WholeGraph {
+  nodes: Schemas["OrientGraphNode"][];
+  edges: Schemas["OrientGraphEdge"][];
+  subjects: number;
+  pages: number;
+  /** Edges stopped at the edge cap before the read finished. */
+  edgesCapped: boolean;
+  elapsedMs: number;
+}
+
+export interface GraphProgress {
+  pages: number;
+  nodes: number;
+  edges: number;
+  subjects: number;
+}
+
+/**
+ * Every live Subject and every Subject-valued Claim, paged 500 at a time from
+ * the first page's cursor (which pins its coordinate): O(Subjects + edges)
+ * reads of one maintained index each, nothing else. Starts only when the
+ * first page is in and the Subject total is under the caller's cap.
+ */
+export function useWholeGraph(
+  first: OrientResult | undefined,
+  enabled: boolean,
+  edgeCap: number,
+  onProgress: (progress: GraphProgress) => void,
+) {
+  const orient = useOrientFetch();
+  return usePinnedQuery(
+    "graph-all",
+    [first?.next_cursor ?? null, edgeCap],
+    async (coordinate): Promise<WholeGraph> => {
+      const started = performance.now();
+      const nodes = [...(first!.graph?.nodes ?? [])];
+      const edges = [...(first!.graph?.edges ?? [])];
+      const subjects = first!.graph?.totals.subjects ?? nodes.length;
+      let cursor = first!.next_cursor ?? null;
+      let pages = 1;
+      let edgesCapped = false;
+      onProgress({ pages, nodes: nodes.length, edges: edges.length, subjects });
+      while (cursor) {
+        if (edges.length >= edgeCap) {
+          edgesCapped = true;
+          break;
+        }
+        const page = await orient(coordinate, { section: "graph", limit: GRAPH_PAGE, cursor });
+        nodes.push(...(page.graph?.nodes ?? []));
+        edges.push(...(page.graph?.edges ?? []));
+        pages += 1;
+        cursor = page.next_cursor ?? null;
+        onProgress({ pages, nodes: nodes.length, edges: edges.length, subjects });
+      }
+      return { nodes, edges, subjects, pages, edgesCapped, elapsedMs: performance.now() - started };
+    },
+    enabled && first !== undefined,
   );
 }

@@ -17,6 +17,7 @@ import {
   getBatchBody,
   getBody,
   GET_BATCH_MAX,
+  GRAPH_PAGE,
   HISTORY_PAGE,
   INCOMING_PAGE,
   LEDGER_PAGE,
@@ -41,6 +42,9 @@ const { values: args } = parseArgs({
     base: { type: "string", default: "http://127.0.0.1:5173" },
     instance: { type: "string" },
     out: { type: "string", default: "src/fixtures/recorded" },
+    // Record one group into the existing set (same coordinate) instead of
+    // replacing it: currently "graph".
+    only: { type: "string" },
   },
 });
 if (!args.instance) throw new Error("--instance <id> is required");
@@ -122,6 +126,23 @@ async function orientAll(coordinate: AcceptedCoordinate, section?: "claim_types"
 const head = await call<{ coordinate: AcceptedCoordinate }>("get", `${P}/head`, { query: headQuery(null) });
 if (!head) throw new Error("head read failed");
 const C = head.coordinate;
+
+// The whole-graph screen: every page of orient section=graph, from the first
+// page's cursor.
+{
+  let cursor: string | undefined;
+  for (let page = 0; page < 200; page += 1) {
+    const result = await call<OrientResult>("get", `${P}/orient`, {
+      query: orientQuery({ coordinate: C, section: "graph", limit: GRAPH_PAGE, cursor }),
+    });
+    if (!result?.next_cursor) break;
+    cursor = result.next_cursor;
+  }
+}
+if (args.only === "graph") {
+  writeRecordings(false);
+  process.exit(0);
+}
 
 const [orient] = await orientAll(C);
 const claimTypes = (await orientAll(C, "claim_types")).flatMap((page) => page.claim_types ?? []);
@@ -275,27 +296,33 @@ if (runId) {
   await call("get", `${P}/procedure-runs/{run_id}`, { pathParams: { run_id: runId } });
 }
 
-// Replace the recorded set.
-mkdirSync(args.out, { recursive: true });
-for (const file of readdirSync(args.out)) if (file.endsWith(".ts")) rmSync(`${args.out}/${file}`);
-for (const [key, rec] of recordings) {
-  const slug = rec.template.replace(`${P}/`, "").replace(/[{}]/g, "").replace(/[^a-z0-9]+/gi, "-");
-  const define = rec.status === 200 ? "defineFixture" : "defineErrorFixture";
-  const spec = {
-    method: rec.method,
-    path: rec.template,
-    ...(Object.keys(rec.pathParams).length ? { pathParams: rec.pathParams } : {}),
-    ...(rec.query !== undefined ? { query: rec.query } : {}),
-    ...(rec.body !== undefined ? { body: rec.body } : {}),
-    ...(rec.status !== 200 ? { status: rec.status } : {}),
-    response: rec.response,
-  };
-  writeFileSync(
-    `${args.out}/${slug}__${digest8(key)}.ts`,
-    `// Recorded from cruxible-core ${pin.core_commit} by scripts/record-fixtures.ts; do not edit.\n` +
-      `// ${key}\n` +
-      `import { ${define} } from "../fixture";\n\n` +
-      `export default ${define}(${JSON.stringify(spec, null, 2)});\n`,
-  );
+/** Write the recordings: replace the set, or (`--only`) add to it. */
+function writeRecordings(replace: boolean) {
+  mkdirSync(args.out!, { recursive: true });
+  if (replace) for (const file of readdirSync(args.out!)) if (file.endsWith(".ts")) rmSync(`${args.out}/${file}`);
+  for (const [key, rec] of recordings) {
+    // `--only` adds its group; the head it re-read is already in the set.
+    if (!replace && rec.template === `${P}/head`) continue;
+    const slug = rec.template.replace(`${P}/`, "").replace(/[{}]/g, "").replace(/[^a-z0-9]+/gi, "-");
+    const define = rec.status === 200 ? "defineFixture" : "defineErrorFixture";
+    const spec = {
+      method: rec.method,
+      path: rec.template,
+      ...(Object.keys(rec.pathParams).length ? { pathParams: rec.pathParams } : {}),
+      ...(rec.query !== undefined ? { query: rec.query } : {}),
+      ...(rec.body !== undefined ? { body: rec.body } : {}),
+      ...(rec.status !== 200 ? { status: rec.status } : {}),
+      response: rec.response,
+    };
+    writeFileSync(
+      `${args.out}/${slug}__${digest8(key)}.ts`,
+      `// Recorded from cruxible-core ${pin.core_commit} by scripts/record-fixtures.ts; do not edit.\n` +
+        `// ${key}\n` +
+        `import { ${define} } from "../fixture";\n\n` +
+        `export default ${define}(${JSON.stringify(spec, null, 2)});\n`,
+    );
+  }
+  console.log(`wrote ${recordings.size - (replace ? 0 : 1)} fixtures to ${args.out}; run pnpm typecheck`);
 }
-console.log(`wrote ${recordings.size} fixtures to ${args.out}; run pnpm typecheck`);
+
+writeRecordings(true);
