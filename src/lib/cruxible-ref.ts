@@ -185,14 +185,16 @@ export function refName(ref: ParsedRef): string {
 
 /**
  * The in-app route a ref opens, or null when the console has no screen for
- * it. ClaimTypes and SubjectKinds open on the type map, Subjects on their
+ * it. SubjectKinds open their kind page, ClaimTypes their first kind's page
+ * with the row open, CaptureContracts their contract page, Subjects on their
  * Subject page, proposals on their review page, Lines and runs on theirs;
  * every other ref get resolves opens the reference card.
  */
 export function refRoute(instanceId: string, ref: ParsedRef): string | null {
   const base = `/i/${encodeURIComponent(instanceId)}`;
-  if (ref.kind === "claim_type") return `${base}/map?claim_type=${encodeURIComponent(ref.name)}`;
-  if (ref.kind === "subject_kind") return `${base}/map?kind=${encodeURIComponent(ref.name)}`;
+  if (ref.kind === "claim_type") return `${base}/claim-types/${encodeURIComponent(ref.name)}`;
+  if (ref.kind === "subject_kind") return `${base}/kinds/${encodeURIComponent(ref.name)}`;
+  if (ref.kind === "capture_contract") return `${base}/contracts/${encodeURIComponent(ref.name)}`;
   if (ref.kind === "subject") return `${base}/s/${encodeURIComponent(formatRef(ref))}`;
   if (ref.kind === "proposal") return `${base}/p/${encodeURIComponent(ref.id)}`;
   if (ref.kind === "line") return `${base}/lines/${encodeURIComponent(ref.name)}`;

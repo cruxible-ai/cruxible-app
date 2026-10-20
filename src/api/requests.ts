@@ -140,6 +140,14 @@ export function getBatchBody(
 
 export type QueryArgs = Omit<RequestBody<"/api/v1/{instance_id}/query", "post">, "at" | "evaluation_time">;
 
+/** Every live capture-landing Trigger with its contract and target (≤2000, the listing cap). */
+export const LANDING_TRIGGERS_QUERY: QueryArgs = {
+  kind: "Trigger",
+  where: [{ field: "schedule", eq: "capture_landing" }],
+  select: ["name", "schedule", "target", "capture_contract"],
+  limit: 500,
+};
+
 export function queryBody(
   args: QueryArgs,
   coordinate: AcceptedCoordinate,

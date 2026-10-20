@@ -76,7 +76,7 @@ function KindsPanel({ orient }: { orient: OrientResult }) {
         {kinds.map((kind) => (
           <div key={kind.kind} className="flex items-center gap-3 text-[13px]">
             <Link
-              to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(kind.kind)}`)}
+              to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind.kind)}`)}
               className="w-56 shrink-0 truncate font-mono text-[12px] text-zinc-300 hover:underline"
               title={kind.kind}
             >

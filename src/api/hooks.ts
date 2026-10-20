@@ -10,6 +10,7 @@ import {
   HISTORY_PAGE,
   GRAPH_PAGE,
   INCOMING_PAGE,
+  LANDING_TRIGGERS_QUERY,
   LEDGER_PAGE,
   LINE_RUNS_PAGE,
   CLAIM_READ_BATCH_MAX,
@@ -173,7 +174,9 @@ export function useOrientKinds() {
 }
 
 /** All rows of one paged orient section, following next_cursor. */
-function useOrientSectionAll<K extends "claim_types" | "subject_kinds" | "lines" | "mandates">(
+function useOrientSectionAll<
+  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts",
+>(
   section: K,
   enabled = true,
 ) {
@@ -213,6 +216,19 @@ export function useLines(enabled = true) {
 /** Every Mandate (procedure, grants, state, expiry). */
 export function useMandates(enabled = true) {
   return useOrientSectionAll("mandates", enabled);
+}
+
+/** Every CaptureContract with grade and how many ClaimTypes admit it (ontology-sized). */
+export function useCaptureContracts(enabled = true) {
+  return useOrientSectionAll("capture_contracts", enabled);
+}
+
+/**
+ * The capture-landing Triggers with the contract each fires on and its target
+ * (query kind=Trigger; the schedule detail is read per landing Trigger only).
+ */
+export function useLandingTriggers() {
+  return useStateQuery(LANDING_TRIGGERS_QUERY);
 }
 
 /** One kind's detail: incoming predicates and sample Subject ids. */
@@ -669,4 +685,33 @@ export function useWholeGraph(
     },
     enabled && first !== undefined,
   );
+}
+
+/**
+ * Each named Mandate's proof (`get Mandate:<m> detail=proof`), one read per
+ * Mandate: ontology-sized. The kind page reads settle Mandates' scope from it
+ * until the typed scope lands (K6).
+ */
+export function useMandateProofs(mandates: readonly string[]) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  const { coordinate } = usePin();
+  return useQueries({
+    queries: mandates.map((mandate) => ({
+      queryKey: ["get", instanceId, coordinate?.git_oid ?? null, `Mandate:${mandate}`, "proof", null, null],
+      enabled: coordinate !== undefined,
+      staleTime: 60_000,
+      queryFn: async (): Promise<GetResult> =>
+        unwrap(
+          await client.POST("/api/v1/{instance_id}/get", {
+            params: { path: { instance_id: instanceId } },
+            body: getBody({ ref: `Mandate:${mandate}`, coordinate: coordinate!, detail: "proof" }),
+          }),
+        ),
+    })),
+    combine: (results) => ({
+      isPending: results.some((r) => r.isPending),
+      proofs: new Map(mandates.map((mandate, i) => [mandate, results[i]?.data?.proof ?? null])),
+    }),
+  });
 }

@@ -83,12 +83,12 @@ describe("cruxible:// refs in Prose", () => {
     expect(link).toHaveAttribute("href", "/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
   });
 
-  it("routes ClaimType refs to the type map", async () => {
+  it("routes ClaimType refs to their kind page", async () => {
     server.use(...buildHandlers(BASE, AUTHORED));
     renderProse("Rule: cruxible://ClaimType:security.assessment.status.");
 
     const link = await screen.findByRole("link", { name: /security\.assessment\.status/ });
-    expect(link).toHaveAttribute("href", "/i/inst_fixture/map?claim_type=security.assessment.status");
+    expect(link).toHaveAttribute("href", "/i/inst_fixture/claim-types/security.assessment.status");
   });
 
   it("renders unknown ref forms as inert code text and fetches nothing", async () => {

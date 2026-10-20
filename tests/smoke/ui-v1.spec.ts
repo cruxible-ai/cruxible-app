@@ -13,19 +13,18 @@ test("fixture-backed inspection flow: overview, type map, Subject, neighborhood,
   await expect(main.getByText("security.kev-catalog")).toBeVisible();
   await expect(page.locator("aside").getByText("Generation")).toBeVisible();
 
-  // Sidebar kind -> type map opened on that kind.
+  // Sidebar kind -> its kind page; a row expands to its evidence rules; its
+  // contract opens the contract page; the type map stays the overview.
   await page.locator("aside").getByRole("link", { name: /security\.assessment/ }).click();
-  await expect(page).toHaveURL(/\/map\?kind=security\.assessment$/);
-  await expect(page.getByRole("heading", { name: "Type map" })).toBeVisible();
-  await expect(page.locator(".react-flow__node")).toHaveCount(4);
-  await expect(page.getByText("Subject kind", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /^status/ }).click();
+  await expect(page).toHaveURL(/\/kinds\/security\.assessment$/);
+  await expect(page.getByRole("heading", { name: "security.assessment" })).toBeVisible();
+  await page.getByRole("button", { name: "Expand status" }).click();
   await expect(page.getByText("osv-applicability", { exact: true })).toBeVisible();
+  await page.locator("aside").getByRole("link", { name: "Type map" }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(4);
 
-  // A sample Subject opens its Subject page.
-  await page.locator(".react-flow__node", { hasText: "security.vulnerability" }).click();
-  await page.getByRole("link", { name: "cve-2024-3094" }).click();
-  await expect(page).toHaveURL(/\/s\/security\.vulnerability%2Fcve-2024-3094$/);
+  // A Subject page, opened by ref.
+  await page.goto("/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
   await expect(page.getByRole("heading", { name: "cve-2024-3094" })).toBeVisible();
   await expect(page.getByText("CVE-2024-3094", { exact: true })).toBeVisible();
 

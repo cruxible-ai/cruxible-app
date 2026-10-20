@@ -1,22 +1,22 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { useClaimTypes, useGet, useOrientKind, useOrientKinds, useSubjectKinds } from "@/api/hooks";
-import { cardOf, type OrientPredicate, type OrientSubjectKind } from "@/api/schemas";
+import { useInstanceId, useOrientKinds, useSubjectKinds } from "@/api/hooks";
+import type { OrientPredicate, OrientSubjectKind } from "@/api/schemas";
+import { actionChipClass } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
-import { RefLink } from "@/components/RefLink";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
-import { PanelHeading, PanelSection } from "@/components/graph/PanelBits";
+import { PanelActions, PanelHeading, PanelSection } from "@/components/graph/PanelBits";
 import { LayerLegend } from "@/components/graph/LayerLegend";
 import { useLayerColoring, type TypeOwner } from "@/lib/kit-layer";
 import {
   buildTypeGraph,
   edgeForPredicate,
-  isSubjectValued,
-  objectKinds,
   type TypeGraphEdge,
 } from "@/lib/type-graph";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { useAtLink } from "@/lib/at";
+import { contractName } from "@/lib/ontology";
 
 type TypeNodeData = {
   kind: string;
@@ -112,17 +112,12 @@ function cardinalityMark(cardinality: string): string {
  */
 export function TypeMapScreen() {
   const kinds = useOrientKinds();
-  const claimTypes = useClaimTypes();
   const subjectKinds = useSubjectKinds();
   const [params] = useSearchParams();
   usePageTitle("Type map");
 
   const graph = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
   const coloring = useLayerColoring(graph.nodes.map((n) => n.kind));
-  const fullByPredicate = useMemo(
-    () => new Map((claimTypes.data?.rows ?? []).map((row) => [row.predicate, row])),
-    [claimTypes.data],
-  );
   const rulesByKind = useMemo(
     () => new Map((subjectKinds.data?.rows ?? []).map((row) => [row.kind, row])),
     [subjectKinds.data],
@@ -214,15 +209,13 @@ export function TypeMapScreen() {
           evidence={kind?.evidence ?? []}
           rule={rulesByKind.get(selection.id)}
           owner={coloring.ownerOfKind(selection.id)}
-          full={fullByPredicate}
-          focus={claimTypeParam}
           edges={graph.edges}
           api={api}
         />
       );
     }
     const edge = graph.edges.find((e) => e.id === selection.id);
-    return edge ? <EdgePanel edge={edge} full={fullByPredicate} focus={claimTypeParam} api={api} /> : null;
+    return edge ? <EdgePanel edge={edge} api={api} /> : null;
   }
 
   return (
@@ -233,7 +226,6 @@ export function TypeMapScreen() {
           {graph.nodes.length} Subject kinds · {graph.edges.length} kind links · dashed = no Subjects ·
           click anything for its ClaimTypes
         </span>
-        {claimTypes.error && <span className="text-[12px] text-red-400">{claimTypes.error.message}</span>}
       </header>
       <GraphCanvas
         nodes={nodes}
@@ -255,8 +247,6 @@ function KindPanel({
   evidence,
   rule,
   owner,
-  full,
-  focus,
   edges,
   api,
 }: {
@@ -266,12 +256,11 @@ function KindPanel({
   evidence: string[];
   rule: OrientSubjectKind | undefined;
   owner: TypeOwner;
-  full: Map<string, OrientPredicate>;
-  focus: string | null;
   edges: TypeGraphEdge[];
   api: GraphPanelApi;
 }) {
-  const detail = useOrientKind(kind);
+  const instanceId = useInstanceId();
+  const link = useAtLink();
   const incoming = edges.filter((e) => e.target === kind && e.source !== kind);
   return (
     <div>
@@ -288,6 +277,11 @@ function KindPanel({
           "authored in this instance"
         )}
       </div>
+      <PanelActions>
+        <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`)} className={actionChipClass}>
+          Open kind page →
+        </Link>
+      </PanelActions>
       {rule && (
         <PanelSection title="Identity">
           <div className="text-[12px] text-zinc-400">
@@ -303,15 +297,17 @@ function KindPanel({
       )}
       {evidence.length > 0 && (
         <PanelSection title="Evidence contracts">
-          <div className="flex flex-wrap gap-x-2 font-mono text-[12px] text-zinc-400">
+          <div className="flex flex-wrap gap-x-2 font-mono text-[12px]">
             {evidence.map((contract) => (
-              <span key={contract}>{contract}</span>
+              <Link key={contract} to={link(`/i/${instanceId}/contracts/${encodeURIComponent(contractName(contract))}`)} className="text-zinc-300 hover:underline">
+                {contractName(contract)}
+              </Link>
             ))}
           </div>
         </PanelSection>
       )}
       <PanelSection title={`ClaimTypes (${predicates.length})`}>
-        <ClaimTypeList predicates={predicates} full={full} focus={focus} api={api} />
+        <ClaimTypeLinks predicates={predicates} kind={kind} />
       </PanelSection>
       {incoming.length > 0 && (
         <PanelSection title="Pointed at by">
@@ -327,34 +323,11 @@ function KindPanel({
           ))}
         </PanelSection>
       )}
-      {(detail.data?.kind_detail?.sample_subject_ids?.length ?? 0) > 0 && (
-        <PanelSection title="Sample Subjects">
-          <div className="space-y-0.5 text-[12px]">
-            {detail.data!.kind_detail!.sample_subject_ids!.map((id) => (
-              <div key={id}>
-                <RefLink value={`${kind}/${id}`}>
-                  <span className="break-all font-mono text-[12px]">{id}</span>
-                </RefLink>
-              </div>
-            ))}
-          </div>
-        </PanelSection>
-      )}
     </div>
   );
 }
 
-function EdgePanel({
-  edge,
-  full,
-  focus,
-  api,
-}: {
-  edge: TypeGraphEdge;
-  full: Map<string, OrientPredicate>;
-  focus: string | null;
-  api: GraphPanelApi;
-}) {
+function EdgePanel({ edge, api }: { edge: TypeGraphEdge; api: GraphPanelApi }) {
   return (
     <div>
       <PanelHeading kicker="Kind link" title={`${edge.predicates.length} ClaimType${edge.predicates.length === 1 ? "" : "s"}`} />
@@ -368,130 +341,31 @@ function EdgePanel({
         </button>
       </div>
       <PanelSection title="ClaimTypes">
-        <ClaimTypeList predicates={edge.predicates} full={full} focus={focus} api={api} />
+        <ClaimTypeLinks predicates={edge.predicates} kind={edge.source} />
       </PanelSection>
     </div>
   );
 }
 
-/** One row per ClaimType; a row expands to its full descriptor and evidence rules. */
-function ClaimTypeList({
-  predicates,
-  full,
-  focus,
-  api,
-}: {
-  predicates: OrientPredicate[];
-  full: Map<string, OrientPredicate>;
-  focus: string | null;
-  api: GraphPanelApi;
-}) {
-  const [open, setOpen] = useState<string | null>(focus);
+/** ClaimType names linking to their rows on the kind page (the ontology view). */
+function ClaimTypeLinks({ predicates, kind }: { predicates: OrientPredicate[]; kind: string }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
   if (predicates.length === 0) return <div className="text-[12px] text-zinc-600">None.</div>;
   return (
     <div className="space-y-0.5">
-      {predicates.map((compact) => {
-        const descriptor = full.get(compact.predicate) ?? compact;
-        const expanded = open === compact.predicate;
-        return (
-          <div key={compact.predicate} className={expanded ? "border border-zinc-800 bg-zinc-900/40" : ""}>
-            <button
-              onClick={() => setOpen(expanded ? null : compact.predicate)}
-              className="flex w-full items-baseline gap-1.5 px-1 py-0.5 text-left text-[12px] hover:bg-zinc-900"
-              title={compact.predicate}
-            >
-              <span className="font-mono text-zinc-200">{compact.name}</span>
-              <span className="font-mono text-zinc-500">{cardinalityMark(compact.cardinality)}</span>
-              <span className="min-w-0 truncate text-zinc-500">{descriptor.type}</span>
-              {descriptor.evidence_requirement === "captured" && (
-                <span className="ml-auto shrink-0 text-amber-400/80">captured</span>
-              )}
-            </button>
-            {expanded && <ClaimTypeDetail descriptor={descriptor} api={api} />}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function ClaimTypeDetail({ descriptor, api }: { descriptor: OrientPredicate; api: GraphPanelApi }) {
-  // Evidence rules live on the ClaimType card: one get, only when opened.
-  const card = useGet(`ClaimType:${descriptor.predicate}`);
-  const rules = cardOf(card.data, "claim_type")?.evidence_rules ?? [];
-  const targets = objectKinds(descriptor.type);
-  return (
-    <div className="space-y-1 px-1 pb-1.5 text-[12px] text-zinc-400">
-      <div className="break-all font-mono text-[11px] text-zinc-500">{descriptor.predicate}</div>
-      {descriptor.description && <div>{descriptor.description}</div>}
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
-        <dt className="text-zinc-600">kit</dt>
-        <dd className="font-mono">{descriptor.kit ?? cardOf(card.data, "claim_type")?.kit ?? "authored here"}</dd>
-        <dt className="text-zinc-600">cardinality</dt>
-        <dd>{descriptor.cardinality}</dd>
-        <dt className="text-zinc-600">value</dt>
-        <dd className="break-words">
-          {targets.length > 0
-            ? targets.map((target) => (
-                <button key={target} onClick={() => api.select(target)} className="mr-1.5 font-mono hover:underline">
-                  {target}
-                </button>
-              ))
-            : isSubjectValued(descriptor.type)
-              ? "any Subject kind"
-              : descriptor.type}
-          {descriptor.members && ` (${descriptor.members.map(String).join(", ")})`}
-        </dd>
-        <dt className="text-zinc-600">evidence</dt>
-        <dd>
-          {descriptor.evidence_requirement ?? "self"}
-          {(descriptor.evidence?.length ?? 0) > 0 && (
-            <span className="font-mono text-zinc-500"> · {descriptor.evidence!.join(", ")}</span>
-          )}
-        </dd>
-        {descriptor.stale_after && (
-          <>
-            <dt className="text-zinc-600">stale after</dt>
-            <dd className="font-mono">{descriptor.stale_after}</dd>
-          </>
-        )}
-        {descriptor.revision_evidence && (
-          <>
-            <dt className="text-zinc-600">on revision</dt>
-            <dd>{descriptor.revision_evidence} evidence</dd>
-          </>
-        )}
-        {(descriptor.roles?.length ?? 0) > 0 && (
-          <>
-            <dt className="text-zinc-600">roles</dt>
-            <dd>
-              {descriptor.roles!.join(", ")}
-              {descriptor.default_role && ` (default ${descriptor.default_role})`}
-            </dd>
-          </>
-        )}
-        {descriptor.live_claims != null && (
-          <>
-            <dt className="text-zinc-600">live Claims</dt>
-            <dd className="font-mono">{descriptor.live_claims}</dd>
-          </>
-        )}
-      </dl>
-      {card.isPending && <div className="animate-pulse text-zinc-600">Loading evidence rules…</div>}
-      {card.error && <div className="text-red-400/80">{card.error.message}</div>}
-      {rules.length > 0 && (
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Evidence rules</div>
-          {rules.map((rule) => (
-            <div key={rule.rule_id} className="mt-0.5">
-              <span className="font-mono text-zinc-300">{rule.rule_id}</span>{" "}
-              <span className="text-zinc-500">
-                {rule.admission} · {rule.roles.join(", ")} · {rule.contracts.join(", ")}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {predicates.map((p) => (
+        <Link
+          key={p.predicate}
+          to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(p.predicate)}`)}
+          className="flex items-baseline gap-1.5 px-1 py-0.5 text-[12px] hover:bg-zinc-900"
+          title={p.predicate}
+        >
+          <span className="font-mono text-zinc-200">{p.name}</span>
+          <span className="font-mono text-zinc-500">{cardinalityMark(p.cardinality)}</span>
+          <span className="min-w-0 truncate text-zinc-500">{p.type}</span>
+        </Link>
+      ))}
     </div>
   );
 }

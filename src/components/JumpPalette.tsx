@@ -100,9 +100,9 @@ export function JumpPalette() {
         if (!kind.kind.toLowerCase().includes(lower)) continue;
         out.push({ action: { complete: `${kind.kind}/` }, label: `${kind.kind}/`, hint: `${kind.subjects} Subjects · Tab` });
         out.push({
-          action: { route: `/i/${instanceId}/map?kind=${encodeURIComponent(kind.kind)}` },
+          action: { route: `/i/${instanceId}/kinds/${encodeURIComponent(kind.kind)}` },
           label: kind.kind,
-          hint: "type map",
+          hint: "kind page",
         });
       }
     }
@@ -119,7 +119,7 @@ export function JumpPalette() {
       for (const row of claimTypes.data?.rows ?? []) {
         if (!row.predicate.includes(partial)) continue;
         out.push({
-          action: { route: `/i/${instanceId}/map?claim_type=${encodeURIComponent(row.predicate)}` },
+          action: { route: `/i/${instanceId}/claim-types/${encodeURIComponent(row.predicate)}` },
           label: `ClaimType:${row.predicate}`,
           hint: `${row.cardinality} · ${row.type}`,
         });

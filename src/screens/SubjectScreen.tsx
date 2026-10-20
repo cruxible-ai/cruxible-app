@@ -90,7 +90,7 @@ export function SubjectScreen() {
       <header>
         <div className="flex flex-wrap items-center gap-3 text-[13px]">
           <Link
-            to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(kind)}`)}
+            to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`)}
             className="font-mono text-[12px] text-zinc-400 hover:underline"
           >
             {kind}
@@ -179,7 +179,7 @@ function ClaimRow({
           {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
         <Link
-          to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(kind)}&claim_type=${encodeURIComponent(predicate)}`)}
+          to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)}
           className="truncate font-mono text-[12px] text-zinc-400 hover:underline"
           title={`${predicate}${descriptor ? ` · ${descriptor.cardinality} · ${descriptor.type}` : ""}`}
         >

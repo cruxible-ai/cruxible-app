@@ -118,7 +118,7 @@ export function AppShell() {
                 return (
                   <Link
                     key={row.kind}
-                    to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(row.kind)}`)}
+                    to={link(`/i/${instanceId}/kinds/${encodeURIComponent(row.kind)}`)}
                     className="flex items-center justify-between gap-2 px-2 py-1 text-[13px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
                   >
                     <span className="flex min-w-0 items-center gap-1.5">

@@ -13,7 +13,7 @@ describe("Overview", () => {
     expect(await main.findByText("generation")).toBeInTheDocument();
 
     const kind = main.getByRole("link", { name: "security.vulnerability" });
-    expect(kind).toHaveAttribute("href", "/i/inst_fixture/map?kind=security.vulnerability");
+    expect(kind).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability");
 
     // next: the conflicted assessment links to its Subject card.
     const subject = await main.findByRole("link", { name: "security.assessment/rel-1-cve-2024-3094" });
@@ -31,7 +31,7 @@ describe("Overview", () => {
 
     const main = within(await screen.findByRole("main"));
     const kind = await main.findByRole("link", { name: "security.vulnerability" });
-    expect(kind).toHaveAttribute("href", "/i/inst_fixture/map?kind=security.vulnerability&at=42");
+    expect(kind).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability?at=42");
     expect(await screen.findByText(/pinned \(head 42\)/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Back to head" })).toBeInTheDocument();
   });

@@ -14,27 +14,20 @@ beforeAll(() => {
 });
 
 describe("Type map", () => {
-  it("opens on ?kind= with identity, ClaimTypes, incoming links and sample Subjects", async () => {
+  it("opens on ?kind= with identity, kit, ClaimType links into the kind page and incoming kinds", async () => {
     renderApp("/i/inst_fixture/map?kind=security.vulnerability");
 
     expect(await screen.findByRole("heading", { name: "Type map" })).toBeInTheDocument();
     expect(await screen.findByText("Subject kind")).toBeInTheDocument();
     const panel = within(screen.getByText("Subject kind").closest("div.overflow-y-auto") as HTMLElement);
-    expect(panel.getByText("security.vulnerability.cve_id")).toBeInTheDocument();
-    expect(panel.getByText("kev_listed")).toBeInTheDocument();
+    expect(panel.getByRole("link", { name: "Open kind page →" })).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability");
+    expect(panel.getByRole("link", { name: /kev_listed/ })).toHaveAttribute(
+      "href",
+      "/i/inst_fixture/kinds/security.vulnerability?claim_type=security.vulnerability.kev_listed",
+    );
+    expect(panel.getByRole("link", { name: "security.kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
     expect(panel.getByText("security", { selector: "span.font-mono" })).toBeInTheDocument(); // owning kit
     expect(panel.getByText("security.assessment")).toBeInTheDocument(); // pointed at by
-    const sample = await panel.findByRole("link", { name: "cve-2024-3094" });
-    expect(sample).toHaveAttribute("href", "/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
-  });
-
-  it("opens on ?claim_type= with the ClaimType's evidence rules from its card", async () => {
-    renderApp("/i/inst_fixture/map?claim_type=security.assessment.status");
-
-    expect(await screen.findByText("Subject kind")).toBeInTheDocument();
-    expect(await screen.findByText("osv-applicability")).toBeInTheDocument();
-    expect(screen.getByText("stale after")).toBeInTheDocument();
-    expect(screen.getByText(/affected, not_affected, under_investigation/)).toBeInTheDocument();
   });
 
   it("opens a Subject-valued ClaimType on its kind link", async () => {
