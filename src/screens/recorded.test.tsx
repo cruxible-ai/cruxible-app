@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, screen, within } from "@testing-library/react";
+import { vi } from "vitest";
 import { RECORDED } from "@/fixtures/handlers";
 import { renderApp } from "@/test/render";
 
@@ -11,6 +12,15 @@ import { renderApp } from "@/test/render";
  */
 
 afterEach(cleanup);
+
+// jsdom has no WebGL: stand in for the cosmos canvas with what it was given.
+vi.mock("@/components/graph/CosmosDots", () => ({
+  CosmosDots: ({ nodes, edges }: { nodes: unknown[]; edges: unknown[] }) => (
+    <div data-testid="dots">
+      {nodes.length} dots · {edges.length} lines
+    </div>
+  ),
+}));
 
 beforeAll(() => {
   globalThis.ResizeObserver ??= class {
@@ -98,6 +108,13 @@ describe("recorded gate world", () => {
       `${I}/lines/security.cve-applicability`,
     );
     expect(await m.findByText("This run read no Captures.")).toBeInTheDocument();
+  });
+
+  it("state graph: every live Subject and Subject-valued Claim in one page", async () => {
+    renderApp(`${I}/graph`, RECORDED);
+    expect(await screen.findByTestId("dots")).toHaveTextContent("145 dots · 216 lines");
+    expect(screen.getByText(/145 Subjects · 216 Subject-valued Claims · 1 page /)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /security\.job/ })).toBeInTheDocument();
   });
 
   it("proposals and a review", async () => {
