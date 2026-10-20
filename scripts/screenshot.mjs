@@ -10,7 +10,15 @@ const [, , urlPath = "/", outfile = "/tmp/shot.png", height = "900"] = process.a
 const host = process.env.UI_HOST ?? "localhost";
 const settleMs = Number(process.env.UI_SETTLE_MS ?? "400");
 
-const browser = await chromium.launch();
+// UI_HEADED=1 captures the WebGL State graph. Headless Chromium reports a
+// working WebGL2 context (SwiftShader) and cosmos runs against it without an
+// error, but its point and link passes never appear; everything else
+// captures fine headless. Headed runs in a window parked off-screen so a
+// capture cannot interrupt the desktop.
+const headed = process.env.UI_HEADED === "1";
+const browser = await chromium.launch(
+  headed ? { headless: false, args: ["--window-position=-3000,-3000", "--window-size=1460,960"] } : {},
+);
 const page = await browser.newPage({ viewport: { width: 1440, height: Number(height) } });
 const errors = [];
 page.on("console", (msg) => {

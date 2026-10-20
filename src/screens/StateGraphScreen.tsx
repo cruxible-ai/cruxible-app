@@ -96,7 +96,10 @@ export function StateGraphScreen() {
         {graph.data && (
           <span className="text-[12px] text-zinc-500">
             {graph.data.nodes.length} Subjects · {graph.data.edges.length} Subject-valued Claims · {graph.data.pages}{" "}
-            pages in {(graph.data.elapsedMs / 1000).toFixed(1)} s
+            pages in{" "}
+            {graph.data.elapsedMs < 1000
+              ? `${Math.round(graph.data.elapsedMs)} ms`
+              : `${(graph.data.elapsedMs / 1000).toFixed(1)} s`}
             {graph.data.edgesCapped && (
               <span className="text-amber-400/90"> · stopped at {GRAPH_EDGE_CAP.toLocaleString()} edges</span>
             )}

@@ -69,6 +69,12 @@ test("fixture-backed inspection flow: overview, type map, Subject, neighborhood,
   await expect(page).toHaveURL(/\/runs\/run-7$/);
   await expect(page.getByText("guard_refused")).toBeVisible();
 
+  // State graph: pages the whole graph (headless WebGL draws no dots, but
+  // the read, counts and kind filter run).
+  await page.locator("aside").getByRole("link", { name: "State graph" }).click();
+  await expect(page.getByText(/640 Subjects · 733 Subject-valued Claims · 3 pages/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /security\.vulnerability/ })).toBeVisible();
+
   // Pin a generation: links keep it, the picker names it, back to head drops it.
   await page.getByLabel("Pin generation").fill("42");
   await page.getByLabel("Pin generation").press("Enter");
