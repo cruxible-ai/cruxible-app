@@ -402,6 +402,19 @@ export function CosmosDots({
     graphRef.current = graph;
     positionsRef.current = data.seedPositions;
 
+    // The container can settle to its final size after the graph is built
+    // (flex layout, toolbar rows wrapping): refit while the user has not
+    // taken the camera, so the first view frames the whole graph.
+    let resizeFrame = 0;
+    const resizeObserver = new ResizeObserver(() => {
+      if (cameraOwnedRef.current || resizeFrame) return;
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        if (!cameraOwnedRef.current) graph.fitView(0);
+      });
+    });
+    resizeObserver.observe(container);
+
     const worker = new Worker(new URL("./layout.worker.ts", import.meta.url), {
       type: "module",
     });
@@ -446,6 +459,9 @@ export function CosmosDots({
         current.set(targetPositions);
         graph.setPointPositions(current);
         graph.render();
+        // Frame the settled picture: the fit at stream end measured the
+        // eased positions, still near the seed spiral, not where they landed.
+        if (!cameraOwnedRef.current) graph.fitView(300);
         return;
       }
       animFrame = requestAnimationFrame(tick);
@@ -475,6 +491,8 @@ export function CosmosDots({
       // would otherwise still run and call setPointPositions/render() on a
       // destroyed regl instance. Cancel the easing loop for the same reason.
       if (animFrame) cancelAnimationFrame(animFrame);
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+      resizeObserver.disconnect();
       worker.onmessage = null;
       worker.terminate();
       graph.destroy();

@@ -601,7 +601,11 @@ export function useGraphFirstPage(enabled: boolean) {
   return usePinnedQuery(
     "graph-first",
     [],
-    (coordinate) => orient(coordinate, { section: "graph", limit: GRAPH_PAGE }),
+    async (coordinate) => {
+      const started = performance.now();
+      const page = await orient(coordinate, { section: "graph", limit: GRAPH_PAGE });
+      return { page, elapsedMs: performance.now() - started };
+    },
     enabled,
   );
 }
@@ -630,7 +634,7 @@ export interface GraphProgress {
  * first page is in and the Subject total is under the caller's cap.
  */
 export function useWholeGraph(
-  first: OrientResult | undefined,
+  first: { page: OrientResult; elapsedMs: number } | undefined,
   enabled: boolean,
   edgeCap: number,
   onProgress: (progress: GraphProgress) => void,
@@ -638,13 +642,14 @@ export function useWholeGraph(
   const orient = useOrientFetch();
   return usePinnedQuery(
     "graph-all",
-    [first?.next_cursor ?? null, edgeCap],
+    [first?.page.next_cursor ?? null, edgeCap],
     async (coordinate): Promise<WholeGraph> => {
-      const started = performance.now();
-      const nodes = [...(first!.graph?.nodes ?? [])];
-      const edges = [...(first!.graph?.edges ?? [])];
-      const subjects = first!.graph?.totals.subjects ?? nodes.length;
-      let cursor = first!.next_cursor ?? null;
+      // The load time counts the first page's read too.
+      const started = performance.now() - first!.elapsedMs;
+      const nodes = [...(first!.page.graph?.nodes ?? [])];
+      const edges = [...(first!.page.graph?.edges ?? [])];
+      const subjects = first!.page.graph?.totals.subjects ?? nodes.length;
+      let cursor = first!.page.next_cursor ?? null;
       let pages = 1;
       let edgesCapped = false;
       onProgress({ pages, nodes: nodes.length, edges: edges.length, subjects });

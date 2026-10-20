@@ -35,7 +35,7 @@ export function StateGraphScreen() {
   const navigate = useNavigate();
   usePageTitle("State graph");
   const first = useGraphFirstPage(true);
-  const subjects = first.data?.graph?.totals.subjects;
+  const subjects = first.data?.page.graph?.totals.subjects;
   const tooMany = subjects !== undefined && subjects > GRAPH_SUBJECT_CAP;
   const [progress, setProgress] = useState<GraphProgress | null>(null);
   const graph = useWholeGraph(first.data, subjects !== undefined && !tooMany, GRAPH_EDGE_CAP, setProgress);
@@ -56,7 +56,8 @@ export function StateGraphScreen() {
     const shown = new Set<string>();
     for (const node of graph.data?.nodes ?? []) {
       if (hiddenKinds.has(node.kind)) continue;
-      nodes.push({ id: node.subject, title: node.subject });
+      // Labels show the id alone; the dot's color carries the kind.
+      nodes.push({ id: node.subject, title: idOf(node.subject, node.kind) });
       colors.push(colorOf(node.kind));
       shown.add(node.subject);
     }
