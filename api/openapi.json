@@ -4271,7 +4271,8 @@
                     "mandates",
                     "principals",
                     "policies",
-                    "generations"
+                    "generations",
+                    "graph"
                   ],
                   "type": "string"
                 },
@@ -22216,16 +22217,99 @@
         "title": "CompilerCoordinate",
         "description": "Validated semantic compiler/schema coordinate outside the bootstrap preimage.\n\n``implementation`` names the reference semantics whose rule digest is\naccepted. The physical assembler engine that realizes those semantics is\nrecorded separately as nonlogical projection build metadata."
       },
+      "CompilerUpgradeNotice": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-compiler-upgrade-notice-v1",
+            "title": "Tag",
+            "default": "cruxible-compiler-upgrade-notice-v1"
+          },
+          "source_compiler_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Compiler Digest"
+          },
+          "source_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Revision"
+          },
+          "target_compiler_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Target Compiler Digest"
+          },
+          "target_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Revision"
+          },
+          "one_way": {
+            "type": "boolean",
+            "const": true,
+            "title": "One Way",
+            "default": true
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_compiler_digest",
+          "target_compiler_digest",
+          "message"
+        ],
+        "title": "CompilerUpgradeNotice",
+        "description": "What sets a compiler upgrade apart from every other proposal: it is one-way.\n\nCarried by the upgrade's preview, its proposal and its review, where the\ndecision to activate is made. Once activated, the accepted head names\n``target_compiler_digest``, and a release whose daemon does not install\nthat compiler can no longer serve the instance; there is no downgrade."
+      },
       "CompilerUpgradeRequest": {
         "properties": {
           "target": {
-            "$ref": "#/components/schemas/CompilerCoordinate"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompilerCoordinate"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "base": {
-            "$ref": "#/components/schemas/AcceptedCoordinate"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedCoordinate"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "proposal_name": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Proposal Name"
           },
           "dry_run": {
@@ -22256,11 +22340,6 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "target",
-          "base",
-          "proposal_name"
-        ],
         "title": "CompilerUpgradeRequest"
       },
       "ConstantNode": {
@@ -35255,6 +35334,113 @@
         "title": "OrientGeneration",
         "description": "One accepted generation, newest first: what accepted it and how much it changed.\n\n``changeset_digest`` names the change-set record; ``proposal`` is the\nproposal whose admission it accepted (``get <proposal>`` reads its card and\nchanges), ``proposer`` the actor bound to it, and ``approvals`` the\napproving signers in record order. ``because`` is that admission's\nrationale, cut at 500 characters (``because_truncated``). ``members``\ncounts the change set's members; ``since(generation=sequence-1,\nat=<this generation>)`` lists them. Genesis (sequence 0) carries only its\nsequence, git oid and acceptance time. Pass ``sequence`` or ``git_oid`` as\n``at`` to read state as this generation left it."
       },
+      "OrientGraph": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/OrientGraphNode"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "default": []
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/OrientGraphEdge"
+            },
+            "type": "array",
+            "title": "Edges",
+            "default": []
+          },
+          "totals": {
+            "$ref": "#/components/schemas/OrientGraphTotals"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "totals"
+        ],
+        "title": "OrientGraph",
+        "description": "One page of the Subject graph: live Subjects, then live Subject-valued Claims.\n\nA page holds up to ``limit`` rows: nodes first (by kind, then Subject),\nand once the nodes are done, edges (by target, then Claim). Follow\n``next_cursor`` while ``truncated``; every page reads at the first page's\ncoordinate."
+      },
+      "OrientGraphEdge": {
+        "properties": {
+          "claim": {
+            "type": "string",
+            "title": "Claim"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "predicate": {
+            "type": "string",
+            "title": "Predicate"
+          },
+          "qualifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualifier"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim",
+          "source",
+          "predicate",
+          "target"
+        ],
+        "title": "OrientGraphEdge",
+        "description": "One live Claim whose object is a Subject: ``source`` --predicate--> ``target``.\n\n``claim`` is the Claim's id (``get`` reads it); ``source`` and ``target``\nare ``kind/id`` refs. A relation is stored once, on its source."
+      },
+      "OrientGraphNode": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject",
+          "kind"
+        ],
+        "title": "OrientGraphNode",
+        "description": "One live Subject: ``subject`` is its ``kind/id`` ref, which ``get`` reads."
+      },
+      "OrientGraphTotals": {
+        "properties": {
+          "subjects": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Subjects"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subjects"
+        ],
+        "title": "OrientGraphTotals",
+        "description": "The whole graph's size at the coordinate, on every page.\n\n``subjects`` is the live Subject count, read from the per-kind counters\nthe projection maintains (never a recount)."
+      },
       "OrientInterface": {
         "properties": {
           "name": {
@@ -36034,7 +36220,8 @@
                   "mandates",
                   "principals",
                   "policies",
-                  "generations"
+                  "generations",
+                  "graph"
                 ]
               },
               {
@@ -36253,6 +36440,16 @@
             ],
             "title": "Generations"
           },
+          "graph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrientGraph"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "truncated": {
             "type": "boolean",
             "title": "Truncated",
@@ -36298,7 +36495,7 @@
           "evaluation_time"
         ],
         "title": "OrientResult",
-        "description": "One orient answer; which parts are present depends on the request.\n\n- no ``kind``/``section``: ``you``, ``kinds`` (paged by ``limit``/``cursor``),\n  ``artifacts``, ``queries`` and ``attention``;\n- ``kind``: ``kind_detail``;\n- ``section``: that section's rows (``documents``, ``procedures``,\n  ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an\n  operational family:\n  ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,\n  ``predictions``, ``mandates``), the principal registry (``principals``),\n  the governed policies in force (``policies``) or the accepted generations\n  newest first (``generations``), paged. The default map counts the\n  operational families under ``artifacts`` and never inlines their rows.\n\n``next`` is rendered for the requesting surface."
+        "description": "One orient answer; which parts are present depends on the request.\n\n- no ``kind``/``section``: ``you``, ``kinds`` (paged by ``limit``/``cursor``),\n  ``artifacts``, ``queries`` and ``attention``;\n- ``kind``: ``kind_detail``;\n- ``section``: that section's rows (``documents``, ``procedures``,\n  ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an\n  operational family:\n  ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,\n  ``predictions``, ``mandates``), the principal registry (``principals``),\n  the governed policies in force (``policies``), the accepted generations\n  newest first (``generations``) or the Subject graph (``graph``), paged.\n  The default map counts the operational families under ``artifacts`` and\n  never inlines their rows.\n\n``next`` is rendered for the requesting surface."
       },
       "OrientSubjectKind": {
         "properties": {
@@ -44565,6 +44762,16 @@
                 "type": "null"
               }
             ]
+          },
+          "compiler_upgrade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompilerUpgradeNotice"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -45275,6 +45482,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/PriorRefusalCoverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "compiler_upgrade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompilerUpgradeNotice"
               },
               {
                 "type": "null"

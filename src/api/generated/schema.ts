@@ -5796,12 +5796,45 @@ export interface components {
             /** Rule Digest */
             rule_digest: string;
         };
+        /**
+         * CompilerUpgradeNotice
+         * @description What sets a compiler upgrade apart from every other proposal: it is one-way.
+         *
+         *     Carried by the upgrade's preview, its proposal and its review, where the
+         *     decision to activate is made. Once activated, the accepted head names
+         *     ``target_compiler_digest``, and a release whose daemon does not install
+         *     that compiler can no longer serve the instance; there is no downgrade.
+         */
+        CompilerUpgradeNotice: {
+            /**
+             * Tag
+             * @default cruxible-compiler-upgrade-notice-v1
+             * @constant
+             */
+            tag?: "cruxible-compiler-upgrade-notice-v1";
+            /** Source Compiler Digest */
+            source_compiler_digest: string;
+            /** Source Revision */
+            source_revision?: string | null;
+            /** Target Compiler Digest */
+            target_compiler_digest: string;
+            /** Target Revision */
+            target_revision?: string | null;
+            /**
+             * One Way
+             * @default true
+             * @constant
+             */
+            one_way?: true;
+            /** Message */
+            message: string;
+        };
         /** CompilerUpgradeRequest */
         CompilerUpgradeRequest: {
-            target: components["schemas"]["CompilerCoordinate"];
-            base: components["schemas"]["AcceptedCoordinate"];
+            target?: components["schemas"]["CompilerCoordinate"] | null;
+            base?: components["schemas"]["AcceptedCoordinate"] | null;
             /** Proposal Name */
-            proposal_name: string;
+            proposal_name?: string | null;
             /**
              * Dry Run
              * @description true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews).
@@ -11626,6 +11659,68 @@ export interface components {
             members?: number;
         };
         /**
+         * OrientGraph
+         * @description One page of the Subject graph: live Subjects, then live Subject-valued Claims.
+         *
+         *     A page holds up to ``limit`` rows: nodes first (by kind, then Subject),
+         *     and once the nodes are done, edges (by target, then Claim). Follow
+         *     ``next_cursor`` while ``truncated``; every page reads at the first page's
+         *     coordinate.
+         */
+        OrientGraph: {
+            /**
+             * Nodes
+             * @default []
+             */
+            nodes?: components["schemas"]["OrientGraphNode"][];
+            /**
+             * Edges
+             * @default []
+             */
+            edges?: components["schemas"]["OrientGraphEdge"][];
+            totals: components["schemas"]["OrientGraphTotals"];
+        };
+        /**
+         * OrientGraphEdge
+         * @description One live Claim whose object is a Subject: ``source`` --predicate--> ``target``.
+         *
+         *     ``claim`` is the Claim's id (``get`` reads it); ``source`` and ``target``
+         *     are ``kind/id`` refs. A relation is stored once, on its source.
+         */
+        OrientGraphEdge: {
+            /** Claim */
+            claim: string;
+            /** Source */
+            source: string;
+            /** Predicate */
+            predicate: string;
+            /** Qualifier */
+            qualifier?: string | null;
+            /** Target */
+            target: string;
+        };
+        /**
+         * OrientGraphNode
+         * @description One live Subject: ``subject`` is its ``kind/id`` ref, which ``get`` reads.
+         */
+        OrientGraphNode: {
+            /** Subject */
+            subject: string;
+            /** Kind */
+            kind: string;
+        };
+        /**
+         * OrientGraphTotals
+         * @description The whole graph's size at the coordinate, on every page.
+         *
+         *     ``subjects`` is the live Subject count, read from the per-kind counters
+         *     the projection maintains (never a recount).
+         */
+        OrientGraphTotals: {
+            /** Subjects */
+            subjects: number;
+        };
+        /**
          * OrientInterface
          * @description One live provider interface a Procedure node can call.
          *
@@ -11928,9 +12023,10 @@ export interface components {
          *       operational family:
          *       ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,
          *       ``predictions``, ``mandates``), the principal registry (``principals``),
-         *       the governed policies in force (``policies``) or the accepted generations
-         *       newest first (``generations``), paged. The default map counts the
-         *       operational families under ``artifacts`` and never inlines their rows.
+         *       the governed policies in force (``policies``), the accepted generations
+         *       newest first (``generations``) or the Subject graph (``graph``), paged.
+         *       The default map counts the operational families under ``artifacts`` and
+         *       never inlines their rows.
          *
          *     ``next`` is rendered for the requesting surface.
          */
@@ -11966,7 +12062,7 @@ export interface components {
             attention?: components["schemas"]["OrientAttention"] | null;
             kind_detail?: components["schemas"]["OrientKindDetail"] | null;
             /** Section */
-            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations") | null;
+            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph") | null;
             /** Documents */
             documents?: components["schemas"]["OrientDocument"][] | null;
             /** Procedures */
@@ -11997,6 +12093,7 @@ export interface components {
             policies?: components["schemas"]["PolicyInForce"][] | null;
             /** Generations */
             generations?: components["schemas"]["OrientGeneration"][] | null;
+            graph?: components["schemas"]["OrientGraph"] | null;
             /**
              * Truncated
              * @default false
@@ -15314,6 +15411,7 @@ export interface components {
              */
             workspace_advertisement?: components["schemas"]["WorkspaceAdvertisement"];
             lint?: components["schemas"]["ClaimTypeProposalLint"] | null;
+            compiler_upgrade?: components["schemas"]["CompilerUpgradeNotice"] | null;
         };
         /**
          * ProposalItemReason
@@ -15687,6 +15785,7 @@ export interface components {
             projection_advisory?: components["schemas"]["ProjectionAdvisory"] | null;
             projection_evidence?: components["schemas"]["ProjectionEvidence"] | null;
             prior_refusal_coverage?: components["schemas"]["PriorRefusalCoverage"] | null;
+            compiler_upgrade?: components["schemas"]["CompilerUpgradeNotice"] | null;
         };
         /** ProposalSelectorResult */
         ProposalSelectorResult: {
@@ -23602,7 +23701,7 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: string | null;
-                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations") | null;
+                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph") | null;
                 limit?: number;
                 cursor?: string | null;
                 /** @description An accepted generation's Git OID, or a unique prefix of at least 12 hex characters; the four coordinate fields also pin one. */
