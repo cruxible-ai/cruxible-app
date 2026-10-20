@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { CircleAlert, GitPullRequest, History, LayoutDashboard, Network, Scale, Search, Waypoints, Workflow } from "lucide-react";
+import { CircleAlert, FileCheck, GitPullRequest, History, LayoutDashboard, Network, Scale, Search, Waypoints, Workflow } from "lucide-react";
 import { useHead, useInstanceId, useOrient, useOrientKinds } from "@/api/hooks";
 import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
@@ -57,6 +57,12 @@ export function AppShell() {
               <span className="inline-flex items-center gap-2">
                 <Waypoints className="h-3.5 w-3.5" />
                 State graph
+              </span>
+            </NavLink>
+            <NavLink to={link(`/i/${instanceId}/contracts`)} className={navClass}>
+              <span className="inline-flex items-center gap-2">
+                <FileCheck className="h-3.5 w-3.5" />
+                Contracts
               </span>
             </NavLink>
             <NavLink to={link(`/i/${instanceId}/next`)} className={(s) => `${navClass(s)} flex items-center justify-between`}>

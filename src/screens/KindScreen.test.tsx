@@ -49,3 +49,27 @@ describe("Kind page", () => {
     expect(await main.findByText(/the author's own words|a Capture under one of these/)).toBeInTheDocument();
   });
 });
+
+describe("Contract page", () => {
+  it("shows the definition, the Triggers on its landings with their Lines, and the ClaimTypes that admit it", async () => {
+    renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
+    expect(await screen.findByRole("heading", { name: "security.osv-applicability-v1" })).toBeInTheDocument();
+    const main = within(screen.getByRole("main"));
+    expect(main.getByText("osv.query")).toBeInTheDocument();
+    expect(main.getByText("fetched from outside")).toBeInTheDocument();
+    expect(await main.findByText("security.osv-landed")).toBeInTheDocument();
+    expect(main.getByRole("link", { name: "cve-applicability" })).toHaveAttribute("href", "/i/inst_fixture/lines/cve-applicability");
+    expect(main.queryByText("security.kev-landed")).toBeNull();
+    expect(main.getByRole("link", { name: "security.assessment.status" })).toHaveAttribute(
+      "href",
+      "/i/inst_fixture/kinds/security.assessment?claim_type=security.assessment.status",
+    );
+    expect(main.getByText("required")).toBeInTheDocument();
+    expect(main.getByText("K3")).toBeInTheDocument();
+  });
+
+  it("lists every contract", async () => {
+    renderApp("/i/inst_fixture/contracts");
+    expect(await screen.findByRole("link", { name: "security.kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
+  });
+});

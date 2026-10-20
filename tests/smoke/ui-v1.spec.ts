@@ -20,6 +20,9 @@ test("fixture-backed inspection flow: overview, type map, Subject, neighborhood,
   await expect(page.getByRole("heading", { name: "security.assessment" })).toBeVisible();
   await page.getByRole("button", { name: "Expand status" }).click();
   await expect(page.getByText("osv-applicability", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "security.osv-applicability-v1" }).first().click();
+  await expect(page).toHaveURL(/\/contracts\/security\.osv-applicability-v1$/);
+  await expect(page.getByText("security.osv-landed")).toBeVisible();
   await page.locator("aside").getByRole("link", { name: "Type map" }).click();
   await expect(page.locator(".react-flow__node")).toHaveCount(4);
 
