@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch 2bd89855
 import { defineFixture } from "../fixture";
 
@@ -64,7 +64,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:31.059641Z"
+        "evaluation_time": "2026-10-20T21:38:26.049125Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -99,7 +99,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:31.078148Z"
+        "evaluation_time": "2026-10-20T21:38:26.069242Z"
       }
     ]
   }

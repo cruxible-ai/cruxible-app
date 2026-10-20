@@ -1,4 +1,4 @@
-// Recorded from cruxible-core 4b93ac12afc3d8bb8477e96c2062e91b073076e9 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient ea6a292a
 import { defineFixture } from "../fixture";
 
@@ -26,7 +26,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-20T21:15:28.584741Z",
+    "evaluation_time": "2026-10-20T21:38:23.495306Z",
     "section": "claim_types",
     "claim_types": [
       {
@@ -49,6 +49,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/built_from.json",
         "kit": "security"
       },
       {
@@ -69,6 +76,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/declared_sha256.json",
         "kit": "security"
       },
       {
@@ -87,6 +101,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/name.json",
         "kit": "security"
       },
       {
@@ -107,6 +128,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/publish_environment.json",
         "kit": "security"
       },
       {
@@ -128,6 +156,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/published_by.json",
         "kit": "security"
       },
       {
@@ -149,6 +184,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/release.json",
         "kit": "security"
       },
       {
@@ -171,6 +213,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/sha256.json",
         "kit": "security"
       },
       {
@@ -193,6 +242,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/target.json",
         "kit": "security"
       },
       {
@@ -211,6 +267,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/target_ref.json",
         "kit": "security"
       },
       {
@@ -231,6 +294,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.artifact/uploaded_by.json",
         "kit": "security"
       },
       {
@@ -249,6 +319,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.assessment/cve_id.json",
         "kit": "security"
       },
       {
@@ -271,6 +348,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.assessment/expected_status.json",
         "kit": "security"
       },
       {
@@ -324,6 +408,13 @@ export default defineFixture({
           }
         ],
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.assessment/justification.json",
         "kit": "security"
       },
       {
@@ -345,6 +436,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.assessment/release.json",
         "kit": "security"
       },
       {
@@ -363,6 +461,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.assessment/release_id.json",
         "kit": "security"
       },
       {
@@ -392,6 +497,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.assessment/status.json",
         "kit": "security"
       },
       {
@@ -413,6 +525,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.assessment/vulnerability.json",
         "kit": "security"
       },
       {
@@ -435,6 +554,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.asset/environment.json",
         "kit": "security"
       },
       {
@@ -453,6 +579,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.asset/hostname.json",
         "kit": "security"
       },
       {
@@ -471,6 +604,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.asset/installs.json",
         "kit": "security"
       },
       {
@@ -489,6 +629,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.asset/internet_exposed.json",
         "kit": "security"
       },
       {
@@ -507,6 +654,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.asset/serves.json",
         "kit": "security"
       },
       {
@@ -525,6 +679,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.change/commit_sha.json",
         "kit": "security"
       },
       {
@@ -543,6 +704,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.change/repo_ref.json",
         "kit": "security"
       },
       {
@@ -566,6 +734,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.control/activation.json",
         "kit": "security"
       },
       {
@@ -589,6 +764,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.control/kind.json",
         "kit": "security"
       },
       {
@@ -610,6 +792,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.coverage/of.json",
         "kit": "security"
       },
       {
@@ -632,6 +821,13 @@ export default defineFixture({
         "default_role": "observation",
         "revision_evidence": "replace",
         "stale_after": "12h",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.coverage/revision.json",
         "kit": "security"
       },
       {
@@ -655,6 +851,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.coverage/scope.json",
         "kit": "security"
       },
       {
@@ -673,6 +876,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.coverage/source.json",
         "kit": "security"
       },
       {
@@ -695,6 +905,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.exception/approval.json",
         "kit": "security"
       },
       {
@@ -713,6 +930,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.exception/expires_at.json",
         "kit": "security"
       },
       {
@@ -733,6 +957,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/environment.json",
         "kit": "security"
       },
       {
@@ -751,6 +982,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/job_key.json",
         "kit": "security"
       },
       {
@@ -771,6 +1009,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/needs.json",
         "kit": "security"
       },
       {
@@ -791,6 +1036,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/permission.json",
         "kit": "security"
       },
       {
@@ -811,6 +1063,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/publishes_to.json",
         "kit": "security"
       },
       {
@@ -831,6 +1090,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/secret.json",
         "kit": "security"
       },
       {
@@ -851,6 +1117,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/uses.json",
         "kit": "security"
       },
       {
@@ -871,6 +1144,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/workflow.json",
         "kit": "security"
       },
       {
@@ -889,6 +1169,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.job/workflow_ref.json",
         "kit": "security"
       },
       {
@@ -907,6 +1194,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.product/name.json",
         "kit": "security"
       },
       {
@@ -927,6 +1221,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.product/supplied_by.json",
         "kit": "security"
       },
       {
@@ -947,6 +1248,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.release/component.json",
         "kit": "security"
       },
       {
@@ -967,6 +1275,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.release/product.json",
         "kit": "security"
       },
       {
@@ -985,6 +1300,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.release/product_name.json",
         "kit": "security"
       },
       {
@@ -1003,6 +1325,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.release/version.json",
         "kit": "security"
       },
       {
@@ -1021,6 +1350,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.remediation/due_at.json",
         "kit": "security"
       },
       {
@@ -1045,6 +1381,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.remediation/progress.json",
         "kit": "security"
       },
       {
@@ -1063,6 +1406,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.remediation/target_release.json",
         "kit": "security"
       },
       {
@@ -1081,6 +1431,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.repo/forge_host.json",
         "kit": "security"
       },
       {
@@ -1099,6 +1456,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.repo/full_name.json",
         "kit": "security"
       },
       {
@@ -1121,6 +1485,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.service/criticality.json",
         "kit": "security"
       },
       {
@@ -1139,6 +1510,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.service/name.json",
         "kit": "security"
       },
       {
@@ -1157,6 +1535,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.service/owned_by.json",
         "kit": "security"
       },
       {
@@ -1175,6 +1560,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.signal/detector.json",
         "kit": "security"
       },
       {
@@ -1199,6 +1591,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.signal/explained_by.json",
         "kit": "security"
       },
       {
@@ -1217,6 +1616,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.signal/fingerprint.json",
         "kit": "security"
       },
       {
@@ -1244,6 +1650,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.signal/observed.json",
         "kit": "security"
       },
       {
@@ -1262,6 +1675,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.supplier/name.json",
         "kit": "security"
       },
       {
@@ -1280,6 +1700,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.target/name.json",
         "kit": "security"
       },
       {
@@ -1298,6 +1725,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.target/publish_gate.json",
         "kit": "security"
       },
       {
@@ -1322,6 +1756,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.target/registry.json",
         "kit": "security"
       },
       {
@@ -1343,6 +1784,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.target/source_repo.json",
         "kit": "security"
       },
       {
@@ -1361,6 +1809,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.team/name.json",
         "kit": "security"
       },
       {
@@ -1379,6 +1834,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/cve_id.json",
         "kit": "security"
       },
       {
@@ -1399,6 +1861,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/epss_percentile.json",
         "kit": "security"
       },
       {
@@ -1419,6 +1888,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/epss_score.json",
         "kit": "security"
       },
       {
@@ -1440,6 +1916,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/kev_cwes.json",
         "kit": "security"
       },
       {
@@ -1461,6 +1944,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/kev_date_added.json",
         "kit": "security"
       },
       {
@@ -1482,6 +1972,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/kev_due_date.json",
         "kit": "security"
       },
       {
@@ -1503,6 +2000,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/kev_listed.json",
         "kit": "security"
       },
       {
@@ -1528,6 +2032,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/kev_ransomware_use.json",
         "kit": "security"
       },
       {
@@ -1549,6 +2060,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/title.json",
         "kit": "security"
       },
       {
@@ -1570,6 +2088,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/vendor_product.json",
         "kit": "security"
       },
       {
@@ -1588,6 +2113,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.vulnerability/watch_reason.json",
         "kit": "security"
       },
       {
@@ -1608,6 +2140,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.work/assessment.json",
         "kit": "security"
       },
       {
@@ -1628,6 +2167,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.work/asset.json",
         "kit": "security"
       },
       {
@@ -1648,6 +2194,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.work/job.json",
         "kit": "security"
       },
       {
@@ -1668,6 +2221,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.work/owner.json",
         "kit": "security"
       },
       {
@@ -1688,6 +2248,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.work/rationale.json",
         "kit": "security"
       },
       {
@@ -1708,6 +2275,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.work/review_at.json",
         "kit": "security"
       },
       {
@@ -1735,6 +2309,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.work/verification.json",
         "kit": "security"
       },
       {
@@ -1755,6 +2336,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.workflow/coverage.json",
         "kit": "security"
       },
       {
@@ -1773,6 +2361,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.workflow/path.json",
         "kit": "security"
       },
       {
@@ -1793,6 +2388,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.workflow/repo.json",
         "kit": "security"
       },
       {
@@ -1811,6 +2413,13 @@ export default defineFixture({
         ],
         "default_role": "normative",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "only_contender",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.workflow/source.json",
         "kit": "security"
       },
       {
@@ -1831,6 +2440,13 @@ export default defineFixture({
         ],
         "default_role": "observation",
         "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/security.workflow/trigger.json",
         "kit": "security"
       },
       {
@@ -1850,7 +2466,14 @@ export default defineFixture({
           "observation"
         ],
         "default_role": "normative",
-        "revision_evidence": "replace"
+        "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 8,
+        "revision": 1,
+        "path": "claim-types/semantic/alias.json"
       },
       {
         "name": "semantic.distinct_from",
@@ -1869,7 +2492,14 @@ export default defineFixture({
           "observation"
         ],
         "default_role": "normative",
-        "revision_evidence": "replace"
+        "revision_evidence": "replace",
+        "contention": {
+          "selector": "all",
+          "on_conflict": "unresolved"
+        },
+        "format": 7,
+        "revision": 1,
+        "path": "claim-types/semantic/distinct_from.json"
       }
     ],
     "truncated": false,

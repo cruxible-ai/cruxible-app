@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch a5f11614
 import { defineFixture } from "../fixture";
 
@@ -65,7 +65,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:0be21dbeeaf3aec5175a04bf82f28e1fb456e40906e954c1ae88cdde0804411b"
                 }
               ],
-              "evaluated_until": "2026-10-19T22:16:23.436465Z",
+              "evaluated_until": "2026-10-20T21:38:15.697948Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -173,7 +173,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-19T22:16:34.093178Z"
+        "evaluation_time": "2026-10-20T21:38:29.754116Z"
       }
     ]
   }

@@ -1,4 +1,4 @@
-// Recorded from cruxible-core 4b93ac12afc3d8bb8477e96c2062e91b073076e9 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient 593a32eb
 import { defineFixture } from "../fixture";
 
@@ -26,7 +26,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-20T21:15:29.884074Z",
+    "evaluation_time": "2026-10-20T21:38:29.375435Z",
     "section": "mandates",
     "mandates": [
       {
@@ -48,7 +48,26 @@ export default defineFixture({
         "procedure": "Procedure:security.epss-triage",
         "grants": "settle",
         "state": "active",
-        "expires_at": "2027-01-17T21:40:03Z"
+        "expires_at": "2027-01-17T21:40:03Z",
+        "scope": [
+          {
+            "claim_type": "ClaimType:security.vulnerability.epss_percentile",
+            "change_kinds": [
+              "create",
+              "revise"
+            ],
+            "binds": "subject"
+          },
+          {
+            "claim_type": "ClaimType:security.vulnerability.epss_score",
+            "change_kinds": [
+              "create",
+              "revise"
+            ],
+            "binds": "subject"
+          }
+        ],
+        "condition_query": "QueryDefinition:security.settle_condition"
       },
       {
         "mandate": "ProcedureMandate:security.kev-triage-propose",
@@ -62,7 +81,42 @@ export default defineFixture({
         "procedure": "Procedure:security.kev-triage",
         "grants": "settle",
         "state": "active",
-        "expires_at": "2027-01-17T21:40:03Z"
+        "expires_at": "2027-01-17T21:40:03Z",
+        "scope": [
+          {
+            "claim_type": "ClaimType:security.vulnerability.kev_date_added",
+            "change_kinds": [
+              "create",
+              "revise"
+            ],
+            "binds": "subject"
+          },
+          {
+            "claim_type": "ClaimType:security.vulnerability.kev_due_date",
+            "change_kinds": [
+              "create",
+              "revise"
+            ],
+            "binds": "subject"
+          },
+          {
+            "claim_type": "ClaimType:security.vulnerability.kev_listed",
+            "change_kinds": [
+              "create",
+              "revise"
+            ],
+            "binds": "subject"
+          },
+          {
+            "claim_type": "ClaimType:security.vulnerability.kev_ransomware_use",
+            "change_kinds": [
+              "create",
+              "revise"
+            ],
+            "binds": "subject"
+          }
+        ],
+        "condition_query": "QueryDefinition:security.settle_condition"
       },
       {
         "mandate": "ProcedureMandate:security.osv-applicability-propose",

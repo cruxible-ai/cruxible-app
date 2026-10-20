@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient 0c92ad98
 import { defineFixture } from "../fixture";
 
@@ -25,7 +25,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-19T22:16:28.945518Z",
+    "evaluation_time": "2026-10-20T21:38:23.718288Z",
     "kind_detail": {
       "kind": "security.job",
       "subjects": 26,
@@ -49,7 +49,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 26
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/environment.json",
+          "live_claims": 26,
+          "subjects_with_value": 26
         },
         {
           "name": "job_key",
@@ -67,7 +75,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 26
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/job_key.json",
+          "live_claims": 26,
+          "subjects_with_value": 26
         },
         {
           "name": "needs",
@@ -84,7 +100,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 12
+          "contention": {
+            "selector": "all",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/needs.json",
+          "live_claims": 12,
+          "subjects_with_value": 10
         },
         {
           "name": "permission",
@@ -101,7 +125,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 44
+          "contention": {
+            "selector": "all",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/permission.json",
+          "live_claims": 44,
+          "subjects_with_value": 26
         },
         {
           "name": "publishes_to",
@@ -118,7 +150,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 14
+          "contention": {
+            "selector": "all",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/publishes_to.json",
+          "live_claims": 14,
+          "subjects_with_value": 10
         },
         {
           "name": "secret",
@@ -135,7 +175,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 10
+          "contention": {
+            "selector": "all",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/secret.json",
+          "live_claims": 10,
+          "subjects_with_value": 8
         },
         {
           "name": "uses",
@@ -152,7 +200,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 64
+          "contention": {
+            "selector": "all",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/uses.json",
+          "live_claims": 64,
+          "subjects_with_value": 26
         },
         {
           "name": "workflow",
@@ -169,7 +225,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 26
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/workflow.json",
+          "live_claims": 26,
+          "subjects_with_value": 26
         },
         {
           "name": "workflow_ref",
@@ -187,7 +251,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 26
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.job/workflow_ref.json",
+          "live_claims": 26,
+          "subjects_with_value": 26
         }
       ],
       "incoming": [

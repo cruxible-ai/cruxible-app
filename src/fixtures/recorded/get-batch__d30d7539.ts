@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch eaa7223f
 import { defineFixture } from "../fixture";
 
@@ -66,7 +66,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:30.620389Z"
+        "evaluation_time": "2026-10-20T21:38:25.442303Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -101,7 +101,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:30.638456Z"
+        "evaluation_time": "2026-10-20T21:38:25.483990Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -136,7 +136,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:30.655730Z"
+        "evaluation_time": "2026-10-20T21:38:25.531832Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -171,7 +171,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:30.673483Z"
+        "evaluation_time": "2026-10-20T21:38:25.578605Z"
       }
     ]
   }

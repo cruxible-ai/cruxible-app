@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient fda5f09f
 import { defineFixture } from "../fixture";
 
@@ -25,7 +25,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-19T22:16:28.376876Z",
+    "evaluation_time": "2026-10-20T21:38:23.405435Z",
     "you": {
       "actor": "operator",
       "can_author": false,
@@ -1208,25 +1208,28 @@ export default defineFixture({
       "runs": 84,
       "running": 0,
       "claims": {
-        "accepted": 791,
+        "accepted": 786,
         "conflicted": 0,
         "overturned": 0,
-        "refused": 0,
+        "refused": 5,
         "retired": 3
       }
     },
     "attention": {
-      "next_items": 6,
+      "next_items": 9,
       "open_proposals": 0,
       "top": [
-        "repair line_inbox_unread: Line:security.harden",
-        "warning evidence_expiring: Claim:CLM-5958666f8557aa56531b939f7e092e60",
-        "warning evidence_expiring: Claim:CLM-7052ca2a7c9a819389901f9dfa41993b"
+        "repair claim_stale_evidence: Claim:CLM-5958666f8557aa56531b939f7e092e60",
+        "repair claim_stale_evidence: Claim:CLM-7052ca2a7c9a819389901f9dfa41993b",
+        "repair claim_stale_evidence: Claim:CLM-8535bf9214bc303f5c01763e0a47b2e9"
       ],
       "enablements": {
-        "running": 13,
+        "running": 12,
         "stalled": 0,
-        "stopped": 0
+        "stopped": 1,
+        "needs_attention": [
+          "Line:security.osv-applicability stopped (permission_insufficient)"
+        ]
       }
     },
     "queries": [

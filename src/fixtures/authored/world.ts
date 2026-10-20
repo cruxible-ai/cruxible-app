@@ -232,8 +232,13 @@ const CLAIM_TYPE_STATUS: GetResult = {
         admission: "direct",
       },
     ],
+    contention: { selector: "only_contender", on_conflict: "unresolved" },
+    format: 8,
+    revision: 2,
+    path: "claim-types/security.assessment/status.json",
     kit: "security",
     live_claims: 2,
+    subjects_with_value: 2,
   },
 };
 

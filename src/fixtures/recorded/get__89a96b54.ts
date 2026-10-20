@@ -1,4 +1,4 @@
-// Recorded from cruxible-core 4b93ac12afc3d8bb8477e96c2062e91b073076e9 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get 22f9107b
 import { defineFixture } from "../fixture";
 
@@ -38,7 +38,15 @@ export default defineFixture({
       "revision_evidence": "replace",
       "evidence": [],
       "evidence_rules": [],
+      "contention": {
+        "selector": "only_contender",
+        "on_conflict": "unresolved"
+      },
+      "format": 8,
+      "revision": 1,
+      "path": "claim-types/security.change/repo_ref.json",
       "live_claims": 4,
+      "subjects_with_value": 4,
       "kit": "security",
       "next": [
         "cx.get(\"ClaimType:security.change.repo_ref\", detail=\"proof\")"
@@ -48,6 +56,6 @@ export default defineFixture({
       "git_oid": "97040dbfdd1e",
       "generation": 58
     },
-    "evaluation_time": "2026-10-20T21:15:28.820080Z"
+    "evaluation_time": "2026-10-20T21:38:27.856881Z"
   }
 });

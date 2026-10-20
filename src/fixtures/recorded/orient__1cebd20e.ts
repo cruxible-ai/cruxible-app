@@ -1,4 +1,4 @@
-// Recorded from cruxible-core 4b93ac12afc3d8bb8477e96c2062e91b073076e9 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient a72b4d24
 import { defineFixture } from "../fixture";
 
@@ -26,7 +26,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-20T21:15:28.380913Z",
+    "evaluation_time": "2026-10-20T21:38:23.532574Z",
     "section": "subject_kinds",
     "subject_kinds": [
       {

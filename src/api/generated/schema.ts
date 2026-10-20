@@ -5096,6 +5096,40 @@ export interface components {
             tag: "playbill-claim-type-authoring-payload-v1";
             claim_type: components["schemas"]["ClaimType"];
         };
+        /**
+         * ClaimTypeContention
+         * @description How a ClaimType settles rival Claims of one slot, as a read shows it.
+         *
+         *     ``selector`` is its resolution policy's: ``only_contender`` (a one-valued
+         *     slot is answered by its single eligible Claim) or ``all`` (every eligible
+         *     Claim of a many-valued slot answers). ``on_conflict`` is what a one-valued
+         *     slot with rival contenders resolves to: ``unresolved`` (the slot stays
+         *     conflicted until one is retired) or ``refuse``. ``corroboration`` and
+         *     ``freeze`` count its admission policy's corroboration and freeze
+         *     requirements, omitted at zero.
+         */
+        ClaimTypeContention: {
+            /**
+             * Selector
+             * @enum {string}
+             */
+            selector: "all" | "only_contender";
+            /**
+             * On Conflict
+             * @enum {string}
+             */
+            on_conflict: "unresolved" | "refuse";
+            /**
+             * Corroboration
+             * @default 0
+             */
+            corroboration?: number;
+            /**
+             * Freeze
+             * @default 0
+             */
+            freeze?: number;
+        };
         /** ClaimTypeDependentDisposition */
         ClaimTypeDependentDisposition: {
             /**
@@ -7719,8 +7753,17 @@ export interface components {
              * @default []
              */
             evidence_rules?: components["schemas"]["GetEvidenceRule"][];
+            contention: components["schemas"]["ClaimTypeContention"];
+            /** Format */
+            format: number;
+            /** Revision */
+            revision: number;
+            /** Path */
+            path: string;
             /** Live Claims */
             live_claims: number;
+            /** Subjects With Value */
+            subjects_with_value: number;
             /** Kit */
             kit?: string | null;
             /**
@@ -8217,7 +8260,16 @@ export interface components {
             /** Fires */
             fires: string;
         };
-        /** GetMandateCard */
+        /**
+         * GetMandateCard
+         * @description One mandate: what it grants, to which Procedure, over what, and until when.
+         *
+         *     ``scope`` lists the ClaimTypes a settle grant covers; ``subject_scope`` the
+         *     Subjects it is limited to (artifact paths), absent when it reaches every
+         *     Subject its namespace does; ``condition`` the settlement predicate;
+         *     ``subject_creation`` the Subject kinds a settle may create. ``suspended``
+         *     appears only when the mandate's kill switch is on. A v1 mandate has none.
+         */
         GetMandateCard: {
             /** Mandate */
             mandate: string;
@@ -8250,6 +8302,24 @@ export interface components {
              * @default []
              */
             namespace?: string[];
+            /**
+             * Scope
+             * @default []
+             */
+            scope?: components["schemas"]["MandateScope"][];
+            /** Subject Scope */
+            subject_scope?: string[] | null;
+            condition?: components["schemas"]["MandateConditionView"] | null;
+            /**
+             * Subject Creation
+             * @default []
+             */
+            subject_creation?: string[];
+            /**
+             * Suspended
+             * @default false
+             */
+            suspended?: boolean;
             /**
              * Next
              * @default []
@@ -9875,6 +9945,7 @@ export interface components {
             /** Next */
             next?: string | null;
         };
+        JsonValue: unknown;
         /**
          * KitAddRequest
          * @description Install or upgrade a kit. It always proposes: a conflicting definition takes
@@ -11091,6 +11162,52 @@ export interface components {
             fallback: "refuse" | "propose";
         };
         /**
+         * MandateConditionView
+         * @description The accepted query that is a settle grant's settlement predicate.
+         *
+         *     Core binds ``binding_parameter`` from each target's binding referent; every
+         *     other parameter is fixed in ``fixed_parameters``. A target settles only on
+         *     one complete, conflict-free row with every ``required_fields`` value
+         *     present; otherwise the grant does what ``fallback`` says.
+         */
+        MandateConditionView: {
+            /** Query */
+            query: string;
+            /** Binding Parameter */
+            binding_parameter: string;
+            /** Fixed Parameters */
+            fixed_parameters?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Required Fields */
+            required_fields: string[];
+            /**
+             * Fallback
+             * @enum {string}
+             */
+            fallback: "refuse" | "propose";
+        };
+        /**
+         * MandateScope
+         * @description One ClaimType a settle grant covers.
+         *
+         *     ``claim_type`` is its ``ClaimType:<predicate>`` ref, ``change_kinds`` the
+         *     changes the grant may settle on it, and ``binds`` which referent of the
+         *     changed Claim (its ``subject`` or its ``object``) binds the condition
+         *     query's parameter.
+         */
+        MandateScope: {
+            /** Claim Type */
+            claim_type: string;
+            /** Change Kinds */
+            change_kinds: ("create" | "revise" | "retire")[];
+            /**
+             * Binds
+             * @enum {string}
+             */
+            binds: "subject" | "object";
+        };
+        /**
          * MandateScopeAuthoring
          * @description One ClaimType a settle grant covers, named by predicate; lowering pins its digest.
          */
@@ -11869,7 +11986,12 @@ export interface components {
              */
             waiting?: number;
         };
-        /** OrientMandate */
+        /**
+         * OrientMandate
+         * @description One mandate row: its grant and state, the ClaimTypes a settle grant covers,
+         *     its condition query's ref, the Subject kinds it may create, and ``suspended``
+         *     when its kill switch is on. ``get`` reads the rest.
+         */
         OrientMandate: {
             /** Mandate */
             mandate: string;
@@ -11890,6 +12012,46 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
+            /**
+             * Scope
+             * @default []
+             */
+            scope?: components["schemas"]["MandateScope"][];
+            /** Condition Query */
+            condition_query?: string | null;
+            /**
+             * Subject Creation
+             * @default []
+             */
+            subject_creation?: string[];
+            /**
+             * Suspended
+             * @default false
+             */
+            suspended?: boolean;
+        };
+        /**
+         * OrientPin
+         * @description One required pin of a live definition: ``source`` pins ``target`` as ``role``.
+         *
+         *     ``target_digest`` is the exact version pinned; ``current`` says whether
+         *     that is the target's accepted version at the coordinate (absent when the
+         *     target is not an indexed artifact). Read in reverse, the rows name who
+         *     uses a contract, a ClaimType or a Procedure: the Procedures that capture
+         *     under a contract (role ``capture-contract``), the Lines on a Procedure,
+         *     the mandates that settle a ClaimType.
+         */
+        OrientPin: {
+            /** Source */
+            source: string;
+            /** Role */
+            role: string;
+            /** Target */
+            target: string;
+            /** Target Digest */
+            target_digest: string;
+            /** Current */
+            current?: boolean | null;
         };
         /**
          * OrientPredicate
@@ -11912,6 +12074,13 @@ export interface components {
          *     contract is required). A full descriptor also carries each described enum
          *     member, the role a write defaults to, and ``revision_evidence``: what a
          *     statement-changing revision keeps (``accumulate`` before v7).
+         *     A full descriptor also names how the ClaimType settles rival Claims
+         *     (``contention``), its format version (``format``: 7 for
+         *     ``playbill-claim-type-v7``), its accepted ``revision`` and its ledger
+         *     ``path``, which a kit's drifted paths name. Under ``orient(kind=K)`` a
+         *     descriptor counts the kind's ``live_claims`` of the predicate and
+         *     ``subjects_with_value``: its live Subjects with at least one, both read
+         *     from counters Claim writes maintain.
          *     ``kit`` (claim_types section only) is the installed kit that owns the
          *     ClaimType: its receipt records the definition. Absent when no kit owns it.
          */
@@ -11950,8 +12119,17 @@ export interface components {
             revision_evidence?: ("replace" | "accumulate") | null;
             /** Stale After */
             stale_after?: string | null;
+            contention?: components["schemas"]["ClaimTypeContention"] | null;
+            /** Format */
+            format?: number | null;
+            /** Revision */
+            revision?: number | null;
+            /** Path */
+            path?: string | null;
             /** Live Claims */
             live_claims?: number | null;
+            /** Subjects With Value */
+            subjects_with_value?: number | null;
             /** Kit */
             kit?: string | null;
         };
@@ -12024,7 +12202,8 @@ export interface components {
          *       ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,
          *       ``predictions``, ``mandates``), the principal registry (``principals``),
          *       the governed policies in force (``policies``), the accepted generations
-         *       newest first (``generations``) or the Subject graph (``graph``), paged.
+         *       newest first (``generations``), the Subject graph (``graph``) or the
+         *       pins between live definitions (``pins``), paged.
          *       The default map counts the operational families under ``artifacts`` and
          *       never inlines their rows.
          *
@@ -12062,7 +12241,7 @@ export interface components {
             attention?: components["schemas"]["OrientAttention"] | null;
             kind_detail?: components["schemas"]["OrientKindDetail"] | null;
             /** Section */
-            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph") | null;
+            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins") | null;
             /** Documents */
             documents?: components["schemas"]["OrientDocument"][] | null;
             /** Procedures */
@@ -12094,6 +12273,8 @@ export interface components {
             /** Generations */
             generations?: components["schemas"]["OrientGeneration"][] | null;
             graph?: components["schemas"]["OrientGraph"] | null;
+            /** Pins */
+            pins?: components["schemas"]["OrientPin"][] | null;
             /**
              * Truncated
              * @default false
@@ -23701,7 +23882,7 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: string | null;
-                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph") | null;
+                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins") | null;
                 limit?: number;
                 cursor?: string | null;
                 /** @description An accepted generation's Git OID, or a unique prefix of at least 12 hex characters; the four coordinate fields also pin one. */

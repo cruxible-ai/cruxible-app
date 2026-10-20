@@ -4272,7 +4272,8 @@
                     "principals",
                     "policies",
                     "generations",
-                    "graph"
+                    "graph",
+                    "pins"
                   ],
                   "type": "string"
                 },
@@ -20693,6 +20694,46 @@
         "title": "ClaimTypeAuthoringPayload",
         "description": "One whole ClaimType definition authored inside an ordinary change set.\n\nA succession -- a ClaimType that names a predecessor, and the migration its\nwhole reverse-pin closure then owes -- is `ClaimTypeSuccessionMember`, a\nmember of its own, because the closure is the decision. This member defines\na ClaimType nothing yet depends on."
       },
+      "ClaimTypeContention": {
+        "properties": {
+          "selector": {
+            "type": "string",
+            "enum": [
+              "all",
+              "only_contender"
+            ],
+            "title": "Selector"
+          },
+          "on_conflict": {
+            "type": "string",
+            "enum": [
+              "unresolved",
+              "refuse"
+            ],
+            "title": "On Conflict"
+          },
+          "corroboration": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Corroboration",
+            "default": 0
+          },
+          "freeze": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Freeze",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selector",
+          "on_conflict"
+        ],
+        "title": "ClaimTypeContention",
+        "description": "How a ClaimType settles rival Claims of one slot, as a read shows it.\n\n``selector`` is its resolution policy's: ``only_contender`` (a one-valued\nslot is answered by its single eligible Claim) or ``all`` (every eligible\nClaim of a many-valued slot answers). ``on_conflict`` is what a one-valued\nslot with rival contenders resolves to: ``unresolved`` (the slot stays\nconflicted until one is retired) or ``refuse``. ``corroboration`` and\n``freeze`` count its admission policy's corroboration and freeze\nrequirements, omitted at zero."
+      },
       "ClaimTypeDependentDisposition": {
         "properties": {
           "tag": {
@@ -26194,9 +26235,31 @@
             "title": "Evidence Rules",
             "default": []
           },
+          "contention": {
+            "$ref": "#/components/schemas/ClaimTypeContention"
+          },
+          "format": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Format"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
           "live_claims": {
             "type": "integer",
             "title": "Live Claims"
+          },
+          "subjects_with_value": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Subjects With Value"
           },
           "kit": {
             "anyOf": [
@@ -26229,7 +26292,12 @@
           "evidence_requirement",
           "revision_evidence",
           "evidence",
-          "live_claims"
+          "contention",
+          "format",
+          "revision",
+          "path",
+          "live_claims",
+          "subjects_with_value"
         ],
         "title": "GetClaimTypeCard"
       },
@@ -27456,6 +27524,51 @@
             "title": "Namespace",
             "default": []
           },
+          "scope": {
+            "items": {
+              "$ref": "#/components/schemas/MandateScope"
+            },
+            "type": "array",
+            "title": "Scope",
+            "default": []
+          },
+          "subject_scope": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Scope"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MandateConditionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subject_creation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subject Creation",
+            "default": []
+          },
+          "suspended": {
+            "type": "boolean",
+            "title": "Suspended",
+            "default": false
+          },
           "next": {
             "items": {
               "type": "string"
@@ -27476,7 +27589,8 @@
           "valid_from",
           "expires_at"
         ],
-        "title": "GetMandateCard"
+        "title": "GetMandateCard",
+        "description": "One mandate: what it grants, to which Procedure, over what, and until when.\n\n``scope`` lists the ClaimTypes a settle grant covers; ``subject_scope`` the\nSubjects it is limited to (artifact paths), absent when it reaches every\nSubject its namespace does; ``condition`` the settlement predicate;\n``subject_creation`` the Subject kinds a settle may create. ``suspended``\nappears only when the mandate's kill switch is on. A v1 mandate has none."
       },
       "GetPendingInput": {
         "properties": {
@@ -31456,6 +31570,7 @@
         "title": "InvokeNode",
         "description": "A call to an exact accepted Procedure under the enclosing run's limits."
       },
+      "JsonValue": {},
       "KitAddRequest": {
         "properties": {
           "bundle": {
@@ -34008,6 +34123,87 @@
         "title": "MandateConditionAuthoring",
         "description": "The settle predicate, named by query; lowering pins the exact accepted query."
       },
+      "MandateConditionView": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "binding_parameter": {
+            "type": "string",
+            "title": "Binding Parameter"
+          },
+          "fixed_parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Fixed Parameters"
+          },
+          "required_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Fields"
+          },
+          "fallback": {
+            "type": "string",
+            "enum": [
+              "refuse",
+              "propose"
+            ],
+            "title": "Fallback"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query",
+          "binding_parameter",
+          "required_fields",
+          "fallback"
+        ],
+        "title": "MandateConditionView",
+        "description": "The accepted query that is a settle grant's settlement predicate.\n\nCore binds ``binding_parameter`` from each target's binding referent; every\nother parameter is fixed in ``fixed_parameters``. A target settles only on\none complete, conflict-free row with every ``required_fields`` value\npresent; otherwise the grant does what ``fallback`` says."
+      },
+      "MandateScope": {
+        "properties": {
+          "claim_type": {
+            "type": "string",
+            "title": "Claim Type"
+          },
+          "change_kinds": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "create",
+                "revise",
+                "retire"
+              ]
+            },
+            "type": "array",
+            "title": "Change Kinds"
+          },
+          "binds": {
+            "type": "string",
+            "enum": [
+              "subject",
+              "object"
+            ],
+            "title": "Binds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_type",
+          "change_kinds",
+          "binds"
+        ],
+        "title": "MandateScope",
+        "description": "One ClaimType a settle grant covers.\n\n``claim_type`` is its ``ClaimType:<predicate>`` ref, ``change_kinds`` the\nchanges the grant may settle on it, and ``binds`` which referent of the\nchanged Claim (its ``subject`` or its ``object``) binds the condition\nquery's parameter."
+      },
       "MandateScopeAuthoring": {
         "properties": {
           "tag": {
@@ -35754,6 +35950,38 @@
             "type": "string",
             "format": "date-time",
             "title": "Expires At"
+          },
+          "scope": {
+            "items": {
+              "$ref": "#/components/schemas/MandateScope"
+            },
+            "type": "array",
+            "title": "Scope",
+            "default": []
+          },
+          "condition_query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition Query"
+          },
+          "subject_creation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subject Creation",
+            "default": []
+          },
+          "suspended": {
+            "type": "boolean",
+            "title": "Suspended",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -35765,7 +35993,49 @@
           "state",
           "expires_at"
         ],
-        "title": "OrientMandate"
+        "title": "OrientMandate",
+        "description": "One mandate row: its grant and state, the ClaimTypes a settle grant covers,\nits condition query's ref, the Subject kinds it may create, and ``suspended``\nwhen its kill switch is on. ``get`` reads the rest."
+      },
+      "OrientPin": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "target_digest": {
+            "type": "string",
+            "title": "Target Digest"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "role",
+          "target",
+          "target_digest"
+        ],
+        "title": "OrientPin",
+        "description": "One required pin of a live definition: ``source`` pins ``target`` as ``role``.\n\n``target_digest`` is the exact version pinned; ``current`` says whether\nthat is the target's accepted version at the coordinate (absent when the\ntarget is not an indexed artifact). Read in reverse, the rows name who\nuses a contract, a ClaimType or a Procedure: the Procedures that capture\nunder a contract (role ``capture-contract``), the Lines on a Procedure,\nthe mandates that settle a ClaimType."
       },
       "OrientPredicate": {
         "properties": {
@@ -35939,6 +36209,51 @@
             ],
             "title": "Stale After"
           },
+          "contention": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimTypeContention"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
           "live_claims": {
             "anyOf": [
               {
@@ -35950,6 +36265,18 @@
               }
             ],
             "title": "Live Claims"
+          },
+          "subjects_with_value": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects With Value"
           },
           "kit": {
             "anyOf": [
@@ -35972,7 +36299,7 @@
           "type"
         ],
         "title": "OrientPredicate",
-        "description": "One predicate of a kind: compact by default, in full under ``orient(kind=...)``.\n\n``name`` is the short name a query field uses against this kind; ``predicate``\nis the full ClaimType predicate. ``type`` is the value type: a JSON type,\n``date``/``datetime``, ``enum`` (with ``members``), ``subject`` or\n``subject:<kinds>`` for a Subject-valued predicate, or ``exact_content``.\n``evidence`` names the CaptureContracts the ClaimType admits; a digest that\nnames no accepted contract shows as ``unresolved:<short digest>``.\n``None`` (omitted on the wire) inherits the kind's evidence set; an empty\ntuple (``[]`` on the wire) explicitly admits no contracts. Standalone\ndescriptors always carry an explicit set.\n\n``description`` is the ClaimType's (v7) description: its first sentence, at\nmost 160 characters, in a compact descriptor; all of it in full.\n``evidence_requirement`` appears only when it is not ``self`` (``none``: the\nClaim's own origin supports it; ``captured``: a Capture under a declared\ncontract is required). A full descriptor also carries each described enum\nmember, the role a write defaults to, and ``revision_evidence``: what a\nstatement-changing revision keeps (``accumulate`` before v7).\n``kit`` (claim_types section only) is the installed kit that owns the\nClaimType: its receipt records the definition. Absent when no kit owns it."
+        "description": "One predicate of a kind: compact by default, in full under ``orient(kind=...)``.\n\n``name`` is the short name a query field uses against this kind; ``predicate``\nis the full ClaimType predicate. ``type`` is the value type: a JSON type,\n``date``/``datetime``, ``enum`` (with ``members``), ``subject`` or\n``subject:<kinds>`` for a Subject-valued predicate, or ``exact_content``.\n``evidence`` names the CaptureContracts the ClaimType admits; a digest that\nnames no accepted contract shows as ``unresolved:<short digest>``.\n``None`` (omitted on the wire) inherits the kind's evidence set; an empty\ntuple (``[]`` on the wire) explicitly admits no contracts. Standalone\ndescriptors always carry an explicit set.\n\n``description`` is the ClaimType's (v7) description: its first sentence, at\nmost 160 characters, in a compact descriptor; all of it in full.\n``evidence_requirement`` appears only when it is not ``self`` (``none``: the\nClaim's own origin supports it; ``captured``: a Capture under a declared\ncontract is required). A full descriptor also carries each described enum\nmember, the role a write defaults to, and ``revision_evidence``: what a\nstatement-changing revision keeps (``accumulate`` before v7).\nA full descriptor also names how the ClaimType settles rival Claims\n(``contention``), its format version (``format``: 7 for\n``playbill-claim-type-v7``), its accepted ``revision`` and its ledger\n``path``, which a kit's drifted paths name. Under ``orient(kind=K)`` a\ndescriptor counts the kind's ``live_claims`` of the predicate and\n``subjects_with_value``: its live Subjects with at least one, both read\nfrom counters Claim writes maintain.\n``kit`` (claim_types section only) is the installed kit that owns the\nClaimType: its receipt records the definition. Absent when no kit owns it."
       },
       "OrientPrediction": {
         "properties": {
@@ -36221,7 +36548,8 @@
                   "principals",
                   "policies",
                   "generations",
-                  "graph"
+                  "graph",
+                  "pins"
                 ]
               },
               {
@@ -36450,6 +36778,20 @@
               }
             ]
           },
+          "pins": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OrientPin"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pins"
+          },
           "truncated": {
             "type": "boolean",
             "title": "Truncated",
@@ -36495,7 +36837,7 @@
           "evaluation_time"
         ],
         "title": "OrientResult",
-        "description": "One orient answer; which parts are present depends on the request.\n\n- no ``kind``/``section``: ``you``, ``kinds`` (paged by ``limit``/``cursor``),\n  ``artifacts``, ``queries`` and ``attention``;\n- ``kind``: ``kind_detail``;\n- ``section``: that section's rows (``documents``, ``procedures``,\n  ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an\n  operational family:\n  ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,\n  ``predictions``, ``mandates``), the principal registry (``principals``),\n  the governed policies in force (``policies``), the accepted generations\n  newest first (``generations``) or the Subject graph (``graph``), paged.\n  The default map counts the operational families under ``artifacts`` and\n  never inlines their rows.\n\n``next`` is rendered for the requesting surface."
+        "description": "One orient answer; which parts are present depends on the request.\n\n- no ``kind``/``section``: ``you``, ``kinds`` (paged by ``limit``/``cursor``),\n  ``artifacts``, ``queries`` and ``attention``;\n- ``kind``: ``kind_detail``;\n- ``section``: that section's rows (``documents``, ``procedures``,\n  ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an\n  operational family:\n  ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,\n  ``predictions``, ``mandates``), the principal registry (``principals``),\n  the governed policies in force (``policies``), the accepted generations\n  newest first (``generations``), the Subject graph (``graph``) or the\n  pins between live definitions (``pins``), paged.\n  The default map counts the operational families under ``artifacts`` and\n  never inlines their rows.\n\n``next`` is rendered for the requesting surface."
       },
       "OrientSubjectKind": {
         "properties": {

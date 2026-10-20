@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch f6f7b39d
 import { defineFixture } from "../fixture";
 
@@ -51,7 +51,9 @@ export default defineFixture({
               "predicate": "revision",
               "claim": "CLM-7052ca2a7c9a819389901f9dfa41993b",
               "value": "4e9b5db950bc66145fc72252be82b40a7826077c",
-              "flags": []
+              "flags": [
+                "stale"
+              ]
             },
             {
               "predicate": "scope",
@@ -68,6 +70,7 @@ export default defineFixture({
           ],
           "incoming_count": 5,
           "next": [
+            "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-e848cbb6787262db349912c48d9c008d8068ede8-.github-workflows--ci.workflows\", detail=\"why\")",
             "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-e848cbb6787262db349912c48d9c008d8068ede8-.github-workflows--ci.workflows\", detail=\"history\")",
             "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-e848cbb6787262db349912c48d9c008d8068ede8-.github-workflows--ci.workflows\", detail=\"incoming\")"
           ]
@@ -83,7 +86,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:30.522376Z"
+        "evaluation_time": "2026-10-20T21:38:25.290490Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -125,7 +128,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:30.544584Z"
+        "evaluation_time": "2026-10-20T21:38:25.316323Z"
       }
     ]
   }

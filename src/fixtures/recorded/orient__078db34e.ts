@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient d9922545
 import { defineFixture } from "../fixture";
 
@@ -25,7 +25,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-19T22:16:28.986690Z",
+    "evaluation_time": "2026-10-20T21:38:23.756033Z",
     "kind_detail": {
       "kind": "security.artifact",
       "subjects": 19,
@@ -51,7 +51,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 12
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/built_from.json",
+          "live_claims": 12,
+          "subjects_with_value": 12
         },
         {
           "name": "declared_sha256",
@@ -71,7 +79,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 7
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/declared_sha256.json",
+          "live_claims": 7,
+          "subjects_with_value": 7
         },
         {
           "name": "name",
@@ -88,7 +104,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 19
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/name.json",
+          "live_claims": 19,
+          "subjects_with_value": 19
         },
         {
           "name": "publish_environment",
@@ -108,7 +132,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 12
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/publish_environment.json",
+          "live_claims": 12,
+          "subjects_with_value": 12
         },
         {
           "name": "published_by",
@@ -129,7 +161,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 12
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/published_by.json",
+          "live_claims": 12,
+          "subjects_with_value": 12
         },
         {
           "name": "release",
@@ -150,7 +190,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 12
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/release.json",
+          "live_claims": 12,
+          "subjects_with_value": 12
         },
         {
           "name": "sha256",
@@ -172,7 +220,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 13
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/sha256.json",
+          "live_claims": 13,
+          "subjects_with_value": 13
         },
         {
           "name": "target",
@@ -194,7 +250,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 19
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/target.json",
+          "live_claims": 19,
+          "subjects_with_value": 19
         },
         {
           "name": "target_ref",
@@ -211,7 +275,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 19
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/target_ref.json",
+          "live_claims": 19,
+          "subjects_with_value": 19
         },
         {
           "name": "uploaded_by",
@@ -231,7 +303,15 @@ export default defineFixture({
           ],
           "default_role": "observation",
           "revision_evidence": "replace",
-          "live_claims": 1
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.artifact/uploaded_by.json",
+          "live_claims": 1,
+          "subjects_with_value": 1
         }
       ],
       "incoming": [

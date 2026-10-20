@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient d957ef29
 import { defineFixture } from "../fixture";
 
@@ -25,7 +25,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-19T22:16:28.878250Z",
+    "evaluation_time": "2026-10-20T21:38:23.681093Z",
     "kind_detail": {
       "kind": "security.assessment",
       "subjects": 31,
@@ -46,7 +46,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 31
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.assessment/cve_id.json",
+          "live_claims": 31,
+          "subjects_with_value": 31
         },
         {
           "name": "expected_status",
@@ -67,7 +75,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 2
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.assessment/expected_status.json",
+          "live_claims": 2,
+          "subjects_with_value": 2
         },
         {
           "name": "justification",
@@ -120,7 +136,15 @@ export default defineFixture({
             }
           ],
           "revision_evidence": "replace",
-          "live_claims": 17
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.assessment/justification.json",
+          "live_claims": 17,
+          "subjects_with_value": 17
         },
         {
           "name": "release",
@@ -141,7 +165,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 31
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.assessment/release.json",
+          "live_claims": 31,
+          "subjects_with_value": 31
         },
         {
           "name": "release_id",
@@ -158,7 +190,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 31
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.assessment/release_id.json",
+          "live_claims": 31,
+          "subjects_with_value": 31
         },
         {
           "name": "status",
@@ -187,7 +227,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 31
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.assessment/status.json",
+          "live_claims": 31,
+          "subjects_with_value": 31
         },
         {
           "name": "vulnerability",
@@ -208,7 +256,15 @@ export default defineFixture({
           ],
           "default_role": "normative",
           "revision_evidence": "replace",
-          "live_claims": 31
+          "contention": {
+            "selector": "only_contender",
+            "on_conflict": "unresolved"
+          },
+          "format": 8,
+          "revision": 1,
+          "path": "claim-types/security.assessment/vulnerability.json",
+          "live_claims": 31,
+          "subjects_with_value": 31
         }
       ],
       "incoming": [

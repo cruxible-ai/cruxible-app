@@ -82,7 +82,9 @@ describe("recorded gate world", () => {
     renderApp(`${I}/next`, RECORDED);
     const m = await main();
     expect(await m.findByText("23 new inbox items from Line:security.harden.")).toBeInTheDocument();
-    expect(m.getAllByText("Evidence expiring")).toHaveLength(5);
+    // next evaluates at recording time: by now the gate world's expiring evidence has expired.
+    expect(m.getAllByText("Evidence expired")).toHaveLength(5);
+    expect(m.getByText("Consumer stalled")).toBeInTheDocument();
   });
 
   it("Lines index and a Line page with paged runs, inbox and Procedure", async () => {

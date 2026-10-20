@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch 61d97a81
 import { defineFixture } from "../fixture";
 
@@ -110,7 +110,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.052640Z"
+        "evaluation_time": "2026-10-20T21:38:27.248264Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -176,7 +176,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.072472Z"
+        "evaluation_time": "2026-10-20T21:38:27.303371Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -242,7 +242,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.097009Z"
+        "evaluation_time": "2026-10-20T21:38:27.333415Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -300,7 +300,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.118436Z"
+        "evaluation_time": "2026-10-20T21:38:27.355381Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -358,7 +358,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.143276Z"
+        "evaluation_time": "2026-10-20T21:38:27.375638Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -416,7 +416,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.162276Z"
+        "evaluation_time": "2026-10-20T21:38:27.396030Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -482,7 +482,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.180732Z"
+        "evaluation_time": "2026-10-20T21:38:27.417774Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -546,7 +546,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.211144Z"
+        "evaluation_time": "2026-10-20T21:38:27.438286Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -604,7 +604,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.244546Z"
+        "evaluation_time": "2026-10-20T21:38:27.457851Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -668,7 +668,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.264458Z"
+        "evaluation_time": "2026-10-20T21:38:27.477578Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -734,7 +734,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.285436Z"
+        "evaluation_time": "2026-10-20T21:38:27.497918Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -800,7 +800,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.304561Z"
+        "evaluation_time": "2026-10-20T21:38:27.519036Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -866,7 +866,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.324236Z"
+        "evaluation_time": "2026-10-20T21:38:27.540402Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -888,7 +888,9 @@ export default defineFixture({
               "predicate": "revision",
               "claim": "CLM-7052ca2a7c9a819389901f9dfa41993b",
               "value": "4e9b5db950bc66145fc72252be82b40a7826077c",
-              "flags": []
+              "flags": [
+                "stale"
+              ]
             },
             {
               "predicate": "scope",
@@ -905,6 +907,7 @@ export default defineFixture({
           ],
           "incoming_count": 5,
           "next": [
+            "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-e848cbb6787262db349912c48d9c008d8068ede8-.github-workflows--ci.workflows\", detail=\"why\")",
             "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-e848cbb6787262db349912c48d9c008d8068ede8-.github-workflows--ci.workflows\", detail=\"history\")",
             "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-e848cbb6787262db349912c48d9c008d8068ede8-.github-workflows--ci.workflows\", detail=\"incoming\")"
           ]
@@ -920,7 +923,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.343752Z"
+        "evaluation_time": "2026-10-20T21:38:27.561324Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -942,7 +945,9 @@ export default defineFixture({
               "predicate": "revision",
               "claim": "CLM-adf497c8bb094e3cf7caaf9a39e27562",
               "value": "4e9b5db950bc66145fc72252be82b40a7826077c",
-              "flags": []
+              "flags": [
+                "stale"
+              ]
             },
             {
               "predicate": "scope",
@@ -959,6 +964,7 @@ export default defineFixture({
           ],
           "incoming_count": 5,
           "next": [
+            "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-main-.github-workflows--ci.workflows\", detail=\"why\")",
             "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-main-.github-workflows--ci.workflows\", detail=\"history\")",
             "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-main-.github-workflows--ci.workflows\", detail=\"incoming\")"
           ]
@@ -974,7 +980,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.362926Z"
+        "evaluation_time": "2026-10-20T21:38:27.580587Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1040,7 +1046,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.382236Z"
+        "evaluation_time": "2026-10-20T21:38:27.598595Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1062,7 +1068,9 @@ export default defineFixture({
               "predicate": "revision",
               "claim": "CLM-8535bf9214bc303f5c01763e0a47b2e9",
               "value": "d5241395edd42f9d753e48f1cb81f16021d04b20",
-              "flags": []
+              "flags": [
+                "stale"
+              ]
             },
             {
               "predicate": "scope",
@@ -1079,6 +1087,7 @@ export default defineFixture({
           ],
           "incoming_count": 0,
           "next": [
+            "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-v0.3.2-src-cruxible-core-kit-distribution-manifest.json--release.manifest\", detail=\"why\")",
             "cx.get(\"security.coverage/github.com-cruxible-ai-cruxible-v0.3.2-src-cruxible-core-kit-distribution-manifest.json--release.manifest\", detail=\"history\")"
           ]
         },
@@ -1093,7 +1102,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-19T22:16:32.405971Z"
+        "evaluation_time": "2026-10-20T21:38:27.619138Z"
       }
     ]
   }

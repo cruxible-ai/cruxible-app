@@ -3,7 +3,7 @@
 `openapi.json` is the inter-repo contract with the cruxible-core daemon. It is generated
 offline from a core checkout (the FastAPI app is built in-process against a throwaway
 HOME and state root; no daemon runs). `pin.json` records the core commit it came from:
-currently **cruxible-core `4b93ac12a`**.
+currently **cruxible-core `db10d8ed3`**.
 
 TypeScript types (`src/api/generated/`) are generated from this file, never hand-written,
 and the fixture responses under `src/fixtures/recorded/` (recorded at this pin) and
