@@ -51,6 +51,21 @@ const KEV = "CaptureContract:security.kev-http-v1";
 const GATE = "Provider:security-gate-sources/" + "d".repeat(64);
 const ANALYSIS = "Provider:security-analysis-provider/" + "f".repeat(64);
 
+const OSV_CARD: Schemas["GetCaptureContractCard"] = {
+  contract: OSV,
+  version: 1,
+  lifecycle: "live",
+  captures: { sources: ["osv.query"], evidence_kinds: ["http_response"], grade: "observed", source_kinds: ["external"] },
+  admitted_by: ["security.assessment.status"],
+};
+const KEV_CARD: Schemas["GetCaptureContractCard"] = {
+  contract: KEV,
+  version: 1,
+  lifecycle: "live",
+  captures: { sources: ["cisa.kev.catalog"], evidence_kinds: ["http_response"], grade: "observed", source_kinds: ["external"] },
+  admitted_by: ["security.vulnerability.kev_listed"],
+};
+
 /** Definition pins, by source as the section pages them. */
 export const PINS: Schemas["OrientPin"][] = [
   pin("Blueprint:security.osv-acquire", "capture-contract", OSV, "a"),
@@ -82,12 +97,17 @@ export default [
     "subject_kind",
     subjectKind("security.vulnerability", "One CVE, as the catalogs describe it.", ["security.vulnerability.cve_id"], 3),
   ),
-  batch("CaptureContract:security.osv-applicability-v1", "capture_contract", {
-    contract: "CaptureContract:security.osv-applicability-v1",
-    version: 1,
-    lifecycle: "live",
-    captures: { sources: ["osv.query"], evidence_kinds: ["http_response"], grade: "observed", source_kinds: ["external"] },
-    admitted_by: ["security.assessment.status"],
+  batch("CaptureContract:security.osv-applicability-v1", "capture_contract", OSV_CARD),
+  // The evidence-flow view reads every contract's card in one batch, in section order.
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get-batch",
+    body: getBatchBody([KEV, OSV], COORDINATE),
+    response: {
+      tag: "playbill-get-batch-result-v1",
+      coordinate: COORDINATE,
+      results: [result(KEV, "capture_contract", KEV_CARD), result(OSV, "capture_contract", OSV_CARD)],
+    },
   }),
   defineFixture({
     method: "post",

@@ -18,6 +18,7 @@ import { LineScreen } from "@/screens/LineScreen";
 import { RunScreen } from "@/screens/RunScreen";
 import { ClaimTypeRedirect, KindScreen } from "@/screens/KindScreen";
 import { ContractScreen, ContractsScreen } from "@/screens/ContractScreen";
+import { FlowScreen } from "@/screens/FlowScreen";
 import { loadConfig } from "@/config";
 
 // The WebGL renderer (cosmos) loads with the State graph screen, not the app.
@@ -49,6 +50,7 @@ export const routes = [
       { path: "claim-types/:predicate", element: <ClaimTypeRedirect /> },
       { path: "contracts", element: <ContractsScreen /> },
       { path: "contracts/:name", element: <ContractScreen /> },
+      { path: "flow", element: <FlowScreen /> },
       {
         path: "graph",
         element: (

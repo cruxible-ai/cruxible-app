@@ -162,7 +162,8 @@ if (args.only === "graph") {
 
 // The ontology pages: every SubjectKind card and kind detail (kind pages: the
 // detail carries the live counts), every ClaimType card (expanded rows), every
-// contract card and the contracts section (contract pages), the pins section
+// contract card, alone and batched, and the contracts section (contract and
+// evidence-flow pages), the pins section
 // (producers, who pins a ClaimType), the capture-landing Trigger listing, and
 // every Mandate card with its condition query's card (settlers, Line pages).
 if (!args.only || args.only === "ontology") {
@@ -187,7 +188,12 @@ if (!args.only || args.only === "ontology") {
   for (const row of await all("claim_types")) {
     await call("post", `${P}/get`, { body: getBody({ ref: `ClaimType:${row.predicate}`, coordinate: C }) });
   }
-  for (const row of await all("capture_contracts")) await fetchCards([`CaptureContract:${bareName(row.contract)}`]).catch(() => null);
+  const contractRefs = (await all("capture_contracts")).map((row) => `CaptureContract:${bareName(row.contract)}`);
+  for (const ref of contractRefs) await fetchCards([ref]).catch(() => null);
+  // The evidence-flow view: every contract card, 64 per batch, in section order.
+  for (let i = 0; i < contractRefs.length; i += GET_BATCH_MAX) {
+    await fetchCards(contractRefs.slice(i, i + GET_BATCH_MAX)).catch(() => null);
+  }
   await all("lines");
   await all("pins");
   for (const row of await all("mandates")) await recordMandate(String(row.mandate));

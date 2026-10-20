@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Runs against `VITE_CRUXIBLE_FIXTURES=1` (playwright.config.ts): the MSW
 // worker serves src/fixtures/recorded/ at the network layer, offline.
-test("fixture-backed inspection flow: overview, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines, run, pin", async ({ page }) => {
+test("fixture-backed inspection flow: overview, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines, run, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
@@ -23,6 +23,20 @@ test("fixture-backed inspection flow: overview, type map, Subject, neighborhood,
   await page.getByRole("link", { name: "security.osv-applicability-v1" }).first().click();
   await expect(page).toHaveURL(/\/contracts\/security\.osv-applicability-v1$/);
   await expect(page.getByText("security.osv-landed")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Procedure:security.osv-acquire" })).toBeVisible();
+
+  // Evidence flow: hover lights a path, focus keeps it, clear restores.
+  await page.locator("aside").getByRole("link", { name: "Evidence flow" }).click();
+  const flow = page.getByTestId("flow");
+  await expect(flow.getByText("osv.query")).toBeVisible();
+  await flow.getByText("cisa.kev.catalog").hover();
+  await flow.getByRole("button", { name: "Focus security.kev-http-v1" }).click();
+  await expect(page).toHaveURL(/focus=contract%3Asecurity\.kev-http-v1/);
+  await expect(flow.getByText("osv.query")).toHaveCount(0);
+  await page.getByRole("button", { name: /clear focus/ }).click();
+  await expect(flow.getByText("osv.query")).toBeVisible();
+  await flow.getByRole("link", { name: "status" }).click();
+  await expect(page).toHaveURL(/\/kinds\/security\.assessment\?claim_type=security\.assessment\.status$/);
   await page.locator("aside").getByRole("link", { name: "Type map" }).click();
   await expect(page.locator(".react-flow__node")).toHaveCount(4);
 

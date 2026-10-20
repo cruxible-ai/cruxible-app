@@ -157,6 +157,18 @@ describe("recorded gate world", () => {
     expect(producers.getAllByText("reads its landings")).toHaveLength(1);
   });
 
+  it("evidence flow: the gate world's 14 contracts, their sources, landing Triggers and the ClaimTypes they feed", async () => {
+    renderApp(`${I}/flow`, RECORDED);
+    const flow = within(await screen.findByTestId("flow"));
+    expect(screen.getByText("ClaimTypes taking Captures", { exact: false }).parentElement).toHaveTextContent("42 ClaimTypes taking Captures");
+    expect(screen.getByText("admissions,", { exact: false })).toHaveTextContent("88 admissions, 46 required");
+    expect(flow.getByText("github.repo.snapshot")).toBeInTheDocument();
+    expect(flow.getByRole("link", { name: "security.repo-snapshot-v1" })).toHaveAttribute("href", `${I}/contracts/security.repo-snapshot-v1`);
+    expect(flow.getByRole("link", { name: "security.harden-on-snapshot" })).toBeInTheDocument();
+    expect(flow.getAllByRole("link", { name: "security.repo-parse.cruxible-ci" })[0]).toHaveAttribute("href", `${I}/lines/security.repo-parse.cruxible-ci`);
+    expect(flow.getByRole("link", { name: "needs" })).toHaveAttribute("href", `${I}/kinds/security.job?claim_type=security.job.needs`);
+  });
+
   it("proposals and a review", async () => {
     renderApp(`${I}/proposals?status=settled`, RECORDED);
     expect(await screen.findByText("50 on this page")).toBeInTheDocument();
