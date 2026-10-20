@@ -1,4 +1,6 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { LoadState } from "@/components/Panel";
 import { AppShell } from "./AppShell";
 import { RouteError } from "./RouteError";
 import { OverviewScreen } from "@/screens/OverviewScreen";
@@ -14,8 +16,12 @@ import { ProposalScreen } from "@/screens/ProposalScreen";
 import { LinesScreen } from "@/screens/LinesScreen";
 import { LineScreen } from "@/screens/LineScreen";
 import { RunScreen } from "@/screens/RunScreen";
-import { StateGraphScreen } from "@/screens/StateGraphScreen";
 import { loadConfig } from "@/config";
+
+// The WebGL renderer (cosmos) loads with the State graph screen, not the app.
+const StateGraphScreen = lazy(() =>
+  import("@/screens/StateGraphScreen").then((module) => ({ default: module.StateGraphScreen })),
+);
 
 function RootRedirect() {
   const { defaultInstanceId } = loadConfig();
@@ -37,7 +43,14 @@ export const routes = [
     children: [
       { index: true, element: <OverviewScreen /> },
       { path: "map", element: <TypeMapScreen /> },
-      { path: "graph", element: <StateGraphScreen /> },
+      {
+        path: "graph",
+        element: (
+          <Suspense fallback={<LoadState />}>
+            <StateGraphScreen />
+          </Suspense>
+        ),
+      },
       { path: "ref/:ref", element: <RefScreen /> },
       { path: "s/:ref", element: <SubjectScreen /> },
       { path: "s/:ref/graph", element: <NeighborhoodScreen /> },
