@@ -37,7 +37,7 @@ import {
 import type { AcceptedCoordinate, GetResult, OrientResult } from "../src/api/schemas.ts";
 import { digest8, fixtureKey, normalizePath, normalizeQuery } from "../src/fixtures/key.ts";
 import { walkNeighborhood, type CardFetcher, type IncomingReader } from "../src/lib/neighborhood.ts";
-import { lineName, readMandateProof } from "../src/lib/lines.ts";
+import { lineName } from "../src/lib/lines.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -45,7 +45,7 @@ const { values: args } = parseArgs({
     instance: { type: "string" },
     out: { type: "string", default: "src/fixtures/recorded" },
     // Record one group into the existing set (same coordinate) instead of
-    // replacing it: currently "graph".
+    // replacing it: "graph" or "ontology".
     only: { type: "string" },
   },
 });
@@ -135,9 +135,17 @@ const fetchCards: CardFetcher = async (refs) => {
   return batch.results;
 };
 
+/** A Mandate's card (typed scope and condition) and its condition query's card. */
+async function recordMandate(mandate: string) {
+  const name = mandate.replace(/^(Procedure)?Mandate:/, "");
+  const [read] = await fetchCards([`Mandate:${name}`]).catch(() => [undefined]);
+  const query = (read?.card as { condition?: { query?: string } | null } | undefined)?.condition?.query;
+  if (query) await fetchCards([query]).catch(() => null);
+}
+
 // The whole-graph screen: every page of orient section=graph, from the first
 // page's cursor.
-{
+if (!args.only || args.only === "graph") {
   let cursor: string | undefined;
   for (let page = 0; page < 200; page += 1) {
     const result = await call<OrientResult>("get", `${P}/orient`, {
@@ -152,11 +160,13 @@ if (args.only === "graph") {
   process.exit(0);
 }
 
-// The ontology pages: every SubjectKind card (kind pages), every ClaimType card
-// (expanded rows), every contract card and the contracts section (contract
-// pages), the capture-landing Trigger listing, and every settle Mandate's proof.
+// The ontology pages: every SubjectKind card and kind detail (kind pages: the
+// detail carries the live counts), every ClaimType card (expanded rows), every
+// contract card and the contracts section (contract pages), the pins section
+// (producers, who pins a ClaimType), the capture-landing Trigger listing, and
+// every Mandate card with its condition query's card (settlers, Line pages).
 if (!args.only || args.only === "ontology") {
-  const all = async (section: "subject_kinds" | "claim_types" | "capture_contracts" | "mandates" | "lines") => {
+  const all = async (section: "subject_kinds" | "claim_types" | "capture_contracts" | "mandates" | "lines" | "pins") => {
     const rows: Record<string, unknown>[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < 20; page += 1) {
@@ -170,16 +180,17 @@ if (!args.only || args.only === "ontology") {
     return rows;
   };
   const bareName = (value: unknown) => String(value).replace(/^[A-Za-z]+:/, "");
-  for (const row of await all("subject_kinds")) await fetchCards([`SubjectKind:${row.kind}`]).catch(() => null);
+  for (const row of await all("subject_kinds")) {
+    await fetchCards([`SubjectKind:${row.kind}`]).catch(() => null);
+    await call("get", `${P}/orient`, { query: orientQuery({ coordinate: C, kind: String(row.kind) }) });
+  }
   for (const row of await all("claim_types")) {
     await call("post", `${P}/get`, { body: getBody({ ref: `ClaimType:${row.predicate}`, coordinate: C }) });
   }
   for (const row of await all("capture_contracts")) await fetchCards([`CaptureContract:${bareName(row.contract)}`]).catch(() => null);
   await all("lines");
-  for (const row of await all("mandates")) {
-    if (row.grants !== "settle" || (row.state !== "active" && row.state !== "expiring")) continue;
-    await call("post", `${P}/get`, { body: getBody({ ref: `Mandate:${bareName(row.mandate)}`, coordinate: C, detail: "proof" }) });
-  }
+  await all("pins");
+  for (const row of await all("mandates")) await recordMandate(String(row.mandate));
   await call("post", `${P}/query`, { body: queryBody(LANDING_TRIGGERS_QUERY, C) });
   if (args.only === "ontology") {
     writeRecordings(false);
@@ -314,12 +325,7 @@ for (const line of lines.slice(0, 5)) {
   await fetchCards([`Procedure:${procedure}`]).catch(() => null);
   await call("post", `${P}/procedures/{name}/readings`, { pathParams: { name: procedure }, body: readingsBody(C, 50) });
   for (const mandate of mandates.filter((m) => m.procedure.replace(/^Procedure:/, "") === procedure)) {
-    const name = mandate.mandate.replace(/^(Procedure)?Mandate:/, "");
-    const proofRead = await call<GetResult>("post", `${P}/get`, {
-      body: getBody({ ref: `Mandate:${name}`, coordinate: C, detail: "proof" }),
-    });
-    const query = readMandateProof(proofRead?.proof as Record<string, unknown> | undefined)?.condition?.query;
-    if (query) await fetchCards([query]).catch(() => null);
+    await recordMandate(mandate.mandate);
   }
   const inbox = await call<{ entries: { item: { item_id: string } }[] }>("get", `${P}/inbox`, {
     query: inboxQuery(name, undefined, 50),

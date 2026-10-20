@@ -33,7 +33,8 @@ const INSTANCE = "inst_fixture";
 
 // -- ClaimTypes ---------------------------------------------------------------
 
-const CLAIM_TYPES: OrientPredicate[] = [
+/** Authored ClaimTypes with their live Claim and Subjects-with-a-value counts (orient kind=K only). */
+const AUTHORED: (OrientPredicate & { live_claims: number; subjects_with_value: number })[] = [
   {
     name: "name",
     predicate: "security.product.name",
@@ -47,6 +48,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     revision_evidence: "replace",
     kit: "security",
     live_claims: 1,
+    subjects_with_value: 1,
   },
   {
     name: "product",
@@ -61,6 +63,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     revision_evidence: "replace",
     kit: "security",
     live_claims: 2,
+    subjects_with_value: 2,
   },
   {
     name: "cve_id",
@@ -75,6 +78,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     revision_evidence: "replace",
     kit: "security",
     live_claims: 3,
+    subjects_with_value: 3,
   },
   {
     name: "kev_listed",
@@ -91,6 +95,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     stale_after: "1d",
     kit: "security",
     live_claims: 3,
+    subjects_with_value: 3,
   },
   {
     name: "vulnerability",
@@ -105,6 +110,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     revision_evidence: "replace",
     kit: "security",
     live_claims: 2,
+    subjects_with_value: 2,
   },
   {
     name: "release",
@@ -119,6 +125,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     revision_evidence: "replace",
     kit: "security",
     live_claims: 2,
+    subjects_with_value: 2,
   },
   {
     name: "status",
@@ -136,6 +143,7 @@ const CLAIM_TYPES: OrientPredicate[] = [
     stale_after: "7d",
     kit: "security",
     live_claims: 2,
+    subjects_with_value: 2,
   },
   {
     name: "related",
@@ -150,8 +158,39 @@ const CLAIM_TYPES: OrientPredicate[] = [
     revision_evidence: "replace",
     kit: "security",
     live_claims: 1,
+    subjects_with_value: 1,
   },
 ];
+
+/** Edge cases: a rival-refusing slot, corroboration, a pre-v7 format with an upgrade. */
+const CONTENTION: Record<string, OrientPredicate["contention"]> = {
+  "security.vulnerability.cve_id": { selector: "only_contender", on_conflict: "refuse" },
+  "security.assessment.status": { selector: "only_contender", on_conflict: "unresolved", corroboration: 1 },
+};
+const FORMAT: Record<string, number> = { "security.vulnerability.related": 6 };
+
+/** The claim_types section rows: full descriptors, no counts. */
+const CLAIM_TYPES: OrientPredicate[] = AUTHORED.map(({ live_claims, subjects_with_value, ...row }) => {
+  void live_claims;
+  void subjects_with_value;
+  const kind = row.subject_kinds![0]!;
+  return {
+    ...row,
+    contention: CONTENTION[row.predicate] ?? (row.cardinality === "many" ? { selector: "all", on_conflict: "unresolved" } : { selector: "only_contender", on_conflict: "unresolved" }),
+    format: FORMAT[row.predicate] ?? 8,
+    revision: row.predicate === "security.assessment.status" ? 2 : 1,
+    path: `claim-types/${kind}/${row.name}.json`,
+  };
+});
+
+/** A kind detail's descriptors: full, with that kind's live counts. */
+function kindDescriptors(kind: string): OrientPredicate[] {
+  return CLAIM_TYPES.filter((row) => row.subject_kinds!.includes(kind)).map(({ kit, ...row }) => {
+    void kit; // the claim_types section alone names the owning kit
+    const counts = AUTHORED.find((item) => item.predicate === row.predicate)!;
+    return { ...row, live_claims: counts.live_claims, subjects_with_value: counts.subjects_with_value };
+  });
+}
 
 /** The compact descriptor default orient shows inside a kind (no full-only fields). */
 function compact(predicate: string): OrientPredicate {
@@ -332,8 +371,24 @@ export default [
       ...BASE_ORIENT,
       kind_detail: {
         ...KINDS[3]!,
+        predicates: kindDescriptors("security.vulnerability"),
         incoming: ["security.assessment.vulnerability", "security.vulnerability.related"],
         sample_subject_ids: ["cve-2024-3094", "cve-2023-4863", "cve-2021-44228"],
+      },
+    },
+  }),
+
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/orient",
+    query: orientQuery({ coordinate: COORDINATE, kind: "security.assessment" }),
+    response: {
+      ...BASE_ORIENT,
+      kind_detail: {
+        ...KINDS[0]!,
+        predicates: kindDescriptors("security.assessment"),
+        incoming: [],
+        sample_subject_ids: ["cruxible-0.3.2--cve-2024-3094", "cruxible-0.3.1--cve-2024-3094"],
       },
     },
   }),
@@ -349,7 +404,7 @@ export default [
           version: "0.3.0",
           content_digest: "sha256:5d2f0a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f",
           source: "cruxible-kits/security",
-          drifted: [],
+          drifted: ["claim-types/security.assessment/release.json"],
           providers: [
             {
               provider_id: "security.kev-catalog",

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   useCard,
-  useGet,
   useInbox,
   useInboxItem,
   useInstanceId,
@@ -19,7 +18,7 @@ import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextItemRow } from "@/components/next/NextItemRow";
 import { useAtLink } from "@/lib/at";
-import { lineName, nextRowsByLine, readMandateProof, runId, shortRunId } from "@/lib/lines";
+import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -284,9 +283,10 @@ function MandatesPanel({ procedure }: { procedure: string }) {
 
 function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
   const name = mandate.mandate.replace(/^(Procedure)?Mandate:/, "");
-  const proofRead = useGet(`Mandate:${name}`, "proof");
-  const proof = readMandateProof(proofRead.data?.proof);
-  const query = useCard(proof?.condition?.query ?? null);
+  const read = useCard(`Mandate:${name}`);
+  const card = cardOf(read.data, "mandate");
+  const condition = card?.condition ?? null;
+  const query = useCard(condition?.query ?? null);
   const queryCard = cardOf(query.data, "query");
   return (
     <div className="text-[12px]">
@@ -295,34 +295,34 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
         <Chip value={mandate.grants} tone={mandate.grants === "settle" ? "violet" : "blue"} />
         <Chip value={mandate.state} tone={mandate.state === "active" ? "green" : mandate.state === "expiring" ? "amber" : "zinc"} />
         <span className="text-zinc-500">expires {formatDateTime(mandate.expires_at)}</span>
-        {proof?.suspended && <span className="text-red-400">suspended</span>}
+        {mandate.suspended && <span className="text-red-400">suspended</span>}
       </div>
-      {proofRead.error && <div className="text-red-400/80">{proofRead.error.message}</div>}
-      {proof && (
+      {read.error && <div className="text-red-400/80">{read.error.message}</div>}
+      {card && (
         <dl className="mt-0.5 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 pl-2">
           <dt className="text-zinc-600">namespace</dt>
-          <dd className="font-mono text-zinc-400">{proof.namespace.join(", ") || "—"}</dd>
+          <dd className="font-mono text-zinc-400">{(card.namespace ?? []).join(", ") || "—"}</dd>
           <dt className="text-zinc-600">scope</dt>
           <dd>
-            {proof.scope.length === 0 && <span className="text-zinc-600">—</span>}
-            {proof.scope.map((scope) => (
-              <div key={scope.claimType}>
-                <RefLink value={scope.claimType} /> <span className="text-zinc-500">{scope.changeKinds.join(", ")} · binds {scope.bindingSubjectRole}</span>
+            {(card.scope ?? []).length === 0 && <span className="text-zinc-600">—</span>}
+            {(card.scope ?? []).map((scope) => (
+              <div key={scope.claim_type}>
+                <RefLink value={scope.claim_type} /> <span className="text-zinc-500">{scope.change_kinds.join(", ")} · binds {scope.binds}</span>
               </div>
             ))}
           </dd>
           <dt className="text-zinc-600">Subjects</dt>
           <dd className="text-zinc-400">
-            {proof.subjectScope === null ? "any in scope" : proof.subjectScope.map((path) => <RefLink key={path} value={path} />)}
+            {card.subject_scope == null ? "any in scope" : card.subject_scope.map((path) => <RefLink key={path} value={path} />)}
           </dd>
           <dt className="text-zinc-600">condition</dt>
           <dd className="text-zinc-400">
-            {proof.condition ? (
+            {condition ? (
               <>
-                <RefLink value={proof.condition.query} /> binds <span className="font-mono">{proof.condition.bindingParameter}</span>, requires{" "}
-                <span className="font-mono">{proof.condition.requiredFields.join(", ")}</span>, otherwise {proof.condition.fallback}
-                {Object.keys(proof.condition.fixedParameters).length > 0 && (
-                  <code className="ml-1 font-mono text-zinc-500">{JSON.stringify(proof.condition.fixedParameters)}</code>
+                <RefLink value={condition.query} /> binds <span className="font-mono">{condition.binding_parameter}</span>, requires{" "}
+                <span className="font-mono">{condition.required_fields.join(", ")}</span>, otherwise {condition.fallback}
+                {Object.keys(condition.fixed_parameters ?? {}).length > 0 && (
+                  <code className="ml-1 font-mono text-zinc-500">{JSON.stringify(condition.fixed_parameters)}</code>
                 )}
                 {queryCard?.description && <div className="text-zinc-500">{queryCard.description}</div>}
                 {(queryCard?.params ?? []).length > 0 && (
@@ -335,10 +335,10 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
               "none (unconditional)"
             )}
           </dd>
-          {proof.subjectCreation.length > 0 && (
+          {(card.subject_creation ?? []).length > 0 && (
             <>
               <dt className="text-zinc-600">may create</dt>
-              <dd className="font-mono text-zinc-400">{proof.subjectCreation.join(", ")}</dd>
+              <dd className="font-mono text-zinc-400">{card.subject_creation!.join(", ")}</dd>
             </>
           )}
         </dl>

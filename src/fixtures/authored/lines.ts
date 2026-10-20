@@ -1,7 +1,7 @@
 /**
  * Hand-authored Line reads for the fixture world: the lines and mandates
- * sections, Line / Procedure / run / query cards (get-batch), a mandate's
- * proof, a readings page, a Line inbox page and item, and a run's state.
+ * sections, Line / Procedure / run / query / Mandate cards (get-batch), a
+ * readings page, a Line inbox page and item, and a run's state.
  */
 import { defineFixture } from "../fixture";
 import { getBatchBody, getBody, inboxQuery, LINE_RUNS_PAGE, orientQuery, readingsBody } from "@/api/requests";
@@ -113,7 +113,17 @@ export default [
     response: {
       ...BASE_ORIENT,
       section: "mandates",
-      mandates: [{ mandate: MANDATE, procedure: `Procedure:${PROCEDURE}`, grants: "settle", state: "active", expires_at: "2027-01-01T00:00:00Z" }],
+      mandates: [
+        {
+          mandate: `ProcedureMandate:${MANDATE}`,
+          procedure: `Procedure:${PROCEDURE}`,
+          grants: "settle",
+          state: "active",
+          expires_at: "2027-01-01T00:00:00Z",
+          scope: [{ claim_type: "ClaimType:security.assessment.status", change_kinds: ["create", "retire"], binds: "subject" }],
+          condition_query: QUERY,
+        },
+      ],
     },
   }),
   batch([`Line:${CVE}`, `Line:${KEV}`], [result(`Line:${CVE}`, "line", CVE_CARD), result(`Line:${KEV}`, "line", KEV_CARD)]),
@@ -170,12 +180,10 @@ export default [
       }),
     ],
   ),
-  defineFixture({
-    method: "post",
-    path: "/api/v1/{instance_id}/get",
-    body: getBody({ ref: `Mandate:${MANDATE}`, coordinate: COORDINATE, detail: "proof" }),
-    response: {
-      ...result(`Mandate:${MANDATE}`, "mandate", {
+  batch(
+    [`Mandate:${MANDATE}`],
+    [
+      result(`Mandate:${MANDATE}`, "mandate", {
         mandate: MANDATE,
         procedure: `Procedure:${PROCEDURE}`,
         grants: "settle",
@@ -184,33 +192,16 @@ export default [
         valid_from: "2026-10-01T00:00:00Z",
         expires_at: "2027-01-01T00:00:00Z",
         namespace: ["claims"],
-      }, "proof"),
-      proof: {
-        coordinate: AT,
-        path: `procedure-mandates/${MANDATE}.json`,
-        artifact_digest: "sha256:" + "3".repeat(64),
-        envelope: {
-          artifact_format: "playbill-procedure-mandate-v2",
-          namespace: ["claims"],
-          scope: [
-            {
-              claim_type: { role: "claim-type", target: { kind: "ClaimType", name: "security.assessment.status" }, artifact_digest: "sha256:" + "4".repeat(64) },
-              change_kinds: ["create", "retire"],
-              binding_subject_role: "subject",
-            },
-          ],
-          condition: {
-            query: { role: "query", target: { kind: "QueryDefinition", name: "security.kev_exposure" }, artifact_digest: "sha256:" + "5".repeat(64) },
-            binding_parameter: "assessment",
-            fixed_parameters: {},
-            required_fields: ["kev_listed"],
-            fallback: "propose",
-          },
-          suspended: false,
+        scope: [{ claim_type: "ClaimType:security.assessment.status", change_kinds: ["create", "retire"], binds: "subject" }],
+        condition: {
+          query: QUERY,
+          binding_parameter: "assessment",
+          required_fields: ["kev_listed"],
+          fallback: "propose",
         },
-      },
-    },
-  }),
+      }),
+    ],
+  ),
   batch(
     [QUERY],
     [

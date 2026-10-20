@@ -1,58 +1,60 @@
 import type { OrientPredicate, Schemas } from "../api/schemas.ts";
-import type { MandateProof } from "./lines.ts";
 
 /**
- * Ontology helpers for the kind and contract pages: typed readers over the
- * definition reads that are still untyped, the settler join, and the seams
- * for the columns that wait on core reads (design-app-ontology §5). Every
- * input here is ontology-sized: ClaimTypes, SubjectKinds, contracts,
- * Triggers, Lines, Mandates. Nothing reads Claims or Captures.
+ * Ontology helpers for the kind, contract and evidence-flow pages: labels
+ * for the typed definition reads, the settler join, pin lookups, and the
+ * seams for the columns that wait on post-v1 core reads (design-app-ontology
+ * §5). Every input here is ontology-sized: ClaimTypes, SubjectKinds,
+ * contracts, Triggers, Lines, Mandates, definition pins. Nothing reads Claims
+ * or Captures.
  */
 
-/** The core gaps a column can wait on. */
-export type CoreGap = "K1" | "K2" | "K3" | "K4" | "K5" | "K6";
+/** The core gaps a column still waits on: both post-v1. */
+export type CoreGap = "K2" | "K4";
 
-/** What each gap serves, for the placeholder's tooltip. */
+/** What each gap serves, for the dash's tooltip. */
 export const GAP_NOTE: Record<CoreGap, string> = {
-  K1: "Live counts per ClaimType (maintained predicate counts): being built in core.",
   K2: "Contested and stale counts per ClaimType: post-v1.",
-  K3: "Producers and consumers through definition pins: being built in core.",
   K4: "Contract landings, cited Captures and citing Claims: post-v1.",
-  K5: "Contention policy, format version and revision on ClaimTypes: being built in core.",
-  K6: "Typed Mandate scope: being built in core; read from the Mandate proof meanwhile.",
 };
 
-/** Gaps being built now (a placeholder cell) vs post-v1 (a dash). */
-export const GAP_IN_FLIGHT: ReadonlySet<CoreGap> = new Set<CoreGap>(["K1", "K3", "K5", "K6"]);
+// -- contention, format, revision ---------------------------------------------
 
-// -- K5 seam: contention, format, revision ------------------------------------
+type Contention = Schemas["ClaimTypeContention"];
 
-export interface ClaimTypeContention {
-  selector: string;
-  onConflict: string;
-  corroboration: number;
-  freeze: number;
+/** How rival Claims of one slot settle, in a few words; the raw policy goes in the tooltip. */
+export function contentionLabel(contention: Contention): string {
+  const base =
+    contention.selector === "all"
+      ? "all answer"
+      : contention.on_conflict === "refuse"
+        ? "refuses rivals"
+        : "rivals conflict";
+  const extra = [
+    contention.corroboration ? `${contention.corroboration} corroboration` : null,
+    contention.freeze ? `${contention.freeze} freeze` : null,
+  ].filter(Boolean);
+  return extra.length ? `${base} · ${extra.join(" · ")}` : base;
 }
 
-export interface ClaimTypeVersion {
-  format: number;
-  revision: number;
-  path: string;
+export function contentionTitle(contention: Contention): string {
+  return `selector ${contention.selector}, on conflict ${contention.on_conflict}, corroboration ${contention.corroboration ?? 0}, freeze ${contention.freeze ?? 0}`;
 }
 
-/** Contention policy of a ClaimType once K5 serves it; null at the pinned contract. */
-export function claimTypeContention(descriptor: OrientPredicate): ClaimTypeContention | null {
-  void descriptor;
-  return null;
+/** ClaimType formats below v7 have an upgrade (`claim-types/upgrade`). */
+export const CURRENT_CLAIM_TYPE_FORMAT = 7;
+
+/** Whether the kit that owns a ClaimType reports its path as edited locally. */
+export function driftedLocally(
+  descriptor: OrientPredicate,
+  kits: readonly Schemas["InstalledKit"][] | undefined,
+): boolean {
+  if (!descriptor.kit || !descriptor.path || !kits) return false;
+  const kit = kits.find((k) => k.kit_id === descriptor.kit);
+  return (kit?.drifted ?? []).includes(descriptor.path);
 }
 
-/** Format version and revision of a ClaimType once K5 serves them; null at the pinned contract. */
-export function claimTypeVersion(descriptor: OrientPredicate): ClaimTypeVersion | null {
-  void descriptor;
-  return null;
-}
-
-// -- K1 seam: live counts ------------------------------------------------------
+// -- live counts (K1) ----------------------------------------------------------
 
 export interface PredicateCounts {
   liveClaims: number;
@@ -60,26 +62,78 @@ export interface PredicateCounts {
 }
 
 /**
- * Live counts per ClaimType once K1 serves them from maintained counts. The
- * served `live_claims` on orient(kind=) is a range count over the kind's
- * Claims per load, so the kind page does not read it.
+ * Live counts per ClaimType on one kind, from `orient(kind=K)`: its
+ * descriptors carry `live_claims` and `subjects_with_value`, read from
+ * counters Claim writes maintain (one primary-key prefix seek per kind).
  */
-export function predicateCounts(descriptor: OrientPredicate): PredicateCounts | null {
-  void descriptor;
-  return null;
+export function kindCounts(detail: Schemas["OrientKindDetail"] | null | undefined): Map<string, PredicateCounts> {
+  const out = new Map<string, PredicateCounts>();
+  for (const p of detail?.predicates ?? []) {
+    out.set(p.predicate, { liveClaims: p.live_claims ?? 0, subjectsWithValue: p.subjects_with_value ?? 0 });
+  }
+  return out;
 }
 
-// -- K3 seam: producers -------------------------------------------------------
+/** Share of a kind's live Subjects holding a value, as a whole percent. */
+export function shareLabel(subjectsWithValue: number, liveSubjects: number | undefined): string {
+  if (!liveSubjects) return subjectsWithValue === 0 ? "0%" : "—";
+  return `${Math.round((100 * subjectsWithValue) / liveSubjects)}%`;
+}
+
+// -- pins (K3) -------------------------------------------------------------------
+
+type Pin = Schemas["OrientPin"];
+
+/** The `Kind` part of a `Kind:name` ref. */
+export const refKind = (ref: string) => ref.slice(0, Math.max(0, ref.indexOf(":")));
+
+/** Definitions that pin `target`, optionally only under `roles`. */
+export function pinnersOf(pins: readonly Pin[], target: string, roles?: readonly string[]): Pin[] {
+  return pins.filter((pin) => pin.target === target && (!roles || roles.includes(pin.role)));
+}
+
+/** What `source` pins, optionally only under `roles`. */
+export function pinnedBy(pins: readonly Pin[], source: string, roles?: readonly string[]): Pin[] {
+  return pins.filter((pin) => pin.source === source && (!roles || roles.includes(pin.role)));
+}
 
 export interface ContractProducer {
+  /** `Procedure:<name>` or `Blueprint:<name>`. */
   source: string;
-  role: string;
+  /** Providers it pins (Procedure grain: every source node's). */
+  providers: string[];
+  /** Live Lines running it (Procedures only). */
+  lines: string[];
+  /** Lines among them that its landings start: the Procedure reads what landed. */
+  startedByLanding: string[];
 }
 
-/** Procedures, Blueprints and Providers pinning a contract once K3 serves pins; null now. */
-export function contractProducers(contract: string): ContractProducer[] | null {
-  void contract;
-  return null;
+/**
+ * Procedures and Blueprints that capture under a contract: each has a source
+ * or capture-egress node pinning it (role `capture-contract`). The pins are at
+ * Procedure grain, so a Procedure with two source nodes names both Providers.
+ */
+export function contractProducers(pins: readonly Pin[], contract: string): ContractProducer[] {
+  const ref = contract.startsWith("CaptureContract:") ? contract : `CaptureContract:${contract}`;
+  const landingLines = new Set(pinnersOf(pins, ref, ["trigger-capture-contract"]).map((p) => p.source).filter((s) => s.startsWith("Line:")));
+  return pinnersOf(pins, ref, ["capture-contract"])
+    .map((pin) => pin.source)
+    .filter((source, i, all) => all.indexOf(source) === i)
+    .sort()
+    .map((source) => {
+      const lines = source.startsWith("Procedure:") ? pinnersOf(pins, source, ["procedure"]).map((p) => p.source).filter((s) => s.startsWith("Line:")).sort() : [];
+      return {
+        source,
+        providers: [...new Set(pinnedBy(pins, source, ["provider"]).map((p) => p.target))].sort(),
+        lines,
+        startedByLanding: lines.filter((line) => landingLines.has(line)),
+      };
+    });
+}
+
+/** Display name of a Provider ref: its id without the build digest. */
+export function providerName(ref: string): string {
+  return ref.replace(/^Provider:/, "").replace(/\/[0-9a-f]{64}$/, "");
 }
 
 // -- value types --------------------------------------------------------------
@@ -116,7 +170,8 @@ type Line = Schemas["OrientLine"];
 
 export type Settler =
   | { kind: "settles"; line: string; mandate: string }
-  | { kind: "capped"; line: string; mandate: string };
+  | { kind: "capped"; line: string; mandate: string }
+  | { kind: "suspended"; line: string; mandate: string };
 
 const bare = (value: string) => value.replace(/^[A-Za-z]+:/, "");
 
@@ -126,25 +181,19 @@ export function settleMandates(mandates: readonly Mandate[]): Mandate[] {
 }
 
 /**
- * Who may settle a ClaimType: live settle Mandates whose scope pins it,
- * mapped to the Lines running their Procedure. A Line capped at propose only
- * proposes (design Q5). No match means changes go to review. `scopes` maps a
- * Mandate to its proof (K6 seam: typed scope replaces the proof parse).
+ * Who may settle a ClaimType: live settle Mandates whose typed scope covers
+ * it, mapped to the live Lines running their Procedure. A Line capped at
+ * propose only proposes (design Q5); a suspended Mandate settles nothing
+ * while its kill switch is on. No match means changes go to review.
  */
-export function settlersFor(
-  predicate: string,
-  mandates: readonly Mandate[],
-  lines: readonly Line[],
-  scopes: ReadonlyMap<string, MandateProof | null>,
-): Settler[] {
+export function settlersFor(predicate: string, mandates: readonly Mandate[], lines: readonly Line[]): Settler[] {
   const out: Settler[] = [];
   for (const mandate of settleMandates(mandates)) {
-    const proof = scopes.get(mandate.mandate);
-    if (!proof || !proof.scope.some((scope) => bare(scope.claimType) === predicate)) continue;
+    if (!(mandate.scope ?? []).some((scope) => bare(scope.claim_type) === predicate)) continue;
     for (const line of lines) {
       if (line.lifecycle !== "live" || bare(line.procedure) !== bare(mandate.procedure)) continue;
       out.push({
-        kind: line.authority === "settle" ? "settles" : "capped",
+        kind: mandate.suspended ? "suspended" : line.authority === "settle" ? "settles" : "capped",
         line: bare(line.line),
         mandate: bare(mandate.mandate),
       });

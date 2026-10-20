@@ -175,7 +175,7 @@ export function useOrientKinds() {
 
 /** All rows of one paged orient section, following next_cursor. */
 function useOrientSectionAll<
-  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts",
+  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins",
 >(
   section: K,
   enabled = true,
@@ -221,6 +221,15 @@ export function useMandates(enabled = true) {
 /** Every CaptureContract with grade and how many ClaimTypes admit it (ontology-sized). */
 export function useCaptureContracts(enabled = true) {
   return useOrientSectionAll("capture_contracts", enabled);
+}
+
+/**
+ * The required pins of every live definition (orient section=pins): who pins
+ * a contract, a ClaimType, a Procedure. Ontology-sized (never a Claim's or a
+ * Subject's pins); the gate world has about 650 over two pages.
+ */
+export function usePins(enabled = true) {
+  return useOrientSectionAll("pins", enabled);
 }
 
 /**
@@ -685,33 +694,4 @@ export function useWholeGraph(
     },
     enabled && first !== undefined,
   );
-}
-
-/**
- * Each named Mandate's proof (`get Mandate:<m> detail=proof`), one read per
- * Mandate: ontology-sized. The kind page reads settle Mandates' scope from it
- * until the typed scope lands (K6).
- */
-export function useMandateProofs(mandates: readonly string[]) {
-  const client = useApiClient();
-  const instanceId = useInstanceId();
-  const { coordinate } = usePin();
-  return useQueries({
-    queries: mandates.map((mandate) => ({
-      queryKey: ["get", instanceId, coordinate?.git_oid ?? null, `Mandate:${mandate}`, "proof", null, null],
-      enabled: coordinate !== undefined,
-      staleTime: 60_000,
-      queryFn: async (): Promise<GetResult> =>
-        unwrap(
-          await client.POST("/api/v1/{instance_id}/get", {
-            params: { path: { instance_id: instanceId } },
-            body: getBody({ ref: `Mandate:${mandate}`, coordinate: coordinate!, detail: "proof" }),
-          }),
-        ),
-    })),
-    combine: (results) => ({
-      isPending: results.some((r) => r.isPending),
-      proofs: new Map(mandates.map((mandate, i) => [mandate, results[i]?.data?.proof ?? null])),
-    }),
-  });
 }

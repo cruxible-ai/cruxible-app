@@ -1,7 +1,7 @@
 /**
  * Hand-authored ontology reads for the kind and contract pages: SubjectKind
  * and CaptureContract cards (get-batch), the capture-landing Trigger listing,
- * and the capture_contracts section.
+ * the capture_contracts section and the definition pins section.
  */
 import { defineFixture } from "../fixture";
 import { getBatchBody, LANDING_TRIGGERS_QUERY, orientQuery, queryBody } from "@/api/requests";
@@ -37,6 +37,39 @@ const subjectKind = (kind: string, description: string, keys: string[], live: nu
   live_subjects: live,
   kit: "security",
 });
+
+const digest = (c: string) => "sha256:" + c.repeat(64);
+const pin = (source: string, role: string, target: string, c: string, current: boolean | null = true): Schemas["OrientPin"] => ({
+  source,
+  role,
+  target,
+  target_digest: digest(c),
+  ...(current === null ? {} : { current }),
+});
+const OSV = "CaptureContract:security.osv-applicability-v1";
+const KEV = "CaptureContract:security.kev-http-v1";
+const GATE = "Provider:security-gate-sources/" + "d".repeat(64);
+const ANALYSIS = "Provider:security-analysis-provider/" + "f".repeat(64);
+
+/** Definition pins, by source as the section pages them. */
+export const PINS: Schemas["OrientPin"][] = [
+  pin("Blueprint:security.osv-acquire", "capture-contract", OSV, "a"),
+  pin("Line:cve-applicability", "procedure", "Procedure:security.cve-applicability", "b"),
+  pin("Line:cve-applicability", "trigger-capture-contract", OSV, "a"),
+  pin("Line:kev-triage", "procedure", "Procedure:security.kev-triage", "c"),
+  pin("Procedure:security.cve-applicability", "capture-contract", OSV, "a"),
+  pin("Procedure:security.cve-applicability", "provider", ANALYSIS, "f", null),
+  pin("Procedure:security.kev-acquire", "capture-contract", KEV, "e"),
+  pin("Procedure:security.kev-acquire", "provider", GATE, "d", null),
+  pin("Procedure:security.osv-acquire", "capture-contract", OSV, "a"),
+  pin("Procedure:security.osv-acquire", "provider", GATE, "d", null),
+  pin("ProcedureMandate:security.kev-settle", "claim-type", "ClaimType:security.assessment.status", "4"),
+  pin("ProcedureMandate:security.kev-settle", "procedure", "Procedure:security.kev-triage", "c"),
+  pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.assessment.status", "4"),
+  pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.vulnerability.kev_listed", "9", false),
+  pin("Trigger:security.kev-landed", "trigger-capture-contract", KEV, "e"),
+  pin("Trigger:security.osv-landed", "trigger-capture-contract", OSV, "a"),
+];
 
 export default [
   batch(
@@ -92,6 +125,21 @@ export default [
         { contract: "CaptureContract:security.kev-http-v1", version: 1, lifecycle: "live", grade: "observed", admitted_by: 1 },
         { contract: "CaptureContract:security.osv-applicability-v1", version: 1, lifecycle: "live", grade: "observed", admitted_by: 1 },
       ],
+    },
+  }),
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/orient",
+    query: orientQuery({ coordinate: COORDINATE, section: "pins", limit: 500 }),
+    response: {
+      tag: "playbill-orient-v1",
+      instance: "inst_fixture",
+      coordinate: COORDINATE,
+      generation: AT.generation,
+      accepted_at: "2026-10-19T09:30:00Z",
+      evaluation_time: NOW,
+      section: "pins",
+      pins: PINS,
     },
   }),
 ];

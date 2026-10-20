@@ -4,30 +4,30 @@ import {
   useCard,
   useClaimTypes,
   useInstanceId,
+  useKits,
   useLines,
-  useMandateProofs,
   useMandates,
-  useOrientKinds,
+  useOrientKind,
   useSubjectKinds,
 } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { ClaimTypeTable } from "@/components/ontology/ClaimTypeTable";
-import { Pending } from "@/components/ontology/Pending";
 import { useAtLink } from "@/lib/at";
-import { readMandateProof, type MandateProof } from "@/lib/lines";
-import { claimTypesOfKind, claimTypesPointingAt, contractName, settleMandates, settlersFor } from "@/lib/ontology";
+import { claimTypesOfKind, claimTypesPointingAt, contractName, kindCounts, settlersFor } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 /**
  * One Subject kind as the ontology defines it: identity (keys, uniqueness or
  * minted), owning kit, what points at it, and every ClaimType on it with
  * value type or target kind, cardinality, role, evidence contracts and
- * whether a Capture is required, freshness, kit and who may settle it.
- * Reads are ontology-sized only: the subject_kinds and claim_types sections,
- * the SubjectKind card, Lines and Mandates, and the proofs of live settle
- * Mandates; nothing per Claim or Capture.
+ * whether a Capture is required, freshness, kit, contention, format and
+ * revision, who may settle it, and its live Claims and share of Subjects
+ * with a value. Reads: the subject_kinds and claim_types sections, the
+ * SubjectKind card, orient(kind=K) for the counts (maintained counters, one
+ * prefix seek), the lines and mandates sections (typed Mandate scope) and
+ * the kits; nothing scans the kind's Claims or Subjects.
  */
 export function KindScreen() {
   const { kind = "" } = useParams();
@@ -40,16 +40,12 @@ export function KindScreen() {
 
   const subjectKinds = useSubjectKinds();
   const claimTypes = useClaimTypes();
-  const kinds = useOrientKinds();
+  const detail = useOrientKind(kind);
   const card = useCard(`SubjectKind:${kind}`);
   const kindCard = cardOf(card.data, "subject_kind");
   const lines = useLines();
   const mandates = useMandates();
-  const settling = useMemo(
-    () => settleMandates(mandates.data?.rows ?? []).map((m) => m.mandate.replace(/^[A-Za-z]+:/, "")),
-    [mandates.data],
-  );
-  const proofs = useMandateProofs(settling);
+  const kits = useKits();
 
   const rule = (subjectKinds.data?.rows ?? []).find((row) => row.kind === kind);
   const rows = useMemo(() => claimTypesOfKind(claimTypes.data?.rows ?? [], kind), [claimTypes.data, kind]);
@@ -58,18 +54,12 @@ export function KindScreen() {
     () => [...new Set(rows.flatMap((row) => row.evidence ?? []))].sort(),
     [rows],
   );
-  const subjects = kindCard?.live_subjects ?? kinds.data?.kinds.find((k) => k.kind === kind)?.subjects;
-
-  const scopes = useMemo(() => {
-    const out = new Map<string, MandateProof | null>();
-    for (const mandate of mandates.data?.rows ?? []) {
-      const name = mandate.mandate.replace(/^[A-Za-z]+:/, "");
-      const proof = proofs.proofs.get(name);
-      out.set(mandate.mandate, proof ? readMandateProof(proof) : null);
-    }
-    return out;
-  }, [mandates.data, proofs.proofs]);
-  const ready = lines.data !== undefined && mandates.data !== undefined && !proofs.isPending;
+  const subjects = detail.data?.kind_detail?.subjects ?? kindCard?.live_subjects;
+  const counts = useMemo(
+    () => (detail.data ? kindCounts(detail.data.kind_detail) : detail.error ? undefined : null),
+    [detail.data, detail.error],
+  );
+  const ready = lines.data !== undefined && mandates.data !== undefined;
 
   function toggle(predicate: string) {
     setOpen((current) => (current === predicate ? null : predicate));
@@ -119,7 +109,11 @@ export function KindScreen() {
 
       <Panel
         title={`ClaimTypes (${rows.length})`}
-        meta={<span>live counts <Pending gap="K1" /> · contention and version <Pending gap="K5" /></span>}
+        meta={
+          <span title="Contested and stale counts per ClaimType wait on a post-v1 core read">
+            {detail.error ? <span className="text-red-400/80">live counts: {detail.error.message}</span> : "contested and stale: post-v1"}
+          </span>
+        }
       >
         {rows.length === 0 ? (
           <EmptyState>No ClaimTypes on this kind.</EmptyState>
@@ -129,7 +123,10 @@ export function KindScreen() {
             rows={rows}
             open={open}
             onToggle={toggle}
-            settlers={(predicate) => (ready ? settlersFor(predicate, mandates.data!.rows, lines.data!.rows, scopes) : null)}
+            counts={counts}
+            liveSubjects={subjects}
+            kits={kits.data?.kits}
+            settlers={(predicate) => (ready ? settlersFor(predicate, mandates.data!.rows, lines.data!.rows) : null)}
           />
         )}
       </Panel>

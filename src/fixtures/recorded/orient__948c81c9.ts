@@ -25,7 +25,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-20T21:38:23.681093Z",
+    "evaluation_time": "2026-10-20T21:42:28.760999Z",
     "kind_detail": {
       "kind": "security.assessment",
       "subjects": 31,

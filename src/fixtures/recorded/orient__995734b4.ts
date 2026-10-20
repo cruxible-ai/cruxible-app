@@ -26,7 +26,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-20T21:38:29.375435Z",
+    "evaluation_time": "2026-10-20T21:42:31.213791Z",
     "section": "mandates",
     "mandates": [
       {

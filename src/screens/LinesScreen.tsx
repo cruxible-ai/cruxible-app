@@ -105,7 +105,7 @@ export function LinesScreen() {
                         <td className="py-1 pr-3 text-[12px]">
                           {(mandatesByProcedure.get(procedure) ?? []).map((mandate) => (
                             <div key={mandate.mandate}>
-                              <span className="font-mono text-zinc-300">{mandate.mandate}</span>{" "}
+                              <span className="font-mono text-zinc-300">{mandate.mandate.replace(/^(Procedure)?Mandate:/, "")}</span>{" "}
                               <span className="text-zinc-500">
                                 {mandate.grants} · {mandate.state}
                               </span>

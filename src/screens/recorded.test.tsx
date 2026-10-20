@@ -132,6 +132,13 @@ describe("recorded gate world", () => {
       "href",
       `${I}/contracts/security.repo-snapshot-v1`,
     );
+    expect(workflow.getByText("rivals conflict")).toBeInTheDocument();
+    expect(workflow.getByText("v8")).toBeInTheDocument();
+    // 26 security.job Subjects; needs: 12 live Claims on 10 of them
+    const needs = within(m.getByText("needs", { selector: "td" }).closest("tr")!);
+    expect(await needs.findByText("38%")).toHaveAttribute("title", "10 of 26 live Subjects");
+    expect(needs.getByText("12", { selector: "td" })).toBeInTheDocument();
+    expect(needs.getByText("all answer")).toBeInTheDocument();
   });
 
   it("contract page: security.repo-snapshot-v1 with its landing Triggers, Lines and 17 admitting ClaimTypes", async () => {
@@ -142,6 +149,12 @@ describe("recorded gate world", () => {
     expect(m.getByText("admitted by 17 ClaimTypes, required by", { exact: false })).toBeInTheDocument();
     expect(await m.findByText("security.harden-on-snapshot")).toBeInTheDocument();
     expect(m.getAllByRole("link", { name: "security.harden" })[0]).toHaveAttribute("href", `${I}/lines/security.harden`);
+    // producers from the pins section: the acquiring Procedure and Blueprint, and the parser its landings start
+    const producers = within((await m.findByText("Captured under it by")).closest("section")!);
+    expect(await producers.findByRole("link", { name: "Procedure:security.repo-acquire" })).toBeInTheDocument();
+    expect(producers.getByRole("link", { name: "Blueprint:security.repo-acquire" })).toBeInTheDocument();
+    expect(producers.getByRole("link", { name: "Procedure:security.repo-parse" })).toBeInTheDocument();
+    expect(producers.getAllByText("reads its landings")).toHaveLength(1);
   });
 
   it("proposals and a review", async () => {
