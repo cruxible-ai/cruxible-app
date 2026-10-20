@@ -20,6 +20,7 @@ import {
   GRAPH_PAGE,
   HISTORY_PAGE,
   INCOMING_PAGE,
+  LANDING_TRIGGERS_QUERY,
   LEDGER_PAGE,
   LINE_RUNS_PAGE,
   headQuery,
@@ -29,6 +30,7 @@ import {
   nextBody,
   orientQuery,
   proposalsQuery,
+  queryBody,
   readingsBody,
   reviewBody,
 } from "../src/api/requests.ts";
@@ -127,6 +129,12 @@ const head = await call<{ coordinate: AcceptedCoordinate }>("get", `${P}/head`, 
 if (!head) throw new Error("head read failed");
 const C = head.coordinate;
 
+const fetchCards: CardFetcher = async (refs) => {
+  const batch = await call<{ results: GetResult[] }>("post", `${P}/get-batch`, { body: getBatchBody(refs, C) });
+  if (!batch) throw new Error(`get-batch refused ${refs.join(", ")}`);
+  return batch.results;
+};
+
 // The whole-graph screen: every page of orient section=graph, from the first
 // page's cursor.
 {
@@ -142,6 +150,41 @@ const C = head.coordinate;
 if (args.only === "graph") {
   writeRecordings(false);
   process.exit(0);
+}
+
+// The ontology pages: every SubjectKind card (kind pages), every ClaimType card
+// (expanded rows), every contract card and the contracts section (contract
+// pages), the capture-landing Trigger listing, and every settle Mandate's proof.
+if (!args.only || args.only === "ontology") {
+  const all = async (section: "subject_kinds" | "claim_types" | "capture_contracts" | "mandates" | "lines") => {
+    const rows: Record<string, unknown>[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 20; page += 1) {
+      const result = await call<OrientResult>("get", `${P}/orient`, {
+        query: orientQuery({ coordinate: C, section, limit: ORIENT_PAGE, cursor }),
+      });
+      rows.push(...(((result?.[section] as unknown[]) ?? []) as Record<string, unknown>[]));
+      if (!result?.next_cursor) break;
+      cursor = result.next_cursor;
+    }
+    return rows;
+  };
+  const bareName = (value: unknown) => String(value).replace(/^[A-Za-z]+:/, "");
+  for (const row of await all("subject_kinds")) await fetchCards([`SubjectKind:${row.kind}`]).catch(() => null);
+  for (const row of await all("claim_types")) {
+    await call("post", `${P}/get`, { body: getBody({ ref: `ClaimType:${row.predicate}`, coordinate: C }) });
+  }
+  for (const row of await all("capture_contracts")) await fetchCards([`CaptureContract:${bareName(row.contract)}`]).catch(() => null);
+  await all("lines");
+  for (const row of await all("mandates")) {
+    if (row.grants !== "settle" || (row.state !== "active" && row.state !== "expiring")) continue;
+    await call("post", `${P}/get`, { body: getBody({ ref: `Mandate:${bareName(row.mandate)}`, coordinate: C, detail: "proof" }) });
+  }
+  await call("post", `${P}/query`, { body: queryBody(LANDING_TRIGGERS_QUERY, C) });
+  if (args.only === "ontology") {
+    writeRecordings(false);
+    process.exit(0);
+  }
 }
 
 const [orient] = await orientAll(C);
@@ -163,11 +206,6 @@ for (const kind of kinds) {
   });
   for (const id of detail?.kind_detail?.sample_subject_ids?.slice(0, 1) ?? []) samples.push(`${kind.kind}/${id}`);
 }
-const fetchCards: CardFetcher = async (refs) => {
-  const batch = await call<{ results: GetResult[] }>("post", `${P}/get-batch`, { body: getBatchBody(refs, C) });
-  if (!batch) throw new Error(`get-batch refused ${refs.join(", ")}`);
-  return batch.results;
-};
 const incoming: IncomingReader = async (subject, cursor) => {
   const read = await call<GetResult>("post", `${P}/get`, {
     body: getBody({ ref: subject, coordinate: C, detail: "incoming", limit: INCOMING_PAGE, ...(cursor ? { cursor } : {}) }),

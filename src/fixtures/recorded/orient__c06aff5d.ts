@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core 4b93ac12afc3d8bb8477e96c2062e91b073076e9 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient fcb1bafd
 import { defineFixture } from "../fixture";
 
@@ -26,7 +26,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-19T22:16:28.751168Z",
+    "evaluation_time": "2026-10-20T21:15:29.835921Z",
     "section": "lines",
     "lines": [
       {
@@ -106,8 +106,9 @@ export default defineFixture({
         "procedure": "Procedure:security.osv-applicability",
         "authority": "propose",
         "trigger": "cron",
-        "enablement": "running",
-        "due": 0,
+        "enablement": "stopped",
+        "triggers_inactive": "not enabled",
+        "due": 1,
         "waiting": 0
       },
       {

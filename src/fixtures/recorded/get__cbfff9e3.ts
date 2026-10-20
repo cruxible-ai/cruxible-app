@@ -1,4 +1,4 @@
-// Recorded from cruxible-core f42e30daa0b62e7d98dbf3bbcd72072f928495c1 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core 4b93ac12afc3d8bb8477e96c2062e91b073076e9 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get 4d1634f8
 import { defineFixture } from "../fixture";
 
@@ -48,6 +48,6 @@ export default defineFixture({
       "git_oid": "97040dbfdd1e",
       "generation": 58
     },
-    "evaluation_time": "2026-10-19T22:16:32.519542Z"
+    "evaluation_time": "2026-10-20T21:15:28.697613Z"
   }
 });

@@ -117,6 +117,31 @@ describe("recorded gate world", () => {
     expect(screen.getByRole("button", { name: /security\.job/ })).toBeInTheDocument();
   });
 
+  it("kind page: security.job with keys, ClaimTypes, evidence and settlers", async () => {
+    renderApp(`${I}/kinds/security.job`, RECORDED);
+    expect(await screen.findByRole("heading", { name: "security.job" })).toBeInTheDocument();
+    const m = within(screen.getByRole("main"));
+    expect(await m.findByText(/One job of a workflow/)).toBeInTheDocument();
+    expect(m.getAllByText("workflow_ref").length).toBeGreaterThan(1); // a key, and a ClaimType row
+    expect(m.getByText("ClaimTypes (9)")).toBeInTheDocument();
+    const workflow = within(m.getByText("workflow", { selector: "td" }).closest("tr")!);
+    expect(workflow.getByRole("link", { name: "→ security.workflow" })).toHaveAttribute("href", `${I}/kinds/security.workflow`);
+    expect(workflow.getByRole("link", { name: "security.repo-snapshot-v1" })).toHaveAttribute(
+      "href",
+      `${I}/contracts/security.repo-snapshot-v1`,
+    );
+  });
+
+  it("contract page: security.repo-snapshot-v1 with its landing Triggers, Lines and 17 admitting ClaimTypes", async () => {
+    renderApp(`${I}/contracts/security.repo-snapshot-v1`, RECORDED);
+    expect(await screen.findByRole("heading", { name: "security.repo-snapshot-v1" })).toBeInTheDocument();
+    const m = within(screen.getByRole("main"));
+    expect(m.getByText("github.repo.snapshot")).toBeInTheDocument();
+    expect(m.getByText("admitted by 17 ClaimTypes, required by", { exact: false })).toBeInTheDocument();
+    expect(await m.findByText("security.harden-on-snapshot")).toBeInTheDocument();
+    expect(m.getAllByRole("link", { name: "security.harden" })[0]).toHaveAttribute("href", `${I}/lines/security.harden`);
+  });
+
   it("proposals and a review", async () => {
     renderApp(`${I}/proposals?status=settled`, RECORDED);
     expect(await screen.findByText("50 on this page")).toBeInTheDocument();
