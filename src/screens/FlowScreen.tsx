@@ -110,19 +110,19 @@ export function FlowScreen() {
         </p>
         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
           <span>
-            <span className="font-mono text-zinc-200">{count("source")}</span> sources
+            <span className="font-mono text-zinc-200">{count("source")}</span> {count("source") === 1 ? "source" : "sources"}
           </span>
           <span>
-            <span className="font-mono text-zinc-200">{count("contract")}</span> contracts
+            <span className="font-mono text-zinc-200">{count("contract")}</span> {count("contract") === 1 ? "contract" : "contracts"}
           </span>
           <span>
-            <span className="font-mono text-zinc-200">{count("trigger")}</span> landing Triggers
+            <span className="font-mono text-zinc-200">{count("trigger")}</span> {count("trigger") === 1 ? "landing Trigger" : "landing Triggers"}
           </span>
           <span>
-            <span className="font-mono text-zinc-200">{count("claim_type")}</span> ClaimTypes taking Captures
+            <span className="font-mono text-zinc-200">{count("claim_type")}</span> {count("claim_type") === 1 ? "ClaimType taking Captures" : "ClaimTypes taking Captures"}
           </span>
           <span>
-            <span className="font-mono text-zinc-200">{admissions.length}</span> admissions,{" "}
+            <span className="font-mono text-zinc-200">{admissions.length}</span> {admissions.length === 1 ? "admission" : "admissions"},{" "}
             <span className="text-amber-400/90">{admissions.filter((e) => e.required).length} required</span>
           </span>
           {focus && (
