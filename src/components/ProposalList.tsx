@@ -61,23 +61,27 @@ function ProposalRow({ entry }: { entry: Entry }) {
 }
 
 /** A proposal's change set and reason, from one get (expanded rows). */
-export function ProposalPeek({ id }: { id: string }) {
+export function ProposalPeek({ id, indent = "ml-6", skipWords }: { id: string; indent?: string; skipWords?: string | null | undefined }) {
   const read = useCard(id);
   const card = cardOf(read.data, "proposal");
-  if (read.isPending) return <div className="ml-6 animate-pulse text-[12px] text-zinc-600">Reading…</div>;
-  if (read.error) return <div className="ml-6 text-[12px] text-red-400/80">{read.error.message}</div>;
+  if (read.isPending) return <div className={`${indent} animate-pulse text-[12px] text-zinc-500`}>Reading…</div>;
+  if (read.error) return <div className={`${indent} text-[12px] text-red-400/80`}>{read.error.message}</div>;
   if (!card) return null;
   const changes = card.changes ?? [];
+  const words = card.rationale ?? card.reason;
   return (
-    <div className="ml-6 mt-1 space-y-0.5 text-[12px]">
-      {(card.rationale ?? card.reason) && <div className="whitespace-pre-wrap text-zinc-300">{card.rationale ?? card.reason}</div>}
+    <div className={`${indent} mt-1.5 space-y-0.5 border-l border-zinc-800 pl-3 text-[12px]`}>
+      {words && words !== skipWords && <div className="whitespace-pre-wrap text-zinc-300">{words}</div>}
       {changes.slice(0, 12).map((change) => (
-        <div key={change.path} className="flex gap-2">
+        <div key={change.path} className="grid grid-cols-[4rem_minmax(0,1fr)] items-baseline gap-x-2">
           <span className="text-zinc-500">{change.change}</span>
-          <RefLink value={change.path} />
+          <span className="min-w-0 break-all">
+            <RefLink value={change.path} />
+          </span>
         </div>
       ))}
-      {changes.length > 12 && <div className="text-zinc-600">+{changes.length - 12} more on the proposal page</div>}
+      {changes.length > 12 && <div className="text-zinc-500">+{changes.length - 12} more on the proposal page</div>}
     </div>
   );
 }
+

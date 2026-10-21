@@ -18,7 +18,8 @@ describe("Ledger", () => {
     expect(main.getByRole("button", { name: "Next page →" })).toBeInTheDocument();
     fireEvent.click(main.getByRole("button", { name: "Expand generation 42" }));
     expect(await main.findByRole("link", { name: /CLM-0+a3/ })).toBeInTheDocument();
-    expect(main.getAllByText("Vendor advisory says rel-1 never shipped the build.").length).toBeGreaterThan(1);
+    // the reason shows once: on the row, not again in its change set
+    expect(main.getAllByText("Vendor advisory says rel-1 never shipped the build.").length).toBeGreaterThan(0);
   });
 });
 
