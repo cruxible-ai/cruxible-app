@@ -12,7 +12,7 @@ describe("Kind page", () => {
     expect(await main.findByText("Whether one release is affected by one CVE: one per pair.")).toBeInTheDocument();
     expect(main.getByText("release_id")).toBeInTheDocument();
     expect(main.getByText("(unique)")).toBeInTheDocument();
-    const status = within(main.getByText("status", { selector: "td" }).closest("tr")!);
+    const status = within(main.getByText("status", { selector: "td > span" }).closest("tr")!);
     expect(status.getByText("enum")).toBeInTheDocument();
     expect(status.getByText("captured")).toBeInTheDocument();
     expect(status.getByRole("link", { name: "security.osv-applicability-v1" })).toHaveAttribute(
@@ -30,7 +30,7 @@ describe("Kind page", () => {
     expect(status.getByText("2", { selector: "td" })).toBeInTheDocument();
     // contested and stale (K2) are post-v1: dashes
     expect(status.getAllByTitle(/^K2:/)).toHaveLength(2);
-    const release = within(main.getByText("release", { selector: "td" }).closest("tr")!);
+    const release = within(main.getByText("release", { selector: "td > span" }).closest("tr")!);
     expect(release.getByRole("link", { name: "→ security.release" })).toHaveAttribute("href", "/i/inst_fixture/kinds/security.release");
     expect(release.getByText("review")).toBeInTheDocument();
     // the kit reports release.json as edited locally
@@ -40,9 +40,9 @@ describe("Kind page", () => {
   it("marks a refusing slot and a format with an upgrade", async () => {
     renderApp("/i/inst_fixture/kinds/security.vulnerability");
     const main = within(await screen.findByRole("main"));
-    const cve = within((await main.findByText("cve_id", { selector: "td" })).closest("tr")!);
+    const cve = within((await main.findByText("cve_id", { selector: "td > span" })).closest("tr")!);
     expect(cve.getByText("refuses rivals")).toBeInTheDocument();
-    const related = within(main.getByText("related", { selector: "td" }).closest("tr")!);
+    const related = within(main.getByText("related", { selector: "td > span" }).closest("tr")!);
     expect(related.getByText("all answer")).toBeInTheDocument();
     expect(related.getByText("upgrade")).toBeInTheDocument();
     expect(await related.findByText("33%")).toBeInTheDocument();

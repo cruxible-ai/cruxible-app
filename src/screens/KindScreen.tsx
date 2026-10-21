@@ -11,7 +11,8 @@ import {
   useSubjectKinds,
 } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
-import { Chip } from "@/components/Chip";
+import { actionChipClass, Chip } from "@/components/Chip";
+import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { ClaimTypeTable } from "@/components/ontology/ClaimTypeTable";
 import { useAtLink } from "@/lib/at";
@@ -71,41 +72,56 @@ export function KindScreen() {
   if (!known) return <EmptyState>No Subject kind {kind} at this generation.</EmptyState>;
 
   return (
-    <div className="max-w-7xl space-y-3">
-      <header>
-        <div className="text-[10px] uppercase tracking-wide text-zinc-500">Subject kind</div>
-        <h1 className="font-mono text-[17px] font-semibold text-zinc-100">{kind}</h1>
-        {kindCard?.description && <p className="mt-1 max-w-3xl text-[13px] text-zinc-400">{kindCard.description}</p>}
-        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
-          {subjects !== undefined && (
-            <span>
-              <span className="font-mono text-zinc-200">{subjects}</span> live Subjects
-            </span>
-          )}
-          {kindCard && <Chip value={kindCard.lifecycle} />}
-          <span>
-            {rule?.rule === "minted" ? (
-              "minted ids"
-            ) : rule ? (
-              <>
-                keyed by{" "}
-                {(rule.keys ?? []).map((key) => (
-                  <span key={key} className="mr-1.5 font-mono text-zinc-300">
-                    {key.startsWith(`${kind}.`) ? key.slice(kind.length + 1) : key}
-                  </span>
-                ))}
-                {rule.uniqueness && <span className="text-zinc-600">({rule.uniqueness})</span>}
-              </>
-            ) : (
-              "identity undeclared"
-            )}
-          </span>
-          <span>{rule?.kit ? <>kit <span className="font-mono text-zinc-300">{rule.kit}</span></> : "authored in this instance"}</span>
-          <Link to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(kind)}`)} className="text-zinc-400 hover:text-zinc-200">
-            on the type map →
+    <Page>
+      <PageHeader
+        kind="Subject kind"
+        title={kind}
+        mono
+        summary={kindCard?.description ?? undefined}
+        actions={
+          <Link to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(kind)}`)} className={actionChipClass}>
+            On the type map
           </Link>
-        </div>
-      </header>
+        }
+        facts={
+          <>
+            {subjects !== undefined && (
+              <Fact label="Live Subjects">
+                <span className="font-mono">{subjects}</span>
+              </Fact>
+            )}
+            {kindCard && (
+              <Fact label="State">
+                <Chip value={kindCard.lifecycle} />
+              </Fact>
+            )}
+            <Fact label="Identity">
+              {rule?.rule === "minted" ? (
+                "minted ids"
+              ) : rule ? (
+                <>
+                  keyed by{" "}
+                  {(rule.keys ?? []).map((key) => (
+                    <span key={key} className="mr-1.5 font-mono text-zinc-100">
+                      {key.startsWith(`${kind}.`) ? key.slice(kind.length + 1) : key}
+                    </span>
+                  ))}
+                  {rule.uniqueness && <span className="text-zinc-500">({rule.uniqueness})</span>}
+                </>
+              ) : (
+                "identity undeclared"
+              )}
+            </Fact>
+            <Fact label="Kit">{rule?.kit ? <span className="font-mono">{rule.kit}</span> : "authored in this instance"}</Fact>
+            <Fact label="ClaimTypes">
+              <span className="font-mono">{rows.length}</span>
+            </Fact>
+            <Fact label="Pointed at by">
+              <span className="font-mono">{pointing.length}</span> {pointing.length === 1 ? "ClaimType" : "ClaimTypes"}
+            </Fact>
+          </>
+        }
+      />
 
       <Panel
         title={`ClaimTypes (${rows.length})`}
@@ -120,6 +136,7 @@ export function KindScreen() {
         ) : (
           <ClaimTypeTable
             kind={kind}
+            kindKit={rule?.kit}
             rows={rows}
             open={open}
             onToggle={toggle}
@@ -131,10 +148,10 @@ export function KindScreen() {
         )}
       </Panel>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <Panel title="Pointed at by" meta={<span>{pointing.length}</span>}>
           {pointing.length === 0 && <EmptyState>No ClaimType points at this kind.</EmptyState>}
-          <div className="space-y-0.5 text-[12px]">
+          <div className="space-y-1 text-[13px]">
             {pointing.map((row) => {
               const from = (row.subject_kinds ?? [])[0] ?? "";
               return (
@@ -150,7 +167,7 @@ export function KindScreen() {
         </Panel>
         <Panel title="Evidence contracts" meta={<span>{evidence.length}</span>}>
           {evidence.length === 0 && <EmptyState>No ClaimType on this kind admits Captures.</EmptyState>}
-          <div className="space-y-0.5 text-[12px]">
+          <div className="space-y-1 text-[13px]">
             {evidence.map((contract) => {
               const admitting = rows.filter((row) => (row.evidence ?? []).includes(contract));
               return (
@@ -167,7 +184,7 @@ export function KindScreen() {
           </div>
         </Panel>
       </div>
-    </div>
+    </Page>
   );
 }
 

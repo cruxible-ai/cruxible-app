@@ -128,7 +128,7 @@ describe("recorded gate world", () => {
     expect(await m.findByText(/One job of a workflow/)).toBeInTheDocument();
     expect(m.getAllByText("workflow_ref").length).toBeGreaterThan(1); // a key, and a ClaimType row
     expect(m.getByText("ClaimTypes (9)")).toBeInTheDocument();
-    const workflow = within(m.getByText("workflow", { selector: "td" }).closest("tr")!);
+    const workflow = within(m.getByText("workflow", { selector: "td > span" }).closest("tr")!);
     expect(workflow.getByRole("link", { name: "→ security.workflow" })).toHaveAttribute("href", `${I}/kinds/security.workflow`);
     expect(workflow.getByRole("link", { name: "security.repo-snapshot-v1" })).toHaveAttribute(
       "href",
@@ -137,7 +137,7 @@ describe("recorded gate world", () => {
     expect(workflow.getByText("rivals conflict")).toBeInTheDocument();
     expect(workflow.getByText("v8")).toBeInTheDocument();
     // 26 security.job Subjects; needs: 12 live Claims on 10 of them
-    const needs = within(m.getByText("needs", { selector: "td" }).closest("tr")!);
+    const needs = within(m.getByText("needs", { selector: "td > span" }).closest("tr")!);
     expect(await needs.findByText("38%")).toHaveAttribute("title", "10 of 26 live Subjects");
     expect(needs.getByText("12", { selector: "td" })).toBeInTheDocument();
     expect(needs.getByText("all answer")).toBeInTheDocument();
