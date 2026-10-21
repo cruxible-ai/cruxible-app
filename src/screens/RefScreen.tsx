@@ -29,17 +29,16 @@ export function RefScreen() {
       </div>
     );
   }
+  const full = read.data?.ref ?? formatRef(ref);
+  // ids that fit stay whole; digests and run ids shorten, whole underneath with copy
+  const long = full.length > 40;
   return (
     <Page>
       <PageHeader
         kind={refKindLabel(ref)}
-        title={<span title={read.data?.ref ?? formatRef(ref)}>{shortId(read.data?.ref ?? formatRef(ref), 16)}</span>}
+        title={<span title={full}>{long ? shortId(full, 16) : full}</span>}
         mono
-        id={
-          shortId(read.data?.ref ?? formatRef(ref), 16) !== (read.data?.ref ?? formatRef(ref)) ? (
-            <ShortId value={read.data?.ref ?? formatRef(ref)} keep={64} className="text-zinc-500" />
-          ) : undefined
-        }
+        id={long ? <ShortId value={full} keep={128} className="text-zinc-500" /> : undefined}
         facts={
           read.data && (
             <>
