@@ -53,7 +53,8 @@ describe("Run page", () => {
     expect(await main.findByText("guard_refused")).toBeInTheDocument();
     expect(main.getByText("4 of 6 done")).toBeInTheDocument();
     expect(main.getByText("The settle target is outside the mandate's ClaimType scope.")).toBeInTheDocument();
-    expect(main.getByRole("link", { name: `sha256:${"a".repeat(64)}` })).toHaveAttribute(
+    // the proposal id is shown shortened (full id on hover)
+    expect(main.getByRole("link", { name: /^sha256:a{12}…$/ })).toHaveAttribute(
       "href",
       `/i/inst_fixture/p/sha256%3A${"a".repeat(64)}`,
     );
