@@ -25,7 +25,8 @@ describe("Next", () => {
     // unnamed detail keys fall back to JSON on demand
     expect(main.getByRole("button", { name: "more detail" })).toBeInTheDocument();
     // proposal rows open the proposal page
-    expect(main.getByRole("link", { name: `sha256:${"a".repeat(64)}` })).toHaveAttribute(
+    // shown shortened (full id on hover)
+    expect(main.getByRole("link", { name: /^sha256:a{12}…$/ })).toHaveAttribute(
       "href",
       `/i/inst_fixture/p/sha256%3A${"a".repeat(64)}`,
     );

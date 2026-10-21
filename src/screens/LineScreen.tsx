@@ -16,7 +16,7 @@ import { Chip } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
-import { NextItemRow } from "@/components/next/NextItemRow";
+import { NextGroups } from "@/components/next/NextItemRow";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime } from "@/lib/text";
@@ -200,11 +200,7 @@ function LineNextPanel({ line }: { line: string }) {
   if (!next.data || rows.length === 0) return null;
   return (
     <Panel title="Next" meta={<span>{rows.length} on the first page</span>}>
-      <div className="divide-y divide-zinc-800/60">
-        {rows.map((item) => (
-          <NextItemRow key={item.item_id} item={item} />
-        ))}
-      </div>
+      <NextGroups items={rows} />
     </Panel>
   );
 }

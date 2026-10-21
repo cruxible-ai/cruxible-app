@@ -2,7 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import { toggleChipClass } from "@/components/Chip";
 import { Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
-import { NextItemRow } from "@/components/next/NextItemRow";
+import { NextGroups } from "@/components/next/NextItemRow";
 import { PageNav } from "@/components/next/PageNav";
 import { useNextPage } from "@/components/next/useNextPage";
 import { BELIEF_TABS, FAMILY_LABEL, familyOf, REASONS, type BeliefTab } from "@/lib/next-reasons";
@@ -59,11 +59,7 @@ export function BeliefsScreen() {
       {page.data && (
         <Panel title={FAMILY_LABEL[tab]} meta={<span>{rows.length} on this page of {items.length}</span>}>
           {rows.length === 0 && <EmptyState>None on this page.</EmptyState>}
-          <div className="divide-y divide-zinc-800/60">
-            {rows.map((item) => (
-              <NextItemRow key={item.item_id} item={item} />
-            ))}
-          </div>
+          <NextGroups items={rows} />
         </Panel>
       )}
     </Page>
