@@ -36,8 +36,9 @@ describe("Proposals and review", () => {
     renderApp(`/i/inst_fixture/p/${encodeURIComponent(ACCEPTED)}`);
     const main = within(await screen.findByRole("main"));
     expect(await main.findByText("object.value")).toBeInTheDocument();
-    expect(main.getByText("absent")).toBeInTheDocument();
-    expect(main.getByText("independent-principal ×1")).toBeInTheDocument();
+    // a created member lists its new values (no "absent" before side)
+    expect(main.getAllByText("Created").length).toBeGreaterThan(0);
+    expect(main.getByText(/independent-principal ×1/)).toBeInTheDocument();
     expect(main.getByText("security-lead")).toBeInTheDocument();
     expect(main.getByText(/submitted by release-owner/)).toBeInTheDocument();
     expect(main.getByText(/needs a body-reading credential/)).toBeInTheDocument();

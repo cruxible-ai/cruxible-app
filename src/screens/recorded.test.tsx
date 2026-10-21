@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 import { RECORDED } from "@/fixtures/handlers";
 import { renderApp } from "@/test/render";
@@ -175,6 +175,8 @@ describe("recorded gate world", () => {
     cleanup();
     renderApp(`${I}/p/${encodeURIComponent(REVIEWED)}`, RECORDED);
     const m = await main();
+    // a member's field changes sit behind its disclosure when there are many
+    fireEvent.click(await m.findByRole("button", { name: /field changes/ }));
     expect(await m.findByText("/artifact_format")).toBeInTheDocument();
   });
 });
