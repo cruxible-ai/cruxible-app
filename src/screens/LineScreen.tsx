@@ -14,12 +14,16 @@ import { NEXT_PAGE } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
+import { Fact, Page, PageHeader } from "@/components/Page";
+import { LongText } from "@/components/LongText";
+import { ShortId } from "@/components/ShortId";
+import { Table, Td, Th, trClass } from "@/components/Table";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextGroups } from "@/components/next/NextItemRow";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
-import { formatDateTime } from "@/lib/text";
+import { formatDateTime, formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 const READINGS_PAGE = 50;
@@ -45,41 +49,71 @@ export function LineScreen() {
   if (card.error) return <LoadState error={card.error} />;
   if (!lineCard) return <LoadState error={new Error(`Line:${line} did not resolve to a Line`)} />;
   const procedure = lineCard.procedure.replace(/^Procedure:/, "");
+  const enablement = (lineCard.enablements ?? [])[0];
   return (
-    <div className="max-w-6xl space-y-3">
-      <header>
-        <div className="text-[10px] uppercase tracking-wide text-zinc-500">Line</div>
-        <h1 className="font-mono text-[17px] font-semibold text-zinc-100">{line}</h1>
-        <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
-          <Chip value={lineCard.lifecycle} />
-          <span>
-            max authority <Chip value={lineCard.authority} tone={lineCard.authority === "settle" ? "violet" : "blue"} />
-          </span>
-          <span>
-            Procedure{" "}
-            <RefLink value={`Procedure:${procedure}`}>
-              <span className="font-mono text-[12px]">{procedure}</span>
-            </RefLink>
-          </span>
-          <span>trigger {lineCard.trigger}</span>
-          {lineCard.triggers_inactive && <span className="text-amber-400/90">triggers {lineCard.triggers_inactive}</span>}
-          <span className="font-mono text-[11px]" title={lineCard.identity_digest}>
-            {lineCard.identity_digest.slice(0, 19)}…
-          </span>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        kind="Line"
+        title={line}
+        mono
+        summary={<LineSummary procedure={procedure} />}
+        facts={
+          <>
+            <Fact label="State">
+              <span className="inline-flex gap-3">
+                <Chip value={lineCard.lifecycle} />
+                {enablement && (
+                  <Chip value={enablement.state} tone={enablement.state === "running" ? "green" : enablement.state === "stalled" ? "red" : "zinc"} />
+                )}
+              </span>
+            </Fact>
+            <Fact label="Max authority">
+              <Chip value={lineCard.authority} tone={lineCard.authority === "settle" ? "violet" : "blue"} />
+            </Fact>
+            <Fact label="Procedure">
+              <RefLink value={`Procedure:${procedure}`}>
+                <span className="font-mono text-[13px]">{procedure}</span>
+              </RefLink>
+            </Fact>
+            <Fact label="Trigger">
+              {lineCard.trigger}
+              {lineCard.triggers_inactive && <span className="text-amber-400/90"> ({lineCard.triggers_inactive})</span>}
+            </Fact>
+            <Fact label="Runs">
+              <span className="font-mono">{lineCard.runs_total ?? 0}</span>
+            </Fact>
+            <Fact label="Due / waiting">
+              <span className="font-mono">
+                <span className={(lineCard.due ?? 0) > 0 ? "text-amber-400" : undefined}>{lineCard.due ?? 0}</span> / {lineCard.waiting ?? 0}
+              </span>
+            </Fact>
+            <Fact label="Identity">
+              <ShortId value={lineCard.identity_digest} className="text-zinc-200" />
+            </Fact>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <OperationsPanel card={lineCard} />
         <RunsPanel line={line} total={lineCard.runs_total ?? 0} />
       </div>
       <LineNextPanel line={line} />
-      <ProcedurePanel procedure={procedure} />
-      <MandatesPanel procedure={procedure} />
-      <ReadingsPanel procedure={procedure} />
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+        <MandatesPanel procedure={procedure} />
+        <ProcedurePanel procedure={procedure} />
+      </div>
       <InboxPanel line={line} />
-    </div>
+    </Page>
   );
+}
+
+/** What the Line does, in its Procedure's own words. */
+function LineSummary({ procedure }: { procedure: string }) {
+  const read = useCard(`Procedure:${procedure}`);
+  const card = cardOf(read.data, "procedure");
+  if (!card?.description) return null;
+  return <LongText text={card.description} lines={3} className="t-lede" />;
 }
 
 type LineCard = Schemas["GetLineCard"];
@@ -87,7 +121,7 @@ type LineCard = Schemas["GetLineCard"];
 function OperationsPanel({ card }: { card: LineCard }) {
   return (
     <Panel title="Triggers and enablement" meta={<span>{card.due ?? 0} due · {card.waiting ?? 0} waiting</span>}>
-      <div className="space-y-0.5 text-[12px]">
+      <div className="space-y-0.5 text-[13px]">
         {(card.triggers ?? []).map((trigger) => (
           <div key={trigger.trigger} className="flex flex-wrap gap-x-3">
             <RefLink value={trigger.trigger} />
@@ -99,7 +133,7 @@ function OperationsPanel({ card }: { card: LineCard }) {
       </div>
       <div className="mt-2 space-y-1 text-[12px]">
         {(card.enablements ?? []).map((arm) => (
-          <div key={arm.enablement} className="border-t border-zinc-900 pt-1">
+          <div key={arm.enablement} className="border-t border-zinc-800/70 pt-1.5">
             <div className="flex flex-wrap items-baseline gap-x-3">
               <Chip value={arm.state} tone={arm.state === "running" ? "green" : arm.state === "stalled" ? "red" : "zinc"} />
               <span className="text-zinc-400">
@@ -111,10 +145,10 @@ function OperationsPanel({ card }: { card: LineCard }) {
                 )}
               </span>
               <span className="text-zinc-500" title={arm.enabled_at}>
-                since {formatDateTime(arm.enabled_at)}
+                since {formatWhen(arm.enabled_at)}
               </span>
               <span className="text-zinc-500" title={arm.evaluated_until}>
-                evaluated until {formatDateTime(arm.evaluated_until)}
+                evaluated until {formatWhen(arm.evaluated_until)}
               </span>
               {(arm.pending_automatic ?? 0) + (arm.pending_explicit ?? 0) > 0 && (
                 <span className="text-zinc-500">
@@ -122,7 +156,12 @@ function OperationsPanel({ card }: { card: LineCard }) {
                 </span>
               )}
             </div>
-            {(arm.stop_reason || arm.detail) && <div className="text-amber-400/90">{arm.stop_reason ?? arm.detail}</div>}
+            {(arm.stop_reason || arm.detail) && (
+              <div className="text-amber-400/90">
+                <span className="text-zinc-500">{arm.stop_reason ? "stopped because " : ""}</span>
+                {arm.stop_reason ?? arm.detail}
+              </div>
+            )}
           </div>
         ))}
         {(card.enablements ?? []).length === 0 && <div className="text-zinc-600">Not enabled.</div>}
@@ -130,10 +169,12 @@ function OperationsPanel({ card }: { card: LineCard }) {
       {(card.occurrences ?? []).length > 0 && (
         <div className="mt-2 space-y-0.5 text-[12px]">
           {card.occurrences!.map((occurrence) => (
-            <div key={occurrence.occurrence} className="flex gap-3">
+            <div key={occurrence.occurrence} className="flex flex-wrap items-baseline gap-x-3">
               <Chip value={occurrence.state} tone={occurrence.state === "due" ? "amber" : "zinc"} />
-              <span className="font-mono text-zinc-400">{occurrence.occurrence}</span>
-              <span className="text-zinc-500">eligible {formatDateTime(occurrence.eligible_at)}</span>
+              <ShortId value={occurrence.occurrence} />
+              <span className="text-zinc-500" title={occurrence.eligible_at}>
+                eligible {formatWhen(occurrence.eligible_at)}
+              </span>
             </div>
           ))}
         </div>
@@ -172,9 +213,9 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
       {read.data && runs.length === 0 && <EmptyState>No runs yet.</EmptyState>}
-      <div className="space-y-0.5 text-[12px]">
+      <div className="space-y-1 text-[13px]">
         {runs.map((run) => (
-          <div key={run.run} className="flex flex-wrap items-baseline gap-x-3">
+          <div key={run.run} className="grid grid-cols-[minmax(9rem,max-content)_7rem_minmax(0,1fr)_auto] items-baseline gap-x-4">
             <Link
               to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)}
               className="font-mono text-zinc-200 hover:underline"
@@ -184,9 +225,9 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
             </Link>
             <Chip value={run.status} tone={RUN_TONE(run.status)} />
             <span className="text-zinc-500" title={run.started_at}>
-              {formatDateTime(run.started_at)}
+              {formatWhen(run.started_at)}
             </span>
-            <span className="text-zinc-500">{run.nodes_done} nodes</span>
+            <span className="text-right font-mono text-[12px] text-zinc-500">{run.nodes_done} nodes</span>
           </div>
         ))}
       </div>
@@ -209,15 +250,14 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
   const read = useCard(`Procedure:${procedure}`);
   const card = cardOf(read.data, "procedure");
   return (
-    <Panel title="Procedure track record and measurement reviews">
+    <Panel title="Track record and measurements">
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
       {card && (
-        <div className="space-y-2 text-[12px]">
-          {card.description && <div className="text-zinc-400">{card.description}</div>}
+        <div className="space-y-3 text-[13px]">
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Track record</div>
-            {(card.track_record ?? []).length === 0 && <div className="text-zinc-600">No promoted record yet.</div>}
+            <h3 className="mb-0.5 text-[12px] font-semibold text-zinc-300">Track record</h3>
+            {(card.track_record ?? []).length === 0 && <div className="text-zinc-500">No promoted record yet.</div>}
             {(card.track_record ?? []).map((record) => (
               <div key={record.promotion_digest} className="flex flex-wrap items-baseline gap-x-3">
                 <span className="font-mono text-zinc-300">{record.promotion}</span>
@@ -231,10 +271,10 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
             ))}
           </div>
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Measurement reviews</div>
-            {(card.measurement_reviews ?? []).length === 0 && <div className="text-zinc-600">No measurements declared.</div>}
+            <h3 className="mb-0.5 text-[12px] font-semibold text-zinc-300">Measurement reviews</h3>
+            {(card.measurement_reviews ?? []).length === 0 && <div className="text-zinc-500">No measurements declared.</div>}
             {(card.measurement_reviews ?? []).map((review) => (
-              <div key={review.measurement_name} className="border-t border-zinc-900 py-1">
+              <div key={review.measurement_name} className="border-t border-zinc-800/70 py-1 first:border-t-0">
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <span className="font-mono text-zinc-300">{review.measurement_name}</span>
                   <span className="text-zinc-500">{review.contract_id}</span>
@@ -254,6 +294,10 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
                 )}
               </div>
             ))}
+          </div>
+          <div>
+            <h3 className="mb-0.5 text-[12px] font-semibold text-zinc-300">Readings</h3>
+            <Readings procedure={procedure} />
           </div>
         </div>
       )}
@@ -343,17 +387,16 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
   );
 }
 
-function ReadingsPanel({ procedure }: { procedure: string }) {
+function Readings({ procedure }: { procedure: string }) {
   const [cursors, setCursors] = useState<string[]>([]);
   const read = useReadings(procedure, READINGS_PAGE, cursors[cursors.length - 1]);
   const instanceId = useInstanceId();
   const link = useAtLink();
   const data = read.data;
   return (
-    <Panel
-      title="Measurements and readings"
-      meta={
-        <span className="flex gap-2">
+    <div>
+      {(cursors.length > 0 || data?.cursor) && (
+      <div className="t-meta mb-1 flex gap-2">
           {cursors.length > 0 && (
             <button onClick={() => setCursors((c) => c.slice(0, -1))} className="hover:text-zinc-200">
               ← Newer
@@ -365,9 +408,8 @@ function ReadingsPanel({ procedure }: { procedure: string }) {
               Older →
             </button>
           )}
-        </span>
-      }
-    >
+      </div>
+      )}
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
       {data && (
@@ -380,32 +422,32 @@ function ReadingsPanel({ procedure }: { procedure: string }) {
               <span className="text-zinc-500">{contract.reading_count} readings</span>
             </div>
           ))}
-          {data.readings.length === 0 && <div className="text-zinc-600">No readings on this page.</div>}
+          {data.readings.length === 0 && <div className="text-zinc-500">No readings on this page.</div>}
           {data.readings.length > 0 && (
-            <table className="w-full text-left">
-              <thead className="text-zinc-600">
+            <Table>
+              <thead>
                 <tr>
                   {["Observed", "Measurement", "Verdict", "Grade", "Subject", "Value", "Run"].map((h) => (
-                    <th key={h} className="pr-3 font-medium">
-                      {h}
-                    </th>
+                    <Th key={h}>{h}</Th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {data.readings.map((reading) => (
-                  <tr key={reading.reading_id} className="border-t border-zinc-900 align-top">
-                    <td className="pr-3 text-zinc-500">{reading.observed_at ? formatDateTime(reading.observed_at) : "—"}</td>
-                    <td className="pr-3 font-mono text-zinc-300">{reading.measurement_name ?? "—"}</td>
-                    <td className="pr-3">
+                  <tr key={reading.reading_id} className={trClass}>
+                    <Td className="whitespace-nowrap text-zinc-500" title={reading.observed_at ?? undefined}>
+                      {reading.observed_at ? formatWhen(reading.observed_at) : "—"}
+                    </Td>
+                    <Td className="font-mono text-[12px] text-zinc-300">{reading.measurement_name ?? "—"}</Td>
+                    <Td>
                       <Chip value={reading.verdict} tone={reading.verdict === "satisfied" ? "green" : reading.verdict === "contradicted" ? "red" : "zinc"} />
-                    </td>
-                    <td className="pr-3 text-zinc-500">{reading.grade}</td>
-                    <td className="pr-3">
+                    </Td>
+                    <Td className="text-zinc-500">{reading.grade}</Td>
+                    <Td className="break-all">
                       <RefLink value={reading.subject.artifact_path} />
-                    </td>
-                    <td className="pr-3 text-zinc-300">{reading.value !== undefined && <ShownValue value={reading.value} />}</td>
-                    <td>
+                    </Td>
+                    <Td className="text-zinc-300">{reading.value !== undefined && <ShownValue value={reading.value} />}</Td>
+                    <Td className="whitespace-nowrap">
                       {reading.run_id && (
                         <Link
                           to={link(`/i/${instanceId}/runs/${encodeURIComponent(reading.run_id)}`)}
@@ -415,18 +457,18 @@ function ReadingsPanel({ procedure }: { procedure: string }) {
                           {shortRunId(reading.run_id)}
                         </Link>
                       )}
-                    </td>
+                    </Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           )}
           {(data.unavailable_reading_count ?? 0) > 0 && (
             <div className="text-amber-400/90">{data.unavailable_reading_count} readings' payloads are unavailable.</div>
           )}
         </div>
       )}
-    </Panel>
+    </div>
   );
 }
 
@@ -485,9 +527,7 @@ function InboxPanel({ line }: { line: string }) {
                   </span>
                 )}
               </div>
-              <div className="text-zinc-300">
-                <ShownValue value={entry.payload_preview} />
-              </div>
+              <InboxPreview value={entry.payload_preview} />
               {open === envelope.item_id && (
                 <div className="mt-1 border border-zinc-800 bg-zinc-900/40 p-1.5">
                   {item.isPending && <div className="animate-pulse text-zinc-600">Reading…</div>}
@@ -504,5 +544,24 @@ function InboxPanel({ line }: { line: string }) {
         })}
       </div>
     </Panel>
+  );
+}
+
+/**
+ * An inbox item's payload preview on one line: structured previews as
+ * compact JSON, truncated with the whole preview on hover; opening the item
+ * reads its full payload.
+ */
+function InboxPreview({ value }: { value: unknown }) {
+  const text =
+    typeof value === "string"
+      ? value
+      : typeof value === "object" && value !== null && typeof (value as { preview?: unknown }).preview === "string"
+        ? (value as { preview: string }).preview
+        : JSON.stringify(value);
+  return (
+    <div className="truncate font-mono text-[11px] text-zinc-400" title={text}>
+      {text}
+    </div>
   );
 }
