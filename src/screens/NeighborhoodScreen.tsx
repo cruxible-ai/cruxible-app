@@ -218,7 +218,7 @@ export function NeighborhoodScreen() {
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
       <header className="mb-3 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[17px] font-semibold text-zinc-100">Neighborhood</h1>
+        <h1 className="t-title">Neighborhood</h1>
         <RefLink value={ref} />
         <span className="flex gap-1">
           {Array.from({ length: NEIGHBORHOOD_MAX_DEPTH }, (_, i) => i + 1).map((d) => (

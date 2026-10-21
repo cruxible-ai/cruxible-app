@@ -93,7 +93,7 @@ export function StateGraphScreen() {
   return (
     <div className="flex h-full min-h-[85vh] flex-col">
       <header className="mb-2 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[17px] font-semibold text-zinc-100">State graph</h1>
+        <h1 className="t-title">State graph</h1>
         {graph.data && (
           <span className="text-[12px] text-zinc-500">
             {graph.data.nodes.length} Subjects · {graph.data.edges.length} Subject-valued Claims · {graph.data.pages}{" "}

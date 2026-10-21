@@ -221,8 +221,8 @@ export function TypeMapScreen() {
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
       <header className="mb-3 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[17px] font-semibold text-zinc-100">Type map</h1>
-        <span className="text-[12px] text-zinc-600">
+        <h1 className="t-title">Type map</h1>
+        <span className="t-meta">
           {graph.nodes.length} Subject kinds · {graph.edges.length} kind links · dashed = no Subjects ·
           click anything for its ClaimTypes
         </span>

@@ -103,7 +103,7 @@ export function FlowScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <h1 className="text-[17px] font-semibold text-zinc-100">Evidence flow</h1>
+        <h1 className="t-title">Evidence flow</h1>
         <p className="mt-1 max-w-3xl text-[13px] text-zinc-400">
           Where evidence comes from, the contracts its Captures land under, and what each contract feeds: the Triggers its
           landings fire and the ClaimTypes that admit it. Hover a node to trace it; focus keeps only its path.
