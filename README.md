@@ -46,10 +46,10 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | Evidence flow | sources → capture contracts → the Triggers their landings fire (and the Lines they start) and the ClaimTypes that admit them, in columns; hover traces a node's path, focus keeps only it |
 | Subject   | a Subject's card: every field's value and read flags, each Claim's verdict and contenders, capture admission; per Claim on expand its evidence (Captures, attestations, rationale), admission accounts and revisions; the field history, paged |
 | Neighborhood | a Subject's outgoing links (Subject-valued Claims), depth 1 or 2, at most 150 Subjects, plus the first page of what points at it; every node pages its incoming links |
-| Next      | the `next` queue, a page of 100 at a time, grouped by severity, filterable by family; each reason renders its own detail fields; repairs show as text with their CLI command |
+| Next      | the `next` queue, a page of 100 at a time, grouped by severity and then by reason (a repair or detail shared by a whole group shows once), filterable by family; each reason renders its own detail fields; repairs show as text with their CLI command |
 | Beliefs   | contested, stale and drifted beliefs: tabs over the `next` page in hand |
 | Ledger    | accepted generations newest first: sequence (opens the instance pinned there), oid, proposer, approvals, reason, member count; a row expands to its change set |
-| Proposals | proposals by status; each opens its review: members with field deltas and prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
+| Proposals | proposals by status; each opens its review: the proposal's words and a summary first, each member as what it changes (ClaimType, Subject, value before and after) with its raw field deltas behind a disclosure, prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
 | Lines     | every Line: Procedure, trigger, max authority, mandates, enablement, last run, inbox unread, `next` rows |
 | Line      | triggers, enablements, occurrences, runs (paged), the Procedure's track record, measurement reviews and resolution dispositions, readings (paged), mandate scope and condition query, the Line's inbox (paged) |
 | Run       | nodes, the terminal refusal, terminal egress with the proposal produced, Captures read, receipt and attribution (withheld where the credential may not see them) |
