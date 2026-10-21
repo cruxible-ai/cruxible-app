@@ -1,9 +1,10 @@
 import { useState } from "react";
 import type { NextItem } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
+import { CountsMark } from "@/components/CountsMark";
 import { RefLink } from "@/components/RefLink";
 import { parseRef } from "@/lib/cruxible-ref";
-import { captureHandle, REASONS, splitDetail, type FieldSpec } from "@/lib/next-reasons";
+import { captureHandle, detailRecord, REASONS, splitDetail, type FieldSpec } from "@/lib/next-reasons";
 import { formatDateTime, formatWhen } from "@/lib/text";
 
 export const SEVERITY_TONE = { blocking: "red", repair: "amber", warning: "zinc" } as const;
@@ -24,6 +25,7 @@ function FieldValue({ spec, value }: { spec: FieldSpec; value: unknown }) {
     );
   }
   if (spec.kind === "count" && typeof value === "number") return <span className="font-mono">{value}</span>;
+  if (spec.kind === "words" && typeof value === "string") return <span>{value.replaceAll("_", " ")}</span>;
   if (Array.isArray(value)) {
     return (
       <span className="inline-flex flex-wrap gap-x-2">
@@ -102,9 +104,14 @@ export function NextItemRow({
   const [raw, setRaw] = useState(false);
   const meta = REASONS[item.reason];
   const split = splitDetail(item.reason, item.detail);
-  const fields = split.fields.filter(({ spec }) => !sharedFields.has(spec.key));
+  // A Claim field naming the row's own subject is already the row's link.
+  const fields = split.fields.filter(
+    ({ spec, value }) => !sharedFields.has(spec.key) && !(spec.kind === "claim" && `Claim:${String(value)}` === item.subject_identity),
+  );
   const rest = split.rest;
   const related = item.related_identities ?? [];
+  const record = detailRecord(item.detail);
+  const counts = record && meta.counts ? meta.counts(record) : null;
   return (
     <div className="py-2 text-[13px] first:pt-0 last:pb-0">
       <div className={grouped ? "grid grid-cols-[minmax(10rem,max-content)_minmax(0,1fr)_auto] items-baseline gap-x-5" : "flex flex-wrap items-baseline gap-x-5 gap-y-1"}>
@@ -139,6 +146,11 @@ export function NextItemRow({
             </span>
           </span>
         ))}
+        {counts && (
+          <span className="text-[12px]">
+            <CountsMark counts={counts.counts} reason={counts.reason} />
+          </span>
+        )}
         </span>
         {rest !== null ? (
           <button onClick={() => setRaw((v) => !v)} className="ml-auto whitespace-nowrap text-[12px] text-zinc-500 hover:text-zinc-200" aria-expanded={raw}>

@@ -52,6 +52,23 @@ describe("Beliefs", () => {
     expect(await screen.findByText(REASONS.claim_stale_evidence.label)).toBeInTheDocument();
   });
 
+  it("resurfaces a recorded contradiction with its basis and note, and says the verdict does not move", async () => {
+    renderApp("/i/inst_fixture/beliefs");
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("NVD lists this record under a different CVE id.")).toBeInTheDocument();
+    expect(main.getByText("examined existing")).toBeInTheDocument();
+    // the row is about the Claim: its claim field is not repeated
+    expect(main.queryByText("claim")).toBeNull();
+    expect(main.getByText("doesn't count")).toBeInTheDocument();
+    expect(
+      main.getByText("recorded, and the ClaimType has no consequence policy: the verdict does not move"),
+    ).toBeInTheDocument();
+    // the row citing a Capture names it and carries no such mark
+    expect(main.getByRole("link", { name: "CAP-7c1e9a3b5d7f" })).toBeInTheDocument();
+    expect(main.getAllByText("doesn't count")).toHaveLength(1);
+    expect(main.getByText(/counts toward the verdict only once accepted citing a Capture/)).toBeInTheDocument();
+  });
+
   it("explains why the drifted tab is empty for a console with no workspace", async () => {
     renderApp("/i/inst_fixture/beliefs?tab=drifted");
     expect(await screen.findByText(/Drift is observed from a workspace/)).toBeInTheDocument();

@@ -33,7 +33,7 @@ export const FAMILY_LABEL: Record<NextFamily, string> = {
 };
 
 /** How a detail field renders. */
-export type FieldKind = "text" | "count" | "time" | "ref" | "capture" | "claim" | "list" | "digest";
+export type FieldKind = "text" | "words" | "count" | "time" | "ref" | "capture" | "claim" | "list" | "digest";
 
 export interface FieldSpec {
   key: string;
@@ -41,13 +41,31 @@ export interface FieldSpec {
   kind: FieldKind;
 }
 
+/** Whether the row's attestation counts toward the verdict, when its detail says. */
+export interface CountsNote {
+  counts: boolean;
+  reason: string;
+}
+
 export interface ReasonMeta {
   label: string;
   family: NextFamily;
   fields: FieldSpec[];
+  /** What the row's detail implies for the verdict, in words. */
+  counts?: (detail: Record<string, unknown>) => CountsNote | null;
 }
 
 const f = (key: string, label: string, kind: FieldKind = "text"): FieldSpec => ({ key, label, kind });
+
+/** An attestation `claim attest` recorded and next resurfaces: the Claim, its Capture if any, who, when, basis, note. */
+const DOOR_FIELDS: FieldSpec[] = [
+  f("claim_id", "claim", "claim"),
+  f("capture_digest", "capture", "capture"),
+  f("attesting_principal", "by"),
+  f("attested_at", "at", "time"),
+  f("attestation_basis", "basis", "words"),
+  f("note", "note"),
+];
 
 export const REASONS: Record<NextReason, ReasonMeta> = {
   claim_conflicted: {
@@ -58,12 +76,18 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   claim_contradicting_evidence_available: {
     label: "Contradicting evidence attested",
     family: "contested",
-    fields: [f("claim_id", "claim", "claim"), f("capture_digest", "capture", "capture"), f("attesting_principal", "by"), f("attested_at", "at", "time"), f("stance", "stance")],
+    fields: [...DOOR_FIELDS, f("stance", "stance")],
+    // Without a Capture the row is a recorded contradiction of a Claim whose
+    // ClaimType has no consequence policy: resurfaced, the verdict does not move.
+    counts: (detail) =>
+      detail.capture_digest === undefined
+        ? { counts: false, reason: "recorded, and the ClaimType has no consequence policy: the verdict does not move" }
+        : null,
   },
   claim_new_evidence_unreviewed: {
     label: "New evidence, unreviewed",
     family: "contested",
-    fields: [f("claim_id", "claim", "claim"), f("capture_digest", "capture", "capture"), f("attesting_principal", "by"), f("attested_at", "at", "time"), f("stance", "stance")],
+    fields: [...DOOR_FIELDS, f("stance", "stance")],
   },
   claim_attestation_threshold_met: {
     label: "Attestation threshold met",
@@ -113,7 +137,7 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   claim_new_evidence_supporting: {
     label: "New supporting evidence",
     family: "evidence",
-    fields: [f("claim_id", "claim", "claim"), f("capture_digest", "capture", "capture"), f("attesting_principal", "by"), f("attested_at", "at", "time")],
+    fields: DOOR_FIELDS,
   },
   evidence_unavailable: {
     label: "Evidence body unavailable",

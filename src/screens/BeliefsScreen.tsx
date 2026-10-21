@@ -9,7 +9,8 @@ import { BELIEF_TABS, FAMILY_LABEL, familyOf, REASONS, type BeliefTab } from "@/
 import { usePageTitle } from "@/lib/usePageTitle";
 
 const TAB_NOTE: Record<BeliefTab, string> = {
-  contested: "Slots whose Claims conflict, and Claims with new or contradicting attested evidence.",
+  contested:
+    "Slots whose Claims conflict, and Claims with new or contradicting attested evidence. A recorded attestation counts toward the verdict only once accepted citing a Capture the Claim admits, or through the ClaimType's consequence policy.",
   stale: "Claims whose evidence expired or is expiring, derived from stale inputs, or not covered by admitted evidence.",
   drifted:
     "Citations whose source changed. Drift is observed from a workspace: next reports it only to a caller that sends a workspace observation, and the console sends none, so this tab shows what accepted state alone can tell.",
