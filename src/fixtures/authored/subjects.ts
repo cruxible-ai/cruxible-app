@@ -148,12 +148,20 @@ const CLAIMS: ClaimSpec[] = [
     captures: [
       {
         capture: `CAP-${OSV_CAPTURE.slice(7, 19)}`, contract: "security.osv-applicability-v1", version: 1,
-        source: "https://api.osv.dev/v1/query", observed_at: "2026-10-18T22:10:00Z", role: "observation", admitted: true,
+        source: "https://api.osv.dev/v1/query", observed_at: "2026-10-18T22:10:00Z", role: "evidence",
+        origin: "independent", status: "admitted",
       },
     ],
     attestations: [
-      { stance: "support", principal: "triage-agent", at: "2026-10-19T08:00:00Z", current: true },
-      { stance: "contradict", principal: "release-owner", at: "2026-10-19T09:00:00Z", current: true },
+      {
+        stance: "support", principal: "triage-agent", at: "2026-10-19T08:00:00Z", current: true,
+        record: "accepted", basis: "new_capture", counts: true, counts_reason: "cites_admitted_capture",
+      },
+      {
+        stance: "contradict", principal: "release-owner", at: "2026-10-19T09:00:00Z", current: true,
+        record: "event", basis: "examined_existing", counts: false, counts_reason: "not_accepted",
+        event: "sha256:" + "e".repeat(64),
+      },
     ],
     rationale: "OSV lists the release's xz package within the affected range.",
     accounts: [account(OSV_CAPTURE, "security.osv-applicability-v1", "admitted")],

@@ -25500,6 +25500,63 @@
           "current": {
             "type": "boolean",
             "title": "Current"
+          },
+          "record": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "event"
+            ],
+            "title": "Record"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "examined_existing",
+              "new_capture",
+              "legacy"
+            ],
+            "title": "Basis"
+          },
+          "counts": {
+            "type": "boolean",
+            "title": "Counts"
+          },
+          "counts_reason": {
+            "type": "string",
+            "enum": [
+              "cites_admitted_capture",
+              "consequence_policy",
+              "cites_no_capture",
+              "capture_not_admitted",
+              "not_accepted",
+              "not_current"
+            ],
+            "title": "Counts Reason"
+          },
+          "event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event",
+            "description": "The attestation door event's digest, for a recorded event."
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule",
+            "description": "The consequence-policy rule it counts under."
           }
         },
         "additionalProperties": false,
@@ -25508,9 +25565,14 @@
           "stance",
           "principal",
           "at",
-          "current"
+          "current",
+          "record",
+          "basis",
+          "counts",
+          "counts_reason"
         ],
-        "title": "GetAttestationEvidence"
+        "title": "GetAttestationEvidence",
+        "description": "One attestation of this exact Claim version, and whether it counts.\n\nAn accepted attestation artifact, or an event ``claim attest`` recorded.\nThe verdict reads accepted ones: a current one counts when it cites\nCaptures the Claim admits. Either counts when the ClaimType's consequence\npolicy has a rule for its stance. A recorded event is otherwise shown and\nresurfaced in ``next``, never read by the verdict (``not_accepted``)."
       },
       "GetBatchRequest": {
         "properties": {
@@ -25960,9 +26022,25 @@
             "type": "string",
             "title": "Role"
           },
-          "admitted": {
-            "type": "boolean",
-            "title": "Admitted"
+          "origin": {
+            "type": "string",
+            "enum": [
+              "independent",
+              "self_source",
+              "legacy"
+            ],
+            "title": "Origin",
+            "description": "Whose bytes the citation reads: an independent source's, the Claim's own authored words (self_source), or a legacy backing's."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "admitted",
+              "not_admitted",
+              "not_evidence"
+            ],
+            "title": "Status",
+            "description": "admitted: the ClaimType's rule admits it and the verdict reads it; not_admitted: offered as evidence, refused by the rule; not_evidence: a copy the rule does not admit, which the verdict never reads."
           }
         },
         "additionalProperties": false,
@@ -25974,7 +26052,8 @@
           "source",
           "observed_at",
           "role",
-          "admitted"
+          "origin",
+          "status"
         ],
         "title": "GetCaptureEvidence"
       },
@@ -49929,7 +50008,7 @@
               }
             ],
             "title": "Kind",
-            "description": "A Subject kind, ClaimType / Procedure for definitions, or Trigger / Line to list those."
+            "description": "A Subject kind, or a definition kind to list: ClaimType, Procedure, Trigger, Line, SubjectKind, CaptureContract, ProcedureMandate or QueryDefinition."
           },
           "where": {
             "items": {

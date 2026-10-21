@@ -1,4 +1,4 @@
-// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch bdc8c4ff
 import { defineFixture } from "../fixture";
 
@@ -81,7 +81,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:f053b6f702affdf225328b8fc07363898abf7ffedb617211116882e2dadc9a80"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -156,7 +156,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.029776Z"
+        "evaluation_time": "2026-10-21T19:49:25.958353Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -178,11 +178,12 @@ export default defineFixture({
             }
           ],
           "triggers_total": 1,
+          "triggers_inactive": "not enabled",
           "occurrence_epoch": 1,
           "enablements": [
             {
               "enablement": "f47c17c5b8ce4729a34365b63f14bc3c",
-              "state": "running",
+              "state": "stopped",
               "principal_kind": "principal_claim",
               "enabled_by": "gate-owner",
               "enabled_at": "2026-10-19T21:29:44.759789Z",
@@ -193,15 +194,24 @@ export default defineFixture({
                   "artifact_digest": "sha256:1627e9f7924ddd7dbdbe224fced04de2e29cec32982f115cd61d1629dec0f561"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:16.872094Z",
+              "evaluated_until": "2026-10-21T13:44:02.448979Z",
+              "stopped_at": "2026-10-21T13:44:02.448979Z",
+              "stop_reason": "permission_insufficient",
+              "detail": "The daemon's permission mode READ_ONLY no longer permits dispatch.",
               "pending_automatic": 0,
-              "pending_explicit": 0
+              "pending_explicit": 1
             }
           ],
           "enablements_total": 1,
-          "due": 0,
+          "due": 1,
           "waiting": 0,
-          "occurrences": [],
+          "occurrences": [
+            {
+              "occurrence": "sha256:43dc4b1f2d3c613ad6d5a5badd1abd063b4ad519a86b9da60190c383d2769fae",
+              "eligible_at": "2026-10-21T13:45:00Z",
+              "state": "due"
+            }
+          ],
           "recent_runs": [
             {
               "run": "RUN-3ca462badd11b767fa3181307f914922de90898148099580448cd62b6df64464",
@@ -264,7 +274,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.046727Z"
+        "evaluation_time": "2026-10-21T19:49:25.971999Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -301,7 +311,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:c91316aaa87c937e24e5722510dbb12fd8607be2f56bec0ddb07b7a3236321d1"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -432,7 +442,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.063019Z"
+        "evaluation_time": "2026-10-21T19:49:25.987969Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -464,11 +474,12 @@ export default defineFixture({
             }
           ],
           "triggers_total": 3,
+          "triggers_inactive": "not enabled",
           "occurrence_epoch": 1,
           "enablements": [
             {
               "enablement": "58b7eb44a1084b8986088b04afe1d8fa",
-              "state": "running",
+              "state": "stopped",
               "principal_kind": "principal_claim",
               "enabled_by": "gate-owner",
               "enabled_at": "2026-10-19T21:39:35.039729Z",
@@ -487,9 +498,12 @@ export default defineFixture({
                   "artifact_digest": "sha256:133ac26bc706947759c74c02c0407e4a5a3f3634cad6edb8376e8ec9e303e3a9"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:16.872094Z",
+              "evaluated_until": "2026-10-21T07:39:07.206546Z",
+              "stopped_at": "2026-10-21T07:39:07.206546Z",
+              "stop_reason": "permission_insufficient",
+              "detail": "The daemon's permission mode READ_ONLY no longer permits dispatch.",
               "pending_automatic": 0,
-              "pending_explicit": 0
+              "pending_explicit": 1
             },
             {
               "enablement": "90567d97b0254fc99bfe65699c111d7f",
@@ -517,13 +531,19 @@ export default defineFixture({
               "stop_reason": "line_changed",
               "detail": "The Line changed; enable it again to run its new version automatically.",
               "pending_automatic": 0,
-              "pending_explicit": 0
+              "pending_explicit": 1
             }
           ],
           "enablements_total": 2,
-          "due": 0,
+          "due": 1,
           "waiting": 0,
-          "occurrences": [],
+          "occurrences": [
+            {
+              "occurrence": "sha256:db7b0fdbe85ba6eef9fe75f2ab91c80d6db0890914ed2a1ec2f30290ecb46ff7",
+              "eligible_at": "2026-10-21T07:40:00Z",
+              "state": "due"
+            }
+          ],
           "recent_runs": [
             {
               "run": "RUN-a912f5342d047ab6122b92d0375db47c13566e240f2eab45ef216a701775167d",
@@ -605,7 +625,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.104752Z"
+        "evaluation_time": "2026-10-21T19:49:26.005855Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -642,7 +662,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:0be21dbeeaf3aec5175a04bf82f28e1fb456e40906e954c1ae88cdde0804411b"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -750,7 +770,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.135273Z"
+        "evaluation_time": "2026-10-21T19:49:26.035465Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -937,7 +957,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.163864Z"
+        "evaluation_time": "2026-10-21T19:49:26.062920Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -974,7 +994,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:c1f77f6596acc17a1e15a3b40e3eb4182c4f28275f1986ef65da89e382990d1f"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -1102,7 +1122,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.190898Z"
+        "evaluation_time": "2026-10-21T19:49:26.089411Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1248,7 +1268,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.215639Z"
+        "evaluation_time": "2026-10-21T19:49:26.113386Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1285,7 +1305,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:ad428bcd542bc550bae00b558a28bed406ae6e12f702bc2f7bee42c1ef216b72"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -1368,7 +1388,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.238409Z"
+        "evaluation_time": "2026-10-21T19:49:26.137104Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1405,7 +1425,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:e9ed70b118ffc51dde6a9becfe9fbf64741e7407155cc60a92b1aceb21d977f9"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -1488,7 +1508,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.255442Z"
+        "evaluation_time": "2026-10-21T19:49:26.151608Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1553,7 +1573,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.270541Z"
+        "evaluation_time": "2026-10-21T19:49:26.165986Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1618,7 +1638,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.277630Z"
+        "evaluation_time": "2026-10-21T19:49:26.173736Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1655,7 +1675,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:689a9518bcca1f19e5bece4f9ba7a6b98ae972db8d89411d278332552257372b"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -1762,7 +1782,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.284325Z"
+        "evaluation_time": "2026-10-21T19:49:26.180403Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1799,7 +1819,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:4e61534915bc98a87a5aa4c2b37ca057d861edd2e2328b74aa71bfff5b643bb9"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             }
@@ -1862,7 +1882,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.312454Z"
+        "evaluation_time": "2026-10-21T19:49:26.209662Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -1899,7 +1919,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:1fd0a2946ceb150a8bc93e5eb5c481ae9793580f6da45be96fbb84283788fd59"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             }
@@ -1954,7 +1974,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.328269Z"
+        "evaluation_time": "2026-10-21T19:49:26.226267Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -2019,7 +2039,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.342200Z"
+        "evaluation_time": "2026-10-21T19:49:26.237298Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -2056,7 +2076,7 @@ export default defineFixture({
                   "artifact_digest": "sha256:6d481737fb1ba6a6b113349431d8bfafba780d50cedd6451bd8aebbe982a4d56"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:15.697948Z",
+              "evaluated_until": "2026-10-21T19:48:49.146376Z",
               "pending_automatic": 0,
               "pending_explicit": 0
             },
@@ -2155,7 +2175,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.349686Z"
+        "evaluation_time": "2026-10-21T19:49:26.243760Z"
       }
     ]
   }

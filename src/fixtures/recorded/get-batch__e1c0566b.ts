@@ -1,4 +1,4 @@
-// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch a497c03d
 import { defineFixture } from "../fixture";
 
@@ -69,7 +69,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-20T21:38:24.783304Z"
+        "evaluation_time": "2026-10-21T19:49:23.013975Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -104,7 +104,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-20T21:38:24.805367Z"
+        "evaluation_time": "2026-10-21T19:49:23.031636Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -139,7 +139,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-20T21:38:24.823106Z"
+        "evaluation_time": "2026-10-21T19:49:23.048831Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -180,7 +180,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-20T21:38:24.841836Z"
+        "evaluation_time": "2026-10-21T19:49:23.066159Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -221,7 +221,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-20T21:38:24.861013Z"
+        "evaluation_time": "2026-10-21T19:49:23.083454Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -256,7 +256,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-20T21:38:24.877474Z"
+        "evaluation_time": "2026-10-21T19:49:23.099189Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -291,7 +291,7 @@ export default defineFixture({
           "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
           "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
         },
-        "evaluation_time": "2026-10-20T21:38:24.896314Z"
+        "evaluation_time": "2026-10-21T19:49:23.115190Z"
       }
     ]
   }

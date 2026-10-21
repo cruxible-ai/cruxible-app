@@ -1,4 +1,4 @@
-// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/next 275ec514
 import { defineFixture } from "../fixture";
 
@@ -13,7 +13,7 @@ export default defineFixture({
       "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
       "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
     },
-    "evaluation_time": "2026-10-20T21:38:23.618Z",
+    "evaluation_time": "2026-10-21T19:49:22.141Z",
     "access_profile": {
       "tag": "playbill-coverage-access-profile-v1",
       "profile_id": "console",
@@ -34,7 +34,7 @@ export default defineFixture({
       "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
       "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
     },
-    "evaluation_time": "2026-10-20T21:38:23.618000Z",
+    "evaluation_time": "2026-10-21T19:49:22.141000Z",
     "observed_domains": [
       "accepted_state"
     ],
@@ -103,12 +103,24 @@ export default defineFixture({
         "tag": "playbill-next-health-v1",
         "state": "due",
         "detail": {
-          "due": 1,
+          "due": 3,
           "lines": [
+            {
+              "due": 1,
+              "line_identity_digest": "sha256:24678f9be989053275627387cff7ac3590db5842a3399180fce2a690fcadaed6",
+              "oldest_eligible_at": "2026-10-21T07:40:00+00:00",
+              "waiting": 0
+            },
             {
               "due": 1,
               "line_identity_digest": "sha256:4b3e9d71b33f4edc5a709bd8dd53f89a44dcf9c93f893799bae9cc9e6f39941e",
               "oldest_eligible_at": "2026-10-20T15:30:00+00:00",
+              "waiting": 0
+            },
+            {
+              "due": 1,
+              "line_identity_digest": "sha256:dca0de9ff0cc644a69cb568dd0ecf8f3dcff93d1264ea9a89310323c034dcc3d",
+              "oldest_eligible_at": "2026-10-21T13:45:00+00:00",
               "waiting": 0
             }
           ],
@@ -144,9 +156,9 @@ export default defineFixture({
         "state": "current",
         "detail": {
           "line_enablements": {
-            "running": 12,
+            "running": 10,
             "stalled": 0,
-            "stopped": 1
+            "stopped": 3
           },
           "workers": [
             {
@@ -168,7 +180,7 @@ export default defineFixture({
               },
               "facts": {
                 "attestations_behind": false,
-                "format": 9,
+                "format": 11,
                 "generation": 58,
                 "generations_behind": 0,
                 "inputs_changed": false,
@@ -183,9 +195,9 @@ export default defineFixture({
                 "state": "running"
               },
               "prediction": {
-                "anchor_retry_position": 67,
+                "anchor_retry_position": 89,
                 "capture_position": 1897,
-                "completed_anchor_retry_position": 67,
+                "completed_anchor_retry_position": 89,
                 "contract_backfill_in_progress": false,
                 "contracts": 2,
                 "generation": 58,
@@ -454,21 +466,27 @@ export default defineFixture({
       },
       {
         "tag": "playbill-next-item-v1",
-        "item_id": "sha256:1e9b4e2f727b648b27f18caebceeec1f8b8ea38a6e73003c7d94a605e5667517",
+        "item_id": "sha256:3d93ca9e01477199122721d06bec4107583e97193b07e287fed530a717ede163",
         "severity": "repair",
-        "reason": "line_coverage_gap",
+        "reason": "consumer_stalled",
         "subject_identity": "Line:security.epss-daily",
         "related_identities": [],
         "detail": {
-          "detail": "Daemon restarted; uncovered ranges require explicit evaluation.",
-          "since": "2026-10-19T22:21:27.318090+00:00",
-          "until": "2026-10-20T15:13:36.871490+00:00"
+          "detail": "The daemon's permission mode READ_ONLY no longer permits dispatch.",
+          "enablement_id": "f47c17c5b8ce4729a34365b63f14bc3c",
+          "enablement_state": "stopped",
+          "kind": "line",
+          "pending_automatic": 0,
+          "pending_explicit": 1,
+          "state": "stopped",
+          "stop_reason": "permission_insufficient",
+          "stopped_at": "2026-10-21T13:44:02.448979+00:00"
         },
         "repair": null,
         "repair_requires": {
           "tag": "playbill-next-repair-requirement-v1",
-          "operation": "cruxible.line.evaluate",
-          "tool": "cruxible_line_evaluate",
+          "operation": "cruxible.line.enable",
+          "tool": "cruxible_line_enable",
           "tier": "governed_write",
           "profile": null,
           "because": [
@@ -490,21 +508,27 @@ export default defineFixture({
       },
       {
         "tag": "playbill-next-item-v1",
-        "item_id": "sha256:213669691f186e213d04b65e4ed94fa818f42b4733aa2ae87eb09af7a96e3d3b",
+        "item_id": "sha256:6a7c69828fcaf6d972507887a5a4f9c31cb78dcb098b34174d27cb6c53e038cd",
         "severity": "repair",
-        "reason": "line_coverage_gap",
+        "reason": "consumer_stalled",
         "subject_identity": "Line:security.harden",
         "related_identities": [],
         "detail": {
-          "detail": "Daemon restarted; uncovered ranges require explicit evaluation.",
-          "since": "2026-10-19T22:21:27.318090+00:00",
-          "until": "2026-10-20T15:13:36.871490+00:00"
+          "detail": "The daemon's permission mode READ_ONLY no longer permits dispatch.",
+          "enablement_id": "58b7eb44a1084b8986088b04afe1d8fa",
+          "enablement_state": "stopped",
+          "kind": "line",
+          "pending_automatic": 0,
+          "pending_explicit": 1,
+          "state": "stopped",
+          "stop_reason": "permission_insufficient",
+          "stopped_at": "2026-10-21T07:39:07.206546+00:00"
         },
         "repair": null,
         "repair_requires": {
           "tag": "playbill-next-repair-requirement-v1",
-          "operation": "cruxible.line.evaluate",
-          "tool": "cruxible_line_evaluate",
+          "operation": "cruxible.line.enable",
+          "tool": "cruxible_line_enable",
           "tier": "governed_write",
           "profile": null,
           "because": [
@@ -592,7 +616,7 @@ export default defineFixture({
     ],
     "total_items": 9,
     "next_cursor": null,
-    "result_digest": "sha256:75a89da03cc40c3cfe6ae0f16ce0b16ea5d1f4162d215fa5387ca6c92fb7dd4c",
+    "result_digest": "sha256:94dd6672e118984af5c76872a1d007310a14d02c484910dfc254787ceccc6744",
     "delta_since": null,
     "attestation_head_digest": "sha256:e0966becb8965e9dd07b22663a268118df10709dd80ed3ebfd9a673a180fecc5"
   }

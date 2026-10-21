@@ -1,4 +1,4 @@
-// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/proposals/sha256:565afa1f991138f9d6370a401e3e1d6f87e5195ea8f7cfcbc515a70bdfe0b66d/review aa860519
 import { defineFixture } from "../fixture";
 

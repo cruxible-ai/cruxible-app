@@ -7420,7 +7420,16 @@ export interface components {
              */
             next?: string[];
         };
-        /** GetAttestationEvidence */
+        /**
+         * GetAttestationEvidence
+         * @description One attestation of this exact Claim version, and whether it counts.
+         *
+         *     An accepted attestation artifact, or an event ``claim attest`` recorded.
+         *     The verdict reads accepted ones: a current one counts when it cites
+         *     Captures the Claim admits. Either counts when the ClaimType's consequence
+         *     policy has a rule for its stance. A recorded event is otherwise shown and
+         *     resurfaced in ``next``, never read by the verdict (``not_accepted``).
+         */
         GetAttestationEvidence: {
             /** Stance */
             stance: string;
@@ -7433,6 +7442,33 @@ export interface components {
             at: string;
             /** Current */
             current: boolean;
+            /**
+             * Record
+             * @enum {string}
+             */
+            record: "accepted" | "event";
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "examined_existing" | "new_capture" | "legacy";
+            /** Counts */
+            counts: boolean;
+            /**
+             * Counts Reason
+             * @enum {string}
+             */
+            counts_reason: "cites_admitted_capture" | "consequence_policy" | "cites_no_capture" | "capture_not_admitted" | "not_accepted" | "not_current";
+            /**
+             * Event
+             * @description The attestation door event's digest, for a recorded event.
+             */
+            event?: string | null;
+            /**
+             * Rule
+             * @description The consequence-policy rule it counts under.
+             */
+            rule?: string | null;
         };
         /**
          * GetBatchRequest
@@ -7646,8 +7682,18 @@ export interface components {
             observed_at: string;
             /** Role */
             role: string;
-            /** Admitted */
-            admitted: boolean;
+            /**
+             * Origin
+             * @description Whose bytes the citation reads: an independent source's, the Claim's own authored words (self_source), or a legacy backing's.
+             * @enum {string}
+             */
+            origin: "independent" | "self_source" | "legacy";
+            /**
+             * Status
+             * @description admitted: the ClaimType's rule admits it and the verdict reads it; not_admitted: offered as evidence, refused by the rule; not_evidence: a copy the rule does not admit, which the verdict never reads.
+             * @enum {string}
+             */
+            status: "admitted" | "not_admitted" | "not_evidence";
         };
         /**
          * GetChangeSetReason
@@ -17724,7 +17770,7 @@ export interface components {
         QueryRequest: {
             /**
              * Kind
-             * @description A Subject kind, ClaimType / Procedure for definitions, or Trigger / Line to list those.
+             * @description A Subject kind, or a definition kind to list: ClaimType, Procedure, Trigger, Line, SubjectKind, CaptureContract, ProcedureMandate or QueryDefinition.
              */
             kind?: string | null;
             /**

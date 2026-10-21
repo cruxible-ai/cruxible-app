@@ -1,4 +1,4 @@
-// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch 87da7fba
 import { defineFixture } from "../fixture";
 
@@ -50,11 +50,12 @@ export default defineFixture({
             }
           ],
           "triggers_total": 1,
+          "triggers_inactive": "not enabled",
           "occurrence_epoch": 1,
           "enablements": [
             {
               "enablement": "f47c17c5b8ce4729a34365b63f14bc3c",
-              "state": "running",
+              "state": "stopped",
               "principal_kind": "principal_claim",
               "enabled_by": "gate-owner",
               "enabled_at": "2026-10-19T21:29:44.759789Z",
@@ -65,15 +66,24 @@ export default defineFixture({
                   "artifact_digest": "sha256:1627e9f7924ddd7dbdbe224fced04de2e29cec32982f115cd61d1629dec0f561"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:16.872094Z",
+              "evaluated_until": "2026-10-21T13:44:02.448979Z",
+              "stopped_at": "2026-10-21T13:44:02.448979Z",
+              "stop_reason": "permission_insufficient",
+              "detail": "The daemon's permission mode READ_ONLY no longer permits dispatch.",
               "pending_automatic": 0,
-              "pending_explicit": 0
+              "pending_explicit": 1
             }
           ],
           "enablements_total": 1,
-          "due": 0,
+          "due": 1,
           "waiting": 0,
-          "occurrences": [],
+          "occurrences": [
+            {
+              "occurrence": "sha256:43dc4b1f2d3c613ad6d5a5badd1abd063b4ad519a86b9da60190c383d2769fae",
+              "eligible_at": "2026-10-21T13:45:00Z",
+              "state": "due"
+            }
+          ],
           "recent_runs": [
             {
               "run": "RUN-3ca462badd11b767fa3181307f914922de90898148099580448cd62b6df64464",
@@ -136,7 +146,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.501259Z"
+        "evaluation_time": "2026-10-21T19:49:26.366582Z"
       }
     ]
   }

@@ -1,4 +1,4 @@
-// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch 369acafd
 import { defineFixture } from "../fixture";
 
@@ -60,11 +60,12 @@ export default defineFixture({
             }
           ],
           "triggers_total": 3,
+          "triggers_inactive": "not enabled",
           "occurrence_epoch": 1,
           "enablements": [
             {
               "enablement": "58b7eb44a1084b8986088b04afe1d8fa",
-              "state": "running",
+              "state": "stopped",
               "principal_kind": "principal_claim",
               "enabled_by": "gate-owner",
               "enabled_at": "2026-10-19T21:39:35.039729Z",
@@ -83,9 +84,12 @@ export default defineFixture({
                   "artifact_digest": "sha256:133ac26bc706947759c74c02c0407e4a5a3f3634cad6edb8376e8ec9e303e3a9"
                 }
               ],
-              "evaluated_until": "2026-10-20T21:38:16.872094Z",
+              "evaluated_until": "2026-10-21T07:39:07.206546Z",
+              "stopped_at": "2026-10-21T07:39:07.206546Z",
+              "stop_reason": "permission_insufficient",
+              "detail": "The daemon's permission mode READ_ONLY no longer permits dispatch.",
               "pending_automatic": 0,
-              "pending_explicit": 0
+              "pending_explicit": 1
             },
             {
               "enablement": "90567d97b0254fc99bfe65699c111d7f",
@@ -113,13 +117,19 @@ export default defineFixture({
               "stop_reason": "line_changed",
               "detail": "The Line changed; enable it again to run its new version automatically.",
               "pending_automatic": 0,
-              "pending_explicit": 0
+              "pending_explicit": 1
             }
           ],
           "enablements_total": 2,
-          "due": 0,
+          "due": 1,
           "waiting": 0,
-          "occurrences": [],
+          "occurrences": [
+            {
+              "occurrence": "sha256:db7b0fdbe85ba6eef9fe75f2ab91c80d6db0890914ed2a1ec2f30290ecb46ff7",
+              "eligible_at": "2026-10-21T07:40:00Z",
+              "state": "due"
+            }
+          ],
           "recent_runs": [
             {
               "run": "RUN-a912f5342d047ab6122b92d0375db47c13566e240f2eab45ef216a701775167d",
@@ -201,7 +211,7 @@ export default defineFixture({
             "runs_total"
           ]
         },
-        "evaluation_time": "2026-10-20T21:38:29.641045Z"
+        "evaluation_time": "2026-10-21T19:49:26.571587Z"
       }
     ]
   }

@@ -402,7 +402,7 @@ function ClaimDetail({
                         {capture.source}
                       </Td>
                       <Td>
-                        <Chip value={capture.admitted ? "admitted" : "not_admitted"} />
+                        <Chip value={capture.status} />
                       </Td>
                     </tr>
                   ))}

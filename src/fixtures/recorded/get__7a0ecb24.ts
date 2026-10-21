@@ -1,4 +1,4 @@
-// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get 227e47b6
 import { defineFixture } from "../fixture";
 
@@ -32,7 +32,8 @@ export default defineFixture({
           "source": "cve.record",
           "observed_at": "2026-10-19T21:31:44.789230Z",
           "role": "evidence",
-          "admitted": false
+          "origin": "independent",
+          "status": "not_admitted"
         }
       ],
       "attestations": [],
@@ -42,6 +43,6 @@ export default defineFixture({
       "git_oid": "97040dbfdd1e",
       "generation": 58
     },
-    "evaluation_time": "2026-10-20T21:38:24.087323Z"
+    "evaluation_time": "2026-10-21T19:49:22.540487Z"
   }
 });

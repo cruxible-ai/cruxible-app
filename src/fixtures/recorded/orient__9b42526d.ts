@@ -1,4 +1,4 @@
-// Recorded from cruxible-core db10d8ed366a9e8ccfea804be1ec06b3b84bc357 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient fda5f09f
 import { defineFixture } from "../fixture";
 
@@ -25,7 +25,7 @@ export default defineFixture({
     },
     "generation": 58,
     "accepted_at": "2026-10-19T21:49:14.351998Z",
-    "evaluation_time": "2026-10-20T21:38:23.405435Z",
+    "evaluation_time": "2026-10-21T19:49:21.843415Z",
     "you": {
       "actor": "operator",
       "can_author": false,
@@ -1224,10 +1224,12 @@ export default defineFixture({
         "repair claim_stale_evidence: Claim:CLM-8535bf9214bc303f5c01763e0a47b2e9"
       ],
       "enablements": {
-        "running": 12,
+        "running": 10,
         "stalled": 0,
-        "stopped": 1,
+        "stopped": 3,
         "needs_attention": [
+          "Line:security.epss-daily stopped (permission_insufficient)",
+          "Line:security.harden stopped (permission_insufficient)",
           "Line:security.osv-applicability stopped (permission_insufficient)"
         ]
       }
