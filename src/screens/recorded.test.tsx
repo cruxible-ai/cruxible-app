@@ -65,6 +65,22 @@ describe("recorded gate world", () => {
     expect(await m.findByText("2/2 admitted")).toBeInTheDocument();
   });
 
+  it("Subject page: the author's own words are not evidence, under the source's public name", async () => {
+    renderApp(`${I}/s/${encodeURIComponent(REPO)}`, RECORDED);
+    fireEvent.click(await screen.findByRole("button", { name: "Expand forge_host" }));
+    const m = await main();
+    expect(await m.findByText("own words")).toBeInTheDocument();
+    expect(m.getByText("Not evidence")).toBeInTheDocument();
+    expect(m.getByText("cruxible.coordinator-authoring")).toBeInTheDocument();
+    // both fields stand on own words: none offered as evidence, two that are not evidence
+    expect(m.getByText("none")).toBeInTheDocument();
+    expect(m.getByText("· 2 not evidence")).toBeInTheDocument();
+    expect(m.getByRole("link", { name: "playbill.coordinator-self-source-v1 v1" })).toHaveAttribute(
+      "href",
+      `${I}/contracts/playbill.coordinator-self-source-v1`,
+    );
+  });
+
   it("neighborhood: a hub with its incoming column", async () => {
     renderApp(`${I}/s/${encodeURIComponent(REPO)}/graph`, RECORDED);
     expect(await screen.findByText(/18 Subjects · 17 links/)).toBeInTheDocument();

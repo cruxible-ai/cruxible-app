@@ -110,14 +110,23 @@ interface ClaimSpec {
 
 const OSV_CAPTURE = "sha256:7c1e9a3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c";
 const KEV_CAPTURE = "sha256:9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b";
+// The vendor's advisory page, quoted, and the author's own words.
+const ADVISORY_CAPTURE = "sha256:5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d";
+const OWN_WORDS_CAPTURE = "sha256:3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e";
 
-function account(digest: string, contract: string, status: CaptureAdmissionAccount["status"]): CaptureAdmissionAccount {
+function account(
+  digest: string,
+  contract: string,
+  status: CaptureAdmissionAccount["status"],
+  role: CaptureAdmissionAccount["citation_role"] = "evidence",
+  origin: CaptureAdmissionAccount["citation_origin"] = "independent",
+): CaptureAdmissionAccount {
   return {
     tag: "playbill-capture-admission-account-v1",
     citation_id: `cit-${digest.slice(7, 15)}`,
     capture_digest: digest,
-    citation_role: "evidence",
-    citation_origin: "independent",
+    citation_role: role,
+    citation_origin: origin,
     capture_contract_identity: contract,
     capture_contract_digest: "sha256:" + "4".repeat(64),
     status,
@@ -171,9 +180,34 @@ const CLAIMS: ClaimSpec[] = [
     predicate: "security.assessment.status", value: "not_affected", verdict: "supported",
     status: "conflicted", revision: 1, flags: ["contested"],
     contenders: [{ claim: clm(0xa2), value: "affected", verdict: "supported" }],
-    captures: [],
+    captures: [
+      {
+        capture: `CAP-${ADVISORY_CAPTURE.slice(7, 19)}`, contract: "security.vendor-advisory-v1", version: 1,
+        source: "playbill.page", observed_at: "2026-10-18T23:40:00Z", role: "copy",
+        origin: "independent", status: "admitted",
+      },
+      {
+        capture: `CAP-${OWN_WORDS_CAPTURE.slice(7, 19)}`, contract: "playbill.coordinator-self-source-v1", version: 1,
+        source: "playbill.coordinator-authoring", observed_at: "2026-10-19T09:20:00Z", role: "copy",
+        origin: "self_source", status: "not_evidence",
+      },
+    ],
+    attestations: [
+      {
+        stance: "support", principal: "release-owner", at: "2026-10-19T09:25:00Z", current: true,
+        record: "event", basis: "examined_existing", counts: true, counts_reason: "consequence_policy",
+        event: "sha256:" + "f".repeat(64), rule: "owner-confirms-scope",
+      },
+      {
+        stance: "unsure", principal: "triage-agent", at: "2026-10-18T10:00:00Z", current: false,
+        record: "accepted", basis: "new_capture", counts: false, counts_reason: "not_current",
+      },
+    ],
     rationale: "Vendor advisory: the backdoored build was never shipped in rel-1.",
-    accounts: [],
+    accounts: [
+      account(ADVISORY_CAPTURE, "security.vendor-advisory-v1", "admitted", "copy"),
+      account(OWN_WORDS_CAPTURE, "playbill.coordinator-self-source-v1", "not_evidence", "copy", "self_source"),
+    ],
   },
   {
     id: clm(0xa4), subject: "security.assessment/rel-1-cve-2024-3094", field: "vulnerability",

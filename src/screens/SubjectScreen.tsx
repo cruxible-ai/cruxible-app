@@ -15,6 +15,7 @@ import { ApiError } from "@/api/data-source";
 import {
   cardOf,
   type CaptureAdmissionAccount,
+  type GetAttestationEvidence,
   type GetClaimCard,
   type GetRevision,
   type GetSubjectCard,
@@ -23,6 +24,7 @@ import {
 } from "@/api/schemas";
 import { actionChipClass, Chip, toneFor } from "@/components/Chip";
 import { Corroboration, type CorroborationSummary } from "@/components/Corroboration";
+import { CountsMark } from "@/components/CountsMark";
 import { LongText } from "@/components/LongText";
 import { Fact, Page, PageHeader, WithRail } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel, SubSection } from "@/components/Panel";
@@ -32,6 +34,16 @@ import { Table, Td, Th, trClass } from "@/components/Table";
 import { IncomingList } from "@/components/IncomingList";
 import { useAtLink, withAt } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
+import { contractName } from "@/lib/ontology";
+import {
+  admissionTally,
+  basisLabel,
+  citationLabel,
+  countsReasonText,
+  publicName,
+  recordLabel,
+  STATUS_MEANING,
+} from "@/lib/evidence";
 import { predicateIndex } from "@/lib/neighborhood";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -48,8 +60,9 @@ const QUIET_VERDICTS = new Set(["supported"]);
 /**
  * One Subject at the pinned generation: its card (every slot's answer with
  * read flags), each Claim's verdict and contenders, admission accounts, and,
- * per Claim on expand, its evidence (Captures, attestations, rationale) and
- * revisions; then the Subject's field history, paged. Every read is this
+ * per Claim on expand, its evidence (each cited Capture labelled and with its
+ * state, each attestation with whether it counts toward the verdict, the
+ * rationale) and revisions; then the Subject's field history, paged. Every read is this
  * Subject's own: the card, ⌈Claims/64⌉ get-batch calls for verdicts,
  * ⌈Claims/256⌉ read-batch calls for admission, and one read per expansion.
  *
@@ -97,8 +110,7 @@ export function SubjectScreen() {
 
   const tally = new Map<string, number>();
   for (const claim of claimCards.values()) tally.set(claim.verdict, (tally.get(claim.verdict) ?? 0) + 1);
-  const evidence = [...admission.byClaim.values()].flat().filter((a) => a.citation_role === "evidence");
-  const admitted = evidence.filter((a) => a.status === "admitted").length;
+  const evidence = admissionTally([...admission.byClaim.values()].flat());
 
   return (
     <Page>
@@ -135,14 +147,18 @@ export function SubjectScreen() {
             <Fact label="State">
               <Chip value={subject.lifecycle} />
             </Fact>
-            <Fact label="Evidence admitted" title="Evidence citations admitted by their ClaimTypes' evidence rules">
-              {evidence.length === 0 ? (
-                <span className="text-zinc-500">no evidence citations</span>
+            <Fact
+              label="Evidence admitted"
+              title="Citations offered as evidence that their ClaimTypes' rules admit, so the verdict reads them; a copy the rule does not admit is not evidence"
+            >
+              {evidence.offered === 0 ? (
+                <span className="text-zinc-500">{evidence.notEvidence === 0 ? "no evidence citations" : "none"}</span>
               ) : (
-                <span className={admitted < evidence.length ? "text-amber-400" : undefined}>
-                  {admitted} of {evidence.length}
+                <span className={evidence.admitted < evidence.offered ? "text-amber-400" : undefined}>
+                  {evidence.admitted} of {evidence.offered}
                 </span>
               )}
+              {evidence.notEvidence > 0 && <span className="text-zinc-500"> · {evidence.notEvidence} not evidence</span>}
             </Fact>
             <Fact label="Incoming links" title="Subject-valued Claims pointing at this Subject">
               <span className="font-mono">{subject.incoming_count}</span>
@@ -301,16 +317,16 @@ function QuietVerdict({ verdict }: { verdict: string }) {
   );
 }
 
+/** Citations offered as evidence that the rule admits; copies that are not evidence are left out. */
 function AdmissionSummary({ accounts }: { accounts: CaptureAdmissionAccount[] }) {
-  const evidence = accounts.filter((a) => a.citation_role === "evidence");
-  if (evidence.length === 0) return null;
-  const admitted = evidence.filter((a) => a.status === "admitted").length;
+  const { admitted, offered } = admissionTally(accounts);
+  if (offered === 0) return null;
   return (
     <span
-      className={`whitespace-nowrap text-[12px] ${admitted < evidence.length ? "text-amber-400/90" : "text-zinc-500"}`}
-      title="Evidence citations admitted by the ClaimType's evidence rules"
+      className={`whitespace-nowrap text-[12px] ${admitted < offered ? "text-amber-400/90" : "text-zinc-500"}`}
+      title="Citations offered as evidence that the ClaimType's evidence rule admits"
     >
-      {admitted}/{evidence.length} admitted
+      {admitted}/{offered} admitted
     </span>
   );
 }
@@ -325,6 +341,8 @@ function ClaimDetail({
   card: GetClaimCard | undefined;
   accounts: CaptureAdmissionAccount[] | undefined;
 }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
   const evidence = useClaimEvidence(claimId);
   const revisions = useClaimRevisions(claimId);
   const ev = evidence.data?.evidence ?? null;
@@ -378,11 +396,11 @@ function ClaimDetail({
                 <thead>
                   <tr>
                     <Th>Capture</Th>
-                    <Th>Contract</Th>
-                    <Th>Role</Th>
-                    <Th>Observed</Th>
+                    <Th title="What the citation is: evidence, the Claim's own words, or a passage of a file">Cited as</Th>
+                    <Th title="Whether the verdict reads it">Status</Th>
                     <Th>Source</Th>
-                    <Th>Admission</Th>
+                    <Th>Contract</Th>
+                    <Th>Observed</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -391,18 +409,27 @@ function ClaimDetail({
                       <Td className="whitespace-nowrap">
                         <RefLink value={capture.capture} />
                       </Td>
-                      <Td className="font-mono text-[12px] text-zinc-400">
-                        {capture.contract} v{capture.version}
+                      <Td className="max-w-[20rem] truncate text-zinc-300" title={citationLabel(capture)}>
+                        {citationLabel(capture)}
                       </Td>
-                      <Td className="text-zinc-400">{capture.role}</Td>
-                      <Td className="whitespace-nowrap text-zinc-400" title={capture.observed_at}>
-                        {formatWhen(capture.observed_at)}
+                      <Td className="whitespace-nowrap">
+                        <span title={STATUS_MEANING[capture.status]}>
+                          <Chip value={capture.status} />
+                        </span>
                       </Td>
                       <Td className="max-w-[18rem] truncate text-zinc-400" title={capture.source}>
-                        {capture.source}
+                        {publicName(capture.source)}
                       </Td>
-                      <Td>
-                        <Chip value={capture.status} />
+                      <Td className="font-mono text-[12px]">
+                        <Link
+                          to={link(`/i/${instanceId}/contracts/${encodeURIComponent(contractName(capture.contract))}`)}
+                          className="text-zinc-400 hover:text-zinc-200 hover:underline"
+                        >
+                          {contractName(capture.contract)} v{capture.version}
+                        </Link>
+                      </Td>
+                      <Td className="whitespace-nowrap text-zinc-400" title={capture.observed_at}>
+                        {formatWhen(capture.observed_at)}
                       </Td>
                     </tr>
                   ))}
@@ -410,20 +437,7 @@ function ClaimDetail({
               </Table>
             )}
           </SubSection>
-          {ev.attestations.length > 0 && (
-            <SubSection title="Attestations" meta={ev.attestations.length}>
-              {ev.attestations.map((attestation, i) => (
-                <div key={i} className={`flex flex-wrap items-baseline gap-x-3 ${attestation.current ? "" : "opacity-60"}`}>
-                  <Chip value={attestation.stance} />
-                  <span className="font-mono text-zinc-400">{attestation.principal}</span>
-                  <span className="text-zinc-500" title={attestation.at}>
-                    {formatWhen(attestation.at)}
-                  </span>
-                  {!attestation.current && <span className="text-zinc-500">against earlier content</span>}
-                </div>
-              ))}
-            </SubSection>
-          )}
+          {ev.attestations.length > 0 && <AttestationList attestations={ev.attestations} />}
         </>
       )}
 
@@ -481,21 +495,62 @@ function ClaimDetail({
   );
 }
 
-/** Attestation counts: current attestations by stance, and distinct principals. */
-function corroboration(attestations: { stance: string; principal: string; current: boolean }[]): CorroborationSummary {
+/**
+ * A Claim version's attestations, accepted and recorded, each with whether it
+ * counts toward the verdict and why. Ones no longer current are dimmed.
+ */
+function AttestationList({ attestations }: { attestations: GetAttestationEvidence[] }) {
+  return (
+    <SubSection title="Attestations" meta={attestations.length}>
+      <Table>
+        <thead>
+          <tr>
+            <Th>Stance</Th>
+            <Th>By</Th>
+            <Th>At</Th>
+            <Th title="Accepted: an accepted attestation, which the verdict reads. Recorded: an event claim attest recorded, shown and resurfaced in next">
+              Record
+            </Th>
+            <Th>Counts toward the verdict</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {attestations.map((attestation, i) => (
+            <tr key={`${attestation.event ?? attestation.principal}\n${attestation.at}\n${i}`} className={`${trClass} ${attestation.current ? "" : "opacity-60"}`}>
+              <Td>
+                <Chip value={attestation.stance} />
+              </Td>
+              <Td className="font-mono text-[12px] text-zinc-300">{attestation.principal}</Td>
+              <Td className="whitespace-nowrap text-zinc-400" title={attestation.at}>
+                {formatWhen(attestation.at)}
+              </Td>
+              <Td className="whitespace-nowrap text-zinc-400" title={attestation.event ?? undefined}>
+                {recordLabel(attestation.record)}
+                <span className="t-meta"> · {basisLabel(attestation.basis)}</span>
+              </Td>
+              <Td>
+                <CountsMark counts={attestation.counts} reason={countsReasonText(attestation)} />
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </SubSection>
+  );
+}
+
+/** Attestation counts: current attestations by stance, distinct principals, and how many count. */
+function corroboration(attestations: GetAttestationEvidence[]): CorroborationSummary {
   const current = attestations.filter((a) => a.current);
   const count = (stance: string) => current.filter((a) => a.stance === stance).length;
-  const stale = attestations.filter((a) => !a.current);
   return {
     support_count: count("support"),
     contradict_count: count("contradict"),
     unsure_count: count("unsure"),
     distinct_actor_count: new Set(current.map((a) => a.principal)).size,
-    stale_content: {
-      support_count: stale.filter((a) => a.stance === "support").length,
-      contradict_count: stale.filter((a) => a.stance === "contradict").length,
-      unsure_count: stale.filter((a) => a.stance === "unsure").length,
-    },
+    counting_count: current.filter((a) => a.counts).length,
+    open_contradiction: current.some((a) => a.counts && a.stance === "contradict"),
+    not_current_count: attestations.length - current.length,
   };
 }
 
