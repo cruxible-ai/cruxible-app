@@ -55,6 +55,51 @@ body {
   font-size: 14px;
 }
 
+/* Type scale (one ramp for every screen). Title: what the page is; lede:
+   the one-line summary; section: a card's heading; body: data and prose;
+   meta: secondary facts and labels. Meta text stays at zinc-500 or lighter
+   (about 4:1 on the ground); zinc-600 is for rules and disabled marks only. */
+@utility t-title {
+  font-size: 21px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--color-zinc-50);
+}
+@utility t-title-mono {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--color-zinc-50);
+}
+@utility t-lede {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-zinc-300);
+}
+@utility t-section {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--color-zinc-100);
+}
+@utility t-body {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-zinc-300);
+}
+@utility t-meta {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-zinc-500);
+}
+
+/* Prose measure: long text never runs the full width of a wide screen. */
+@utility measure {
+  max-width: 78ch;
+}
+
 /* Data surfaces are dense; tables use tabular numerals throughout. */
 table {
   font-variant-numeric: tabular-nums;

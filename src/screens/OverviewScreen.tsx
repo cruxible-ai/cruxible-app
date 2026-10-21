@@ -3,6 +3,8 @@ import { useInstanceId, useKits, useNext, useOrient } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import type { NextHealth, NextResult, OrientResult } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
+import { Fact, Page, PageHeader } from "@/components/Page";
+import { ShortId } from "@/components/ShortId";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
@@ -28,28 +30,32 @@ export function OverviewScreen() {
   const o = orient.data;
 
   return (
-    <div className="max-w-6xl">
-      <header className="mb-4">
-        <h1 className="text-[17px] font-semibold text-zinc-100">Overview</h1>
-        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-zinc-500">
-          <span>
-            generation <span className="font-mono text-zinc-300">{o.generation}</span>
-          </span>
-          <span className="font-mono" title={o.coordinate.git_oid}>
-            {o.coordinate.git_oid.slice(0, 12)}
-          </span>
-          <span title={o.accepted_at}>accepted {formatDateTime(o.accepted_at)}</span>
-          {o.floor && (
-            <span>
-              floor at <span className="font-mono">{o.floor.at}</span>
-              {o.floor.generations_behind != null && ` (${o.floor.generations_behind} behind)`}
-            </span>
-          )}
-          {o.you?.actor && <span>reading as {o.you.actor}</span>}
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        title="Overview"
+        facts={
+          <>
+            <Fact label="Generation">
+              <span className="font-mono">{o.generation}</span>
+            </Fact>
+            <Fact label="Commit">
+              <ShortId value={o.coordinate.git_oid} className="text-zinc-200" />
+            </Fact>
+            <Fact label="Accepted" title={o.accepted_at}>
+              {formatDateTime(o.accepted_at)}
+            </Fact>
+            {o.floor && (
+              <Fact label="Floor">
+                <span className="font-mono">{o.floor.at}</span>
+                {o.floor.generations_behind != null && ` (${o.floor.generations_behind} behind)`}
+              </Fact>
+            )}
+            {o.you?.actor && <Fact label="Reading as">{o.you.actor}</Fact>}
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2 min-[1800px]:grid-cols-3">
         <KindsPanel orient={o} />
         <AttentionPanel orient={o} />
         <NextPanel next={next.data} pending={next.isPending} error={next.error} />
@@ -57,7 +63,7 @@ export function OverviewScreen() {
         <CountsPanel orient={o} />
         <KitsPanel />
       </div>
-    </div>
+    </Page>
   );
 }
 
@@ -121,8 +127,13 @@ function AttentionPanel({ orient }: { orient: OrientResult }) {
         )}
       </dl>
       {(enablements?.needs_attention?.length ?? 0) > 0 && (
-        <div className="mt-2 text-[12px] text-amber-400/90">
-          Needs attention: {enablements!.needs_attention!.join(", ")}
+        <div className="mt-3">
+          <div className="text-[12px] font-semibold text-zinc-300">Needs attention</div>
+          <ul className="mt-0.5 space-y-0.5 text-[12px] text-amber-400/90">
+            {enablements!.needs_attention!.map((entry) => (
+              <li key={entry}>{entry}</li>
+            ))}
+          </ul>
         </div>
       )}
       {(attention.top?.length ?? 0) > 0 && (
@@ -176,7 +187,7 @@ function NextPanel({
             <div key={item.item_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-[13px]">
               <Chip value={item.severity} tone={SEVERITY_TONE[item.severity]} />
               <span className="text-zinc-300">{REASONS[item.reason].label}</span>
-              <RefLink value={item.subject_identity} className="ml-auto" />
+              <RefLink value={item.subject_identity} className="ml-auto" short />
               {item.repair && (
                 <div className="w-full text-[12px] text-zinc-500">{item.repair.required_change}</div>
               )}
@@ -190,7 +201,7 @@ function NextPanel({
         </Link>
       )}
       {next && next.unobserved_domains.length > 0 && (
-        <div className="mt-2 text-[12px] text-zinc-600">
+        <div className="t-meta mt-2">
           Not observed from here: {next.unobserved_domains.map(humanize).join(", ")}
         </div>
       )}

@@ -1,6 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useCard } from "@/api/hooks";
-import { Panel, LoadState } from "@/components/Panel";
+import { Disclosure, Panel, LoadState } from "@/components/Panel";
+import { Fact, Page, PageHeader } from "@/components/Page";
+import { ShortId, shortId } from "@/components/ShortId";
 import { Chip } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
 import { formatRef, getRefOf, parseRef, refKindLabel } from "@/lib/cruxible-ref";
@@ -28,25 +30,33 @@ export function RefScreen() {
     );
   }
   return (
-    <div className="max-w-5xl">
-      <header className="mb-4">
-        <div className="text-[10px] uppercase tracking-wide text-zinc-500">{refKindLabel(ref)}</div>
-        <h1 className="break-all font-mono text-[16px] font-semibold text-zinc-100">
-          {read.data?.ref ?? formatRef(ref)}
-        </h1>
-        {read.data && (
-          <div className="mt-1 flex flex-wrap gap-x-4 text-[12px] text-zinc-500">
-            <span>{humanize(read.data.kind)}</span>
-            <span>
-              generation <span className="font-mono">{read.data.coordinate.generation}</span>
-            </span>
-            <span className="font-mono">{read.data.coordinate.git_oid}</span>
-            <span title={read.data.evaluation_time}>
-              evaluated {formatDateTime(read.data.evaluation_time)}
-            </span>
-          </div>
-        )}
-      </header>
+    <Page>
+      <PageHeader
+        kind={refKindLabel(ref)}
+        title={<span title={read.data?.ref ?? formatRef(ref)}>{shortId(read.data?.ref ?? formatRef(ref), 16)}</span>}
+        mono
+        id={
+          shortId(read.data?.ref ?? formatRef(ref), 16) !== (read.data?.ref ?? formatRef(ref)) ? (
+            <ShortId value={read.data?.ref ?? formatRef(ref)} keep={64} className="text-zinc-500" />
+          ) : undefined
+        }
+        facts={
+          read.data && (
+            <>
+              <Fact label="Kind">{humanize(read.data.kind)}</Fact>
+              <Fact label="Generation">
+                <span className="font-mono">{read.data.coordinate.generation}</span>
+              </Fact>
+              <Fact label="Commit">
+                <ShortId value={read.data.coordinate.git_oid} className="text-zinc-200" />
+              </Fact>
+              <Fact label="Evaluated" title={read.data.evaluation_time}>
+                {formatDateTime(read.data.evaluation_time)}
+              </Fact>
+            </>
+          )
+        }
+      />
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
       {read.data?.card && (
@@ -54,7 +64,7 @@ export function RefScreen() {
           <Fields value={read.data.card as Record<string, unknown>} depth={0} />
         </Panel>
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -63,7 +73,7 @@ const MAX_DEPTH = 3;
 function Fields({ value, depth }: { value: Record<string, unknown>; depth: number }) {
   const entries = Object.entries(value).filter(([, v]) => v !== null && v !== undefined);
   return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+    <dl className="grid grid-cols-[minmax(7rem,max-content)_minmax(0,1fr)] gap-x-6 gap-y-2 text-[13px] leading-5">
       {entries.map(([key, v]) => (
         <div key={key} className="contents">
           <dt className="text-zinc-500">{humanize(key)}</dt>
@@ -94,15 +104,7 @@ function Value({ value, depth }: { value: unknown; depth: number }) {
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="text-zinc-600">none</span>;
     if (value.every(isRecord) && depth <= MAX_DEPTH) return <RecordTable rows={value} depth={depth} />;
-    return (
-      <span className="flex flex-wrap gap-x-2 gap-y-0.5">
-        {value.map((item, i) => (
-          <span key={i}>
-            <Value value={item} depth={depth + 1} />
-          </span>
-        ))}
-      </span>
-    );
+    return <ValueList items={value} depth={depth} />;
   }
   if (isRecord(value)) {
     return depth <= MAX_DEPTH ? (
@@ -112,6 +114,30 @@ function Value({ value, depth }: { value: unknown; depth: number }) {
     );
   }
   return <span className="text-zinc-600">{String(value)}</span>;
+}
+
+const LIST_HEAD = 6;
+
+/** A list of scalars or refs, one per line; past six, the rest behind a disclosure. */
+function ValueList({ items, depth }: { items: unknown[]; depth: number }) {
+  const render = (list: unknown[], offset: number) =>
+    list.map((item, i) => (
+      <div key={offset + i} className="min-w-0 break-all">
+        <Value value={item} depth={depth + 1} />
+      </div>
+    ));
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(30rem,1fr))] gap-x-6 gap-y-0.5">
+      {render(items.slice(0, LIST_HEAD), 0)}
+      {items.length > LIST_HEAD && (
+        <Disclosure label={`${items.length - LIST_HEAD} more`} className="col-span-full">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(30rem,1fr))] gap-x-6 gap-y-0.5">
+            {render(items.slice(LIST_HEAD), LIST_HEAD)}
+          </div>
+        </Disclosure>
+      )}
+    </div>
+  );
 }
 
 /** An array of records as a table over the union of their keys. */

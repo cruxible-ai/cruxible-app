@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useProposals } from "@/api/hooks";
 import type { ProposalStatus } from "@/api/schemas";
 import { toggleChipClass } from "@/components/Chip";
+import { Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { ProposalList } from "@/components/ProposalList";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -54,10 +55,13 @@ export function ProposalsScreen() {
   const { list, index, older, newer, reset } = usePagedProposals(status);
   usePageTitle("Proposals");
   return (
-    <div className="max-w-6xl space-y-3">
-      <header className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[17px] font-semibold text-zinc-100">Proposals</h1>
-        <span className="flex gap-1.5">
+    <Page>
+      <PageHeader
+        title="Proposals"
+        summary="Changes submitted for acceptance, by status. Approving, activating and rejecting stay on the CLI and MCP."
+        actions={<Pager index={index} older={older} newer={newer} />}
+      >
+        <div className="mt-3 flex gap-1.5">
           {STATUSES.map((name) => (
             <button
               key={name}
@@ -72,11 +76,8 @@ export function ProposalsScreen() {
               {name}
             </button>
           ))}
-        </span>
-        <span className="ml-auto">
-          <Pager index={index} older={older} newer={newer} />
-        </span>
-      </header>
+        </div>
+      </PageHeader>
       {list.isPending && <LoadState />}
       {list.error && <LoadState error={list.error} />}
       {list.data && (
@@ -85,6 +86,6 @@ export function ProposalsScreen() {
           <ProposalList entries={list.data.entries} />
         </Panel>
       )}
-    </div>
+    </Page>
   );
 }

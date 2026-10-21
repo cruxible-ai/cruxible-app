@@ -10,7 +10,7 @@ describe("Overview", () => {
 
     expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
-    expect(await main.findByText("generation")).toBeInTheDocument();
+    expect(await main.findByText("Generation")).toBeInTheDocument();
 
     const kind = main.getByRole("link", { name: "security.vulnerability" });
     expect(kind).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability");

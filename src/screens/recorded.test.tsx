@@ -90,7 +90,7 @@ describe("recorded gate world", () => {
   it("Lines index and a Line page with paged runs, inbox and Procedure", async () => {
     renderApp(`${I}/lines`, RECORDED);
     let m = await main();
-    expect(await m.findByText("17 Lines")).toBeInTheDocument();
+    expect(await m.findByText(/^17 Lines/)).toBeInTheDocument();
     // the Line link (the Procedure of the same name links to its card)
     expect(m.getAllByRole("link", { name: "security.harden" })[0]).toHaveAttribute("href", `${I}/lines/security.harden`);
     cleanup();
@@ -146,7 +146,7 @@ describe("recorded gate world", () => {
     expect(await screen.findByRole("heading", { name: "security.repo-snapshot-v1" })).toBeInTheDocument();
     const m = within(screen.getByRole("main"));
     expect(m.getByText("github.repo.snapshot")).toBeInTheDocument();
-    expect(m.getByText("admitted by 17 ClaimTypes, required by", { exact: false })).toBeInTheDocument();
+    expect(m.getByText("Admitted by").nextElementSibling).toHaveTextContent("17 ClaimTypes");
     expect(await m.findByText("security.harden-on-snapshot")).toBeInTheDocument();
     expect(m.getAllByRole("link", { name: "security.harden" })[0]).toHaveAttribute("href", `${I}/lines/security.harden`);
     // producers from the pins section: the acquiring Procedure and Blueprint, and the parser its landings start

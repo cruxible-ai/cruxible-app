@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 import { toggleChipClass } from "@/components/Chip";
+import { Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { NextItemRow } from "@/components/next/NextItemRow";
 import { PageNav } from "@/components/next/PageNav";
@@ -38,23 +39,21 @@ export function BeliefsScreen() {
   }
 
   return (
-    <div className="max-w-6xl space-y-3">
-      <header className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[17px] font-semibold text-zinc-100">Beliefs</h1>
-        <span className="flex gap-1.5">
+    <Page>
+      <PageHeader
+        title="Beliefs"
+        summary={TAB_NOTE[tab]}
+        actions={<PageNav index={index} total={page.data?.total_items} newer={newer} older={older} />}
+      >
+        <div className="mt-3 flex flex-wrap items-baseline gap-1.5">
           {BELIEF_TABS.map((name) => (
             <button key={name} onClick={() => setTab(name)} className={toggleChipClass(name === tab)}>
               {FAMILY_LABEL[name]} ({items.filter((item) => familyOf(item.reason) === name).length})
             </button>
           ))}
-        </span>
-        <span className="ml-auto">
-          <PageNav index={index} total={page.data?.total_items} newer={newer} older={older} />
-        </span>
-      </header>
-      <p className="max-w-3xl text-[12px] text-zinc-500">
-        {TAB_NOTE[tab]} <span className="text-zinc-600">Reasons: {reasons.join(", ")}.</span>
-      </p>
+          <span className="t-meta ml-2">Reasons: {reasons.join(", ")}.</span>
+        </div>
+      </PageHeader>
       {page.isPending && <LoadState />}
       {page.error && <LoadState error={page.error} />}
       {page.data && (
@@ -67,6 +66,6 @@ export function BeliefsScreen() {
           </div>
         </Panel>
       )}
-    </div>
+    </Page>
   );
 }

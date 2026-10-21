@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useGenerations, useInstanceId } from "@/api/hooks";
 import type { Schemas } from "@/api/schemas";
+import { Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { ProposalPeek } from "@/components/ProposalList";
 import { RefLink } from "@/components/RefLink";
@@ -26,18 +27,18 @@ export function LedgerScreen() {
   usePageTitle("Ledger");
   const rows = page.data?.generations ?? [];
   return (
-    <div className="max-w-6xl space-y-3">
-      <header className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[17px] font-semibold text-zinc-100">Ledger</h1>
-        <span className="text-[12px] text-zinc-600">accepted generations, newest first</span>
-        <span className="ml-auto">
+    <Page>
+      <PageHeader
+        title="Ledger"
+        summary="Accepted generations, newest first. Open a generation to read the instance as it stood there."
+        actions={
           <Pager
             index={cursors.length}
             newer={cursors.length ? () => setCursors((c) => c.slice(0, -1)) : null}
             older={page.data?.next_cursor ? () => setCursors((c) => [...c, page.data!.next_cursor!]) : null}
           />
-        </span>
-      </header>
+        }
+      />
       {page.isPending && <LoadState />}
       {page.error && <LoadState error={page.error} />}
       {page.data && (
@@ -50,7 +51,7 @@ export function LedgerScreen() {
           </div>
         </Panel>
       )}
-    </div>
+    </Page>
   );
 }
 

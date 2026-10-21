@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useCaptureContracts, useCard, useClaimTypes, useInstanceId, useLandingTriggers, useLines, usePins } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
+import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Pending } from "@/components/ontology/Pending";
 import { RefLink } from "@/components/RefLink";
@@ -48,21 +49,27 @@ export function ContractScreen() {
   const required = admitting.filter((a) => a.row?.evidence_requirement === "captured");
 
   return (
-    <div className="max-w-6xl space-y-3">
-      <header>
-        <div className="text-[10px] uppercase tracking-wide text-zinc-500">Capture contract</div>
-        <h1 className="font-mono text-[17px] font-semibold text-zinc-100">{name}</h1>
-        <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
-          <span>version {contract.version}</span>
-          <Chip value={contract.lifecycle} />
-          {definition.grade && <span>grade {definition.grade}</span>}
-          <span>
-            admitted by {admitting.length} ClaimTypes, required by {required.length}
-          </span>
-        </div>
-      </header>
+    <Page>
+      <PageHeader
+        kind="Capture contract"
+        title={name}
+        mono
+        facts={
+          <>
+            <Fact label="State">
+              <Chip value={contract.lifecycle} />
+            </Fact>
+            <Fact label="Version">
+              <span className="font-mono">v{contract.version}</span>
+            </Fact>
+            {definition.grade && <Fact label="Grade">{definition.grade}</Fact>}
+            <Fact label="Admitted by">{admitting.length} ClaimTypes</Fact>
+            <Fact label="Required by">{required.length} ClaimTypes</Fact>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <Panel title="What it captures">
           <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
             <dt className="text-zinc-500">Sources</dt>
@@ -190,7 +197,7 @@ export function ContractScreen() {
           </tbody>
         </table>
       </Panel>
-    </div>
+    </Page>
   );
 }
 
@@ -201,8 +208,8 @@ export function ContractsScreen() {
   const contracts = useCaptureContracts();
   usePageTitle("Contracts");
   return (
-    <div className="max-w-4xl space-y-3">
-      <h1 className="text-[17px] font-semibold text-zinc-100">Capture contracts</h1>
+    <Page width="narrow">
+      <PageHeader title="Capture contracts" summary="What each kind of evidence is, where it comes from, and how many ClaimTypes admit it." />
       {contracts.isPending && <LoadState />}
       {contracts.error && <LoadState error={contracts.error} />}
       {contracts.data && (
@@ -233,6 +240,6 @@ export function ContractsScreen() {
           </table>
         </Panel>
       )}
-    </div>
+    </Page>
   );
 }

@@ -118,7 +118,7 @@ export function AppShell() {
           </nav>
 
           <div className="mt-4">
-            <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+            <div className="px-2 pb-1 text-[12px] font-medium text-zinc-500">
               Subject kinds
             </div>
             {kinds.error && (
@@ -158,7 +158,7 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-6 py-5">
+      <main className="min-w-0 flex-1 px-6 py-5 2xl:px-8">
         <Outlet />
       </main>
       <JumpPalette />

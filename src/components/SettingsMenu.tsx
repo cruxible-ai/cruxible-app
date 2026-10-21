@@ -25,7 +25,7 @@ export function SettingsMenu() {
     <div ref={ref} className="relative">
       {open && (
         <div className="absolute bottom-8 left-0 w-52 border border-zinc-700 bg-zinc-900 p-3 shadow-lg">
-          <div className="pb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+          <div className="pb-2 text-[12px] font-medium text-zinc-500">
             Display settings
           </div>
           <label className="flex cursor-pointer items-start gap-2">

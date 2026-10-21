@@ -4,12 +4,14 @@ import { useGetBatch, useInstanceId, useLines, useMandates, useNext } from "@/ap
 import { NEXT_PAGE } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
+import { Page, PageHeader } from "@/components/Page";
+import { Table, Td, Th, trClass } from "@/components/Table";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, unreadOf } from "@/lib/lines";
 import { REASONS } from "@/lib/next-reasons";
-import { formatDateTime } from "@/lib/text";
+import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 type Mandate = Schemas["OrientMandate"];
@@ -53,103 +55,136 @@ export function LinesScreen() {
   const nextByLine = useMemo(() => nextRowsByLine(next.data?.items ?? []), [next.data]);
 
   return (
-    <div className="max-w-7xl space-y-3">
-      <header className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[17px] font-semibold text-zinc-100">Lines</h1>
-        {lines.data && <span className="text-[13px] text-zinc-500">{rows.length} Lines</span>}
-      </header>
+    <Page>
+      <PageHeader
+        title="Lines"
+        summary={
+          lines.data ? (
+            <>
+              {rows.length} Lines: {rows.filter((r) => r.enablement === "running").length} running,{" "}
+              {rows.filter((r) => r.enablement === "stopped" || r.enablement === "stalled").length} stopped or stalled,{" "}
+              {rows.filter((r) => !r.enablement).length} not enabled.
+            </>
+          ) : undefined
+        }
+      />
       {lines.isPending && <LoadState />}
       {lines.error && <LoadState error={lines.error} />}
       {lines.data && (
         <Panel title="Lines" meta={next.data?.next_cursor ? <span>next rows from the first page</span> : undefined}>
           {rows.length === 0 && <EmptyState>No Lines.</EmptyState>}
           {rows.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[13px]">
-                <thead className="text-[12px] text-zinc-500">
-                  <tr>
-                    {["Line", "Procedure", "Trigger", "Max authority", "Mandate", "Enabled", "Work", "Last run", "Inbox", "Next"].map((h) => (
-                      <th key={h} className="py-1 pr-3 font-medium">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => {
-                    const name = lineName(row.line);
-                    const procedure = row.procedure.replace(/^Procedure:/, "");
-                    const run = lastRun.get(name);
-                    const nextRows = nextByLine.get(name) ?? [];
-                    const unread = unreadOf(nextRows);
-                    return (
-                      <tr key={name} className="border-t border-zinc-900 align-top">
-                        <td className="py-1 pr-3">
-                          <Link
-                            to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)}
-                            className="font-mono text-[12px] text-zinc-200 hover:underline"
-                          >
-                            {name}
+            <Table>
+              <thead>
+                <tr>
+                  <Th title="The Line, and its Procedure when it has another name">Line</Th>
+                  <Th>Trigger</Th>
+                  <Th title="Max authority">Authority</Th>
+                  <Th>Mandate</Th>
+                  <Th>Enabled</Th>
+                  <Th numeric title="Occurrences due / waiting">Due / waiting</Th>
+                  <Th>Last run</Th>
+                  <Th>Inbox</Th>
+                  <Th>Next</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const name = lineName(row.line);
+                  const procedure = row.procedure.replace(/^Procedure:/, "");
+                  const run = lastRun.get(name);
+                  const nextRows = nextByLine.get(name) ?? [];
+                  const unread = unreadOf(nextRows);
+                  return (
+                    <tr key={name} className={trClass}>
+                      <Td className="whitespace-nowrap">
+                        <Link
+                          to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)}
+                          className="font-mono text-[12px] text-zinc-100 hover:underline"
+                        >
+                          {name}
+                        </Link>
+                        {row.lifecycle === "retired" && <span className="t-meta ml-1.5">retired</span>}
+                        {procedure !== name && (
+                          <div className="t-meta">
+                            runs{" "}
+                            <RefLink value={`Procedure:${procedure}`}>
+                              <span className="font-mono text-[12px] text-zinc-400">{procedure}</span>
+                            </RefLink>
+                          </div>
+                        )}
+                      </Td>
+                      <Td className="whitespace-nowrap text-zinc-400">{row.trigger.replaceAll("+", " + ")}</Td>
+                      <Td>
+                        <Chip value={row.authority} tone={row.authority === "settle" ? "violet" : row.authority === "propose" ? "blue" : "zinc"} />
+                      </Td>
+                      <Td className="text-[12px]">
+                        {(mandatesByProcedure.get(procedure) ?? []).map((mandate) => (
+                          <div key={mandate.mandate} className="whitespace-nowrap">
+                            <MandateLabel name={mandate.mandate.replace(/^(Procedure)?Mandate:/, "")} procedure={procedure} grants={mandate.grants} />{" "}
+                            <span className="text-zinc-500">{mandate.state}</span>
+                          </div>
+                        ))}
+                        {!mandatesByProcedure.has(procedure) && <span className="text-zinc-500">none</span>}
+                      </Td>
+                      <Td className="whitespace-nowrap">
+                        {row.enablement ? <Chip value={row.enablement} tone={row.enablement === "running" ? "green" : row.enablement === "stalled" ? "red" : "zinc"} /> : <span className="text-[12px] text-zinc-500">not enabled</span>}
+                      </Td>
+                      <Td numeric className="whitespace-nowrap text-zinc-500">
+                        <span className={(row.due ?? 0) > 0 ? "text-amber-400" : undefined}>{row.due ?? 0}</span> / {row.waiting ?? 0}
+                      </Td>
+                      <Td className="whitespace-nowrap text-[12px]">
+                        {run ? (
+                          <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="hover:underline">
+                            <Chip value={run.status} tone={run.status === "succeeded" ? "green" : run.status === "running" ? "blue" : "red"} />{" "}
+                            <span className="text-zinc-500" title={run.started_at}>
+                              {formatWhen(run.started_at)}
+                            </span>
                           </Link>
-                          {row.lifecycle === "retired" && <span className="ml-1.5 text-[11px] text-zinc-600">retired</span>}
-                        </td>
-                        <td className="py-1 pr-3">
-                          <RefLink value={`Procedure:${procedure}`}>
-                            <span className="font-mono text-[12px]">{procedure}</span>
-                          </RefLink>
-                        </td>
-                        <td className="py-1 pr-3 text-zinc-400">{row.trigger}</td>
-                        <td className="py-1 pr-3">
-                          <Chip value={row.authority} tone={row.authority === "settle" ? "violet" : row.authority === "propose" ? "blue" : "zinc"} />
-                        </td>
-                        <td className="py-1 pr-3 text-[12px]">
-                          {(mandatesByProcedure.get(procedure) ?? []).map((mandate) => (
-                            <div key={mandate.mandate}>
-                              <span className="font-mono text-zinc-300">{mandate.mandate.replace(/^(Procedure)?Mandate:/, "")}</span>{" "}
-                              <span className="text-zinc-500">
-                                {mandate.grants} · {mandate.state}
-                              </span>
-                            </div>
-                          ))}
-                          {!mandatesByProcedure.has(procedure) && <span className="text-zinc-600">none</span>}
-                        </td>
-                        <td className="py-1 pr-3">
-                          {row.enablement ? <Chip value={row.enablement} tone={row.enablement === "running" ? "green" : row.enablement === "stalled" ? "red" : "zinc"} /> : <span className="text-[12px] text-zinc-600">not enabled</span>}
-                        </td>
-                        <td className="py-1 pr-3 font-mono text-[12px] text-zinc-400">
-                          {row.due ?? 0} due · {row.waiting ?? 0} waiting
-                        </td>
-                        <td className="py-1 pr-3 text-[12px]">
-                          {run ? (
-                            <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="hover:underline">
-                              <Chip value={run.status} tone={run.status === "succeeded" ? "green" : run.status === "running" ? "blue" : "red"} />{" "}
-                              <span className="text-zinc-500" title={run.started_at}>
-                                {formatDateTime(run.started_at)}
-                              </span>
-                            </Link>
-                          ) : cards.isPending ? (
-                            <span className="animate-pulse text-zinc-600">…</span>
-                          ) : (
-                            <span className="text-zinc-600">none</span>
-                          )}
-                        </td>
-                        <td className="py-1 pr-3 font-mono text-[12px]">
-                          {unread !== null ? <span className="text-amber-400/90">{unread} unread</span> : <span className="text-zinc-600">—</span>}
-                        </td>
-                        <td className="py-1 text-[12px] text-zinc-400">
-                          {nextRows.map((item) => (
-                            <div key={item.item_id}>{REASONS[item.reason].label}</div>
-                          ))}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        ) : cards.isPending ? (
+                          <span className="animate-pulse text-zinc-500">…</span>
+                        ) : (
+                          <span className="text-zinc-500">none</span>
+                        )}
+                      </Td>
+                      <Td className="whitespace-nowrap font-mono text-[12px]">
+                        {unread !== null ? <span className="text-amber-400/90">{unread} unread</span> : <span className="text-zinc-600">—</span>}
+                      </Td>
+                      <Td className="text-[12px] text-amber-400/90">
+                        {nextRows.map((item) => (
+                          <div key={item.item_id} className="min-w-[7rem]">{REASONS[item.reason].label}</div>
+                        ))}
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
           )}
         </Panel>
       )}
-    </div>
+    </Page>
+  );
+}
+
+/**
+ * A mandate named after its Procedure ("<procedure>-propose") shows only
+ * what it adds; the full name is on hover. Other names show whole.
+ */
+function MandateLabel({ name, procedure, grants }: { name: string; procedure: string; grants: string }) {
+  const suffix = name.startsWith(`${procedure}-`) ? name.slice(procedure.length + 1) : null;
+  if (suffix === null) {
+    return (
+      <>
+        <span className="font-mono text-zinc-300">{name}</span> <span className="text-zinc-500">{grants},</span>
+      </>
+    );
+  }
+  return (
+    <span title={name}>
+      <span className="text-zinc-300">{suffix === grants ? grants : `…-${suffix}`}</span>
+      {suffix !== grants && <span className="text-zinc-500"> {grants}</span>}
+      <span className="text-zinc-500">,</span>
+    </span>
   );
 }

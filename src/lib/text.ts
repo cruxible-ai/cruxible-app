@@ -46,3 +46,14 @@ export function formatDateTime(iso: string): string {
     hour12: false,
   });
 }
+
+/**
+ * Compact form for dense rows: "Oct 19, 17:31" within the current year,
+ * otherwise the full date. The full timestamp belongs in the title.
+ */
+export function formatWhen(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  if (d.getFullYear() !== now.getFullYear()) return formatDateTime(iso);
+  return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+}
