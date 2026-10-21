@@ -98,6 +98,7 @@ export function FactRow({ label, children }: { label: ReactNode; children: React
 
 /** A main column with a narrower facts rail on wide screens. */
 export function WithRail({ children, rail }: { children: ReactNode; rail: ReactNode }) {
+  if (!rail) return <div className="space-y-5">{children}</div>;
   return (
     <div className="grid grid-cols-1 items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_24rem]">
       <div className="min-w-0 space-y-5">{children}</div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { ChevronDown, ChevronRight, Waypoints } from "lucide-react";
 import {
@@ -21,16 +21,19 @@ import {
   type OrientPredicate,
   type SubjectHistoryEvent,
 } from "@/api/schemas";
-import { actionChipClass, Chip } from "@/components/Chip";
+import { actionChipClass, Chip, toneFor } from "@/components/Chip";
 import { Corroboration, type CorroborationSummary } from "@/components/Corroboration";
-import { EmptyState, LoadState, Panel } from "@/components/Panel";
+import { LongText } from "@/components/LongText";
+import { Fact, Page, PageHeader, WithRail } from "@/components/Page";
+import { Disclosure, EmptyState, LoadState, Panel, SubSection } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
+import { Table, Td, Th, trClass } from "@/components/Table";
 import { IncomingList } from "@/components/IncomingList";
 import { useAtLink, withAt } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
 import { predicateIndex } from "@/lib/neighborhood";
-import { formatDateTime } from "@/lib/text";
+import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 type SubjectClaim = GetSubjectCard["claims"][number];
@@ -39,6 +42,9 @@ function claimIds(entry: SubjectClaim): string[] {
   return Array.isArray(entry.claim) ? entry.claim : [entry.claim];
 }
 
+/** Verdicts that need no attention render as a dot only; the summary names them. */
+const QUIET_VERDICTS = new Set(["supported"]);
+
 /**
  * One Subject at the pinned generation: its card (every slot's answer with
  * read flags), each Claim's verdict and contenders, admission accounts, and,
@@ -46,6 +52,10 @@ function claimIds(entry: SubjectClaim): string[] {
  * revisions; then the Subject's field history, paged. Every read is this
  * Subject's own: the card, ⌈Claims/64⌉ get-batch calls for verdicts,
  * ⌈Claims/256⌉ read-batch calls for admission, and one read per expansion.
+ *
+ * Layout: the header says how healthy the card is (verdict tally, evidence
+ * admitted); the field list shows each value once, quiet when supported;
+ * history groups one change set's events under one line.
  */
 export function SubjectScreen() {
   const { ref: raw = "" } = useParams();
@@ -85,68 +95,128 @@ export function SubjectScreen() {
   if (!subject) return <LoadState error={new Error(`${ref} did not resolve to a Subject card`)} />;
   const [kind, id] = [subject.kind, subject.subject.slice(subject.kind.length + 1)];
 
+  const tally = new Map<string, number>();
+  for (const claim of claimCards.values()) tally.set(claim.verdict, (tally.get(claim.verdict) ?? 0) + 1);
+  const evidence = [...admission.byClaim.values()].flat().filter((a) => a.citation_role === "evidence");
+  const admitted = evidence.filter((a) => a.status === "admitted").length;
+
   return (
-    <div className="max-w-6xl space-y-3">
-      <header>
-        <div className="flex flex-wrap items-center gap-3 text-[13px]">
-          <Link
-            to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`)}
-            className="font-mono text-[12px] text-zinc-400 hover:underline"
-          >
-            {kind}
-          </Link>
-          <Chip value={subject.lifecycle} />
-          <span className="text-zinc-500" title="Subject-valued Claims pointing at this Subject">
-            ← <span className="font-mono text-zinc-300">{subject.incoming_count}</span> incoming
-          </span>
-          <span className="text-zinc-600">
-            generation <span className="font-mono">{card.data!.coordinate.generation}</span>
-          </span>
+    <Page>
+      <PageHeader
+        kind={kind}
+        kindHref={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`)}
+        title={id}
+        mono
+        actions={
           <Link
             to={link(`/i/${instanceId}/s/${encodeURIComponent(subject.subject)}/graph`)}
-            className={`ml-auto inline-flex items-center gap-1.5 ${actionChipClass}`}
+            className={`inline-flex items-center gap-1.5 ${actionChipClass}`}
           >
             <Waypoints className="h-3 w-3" />
             Neighborhood
           </Link>
-        </div>
-        <h1 className="mt-1 break-all font-mono text-[17px] font-semibold text-zinc-100">{id}</h1>
-      </header>
-
-      <Panel
-        title="Claims"
-        meta={
-          <span>
-            {subject.claims.length} fields · {ids.length} Claims
-            {verdicts.isPending && " · reading verdicts…"}
+        }
+        summary={
+          <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            {ids.length === 0 && <span>No live Claims.</span>}
+            {verdicts.isPending && ids.length > 0 && <span className="t-meta animate-pulse">reading verdicts…</span>}
+            {[...tally.entries()]
+              .sort(([a], [b]) => (QUIET_VERDICTS.has(a) ? 1 : 0) - (QUIET_VERDICTS.has(b) ? 1 : 0))
+              .map(([verdict, count]) => (
+                <span key={verdict} className="inline-flex items-baseline gap-1.5 text-[13px]">
+                  <Chip value={verdict} />
+                  <span className="font-mono text-zinc-200">{count}</span>
+                </span>
+              ))}
           </span>
         }
+        facts={
+          <>
+            <Fact label="State">
+              <Chip value={subject.lifecycle} />
+            </Fact>
+            <Fact label="Evidence admitted" title="Evidence citations admitted by their ClaimTypes' evidence rules">
+              {evidence.length === 0 ? (
+                <span className="text-zinc-500">no evidence citations</span>
+              ) : (
+                <span className={admitted < evidence.length ? "text-amber-400" : undefined}>
+                  {admitted} of {evidence.length}
+                </span>
+              )}
+            </Fact>
+            <Fact label="Incoming links" title="Subject-valued Claims pointing at this Subject">
+              <span className="font-mono">{subject.incoming_count}</span>
+            </Fact>
+            <Fact label="Generation">
+              <span className="font-mono">{card.data!.coordinate.generation}</span>
+            </Fact>
+          </>
+        }
+      />
+
+      <WithRail
+        rail={
+          subject.incoming_count > 0 ? (
+            <Panel title="Pointed at by" meta={<span>{subject.incoming_count}</span>}>
+              <IncomingList subject={subject.subject} total={subject.incoming_count} />
+            </Panel>
+          ) : null
+        }
       >
-        {subject.claims.length === 0 && <EmptyState>No live Claims.</EmptyState>}
-        {verdicts.error && <LoadState error={verdicts.error} />}
-        {admission.error && <LoadState error={admission.error} />}
-        <div className="divide-y divide-zinc-800/60">
-          {subject.claims.map((entry) => (
-            <ClaimRow
-              key={`${entry.predicate}\n${entry.qualifier ?? ""}`}
-              kind={kind}
-              entry={entry}
-              descriptor={predicates.get(`${kind}\n${entry.predicate}`)}
-              cards={claimCards}
-              accounts={admission.byClaim}
-            />
-          ))}
-        </div>
-      </Panel>
-
-      {subject.incoming_count > 0 && (
-        <Panel title="Pointed at by" meta={<span>{subject.incoming_count}</span>}>
-          <IncomingList subject={subject.subject} total={subject.incoming_count} />
+        <Panel
+          title="Fields"
+          meta={
+            <span>
+              {subject.claims.length} fields · {ids.length} Claims
+            </span>
+          }
+        >
+          {subject.claims.length === 0 && <EmptyState>No live Claims.</EmptyState>}
+          {verdicts.error && <LoadState error={verdicts.error} />}
+          {admission.error && <LoadState error={admission.error} />}
+          <div className="divide-y divide-zinc-800/70">
+            {subject.claims.map((entry) => (
+              <ClaimRow
+                key={`${entry.predicate}\n${entry.qualifier ?? ""}`}
+                kind={kind}
+                entry={entry}
+                descriptor={predicates.get(`${kind}\n${entry.predicate}`)}
+                cards={claimCards}
+                accounts={admission.byClaim}
+              />
+            ))}
+          </div>
         </Panel>
-      )}
 
-      <HistoryPanel subjectRef={subject.subject} />
-    </div>
+        <HistoryPanel subjectRef={subject.subject} />
+      </WithRail>
+    </Page>
+  );
+}
+
+/** A slot's answer: text clamps to two lines; refs, numbers and structured values as get shows them. */
+function FieldValue({ value }: { value: unknown }) {
+  if (typeof value === "string" && !parseRef(value)) return <LongText text={value} lines={2} className="text-zinc-100" />;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { truncated?: unknown }).truncated === true &&
+    typeof (value as { preview?: unknown }).preview === "string"
+  ) {
+    const { preview, length } = value as { preview: string; length?: unknown };
+    return (
+      <div className="measure">
+        <LongText text={`${preview}…`} lines={2} className="text-zinc-100" />
+        <span className="t-meta" title="get serves a preview; the whole text is in the Claim's evidence read">
+          preview of {String(length)} characters
+        </span>
+      </div>
+    );
+  }
+  return (
+    <span className="text-zinc-100">
+      <ShownValue value={value} />
+    </span>
   );
 }
 
@@ -169,39 +239,45 @@ function ClaimRow({
   const ids = claimIds(entry);
   const predicate = descriptor?.predicate ?? entry.predicate;
   return (
-    <div className="py-1.5">
-      <div className="grid grid-cols-[1.25rem_minmax(8rem,14rem)_minmax(0,1fr)_minmax(0,16rem)] items-baseline gap-x-3 text-[13px]">
+    <div className="py-2 first:pt-0 last:pb-0">
+      <div className="grid grid-cols-[1rem_minmax(9rem,15rem)_minmax(0,1fr)_minmax(0,max-content)] items-baseline gap-x-4 text-[13px]">
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label={`${open ? "Collapse" : "Expand"} ${entry.predicate}`}
-          className="text-zinc-500 hover:text-zinc-200"
+          aria-expanded={open}
+          className="relative top-[2px] text-zinc-500 hover:text-zinc-200"
         >
           {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
         <Link
           to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)}
-          className="truncate font-mono text-[12px] text-zinc-400 hover:underline"
+          className="truncate font-mono text-[12px] text-zinc-400 hover:text-zinc-200 hover:underline"
           title={`${predicate}${descriptor ? ` · ${descriptor.cardinality} · ${descriptor.type}` : ""}`}
         >
           {entry.predicate}
-          {entry.qualifier && <span className="text-zinc-600">[{entry.qualifier}]</span>}
+          {entry.qualifier && <span className="text-zinc-500">[{entry.qualifier}]</span>}
         </Link>
-        <div className="min-w-0 text-zinc-200">
-          <ShownValue value={entry.value} />
+        <div className="min-w-0">
+          <FieldValue value={entry.value} />
         </div>
-        <div className="flex flex-wrap justify-end gap-x-2 gap-y-0.5">
+        <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5">
           {(entry.flags ?? []).map((flag) => (
             <Chip key={flag} value={flag} />
           ))}
           {ids.map((id) => {
             const claim = cards.get(id);
-            return claim ? <Chip key={id} value={claim.verdict} /> : null;
+            if (!claim) return null;
+            return QUIET_VERDICTS.has(claim.verdict) ? (
+              <QuietVerdict key={id} verdict={claim.verdict} />
+            ) : (
+              <Chip key={id} value={claim.verdict} />
+            );
           })}
           <AdmissionSummary accounts={ids.flatMap((id) => accounts.get(id) ?? [])} />
         </div>
       </div>
       {open && (
-        <div className="ml-8 mt-1.5 space-y-2">
+        <div className="ml-8 mt-2 space-y-2">
           {ids.map((id) => (
             <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} />
           ))}
@@ -211,13 +287,27 @@ function ClaimRow({
   );
 }
 
+const DOT: Record<string, string> = { green: "bg-emerald-500", amber: "bg-amber-400", red: "bg-red-500", blue: "bg-sky-500", violet: "bg-violet-400", zinc: "bg-zinc-600" };
+
+/** A healthy verdict as its dot alone; the word is on hover and in the header tally. */
+function QuietVerdict({ verdict }: { verdict: string }) {
+  return (
+    <span
+      className={`inline-block h-1.5 w-1.5 self-center rounded-full ${DOT[toneFor(verdict)]}`}
+      title={verdict.replaceAll("_", " ")}
+      aria-label={verdict.replaceAll("_", " ")}
+      role="img"
+    />
+  );
+}
+
 function AdmissionSummary({ accounts }: { accounts: CaptureAdmissionAccount[] }) {
   const evidence = accounts.filter((a) => a.citation_role === "evidence");
   if (evidence.length === 0) return null;
   const admitted = evidence.filter((a) => a.status === "admitted").length;
   return (
     <span
-      className={`text-[12px] ${admitted < evidence.length ? "text-amber-400/90" : "text-zinc-500"}`}
+      className={`whitespace-nowrap text-[12px] ${admitted < evidence.length ? "text-amber-400/90" : "text-zinc-500"}`}
       title="Evidence citations admitted by the ClaimType's evidence rules"
     >
       {admitted}/{evidence.length} admitted
@@ -241,9 +331,9 @@ function ClaimDetail({
   const history = revisions.data?.history;
   const revisionRows: GetRevision[] = history?.kind === "revisions" ? history.revisions : [];
   return (
-    <div className="border border-zinc-800 bg-zinc-900/30 p-2 text-[12px]">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <RefLink value={claimId} />
+    <div className="border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 text-[12px]">
+      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+        <RefLink value={claimId} short />
         {card && (
           <>
             <span className="text-zinc-500">
@@ -261,110 +351,131 @@ function ClaimDetail({
       </div>
 
       {(card?.contenders?.length ?? 0) > 0 && (
-        <Section title="Contenders">
+        <SubSection title="Contenders">
           {card!.contenders!.map((contender) => (
             <div key={contender.claim} className="flex flex-wrap items-baseline gap-x-3">
-              <RefLink value={contender.claim} />
+              <RefLink value={contender.claim} short />
               <ShownValue value={contender.value} />
               <Chip value={contender.verdict} />
             </div>
           ))}
-        </Section>
+        </SubSection>
       )}
 
-      {evidence.isPending && <div className="mt-1 animate-pulse text-zinc-600">Reading evidence…</div>}
-      {evidence.error && <div className="mt-1 text-red-400/80">{evidence.error.message}</div>}
+      {evidence.isPending && <div className="mt-2 animate-pulse text-zinc-500">Reading evidence…</div>}
+      {evidence.error && <div className="mt-2 text-red-400/80">{evidence.error.message}</div>}
       {ev && (
         <>
           {ev.rationale && (
-            <Section title="Rationale">
-              <div className="whitespace-pre-wrap text-zinc-300">{ev.rationale}</div>
-            </Section>
+            <SubSection title="Rationale">
+              <LongText text={ev.rationale} lines={4} className="text-[13px] text-zinc-200" />
+            </SubSection>
           )}
-          <Section title={`Captures (${ev.captures.length})`}>
-            {ev.captures.length === 0 && <div className="text-zinc-600">No cited Captures.</div>}
-            {ev.captures.map((capture) => (
-              <div key={`${capture.capture}\n${capture.role}`} className="flex flex-wrap items-baseline gap-x-3">
-                <RefLink value={capture.capture} />
-                <span className="font-mono text-zinc-400">
-                  {capture.contract} v{capture.version}
-                </span>
-                <span className="text-zinc-500">{capture.role}</span>
-                <span className="text-zinc-500" title={capture.observed_at}>
-                  observed {formatDateTime(capture.observed_at)}
-                </span>
-                <span className="min-w-0 truncate text-zinc-500" title={capture.source}>
-                  {capture.source}
-                </span>
-                <Chip value={capture.admitted ? "admitted" : "not_admitted"} />
-              </div>
-            ))}
-          </Section>
+          <SubSection title="Captures" meta={ev.captures.length}>
+            {ev.captures.length === 0 && <div className="text-zinc-500">No cited Captures.</div>}
+            {ev.captures.length > 0 && (
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Capture</Th>
+                    <Th>Contract</Th>
+                    <Th>Role</Th>
+                    <Th>Observed</Th>
+                    <Th>Source</Th>
+                    <Th>Admission</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ev.captures.map((capture) => (
+                    <tr key={`${capture.capture}\n${capture.role}`} className={trClass}>
+                      <Td className="whitespace-nowrap">
+                        <RefLink value={capture.capture} />
+                      </Td>
+                      <Td className="font-mono text-[12px] text-zinc-400">
+                        {capture.contract} v{capture.version}
+                      </Td>
+                      <Td className="text-zinc-400">{capture.role}</Td>
+                      <Td className="whitespace-nowrap text-zinc-400" title={capture.observed_at}>
+                        {formatWhen(capture.observed_at)}
+                      </Td>
+                      <Td className="max-w-[18rem] truncate text-zinc-400" title={capture.source}>
+                        {capture.source}
+                      </Td>
+                      <Td>
+                        <Chip value={capture.admitted ? "admitted" : "not_admitted"} />
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </SubSection>
           {ev.attestations.length > 0 && (
-            <Section title={`Attestations (${ev.attestations.length})`}>
+            <SubSection title="Attestations" meta={ev.attestations.length}>
               {ev.attestations.map((attestation, i) => (
-                <div key={i} className={`flex flex-wrap gap-x-3 ${attestation.current ? "" : "opacity-60"}`}>
+                <div key={i} className={`flex flex-wrap items-baseline gap-x-3 ${attestation.current ? "" : "opacity-60"}`}>
                   <Chip value={attestation.stance} />
                   <span className="font-mono text-zinc-400">{attestation.principal}</span>
                   <span className="text-zinc-500" title={attestation.at}>
-                    {formatDateTime(attestation.at)}
+                    {formatWhen(attestation.at)}
                   </span>
-                  {!attestation.current && <span className="text-zinc-600">against earlier content</span>}
+                  {!attestation.current && <span className="text-zinc-500">against earlier content</span>}
                 </div>
               ))}
-            </Section>
+            </SubSection>
           )}
         </>
       )}
 
       {accounts && accounts.length > 0 && (
-        <Section title="Admission accounts">
-          <table className="w-full text-left">
-            <thead className="text-zinc-600">
+        <Disclosure className="mt-3" label="Admission accounts">
+          <Table>
+            <thead>
               <tr>
-                <th className="pr-3 font-medium">Capture</th>
-                <th className="pr-3 font-medium">Contract</th>
-                <th className="pr-3 font-medium">Role</th>
-                <th className="pr-3 font-medium">Origin</th>
-                <th className="pr-3 font-medium">Status</th>
-                <th className="font-medium">Rules</th>
+                <Th>Capture</Th>
+                <Th>Contract</Th>
+                <Th>Role</Th>
+                <Th>Origin</Th>
+                <Th>Status</Th>
+                <Th>Rules</Th>
               </tr>
             </thead>
             <tbody>
               {accounts.map((account) => (
-                <tr key={account.citation_id} className="border-t border-zinc-900 align-top">
-                  <td className="pr-3">
+                <tr key={account.citation_id} className={trClass}>
+                  <Td className="whitespace-nowrap">
                     <RefLink value={`CAP-${account.capture_digest.replace(/^sha256:/, "").slice(0, 12)}`} />
-                  </td>
-                  <td className="pr-3 font-mono text-zinc-400">{account.capture_contract_identity}</td>
-                  <td className="pr-3 text-zinc-400">{account.citation_role}</td>
-                  <td className="pr-3 text-zinc-400">{account.citation_origin}</td>
-                  <td className="pr-3">
+                  </Td>
+                  <Td className="font-mono text-[12px] text-zinc-400">{account.capture_contract_identity}</Td>
+                  <Td className="text-zinc-400">{account.citation_role}</Td>
+                  <Td className="text-zinc-400">{account.citation_origin}</Td>
+                  <Td>
                     <Chip value={account.status} />
-                  </td>
-                  <td className="text-zinc-500">
-                    {account.decisions
-                      .map(
-                        (decision) =>
-                          `${decision.evidence_kind}: ${decision.status}` +
-                          (decision.rule_id ? ` (${decision.rule_id})` : "") +
-                          (decision.refusal_code ? ` ${decision.refusal_code}` : ""),
-                      )
-                      .join("; ")}
-                  </td>
+                  </Td>
+                  <Td className="text-zinc-500">
+                    {account.decisions.map((decision, i) => (
+                      <div key={i}>
+                        {decision.evidence_kind}: {decision.status}
+                        {decision.rule_id && <span className="font-mono"> ({decision.rule_id})</span>}
+                        {decision.refusal_code && <span className="text-amber-400/90"> {decision.refusal_code}</span>}
+                      </div>
+                    ))}
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </Section>
+          </Table>
+        </Disclosure>
       )}
 
       {revisionRows.length > 0 && (
-        <Section title="Revisions">
-          {revisionRows.map((revision) => (
-            <RevisionLine key={`${revision.revision}\n${revision.sequence}`} revision={revision} />
-          ))}
-        </Section>
+        <Disclosure className="mt-2" label={`Revisions (${revisionRows.length})`} defaultOpen={revisionRows.length <= 3}>
+          <div className="space-y-1">
+            {revisionRows.map((revision) => (
+              <RevisionLine key={`${revision.revision}\n${revision.sequence}`} revision={revision} />
+            ))}
+          </div>
+        </Disclosure>
       )}
     </div>
   );
@@ -388,58 +499,79 @@ function corroboration(attestations: { stance: string; principal: string; curren
   };
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mt-2">
-      <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">{title}</div>
-      <div className="space-y-0.5">{children}</div>
-    </div>
-  );
-}
-
 /** "view state then": the generation link keeps the current path. */
 function GenerationLink({ sequence }: { sequence: number }) {
   const { pathname } = useLocation();
   return (
-    <Link to={withAt(pathname, String(sequence))} className="font-mono text-zinc-300 hover:underline" title="View state at this generation">
+    <Link to={withAt(pathname, String(sequence))} className="font-mono text-zinc-200 hover:underline" title="View state at this generation">
       g{sequence}
     </Link>
   );
 }
 
-function ReasonText({ reason }: { reason: SubjectHistoryEvent["reason"] | GetRevision["reason"] }) {
+type Reason = SubjectHistoryEvent["reason"] | GetRevision["reason"];
+
+function reasonText(reason: Reason): string | null {
   if (!reason) return null;
+  return `${reason.kind === "change_set" ? reason.text : reason.reason}${reason.truncated ? "…" : ""}`;
+}
+
+function ReasonSource({ reason }: { reason: Reason }) {
+  if (!reason || reason.kind !== "procedure_item") return null;
   return (
-    <span className="text-zinc-400">
-      {reason.kind === "change_set" ? reason.text : reason.reason}
-      {reason.truncated && "…"}
-      {reason.kind === "procedure_item" && (
-        <span className="text-zinc-600">
-          {" "}
-          · {reason.procedure} <RefLink value={`ProcedureRun:${reason.run}`} />
-        </span>
-      )}
+    <span className="t-meta">
+      {reason.procedure} <RefLink value={`ProcedureRun:${reason.run}`} short />
     </span>
   );
 }
 
 function RevisionLine({ revision }: { revision: GetRevision }) {
+  const text = reasonText(revision.reason);
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3">
-      <span className="font-mono text-zinc-500">r{revision.revision}</span>
-      <GenerationLink sequence={revision.sequence} />
-      {revision.change && <Chip value={revision.change} />}
-      {revision.value !== undefined && <ShownValue value={revision.value} />}
-      {revision.actor && <span className="font-mono text-zinc-400">{revision.actor}</span>}
-      {(revision.approved_by?.length ?? 0) > 0 && (
-        <span className="text-zinc-500">approved by {revision.approved_by!.join(", ")}</span>
-      )}
-      <span className="text-zinc-600" title={revision.accepted}>
-        {formatDateTime(revision.accepted)}
-      </span>
-      <ReasonText reason={revision.reason} />
+    <div>
+      <div className="flex flex-wrap items-baseline gap-x-3">
+        <span className="font-mono text-zinc-500">r{revision.revision}</span>
+        <GenerationLink sequence={revision.sequence} />
+        {revision.change && <Chip value={revision.change} />}
+        {revision.value !== undefined && <ShownValue value={revision.value} />}
+        {revision.actor && <span className="font-mono text-zinc-400">{revision.actor}</span>}
+        {(revision.approved_by?.length ?? 0) > 0 && <span className="text-zinc-500">approved by {revision.approved_by!.join(", ")}</span>}
+        <span className="text-zinc-500" title={revision.accepted}>
+          {formatWhen(revision.accepted)}
+        </span>
+        <ReasonSource reason={revision.reason} />
+      </div>
+      {text && <LongText text={text} lines={2} className="text-zinc-400" />}
     </div>
   );
+}
+
+/**
+ * Consecutive events of one accepted change (same generation, actor and
+ * approvers) read as one entry; inside it, events are grouped under their
+ * reason so a reason shared by several fields shows once.
+ */
+function groupEvents(events: SubjectHistoryEvent[]): SubjectHistoryEvent[][] {
+  const key = (e: SubjectHistoryEvent) => `${e.sequence}\n${e.actor ?? ""}\n${(e.approved_by ?? []).join(",")}`;
+  const groups: SubjectHistoryEvent[][] = [];
+  for (const event of events) {
+    const last = groups[groups.length - 1];
+    if (last && key(last[0]!) === key(event)) last.push(event);
+    else groups.push([event]);
+  }
+  return groups;
+}
+
+function byReason(events: SubjectHistoryEvent[]): { text: string | null; reason: Reason; events: SubjectHistoryEvent[] }[] {
+  const out = new Map<string, { text: string | null; reason: Reason; events: SubjectHistoryEvent[] }>();
+  for (const event of events) {
+    const text = reasonText(event.reason);
+    const k = text ?? "";
+    const entry = out.get(k) ?? { text, reason: event.reason, events: [] };
+    entry.events.push(event);
+    out.set(k, entry);
+  }
+  return [...out.values()];
 }
 
 /** The Subject's field history, newest first, a page at a time (O(page)). */
@@ -449,21 +581,24 @@ function HistoryPanel({ subjectRef }: { subjectRef: string }) {
   const read = useSubjectHistory(subjectRef, cursor);
   const history = read.data?.history;
   const events: SubjectHistoryEvent[] = history?.kind === "subject" ? history.events : [];
+  const groups = groupEvents(events);
   return (
     <Panel
       title="Field history"
       meta={
-        <span className="flex gap-2">
+        <span className="flex gap-3">
           {cursors.length > 0 && (
             <button onClick={() => setCursors((c) => c.slice(0, -1))} className="hover:text-zinc-200">
               ← Newer
             </button>
           )}
+          {read.data && (
+            <span>
+              {events.length} events in {groups.length} {groups.length === 1 ? "change" : "changes"}
+            </span>
+          )}
           {read.data?.next_cursor && (
-            <button
-              onClick={() => setCursors((c) => [...c, read.data!.next_cursor!])}
-              className="hover:text-zinc-200"
-            >
+            <button onClick={() => setCursors((c) => [...c, read.data!.next_cursor!])} className="hover:text-zinc-200">
               Older →
             </button>
           )}
@@ -473,40 +608,99 @@ function HistoryPanel({ subjectRef }: { subjectRef: string }) {
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
       {read.data && events.length === 0 && <EmptyState>No field events.</EmptyState>}
-      <div className="divide-y divide-zinc-800/60">
-        {events.map((event, i) => (
-          <div key={`${event.claim}\n${event.sequence}\n${i}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-[12px]">
-            <GenerationLink sequence={event.sequence} />
-            <Chip value={event.change ?? "stated"} />
-            <span className="font-mono text-zinc-400">{event.field}</span>
-            {event.change === "changed" && event.before !== undefined && (
-              <>
-                <span className="text-zinc-500 line-through decoration-zinc-700">
-                  <ShownValue value={event.before} />
-                </span>
-                <span className="text-zinc-600">→</span>
-              </>
-            )}
-            {event.value !== undefined && (
-              <span className="text-zinc-200">
-                <ShownValue value={event.value} />
-              </span>
-            )}
-            {event.change === "retired" && event.retirement && (
-              <span className="text-zinc-500">{event.retirement}</span>
-            )}
-            {"contended" in event && event.contended && <Chip value="contested" />}
-            {event.actor && <span className="font-mono text-zinc-500">{event.actor}</span>}
-            {(event.approved_by?.length ?? 0) > 0 && (
-              <span className="text-zinc-500">approved by {event.approved_by!.join(", ")}</span>
-            )}
-            <span className="text-zinc-600" title={event.accepted}>
-              {formatDateTime(event.accepted)}
-            </span>
-            <ReasonText reason={event.reason} />
-          </div>
+      <div className="divide-y divide-zinc-800/70">
+        {groups.map((group) => (
+          <HistoryGroup key={`${group[0]!.sequence}\n${group[0]!.claim}`} events={group} />
         ))}
       </div>
     </Panel>
+  );
+}
+
+function HistoryGroup({ events }: { events: SubjectHistoryEvent[] }) {
+  const head = events[0]!;
+  return (
+    <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-4 py-2.5 text-[13px] first:pt-0 last:pb-0">
+      <div className="pt-px">
+        <GenerationLink sequence={head.sequence} />
+        <div className="t-meta" title={head.accepted}>
+          {formatWhen(head.accepted)}
+        </div>
+      </div>
+      <div className="min-w-0 space-y-2">
+        <div className="t-meta flex flex-wrap items-baseline gap-x-2">
+          {head.actor && <span className="font-mono text-zinc-400">{head.actor}</span>}
+          {(head.approved_by?.length ?? 0) > 0 && <span>approved by {head.approved_by!.join(", ")}</span>}
+        </div>
+        {byReason(events).map(({ text, reason, events: fields }) => (
+          <div key={text ?? ""} className="space-y-1">
+            {(text || reason) && (
+              <div className="flex flex-wrap items-baseline gap-x-3">
+                {text && (
+                  <span className="min-w-0 flex-1">
+                    <LongText text={text} lines={2} className="text-zinc-200" />
+                  </span>
+                )}
+                <ReasonSource reason={reason} />
+              </div>
+            )}
+            <dl className="grid grid-cols-[minmax(7rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-1">
+              {fields.map((event, i) => (
+                <Fragment key={`${event.claim}\n${i}`}>
+                  <dt className="flex items-baseline gap-2 whitespace-nowrap">
+                    <Chip value={event.change ?? "stated"} />
+                    <span className="font-mono text-[12px] text-zinc-400">{event.field}</span>
+                  </dt>
+                  <dd className="min-w-0">
+                    <EventValue event={event} />
+                  </dd>
+                </Fragment>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EventValue({ event }: { event: SubjectHistoryEvent }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-baseline gap-x-3">
+        {event.value !== undefined && (
+          <span className="min-w-0 flex-1">
+            <HistoryValue value={event.value} />
+          </span>
+        )}
+        {event.change === "retired" && event.retirement && <span className="text-zinc-500">{event.retirement}</span>}
+        {"contended" in event && event.contended && <Chip value="contested" />}
+      </div>
+      {event.change === "changed" && event.before !== undefined && (
+        <Disclosure label="previous value" className="mt-0.5">
+          <span className="text-zinc-500">
+            <HistoryValue value={event.before} muted />
+          </span>
+        </Disclosure>
+      )}
+    </div>
+  );
+}
+
+function HistoryValue({ value, muted = false }: { value: unknown; muted?: boolean }) {
+  const tone = muted ? "text-zinc-500" : "text-zinc-300";
+  if (typeof value === "string" && !parseRef(value)) return <LongText text={value} lines={1} className={tone} />;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { truncated?: unknown }).truncated === true &&
+    typeof (value as { preview?: unknown }).preview === "string"
+  ) {
+    return <LongText text={`${(value as { preview: string }).preview}…`} lines={1} className={tone} />;
+  }
+  return (
+    <span className={tone}>
+      <ShownValue value={value} />
+    </span>
   );
 }
