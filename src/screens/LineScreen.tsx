@@ -21,9 +21,10 @@ import { Fact, Page, PageHeader } from "@/components/Page";
 import { LongText } from "@/components/LongText";
 import { ShortId } from "@/components/ShortId";
 import { Table, Td, Th, trClass } from "@/components/Table";
+import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
-import { NextGroups } from "@/components/next/NextItemRow";
+import { NextTable } from "@/components/next/NextTable";
 import { LineDefinitionPanel, ProcedureDefinition } from "@/components/ontology/Definitions";
 import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
 import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
@@ -282,6 +283,8 @@ function LineSummary({ procedure }: { procedure: string }) {
 }
 
 type LineCard = Schemas["GetLineCard"];
+type RunRow = Schemas["RunRow"];
+type InboxEntry = Schemas["InboxListEntry"];
 
 /** Occurrences due (waiting for dispatch: amber) and scheduled. */
 export function DueCount({ due, scheduled }: { due: number; scheduled: number }) {
@@ -364,6 +367,46 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
   const [cursors, setCursors] = useState<string[]>([]);
   const read = useLineRuns(line, cursors[cursors.length - 1]);
   const runs = read.data?.runs?.runs ?? [];
+  const runColumns = useMemo<Column<RunRow>[]>(
+    () => [
+      {
+        id: "run",
+        header: "Run",
+        hideable: false,
+        sortValue: (run) => runId(run.run),
+        filter: { kind: "text", text: (run) => runId(run.run) },
+        cell: (run) => (
+          <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="font-mono text-zinc-200 hover:underline" title={runId(run.run)}>
+            {shortRunId(run.run)}
+          </Link>
+        ),
+      },
+      {
+        id: "status",
+        header: "Outcome",
+        sortValue: (run) => term("run", run.status).word,
+        filter: { kind: "enum", values: (run) => [term("run", run.status).word] },
+        className: "whitespace-nowrap",
+        cell: (run) => <Chip concept="run" value={run.status} />,
+      },
+      {
+        id: "started",
+        header: "Started",
+        sortValue: (run) => run.started_at,
+        className: "whitespace-nowrap text-zinc-500",
+        cell: (run) => <span title={run.started_at}>{formatWhen(run.started_at)}</span>,
+      },
+      {
+        id: "nodes",
+        header: "Nodes done",
+        numeric: true,
+        sortValue: (run) => run.nodes_done,
+        className: "text-[12px] text-zinc-500",
+        cell: (run) => run.nodes_done,
+      },
+    ],
+    [instanceId, link],
+  );
   return (
     <Panel
       title="Runs"
@@ -387,25 +430,17 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
     >
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
-      {read.data && runs.length === 0 && <EmptyState>No runs yet.</EmptyState>}
-      <div className="space-y-1 text-[13px]">
-        {runs.map((run) => (
-          <div key={run.run} className="grid grid-cols-[minmax(9rem,max-content)_7rem_minmax(0,1fr)_auto] items-baseline gap-x-4">
-            <Link
-              to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)}
-              className="font-mono text-zinc-200 hover:underline"
-              title={runId(run.run)}
-            >
-              {shortRunId(run.run)}
-            </Link>
-            <Chip concept="run" value={run.status} />
-            <span className="text-zinc-500" title={run.started_at}>
-              {formatWhen(run.started_at)}
-            </span>
-            <span className="text-right font-mono text-[12px] text-zinc-500">{run.nodes_done} nodes</span>
-          </div>
-        ))}
-      </div>
+      {read.data && (
+        <DataTable
+          rows={runs}
+          columns={runColumns}
+          rowKey={(run) => run.run}
+          urlKey="runs"
+          label="Runs"
+          partial={total > runs.length ? `${cursors.length === 0 ? "the newest" : "this page of"} ${runs.length} of ${total} runs` : null}
+          empty="No runs yet."
+        />
+      )}
     </Panel>
   );
 }
@@ -416,7 +451,12 @@ function LineNextPanel({ line }: { line: string }) {
   if (!next.data || rows.length === 0) return null;
   return (
     <Panel title="Next" meta={<span>{rows.length} on the first page</span>}>
-      <NextGroups items={rows} />
+      <NextTable
+        items={rows}
+        urlKey="next"
+        label={`Next for ${line}`}
+        partial={next.data.next_cursor ? `the ${rows.length} on the first page of next` : null}
+      />
     </Panel>
   );
 }
@@ -651,6 +691,85 @@ function InboxPanel({ line }: { line: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const inbox = useInbox(line, undefined, INBOX_PAGE, cursors[cursors.length - 1]);
   const item = useInboxItem(open);
+  const entries = inbox.data?.entries ?? [];
+  const inboxColumns = useMemo<Column<InboxEntry>[]>(
+    () => [
+      {
+        id: "status",
+        header: "State",
+        sortValue: (entry) => term("inbox", entry.item.status).word,
+        filter: { kind: "enum", values: (entry) => [entry.item.status] },
+        options: ["unread", "acknowledged", "dismissed", "linked"],
+        optionLabel: (value) => term("inbox", value).word,
+        className: "whitespace-nowrap",
+        cell: (entry) => <Chip concept="inbox" value={entry.item.status} />,
+      },
+      {
+        id: "item",
+        header: "Item",
+        title: "Open an item to read its whole payload",
+        hideable: false,
+        sortValue: (entry) => entry.item.item_id,
+        filter: { kind: "text", text: (entry) => entry.item.item_id },
+        className: "whitespace-nowrap",
+        cell: (entry) => (
+          <button
+            onClick={() => setOpen((current) => (current === entry.item.item_id ? null : entry.item.item_id))}
+            className="font-mono text-[12px] text-zinc-200 hover:underline"
+            title={entry.item.item_id}
+          >
+            {entry.item.item_id.slice(0, 16)}…
+          </button>
+        ),
+      },
+      {
+        id: "node",
+        header: "Node",
+        sortValue: (entry) => entry.item.node_id,
+        filter: { kind: "enum", values: (entry) => [entry.item.node_id] },
+        className: "font-mono text-[12px] text-zinc-500",
+        cell: (entry) => entry.item.node_id,
+      },
+      {
+        id: "seen",
+        header: "Seen",
+        title: "How many times runs posted it",
+        numeric: true,
+        sortValue: (entry) => entry.item.occurrences,
+        className: "text-[12px] text-zinc-500",
+        cell: (entry) => `×${entry.item.occurrences}`,
+      },
+      {
+        id: "last",
+        header: "Last seen",
+        sortValue: (entry) => entry.item.recent_sightings[0]?.posted_at ?? null,
+        className: "whitespace-nowrap text-[12px] text-zinc-500",
+        cell: (entry) => {
+          const last = entry.item.recent_sightings[0];
+          return last ? (
+            <>
+              {formatDateTime(last.posted_at)} by{" "}
+              <RefLink value={`ProcedureRun:${last.run_id}`}>
+                <span className="font-mono" title={last.run_id}>
+                  {shortRunId(last.run_id)}
+                </span>
+              </RefLink>
+            </>
+          ) : (
+            "—"
+          );
+        },
+      },
+      {
+        id: "preview",
+        header: "Payload",
+        filter: { kind: "text", text: (entry) => previewText(entry.payload_preview) },
+        className: "max-w-[28rem]",
+        cell: (entry) => <InboxPreview value={entry.payload_preview} />,
+      },
+    ],
+    [],
+  );
   return (
     <Panel
       title="Inbox"
@@ -672,51 +791,29 @@ function InboxPanel({ line }: { line: string }) {
     >
       {inbox.isPending && <LoadState />}
       {inbox.error && <LoadState error={inbox.error} />}
-      {inbox.data && inbox.data.entries.length === 0 && <EmptyState>Inbox is empty.</EmptyState>}
-      <div className="divide-y divide-zinc-800/60 text-[12px]">
-        {(inbox.data?.entries ?? []).map((entry) => {
-          const envelope = entry.item;
-          const last = envelope.recent_sightings[0];
-          return (
-            <div key={envelope.item_id} className="py-1">
-              <div className="flex flex-wrap items-baseline gap-x-3">
-                <Chip concept="inbox" value={envelope.status} />
-                <button
-                  onClick={() => setOpen(open === envelope.item_id ? null : envelope.item_id)}
-                  className="font-mono text-zinc-200 hover:underline"
-                  title={envelope.item_id}
-                >
-                  {envelope.item_id.slice(0, 16)}…
-                </button>
-                <span className="text-zinc-500">node {envelope.node_id}</span>
-                <span className="text-zinc-500">×{envelope.occurrences}</span>
-                {last && (
-                  <span className="text-zinc-500">
-                    last {formatDateTime(last.posted_at)} by{" "}
-                    <RefLink value={`ProcedureRun:${last.run_id}`}>
-                      <span className="font-mono" title={last.run_id}>
-                        {shortRunId(last.run_id)}
-                      </span>
-                    </RefLink>
-                  </span>
-                )}
-              </div>
-              <InboxPreview value={entry.payload_preview} />
-              {open === envelope.item_id && (
-                <div className="mt-1 border border-zinc-800 bg-zinc-900/40 p-1.5">
-                  {item.isPending && <div className="animate-pulse text-zinc-600">Reading…</div>}
-                  {item.error && <div className="text-red-400/80">{item.error.message}</div>}
-                  {item.data && (
-                    <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-[11px] text-zinc-400">
-                      {JSON.stringify(item.data.payload, null, 2)}
-                    </pre>
-                  )}
-                </div>
+      {inbox.data && (
+        <DataTable
+          rows={entries}
+          columns={inboxColumns}
+          rowKey={(entry) => entry.item.item_id}
+          rowLabel={(entry) => entry.item.item_id}
+          urlKey="inbox"
+          label="Inbox"
+          partial={inbox.data.next_cursor || cursors.length > 0 ? `${cursors.length === 0 ? "the newest" : "this page of"} ${entries.length} inbox items` : null}
+          open={open}
+          onToggle={(id) => setOpen(open === id ? null : id)}
+          expanded={() => (
+            <div className="border border-zinc-800 bg-zinc-900/40 p-1.5 text-[12px]">
+              {item.isPending && <div className="animate-pulse text-zinc-600">Reading…</div>}
+              {item.error && <div className="text-red-400/80">{item.error.message}</div>}
+              {item.data && (
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-[11px] text-zinc-400">{JSON.stringify(item.data.payload, null, 2)}</pre>
               )}
             </div>
-          );
-        })}
-      </div>
+          )}
+          empty="Inbox is empty."
+        />
+      )}
     </Panel>
   );
 }
@@ -726,13 +823,16 @@ function InboxPanel({ line }: { line: string }) {
  * compact JSON, truncated with the whole preview on hover; opening the item
  * reads its full payload.
  */
+function previewText(value: unknown): string {
+  return typeof value === "string"
+    ? value
+    : typeof value === "object" && value !== null && typeof (value as { preview?: unknown }).preview === "string"
+      ? (value as { preview: string }).preview
+      : JSON.stringify(value);
+}
+
 function InboxPreview({ value }: { value: unknown }) {
-  const text =
-    typeof value === "string"
-      ? value
-      : typeof value === "object" && value !== null && typeof (value as { preview?: unknown }).preview === "string"
-        ? (value as { preview: string }).preview
-        : JSON.stringify(value);
+  const text = previewText(value);
   return (
     <div className="truncate font-mono text-[11px] text-zinc-400" title={text}>
       {text}

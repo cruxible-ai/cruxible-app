@@ -6,7 +6,7 @@ afterEach(cleanup);
 
 describe("Kind page", () => {
   it("shows identity, kit and every ClaimType with value, cardinality, role, evidence, freshness and settler", async () => {
-    renderApp("/i/inst_fixture/kinds/security.assessment");
+    renderApp("/i/inst_fixture/kinds/security.assessment?view=claim-types");
     expect(await screen.findByRole("heading", { name: "security.assessment" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
     expect(await main.findByText("Whether one release is affected by one CVE: one per pair.")).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe("Kind page", () => {
   });
 
   it("marks a refusing slot and a format with an upgrade", async () => {
-    renderApp("/i/inst_fixture/kinds/security.vulnerability");
+    renderApp("/i/inst_fixture/kinds/security.vulnerability?view=claim-types");
     const main = within(await screen.findByRole("main"));
     const cve = within((await main.findByText("cve_id", { selector: "td > span" })).closest("tr")!);
     expect(cve.getByText("refuses rivals")).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe("Kind page", () => {
   });
 
   it("lists what points at the kind", async () => {
-    renderApp("/i/inst_fixture/kinds/security.vulnerability");
+    renderApp("/i/inst_fixture/kinds/security.vulnerability?view=claim-types");
     const main = within(await screen.findByRole("main"));
     expect(await main.findByRole("link", { name: "security.assessment.vulnerability" })).toHaveAttribute(
       "href",
@@ -71,6 +71,87 @@ describe("Kind page", () => {
     );
     fireEvent.click(main.getByRole("button", { name: "Expand kev_listed" }));
     expect(await main.findByText(/the author's own words|a Capture under one of these/)).toBeInTheDocument();
+  });
+});
+
+const I = "/i/inst_fixture";
+const subjectHref = (ref: string, claim?: string) => `${I}/s/${encodeURIComponent(ref)}${claim ? `?claim=${claim}` : ""}`;
+const clm = (n: number) => `CLM-${n.toString(16).padStart(32, "0")}`;
+const rowOf = (el: HTMLElement) => within(el.closest("tr")!);
+
+describe("Kind as a table", () => {
+  it("lists one row per Subject and one column per field; a contested value carries the amber dot, cells link to the Claim", async () => {
+    renderApp(`${I}/kinds/security.assessment`);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByRole("tab", { name: "Subjects (2)", selected: true })).toBeInTheDocument();
+    const table = within(await main.findByRole("table", { name: "security.assessment Subjects" }));
+    expect(table.getAllByRole("columnheader").map((th) => th.textContent)).toEqual(["Subject", "release", "status", "vulnerability"]);
+    const first = rowOf(table.getByRole("link", { name: "rel-1-cve-2024-3094" }));
+    expect(table.getByRole("link", { name: "rel-1-cve-2024-3094" })).toHaveAttribute("href", subjectHref("security.assessment/rel-1-cve-2024-3094"));
+    // both rivals show, each linking to its own Claim; the cell's dot says what it means and what to do
+    expect(first.getByRole("link", { name: /^affected/ })).toHaveAttribute("href", subjectHref("security.assessment/rel-1-cve-2024-3094", clm(0xa2)));
+    expect(first.getByRole("link", { name: /^not_affected/ })).toHaveAttribute("href", subjectHref("security.assessment/rel-1-cve-2024-3094", clm(0xa3)));
+    expect(first.getByRole("img", { name: /^Contested:/ })).toHaveClass("bg-amber-400");
+    // a Subject-valued cell links to that Subject; its Claim is one icon away
+    expect(first.getByRole("link", { name: "rel-1" })).toHaveAttribute("href", subjectHref("security.release/rel-1"));
+    expect(first.getByRole("link", { name: "Claim for security.release/rel-1" })).toHaveAttribute(
+      "href",
+      subjectHref("security.assessment/rel-1-cve-2024-3094", clm(0xa1)),
+    );
+    const second = rowOf(table.getByRole("link", { name: "rel-2-cve-2024-6387" }));
+    expect(second.getByRole("img", { name: /^Uncovered:/ })).toHaveClass("bg-amber-400");
+  });
+
+  it("shows a many-valued field as a count that expands, and a contradicted value with the red dot", async () => {
+    renderApp(`${I}/kinds/security.vulnerability`);
+    const table = within(await screen.findByRole("table", { name: "security.vulnerability Subjects" }));
+    const log4j = rowOf(await table.findByRole("link", { name: "cve-2021-44228" }));
+    expect(log4j.getByRole("img", { name: /^Contradicted:/ })).toHaveClass("bg-red-500");
+    expect(rowOf(table.getByRole("link", { name: "cve-2024-3094" })).getByRole("img", { name: /^Stale:/ })).toHaveClass("bg-amber-400");
+    const count = log4j.getByRole("button", { name: "2 values" });
+    expect(log4j.queryByRole("link", { name: "cve-2024-3094" })).toBeNull();
+    fireEvent.click(count);
+    expect(log4j.getByRole("link", { name: "cve-2024-3094" })).toHaveAttribute("href", subjectHref("security.vulnerability/cve-2024-3094"));
+    expect(log4j.getByRole("link", { name: "cve-2024-6387" })).toBeInTheDocument();
+  });
+
+  it("sorts and filters a kind that fits one page in the browser, completely", async () => {
+    renderApp(`${I}/kinds/security.vulnerability`);
+    const table = within(await screen.findByRole("table", { name: "security.vulnerability Subjects" }));
+    await table.findByRole("link", { name: "cve-2021-44228" });
+    fireEvent.click(table.getByRole("button", { name: "Sort by cve_id" }));
+    fireEvent.click(table.getByRole("button", { name: "Sort by cve_id" }));
+    const ids = () => table.getAllByRole("link", { name: /^cve-\d{4}-\d+$/ }).filter((a) => a.closest("td") === a.closest("tr")!.firstElementChild).map((a) => a.textContent);
+    expect(ids()).toEqual(["cve-2024-6387", "cve-2024-3094", "cve-2021-44228"]);
+    // no "within the first N": the page is the whole kind
+    expect(screen.queryByText(/within/)).toBeNull();
+  });
+
+  it("pushes the sort to the daemon for a kind past one page, and says so", async () => {
+    renderApp(`${I}/kinds/security.package`);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("Subjects 1–100 of 130")).toBeInTheDocument();
+    expect(main.getByText("More than one page of 100: sorting and filtering go to the daemon.")).toBeInTheDocument();
+    const table = within(main.getByRole("table", { name: "security.package Subjects" }));
+    // the daemon orders by one-valued fields only: the many-valued column has no sort, and says why
+    expect(table.queryByRole("button", { name: "Sort by advisories" })).toBeNull();
+    expect(table.getByRole("columnheader", { name: "advisories" })).toHaveAttribute("title", expect.stringMatching(/orders by one-valued fields only/));
+    fireEvent.click(table.getByRole("button", { name: "Sort by weekly_downloads" }));
+    expect(await main.findByText("Sorted by the daemon across the whole kind.")).toBeInTheDocument();
+    // the smallest of all 130, not of the first page
+    const firstRow = within(main.getByRole("table", { name: "security.package Subjects" })).getAllByRole("row")[1]!;
+    expect(within(firstRow).getByRole("link", { name: "17" })).toBeInTheDocument();
+    fireEvent.click(main.getByRole("button", { name: "Next page →" }));
+    expect(await main.findByText("Subjects 101–130 of 130")).toBeInTheDocument();
+  });
+
+  it("filters a kind past one page through the daemon's where", async () => {
+    renderApp(`${I}/kinds/security.package?f.ecosystem=pypi&sort=-weekly_downloads`);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("Sorted and filtered by the daemon across the whole kind.")).toBeInTheDocument();
+    const table = within(main.getByRole("table", { name: "security.package Subjects" }));
+    expect(table.getAllByRole("link", { name: "pypi" }).length).toBeGreaterThan(20);
+    expect(table.queryByRole("link", { name: "npm" })).toBeNull();
   });
 });
 

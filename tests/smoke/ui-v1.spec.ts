@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Runs against `VITE_CRUXIBLE_FIXTURES=1` (playwright.config.ts): the MSW
 // worker serves src/fixtures/recorded/ at the network layer, offline.
-test("fixture-backed inspection flow: overview, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
+test("fixture-backed inspection flow: overview, kind table, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
@@ -18,6 +18,22 @@ test("fixture-backed inspection flow: overview, kind, contract, evidence flow, t
   await page.locator("aside").getByRole("link", { name: /security\.assessment/ }).click();
   await expect(page).toHaveURL(/\/kinds\/security\.assessment$/);
   await expect(page.getByRole("heading", { name: "security.assessment" })).toBeVisible();
+  // The kind as a table: a row per Subject; a contested value carries the amber dot and links to its Claim.
+  const subjects = page.getByRole("table", { name: "security.assessment Subjects" });
+  await expect(subjects.getByRole("img", { name: /^Contested:/ })).toBeVisible();
+  await subjects.getByRole("link", { name: /^not_affected/ }).click();
+  await expect(page).toHaveURL(/\/s\/security\.assessment%2Frel-1-cve-2024-3094\?claim=CLM-0+a3$/);
+  await expect(page.getByRole("button", { name: "Collapse status" })).toBeVisible();
+  await page.goBack();
+  // A kind past one page: a header click orders all of it on the daemon.
+  await page.goto("/i/inst_fixture/kinds/security.package");
+  await expect(page.getByText("Subjects 1–100 of 130")).toBeVisible();
+  await page.getByRole("button", { name: "Sort by weekly_downloads" }).click();
+  await expect(page).toHaveURL(/sort=weekly_downloads/);
+  await expect(page.getByText("Sorted by the daemon across the whole kind.")).toBeVisible();
+  await page.goto("/i/inst_fixture/kinds/security.assessment");
+  await page.getByRole("tab", { name: /^ClaimTypes/ }).click();
+  await expect(page).toHaveURL(/view=claim-types/);
   await page.getByRole("button", { name: "Expand status" }).click();
   await expect(page.getByText("osv-applicability", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "security.osv-applicability-v1" }).first().click();
@@ -40,7 +56,7 @@ test("fixture-backed inspection flow: overview, kind, contract, evidence flow, t
   await flow.getByRole("link", { name: "status" }).click();
   await expect(page).toHaveURL(/\/kinds\/security\.assessment\?claim_type=security\.assessment\.status$/);
   await page.locator("aside").getByRole("link", { name: "Type map" }).click();
-  await expect(page.locator(".react-flow__node")).toHaveCount(4);
+  await expect(page.locator(".react-flow__node")).toHaveCount(5);
 
   // A Subject page, opened by ref.
   await page.goto("/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
@@ -66,7 +82,7 @@ test("fixture-backed inspection flow: overview, kind, contract, evidence flow, t
 
   // Next queue -> a proposal awaiting approval -> its review; the ledger.
   await page.locator("aside").getByRole("link", { name: /^Next/ }).click();
-  await expect(page.getByRole("heading", { name: "Blocking" })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Next" }).getByText("Blocking", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: /^sha256:aaaa/ }).click();
   await expect(page).toHaveURL(/\/p\/sha256%3Aa+$/);
   await expect(page.getByText("lifecycle.state")).toBeVisible();

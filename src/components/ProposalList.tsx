@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { useCard, useInstanceId, useReview } from "@/api/hooks";
+import { useCard, useCards, useInstanceId, useReview } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { type Schemas } from "@/api/schemas";
 import { ProposalChanges, proposalTitle, readProposalOrigin } from "@/components/ProposalChanges";
 import { Chip } from "@/components/Chip";
+import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { formatDateTime } from "@/lib/text";
@@ -13,43 +13,90 @@ import { term } from "@/lib/vocabulary";
 
 type Entry = Schemas["ProposalListEntry"];
 
-/** Proposal rows; a row expands to its card (one get), the page opens the review. */
-export function ProposalList({ entries }: { entries: Entry[] }) {
-  return (
-    <div className="divide-y divide-zinc-800/60">
-      {entries.map((entry) => (
-        <ProposalRow key={entry.proposal_id} entry={entry} />
-      ))}
-    </div>
-  );
+/** The state words a proposal row reads as (the State column's filter): its tab word, and how it ended. */
+function stateWords(entry: Entry): string[] {
+  const words = [term("proposal", entry.status).word];
+  if (entry.status === "settled" && entry.terminal_reason) words.push(term("proposalOutcome", entry.terminal_reason).word);
+  else if (entry.verdict === "refused") words.push(term("proposalOutcome", "refused").word);
+  return words;
 }
 
-function ProposalRow({ entry }: { entry: Entry }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Proposal rows in the shared table: when admitted, what the proposal is
+ * (from its card, one cached read per row), who proposed it, its id (a copy
+ * chip) and its state; a row expands to its origin and changes. `partial`
+ * names what the rows are when the list has more pages: the daemon does not
+ * order proposals, so a sort covers only these.
+ */
+export function ProposalList({ entries, partial = null }: { entries: Entry[]; partial?: string | null }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  return (
-    <div className="py-1.5 text-[13px]">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          aria-label={`${open ? "Collapse" : "Expand"} ${entry.proposal_id}`}
-          className="text-zinc-500 hover:text-zinc-200"
-        >
-          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-        </button>
-        <span className="w-36 shrink-0 text-zinc-500" title={entry.admitted_at ?? undefined}>
-          {entry.admitted_at ? formatDateTime(entry.admitted_at) : "—"}
-        </span>
-        <ProposalTitleLink entry={entry} to={link(`/i/${instanceId}/p/${encodeURIComponent(entry.proposal_id)}`)} />
-        <span className="text-[12px] text-zinc-500">by <span className="font-mono text-zinc-400">{entry.actor_id ?? "—"}</span></span>
-        <CopyableId id={entry.proposal_id} />
-        <span className="ml-auto">
+  const cards = useCards(entries.map((entry) => entry.proposal_id));
+  const titles = useMemo(() => {
+    const out = new Map<string, string>();
+    entries.forEach((entry, i) => {
+      const card = cardOf(cards[i], "proposal");
+      if (card) out.set(entry.proposal_id, proposalTitle(card.rationale ?? card.reason ?? null, entry.target_ref));
+    });
+    return out;
+  }, [entries, cards]);
+  const columns = useMemo<Column<Entry>[]>(
+    () => [
+      {
+        id: "admitted",
+        header: "Admitted",
+        sortValue: (entry) => entry.admitted_at ?? null,
+        className: "w-36 whitespace-nowrap text-zinc-500",
+        cell: (entry) => <span title={entry.admitted_at ?? undefined}>{entry.admitted_at ? formatDateTime(entry.admitted_at) : "—"}</span>,
+      },
+      {
+        id: "proposal",
+        header: "Proposal",
+        title: "What the proposal is: the Procedure that proposed it, the kit it installs, or its own words",
+        hideable: false,
+        sortValue: (entry) => titles.get(entry.proposal_id) ?? null,
+        filter: { kind: "text", text: (entry) => titles.get(entry.proposal_id) ?? "" },
+        cell: (entry) => <ProposalTitleLink entry={entry} to={link(`/i/${instanceId}/p/${encodeURIComponent(entry.proposal_id)}`)} />,
+      },
+      {
+        id: "by",
+        header: "By",
+        sortValue: (entry) => entry.actor_id ?? null,
+        filter: { kind: "enum", values: (entry) => (entry.actor_id ? [entry.actor_id] : []) },
+        className: "whitespace-nowrap font-mono text-[12px] text-zinc-400",
+        cell: (entry) => entry.actor_id ?? "—",
+      },
+      {
+        id: "id",
+        header: "Id",
+        title: "The digest, short: click copies the whole id (commands accept a unique prefix)",
+        sortValue: (entry) => entry.proposal_id,
+        filter: { kind: "text", text: (entry) => entry.proposal_id },
+        cell: (entry) => <CopyableId id={entry.proposal_id} />,
+      },
+      {
+        id: "state",
+        header: "State",
+        sortValue: (entry) => stateWords(entry).join(" "),
+        filter: { kind: "enum", values: stateWords },
+        className: "whitespace-nowrap",
+        cell: (entry) => (
           <ProposalStateChip status={entry.status} verdict={entry.verdict} outcome={entry.terminal_reason} incomplete={entry.incomplete_reasons} />
-        </span>
-      </div>
-      {open && <ProposalPeek id={entry.proposal_id} />}
-    </div>
+        ),
+      },
+    ],
+    [instanceId, link, titles],
+  );
+  return (
+    <DataTable
+      rows={entries}
+      columns={columns}
+      rowKey={(entry) => entry.proposal_id}
+      label="Proposals"
+      partial={partial}
+      expanded={(entry) => <ProposalPeek id={entry.proposal_id} indent="ml-0" />}
+      empty="None."
+    />
   );
 }
 

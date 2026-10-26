@@ -609,6 +609,34 @@ export function useCard(ref: string | null) {
   );
 }
 
+/**
+ * Summary cards for several refs, one get-batch each: the same reads (and
+ * cache entries) `useCard` makes per ref, gathered for a table that sorts or
+ * filters on what the cards say. Results keep the order of `refs`.
+ */
+export function useCards(refs: readonly string[]) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  const { coordinate } = usePin();
+  return useQueries({
+    queries: refs.map((ref) => ({
+      queryKey: ["card", instanceId, coordinate?.git_oid ?? null, ref],
+      enabled: coordinate !== undefined,
+      staleTime: 60_000,
+      queryFn: async (): Promise<GetResult> => {
+        const batch = unwrap(
+          await client.POST("/api/v1/{instance_id}/get-batch", {
+            params: { path: { instance_id: instanceId } },
+            body: getBatchBody([ref], coordinate!),
+          }),
+        );
+        return batch.results[0]!;
+      },
+    })),
+    combine: (results) => results.map((result) => result.data),
+  });
+}
+
 /** A Subject's field history (stated/changed/reobserved/retired), one page. */
 export function useSubjectHistory(ref: string | null, cursor?: string) {
   return useGet(ref, "history", { limit: HISTORY_PAGE, ...(cursor !== undefined ? { cursor } : {}) });

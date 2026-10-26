@@ -10,8 +10,11 @@ describe("Next", () => {
     renderApp("/i/inst_fixture/next");
     expect(await screen.findByRole("heading", { name: "Next" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
-    expect(await main.findByRole("heading", { name: "Blocking" })).toBeInTheDocument();
-    expect(main.getByRole("heading", { name: "Repair" })).toBeInTheDocument();
+    // grouped by severity, then reason: each group line names its severity in the glossary word
+    const groupLines = () => main.getAllByRole("cell").filter((td) => td.getAttribute("colspan"));
+    await main.findAllByText("Blocking");
+    expect(groupLines().some((td) => within(td).queryByText("Blocking"))).toBe(true);
+    expect(groupLines().some((td) => within(td).queryByText("Repair"))).toBe(true);
     // claim_stale_evidence: expired capture rendered as a Capture link, Subject path as a Subject link
     expect(main.getByText(REASONS.claim_stale_evidence.label)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "CAP-9e1b3d5f7a9c" })).toHaveAttribute("href", "/i/inst_fixture/ref/CAP-9e1b3d5f7a9c");
@@ -32,8 +35,18 @@ describe("Next", () => {
     );
   });
 
+  it("a sort flattens the groups: each row then says its own severity and reason", async () => {
+    renderApp("/i/inst_fixture/next?sort=reason");
+    const main = within(await screen.findByRole("main"));
+    const table = within(await main.findByRole("table", { name: "Next" }));
+    await table.findAllByText(REASONS.claim_stale_evidence.label);
+    expect(table.getAllByRole("cell").filter((td) => td.getAttribute("colspan"))).toHaveLength(0);
+    const labels = table.getAllByRole("row").filter((row) => row.closest("tbody")).map((row) => within(row).getAllByRole("cell")[1]!.textContent);
+    expect(labels).toEqual([...labels].sort((a, b) => a!.localeCompare(b!)));
+  });
+
   it("filters the page by family", async () => {
-    renderApp("/i/inst_fixture/next?family=lines");
+    renderApp("/i/inst_fixture/next?f.family=lines");
     const main = within(await screen.findByRole("main"));
     expect(await main.findByText(REASONS.line_inbox_unread.label)).toBeInTheDocument();
     expect(main.queryByText(REASONS.claim_conflicted.label)).toBeNull();
@@ -45,7 +58,7 @@ describe("Beliefs", () => {
     renderApp("/i/inst_fixture/beliefs");
     const main = within(await screen.findByRole("main"));
     expect(await main.findByText(REASONS.claim_conflicted.label)).toBeInTheDocument();
-    expect(main.getByText(REASONS.claim_contradicting_evidence_available.label)).toBeInTheDocument();
+    expect(main.getAllByText(REASONS.claim_contradicting_evidence_available.label).length).toBeGreaterThan(0);
     expect(main.queryByText(REASONS.claim_stale_evidence.label)).toBeNull();
     cleanup();
     renderApp("/i/inst_fixture/beliefs?tab=stale");

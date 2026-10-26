@@ -20,7 +20,9 @@ import {
   GRAPH_PAGE,
   HISTORY_PAGE,
   INCOMING_PAGE,
+  kindQuery,
   LANDING_TRIGGERS_QUERY,
+  selectFields,
   LEDGER_PAGE,
   LINE_RUNS_PAGE,
   headQuery,
@@ -188,8 +190,20 @@ if (!args.only || args.only === "ontology") {
     await fetchCards([`SubjectKind:${row.kind}`]).catch(() => null);
     await call("get", `${P}/orient`, { query: orientQuery({ coordinate: C, kind: String(row.kind) }) });
   }
-  for (const row of await all("claim_types")) {
+  const claimTypeRows = await all("claim_types");
+  for (const row of claimTypeRows) {
     await call("post", `${P}/get`, { body: getBody({ ref: `ClaimType:${row.predicate}`, coordinate: C }) });
+  }
+  // The kind pages' Subjects tables: each kind's first query page (claims:
+  // true), selecting every ClaimType of the kind, identity keys first.
+  for (const row of await all("subject_kinds")) {
+    const kind = String(row.kind);
+    const predicates = claimTypeRows
+      .filter((item) => Array.isArray(item.subject_kinds) && (item.subject_kinds as string[]).includes(kind))
+      .map((item) => String(item.predicate))
+      .sort();
+    const { select } = selectFields(predicates, Array.isArray(row.keys) ? (row.keys as string[]) : []);
+    await call("post", `${P}/query`, { body: queryBody(kindQuery({ kind, select }), C) });
   }
   const contractRefs = (await all("capture_contracts")).map((row) => `CaptureContract:${bareName(row.contract)}`);
   for (const ref of contractRefs) await fetchCards([ref]).catch(() => null);

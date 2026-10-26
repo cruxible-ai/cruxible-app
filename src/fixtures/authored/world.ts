@@ -14,6 +14,7 @@ import {
   orientQuery,
 } from "@/api/requests";
 import type { AcceptedCoordinate, GetResult, OrientKindSummary, OrientPredicate } from "@/api/schemas";
+import { PACKAGE_CLAIM_TYPES, PACKAGE_COUNT } from "./package-kind";
 
 const ORIENT_PAGE = 500;
 
@@ -160,6 +161,8 @@ const AUTHORED: (OrientPredicate & { live_claims: number; subjects_with_value: n
     live_claims: 1,
     subjects_with_value: 1,
   },
+  // security.package: a kind past one kind-table page (130 Subjects; kinds.ts serves its rows)
+  ...PACKAGE_CLAIM_TYPES,
 ];
 
 /** Edge cases: a rival-refusing slot, corroboration, a pre-v7 format with an upgrade. */
@@ -198,6 +201,7 @@ const KIND_ROWS = [
   { kind: "security.product", subjects: 1, identity: "keys: name" },
   { kind: "security.release", subjects: 2, identity: "keys: product, version" },
   { kind: "security.vulnerability", subjects: 3, identity: "keys: cve_id", evidence: ["security.kev-http-v1"] },
+  { kind: "security.package", subjects: PACKAGE_COUNT, identity: "keys: name" },
 ];
 
 /** Orient's default map names a kind's first fields by short name (byte order) and counts the rest. */
@@ -330,6 +334,7 @@ export default [
         { kind: "security.product", rule: "keys", keys: ["security.product.name"], uniqueness: "unique", kit: "security" },
         { kind: "security.release", rule: "keys", keys: ["security.release.product", "security.release.version"], uniqueness: "unique", kit: "security" },
         { kind: "security.vulnerability", rule: "keys", keys: ["security.vulnerability.cve_id"], uniqueness: "unique", kit: "security" },
+        { kind: "security.package", rule: "keys", keys: ["security.package.name"], uniqueness: "unique", kit: "security" },
       ],
     },
   }),
@@ -360,6 +365,21 @@ export default [
         predicates: kindDescriptors("security.assessment"),
         incoming: [],
         sample_subject_ids: ["cruxible-0.3.2--cve-2024-3094", "cruxible-0.3.1--cve-2024-3094"],
+      },
+    },
+  }),
+
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/orient",
+    query: orientQuery({ coordinate: COORDINATE, kind: "security.package" }),
+    response: {
+      ...BASE_ORIENT,
+      kind_detail: {
+        ...KIND_ROWS[4]!,
+        predicates: kindDescriptors("security.package"),
+        incoming: [],
+        sample_subject_ids: ["pkg-000", "pkg-001", "pkg-002"],
       },
     },
   }),
