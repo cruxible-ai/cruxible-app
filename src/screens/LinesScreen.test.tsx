@@ -66,6 +66,19 @@ describe("Line page", () => {
   });
 });
 
+describe("Line page tables", () => {
+  it("sorts the runs page and says the sort covers only that page; filters the inbox by state", async () => {
+    renderApp("/i/inst_fixture/lines/kev-triage?runs.sort=-nodes&inbox.f.status=acknowledged");
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText(/^Sorted within the newest \d+ of 12 runs\.$/)).toBeInTheDocument();
+    const runs = within(main.getByRole("table", { name: "Runs" }));
+    expect(runs.getByRole("columnheader", { name: /Nodes done/ })).toHaveAttribute("aria-sort", "descending");
+    const inbox = within(await main.findByRole("table", { name: "Inbox" }));
+    expect(inbox.queryByRole("button", { name: /^INB-7777/ })).toBeNull(); // unread: filtered out
+    expect(inbox.getByRole("button", { name: "Filter State: Acknowledged" })).toBeInTheDocument();
+  });
+});
+
 describe("Run page", () => {
   it("shows nodes, the refusal, the proposal produced, Captures read and withheld attribution", async () => {
     renderApp("/i/inst_fixture/runs/run-7");
