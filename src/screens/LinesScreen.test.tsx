@@ -23,6 +23,26 @@ describe("Lines", () => {
   });
 });
 
+describe("Lines table", () => {
+  it("filters by a picked enablement word and sorts by a header, both kept in the URL", async () => {
+    renderApp("/i/inst_fixture/lines?f.enabled=stopped");
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
+    expect(main.queryByRole("link", { name: "kev-triage" })).toBeNull();
+    expect(main.getByText("1 of 2")).toBeInTheDocument();
+    // the picker names the glossary word and offers the others
+    fireEvent.click(main.getByRole("button", { name: "Filter Enabled: Stopped" }));
+    fireEvent.click(within(main.getByRole("group", { name: "Enabled values" })).getByRole("checkbox", { name: /Running/ }));
+    expect(await main.findByRole("link", { name: "kev-triage" })).toBeInTheDocument();
+    cleanup();
+    renderApp("/i/inst_fixture/lines?sort=-line");
+    const sorted = within(await screen.findByRole("table", { name: "Lines" }));
+    await sorted.findByRole("link", { name: "kev-triage" });
+    expect(sorted.getAllByRole("link", { name: /^(kev-triage|cve-applicability)$/ }).map((a) => a.textContent)).toEqual(["kev-triage", "cve-applicability"]);
+    expect(sorted.getByRole("columnheader", { name: /Line/ })).toHaveAttribute("aria-sort", "descending");
+  });
+});
+
 describe("Line page", () => {
   it("shows triggers, withheld enabler, runs paged, track record, dispositions, mandate scope and condition, readings, inbox", async () => {
     renderApp("/i/inst_fixture/lines/kev-triage");

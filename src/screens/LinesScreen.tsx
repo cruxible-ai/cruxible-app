@@ -6,8 +6,8 @@ import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { DueCount } from "@/screens/LineScreen";
 import { Page, PageHeader } from "@/components/Page";
-import { Table, Td, Th, trClass } from "@/components/Table";
-import { EmptyState, LoadState, Panel } from "@/components/Panel";
+import { DataTable, useTableState, type Column } from "@/components/DataTable";
+import { LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, unreadOf } from "@/lib/lines";
@@ -18,6 +18,7 @@ import { term } from "@/lib/vocabulary";
 
 type Mandate = Schemas["OrientMandate"];
 type RunRow = Schemas["RunRow"];
+type LineRow = Schemas["OrientLine"];
 
 /**
  * Every Line at the pinned generation: Procedure, trigger, max authority,
@@ -55,6 +56,167 @@ export function LinesScreen() {
     return out;
   }, [mandates.data]);
   const nextByLine = useMemo(() => nextRowsByLine(next.data?.items ?? []), [next.data]);
+  const nextPartial = Boolean(next.data?.next_cursor);
+
+  const columns = useMemo<Column<LineRow>[]>(() => {
+    const nameOf = (row: LineRow) => lineName(row.line);
+    const procedureOf = (row: LineRow) => row.procedure.replace(/^Procedure:/, "");
+    const mandatesOf = (row: LineRow) => mandatesByProcedure.get(procedureOf(row)) ?? [];
+    // "Line not enabled" is the Enabled column's word already.
+    const nextOf = (row: LineRow) => (nextByLine.get(nameOf(row)) ?? []).filter((item) => item.reason !== "line_not_enabled");
+    const fromFirstPage = nextPartial ? `\nFrom the first page of next (${NEXT_PAGE} rows); later pages are not read here` : "";
+    return [
+      {
+        id: "line",
+        header: "Line",
+        title: "The Line, and its Procedure when it has another name",
+        hideable: false,
+        sortValue: nameOf,
+        filter: { kind: "text", text: (row) => `${nameOf(row)} ${procedureOf(row)}` },
+        className: "whitespace-nowrap",
+        cell: (row) => {
+          const name = nameOf(row);
+          const procedure = procedureOf(row);
+          return (
+            <>
+              <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)} className="font-mono text-[12px] text-zinc-100 hover:underline">
+                {name}
+              </Link>
+              {row.lifecycle === "retired" && <span className="t-meta ml-1.5">retired</span>}
+              {procedure !== name && (
+                <div className="t-meta">
+                  runs{" "}
+                  <RefLink value={`Procedure:${procedure}`}>
+                    <span className="font-mono text-[12px] text-zinc-400">{procedure}</span>
+                  </RefLink>
+                </div>
+              )}
+            </>
+          );
+        },
+      },
+      {
+        id: "trigger",
+        header: "Trigger",
+        sortValue: (row) => row.trigger,
+        filter: { kind: "enum", values: (row) => row.trigger.split("+").filter(Boolean) },
+        className: "whitespace-nowrap text-zinc-400",
+        cell: (row) => row.trigger.replaceAll("+", " + "),
+      },
+      {
+        id: "authority",
+        header: "Authority",
+        title: "Max authority",
+        sortValue: (row) => ["observe", "propose", "settle"].indexOf(row.authority),
+        filter: { kind: "enum", values: (row) => [row.authority] },
+        options: ["observe", "propose", "settle"],
+        optionLabel: (value) => term("authority", value).word,
+        cell: (row) => (
+          <span className="text-zinc-300" title={term("authority", row.authority).meaning}>
+            {term("authority", row.authority).word}
+          </span>
+        ),
+      },
+      {
+        id: "mandate",
+        header: "Mandate",
+        sortValue: (row) => mandatesOf(row)[0]?.mandate ?? null,
+        filter: { kind: "text", text: (row) => mandatesOf(row).map((m) => `${m.mandate} ${m.grants} ${term("mandate", m.state).word}`).join(" ") || "none" },
+        className: "text-[12px]",
+        cell: (row) => {
+          const procedure = procedureOf(row);
+          const mandates = mandatesOf(row);
+          if (mandates.length === 0) return <span className="text-zinc-500">none</span>;
+          return mandates.map((mandate) => (
+            <div key={mandate.mandate} className="whitespace-nowrap">
+              <MandateLabel name={mandate.mandate.replace(/^(Procedure)?Mandate:/, "")} procedure={procedure} grants={mandate.grants} />{" "}
+              <span className="text-zinc-500">{term("mandate", mandate.state).word.toLowerCase()}</span>
+            </div>
+          ));
+        },
+      },
+      {
+        id: "enabled",
+        header: "Enabled",
+        sortValue: (row) => term("line", row.enablement ?? "not_enabled").word,
+        filter: { kind: "enum", values: (row) => [row.enablement ?? "not_enabled"] },
+        optionLabel: (value) => term("line", value).word,
+        className: "whitespace-nowrap",
+        cell: (row) => <Chip concept="line" value={row.enablement ?? "not_enabled"} />,
+      },
+      {
+        id: "due",
+        header: "Due / scheduled",
+        title: "Occurrences due / scheduled",
+        numeric: true,
+        sortValue: (row) => (row.due ?? 0) * 1_000_000 + (row.waiting ?? 0),
+        className: "whitespace-nowrap text-zinc-500",
+        cell: (row) => <DueCount due={row.due ?? 0} scheduled={row.waiting ?? 0} />,
+      },
+      {
+        id: "last_run",
+        header: "Last run",
+        title: "The newest run: its outcome and when it started",
+        sortValue: (row) => lastRun.get(nameOf(row))?.started_at ?? null,
+        filter: { kind: "enum", values: (row) => { const run = lastRun.get(nameOf(row)); return run ? [term("run", run.status).word] : ["none"]; } },
+        className: "whitespace-nowrap text-[12px]",
+        cell: (row) => {
+          const run = lastRun.get(nameOf(row));
+          if (run) {
+            return (
+              <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="hover:underline">
+                <Chip concept="run" value={run.status} />{" "}
+                <span className="text-zinc-500" title={run.started_at}>
+                  {formatWhen(run.started_at)}
+                </span>
+              </Link>
+            );
+          }
+          return cards.isPending ? <span className="animate-pulse text-zinc-500">…</span> : <span className="text-zinc-500">none</span>;
+        },
+      },
+      {
+        id: "inbox",
+        header: "Inbox",
+        title: `Unread inbox items${fromFirstPage}`,
+        numeric: true,
+        sortValue: (row) => unreadOf(nextByLine.get(nameOf(row))),
+        className: "whitespace-nowrap font-mono text-[12px]",
+        cell: (row) => {
+          const unread = unreadOf(nextByLine.get(nameOf(row)));
+          return unread !== null ? (
+            <span className="inline-flex items-baseline gap-1.5 text-zinc-300">
+              <SignalDot signal="waiting" title={term("inbox", "unread").meaning} />
+              {unread} unread
+            </span>
+          ) : (
+            <span className="text-zinc-600">—</span>
+          );
+        },
+      },
+      {
+        id: "next",
+        header: "Next",
+        title: `The Line's next rows${fromFirstPage}`,
+        sortValue: (row) => nextOf(row).length,
+        filter: { kind: "enum", values: (row) => nextOf(row).map((item) => reasonMeta(item.reason).label) },
+        className: "text-[12px] text-zinc-400",
+        cell: (row) =>
+          nextOf(row).map((item) => {
+            const severity = term("severity", item.severity);
+            return (
+              <div key={item.item_id} className="flex min-w-[7rem] items-baseline gap-1.5" title={severity.meaning}>
+                {severity.signal && <SignalDot signal={severity.signal} title={severity.meaning} />}
+                {reasonMeta(item.reason).label}
+              </div>
+            );
+          }),
+      },
+    ];
+  }, [cards.isPending, instanceId, lastRun, link, mandatesByProcedure, nextByLine, nextPartial]);
+  const [state] = useTableState(columns);
+  // a sort or filter on the next-derived columns reads only the first next page
+  const byNext = nextPartial && (["inbox", "next"].includes(state.sort?.column ?? "") || ["next"].some((id) => state.filters[id]));
 
   return (
     <Page>
@@ -74,110 +236,16 @@ export function LinesScreen() {
       {lines.isPending && <LoadState />}
       {lines.error && <LoadState error={lines.error} />}
       {lines.data && (
-        <Panel title="Lines" meta={next.data?.next_cursor ? <span>next rows from the first page</span> : undefined}>
-          {rows.length === 0 && <EmptyState>No Lines.</EmptyState>}
-          {rows.length > 0 && (
-            <Table>
-              <thead>
-                <tr>
-                  <Th title="The Line, and its Procedure when it has another name">Line</Th>
-                  <Th>Trigger</Th>
-                  <Th title="Max authority">Authority</Th>
-                  <Th>Mandate</Th>
-                  <Th>Enabled</Th>
-                  <Th numeric title="Occurrences due / scheduled">Due / scheduled</Th>
-                  <Th>Last run</Th>
-                  <Th>Inbox</Th>
-                  <Th>Next</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const name = lineName(row.line);
-                  const procedure = row.procedure.replace(/^Procedure:/, "");
-                  const run = lastRun.get(name);
-                  const nextRows = nextByLine.get(name) ?? [];
-                  const unread = unreadOf(nextRows);
-                  return (
-                    <tr key={name} className={trClass}>
-                      <Td className="whitespace-nowrap">
-                        <Link
-                          to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)}
-                          className="font-mono text-[12px] text-zinc-100 hover:underline"
-                        >
-                          {name}
-                        </Link>
-                        {row.lifecycle === "retired" && <span className="t-meta ml-1.5">retired</span>}
-                        {procedure !== name && (
-                          <div className="t-meta">
-                            runs{" "}
-                            <RefLink value={`Procedure:${procedure}`}>
-                              <span className="font-mono text-[12px] text-zinc-400">{procedure}</span>
-                            </RefLink>
-                          </div>
-                        )}
-                      </Td>
-                      <Td className="whitespace-nowrap text-zinc-400">{row.trigger.replaceAll("+", " + ")}</Td>
-                      <Td>
-                        <span className="text-zinc-300" title={term("authority", row.authority).meaning}>{term("authority", row.authority).word}</span>
-                      </Td>
-                      <Td className="text-[12px]">
-                        {(mandatesByProcedure.get(procedure) ?? []).map((mandate) => (
-                          <div key={mandate.mandate} className="whitespace-nowrap">
-                            <MandateLabel name={mandate.mandate.replace(/^(Procedure)?Mandate:/, "")} procedure={procedure} grants={mandate.grants} />{" "}
-                            <span className="text-zinc-500">{term("mandate", mandate.state).word.toLowerCase()}</span>
-                          </div>
-                        ))}
-                        {!mandatesByProcedure.has(procedure) && <span className="text-zinc-500">none</span>}
-                      </Td>
-                      <Td className="whitespace-nowrap">
-                        <Chip concept="line" value={row.enablement ?? "not_enabled"} />
-                      </Td>
-                      <Td numeric className="whitespace-nowrap text-zinc-500">
-                        <DueCount due={row.due ?? 0} scheduled={row.waiting ?? 0} />
-                      </Td>
-                      <Td className="whitespace-nowrap text-[12px]">
-                        {run ? (
-                          <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="hover:underline">
-                            <Chip concept="run" value={run.status} />{" "}
-                            <span className="text-zinc-500" title={run.started_at}>
-                              {formatWhen(run.started_at)}
-                            </span>
-                          </Link>
-                        ) : cards.isPending ? (
-                          <span className="animate-pulse text-zinc-500">…</span>
-                        ) : (
-                          <span className="text-zinc-500">none</span>
-                        )}
-                      </Td>
-                      <Td className="whitespace-nowrap font-mono text-[12px]">
-                        {unread !== null ? (
-                          <span className="inline-flex items-baseline gap-1.5 text-zinc-300">
-                            <SignalDot signal="waiting" title={term("inbox", "unread").meaning} />
-                            {unread} unread
-                          </span>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </Td>
-                      <Td className="text-[12px] text-zinc-400">
-                        {/* "Line not enabled" is the Enabled column's word already. */}
-                        {nextRows.filter((item) => item.reason !== "line_not_enabled").map((item) => {
-                          const severity = term("severity", item.severity);
-                          return (
-                            <div key={item.item_id} className="flex min-w-[7rem] items-baseline gap-1.5" title={severity.meaning}>
-                              {severity.signal && <SignalDot signal={severity.signal} title={severity.meaning} />}
-                              {reasonMeta(item.reason).label}
-                            </div>
-                          );
-                        })}
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-          )}
+        <Panel title="Lines" meta={nextPartial ? <span>next rows from the first page</span> : undefined}>
+          <DataTable
+            rows={rows}
+            columns={columns}
+            rowKey={(row) => row.line}
+            label="Lines"
+            partial={lines.data.truncated ? `the first ${rows.length} Lines the daemon listed` : null}
+            note={byNext ? `Inbox and Next come from the first page of next (${NEXT_PAGE} rows), so this order or filter covers only what that page says.` : undefined}
+            empty="No Lines."
+          />
         </Panel>
       )}
     </Page>
