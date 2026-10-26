@@ -5,7 +5,7 @@ import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId, useOntologyKinds, useSubjectKinds } from "@/api/hooks";
 import type { OrientPredicate, OrientSubjectKind } from "@/api/schemas";
-import { actionChipClass, toggleChipClass } from "@/components/Chip";
+import { actionChipClass } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import { PanelActions, PanelHeading, PanelSection } from "@/components/graph/PanelBits";
@@ -17,7 +17,7 @@ import {
   type TypeGraphEdge,
 } from "@/lib/type-graph";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { layoutTypeGraph, monoWidth, type LayoutEngine, type TypeLayout } from "@/lib/type-layout";
+import { layoutTypeGraph, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { contractName } from "@/lib/ontology";
@@ -95,7 +95,6 @@ export function TypeMapScreen() {
   const fullGraph = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
   // ?focus=<kind> keeps that kind and the kinds one link away (either direction).
   const focus = params.get("focus");
-  const engine: LayoutEngine = params.get("layout") === "dagre" ? "dagre" : "elk";
   const graph = useMemo(() => {
     if (!focus || !fullGraph.nodes.some((n) => n.kind === focus)) return fullGraph;
     const keep = new Set([focus]);
@@ -135,19 +134,19 @@ export function TypeMapScreen() {
     [graph],
   );
   // The ontology read can hand back a new object on every render; key the layout by content.
-  const layoutKey = useMemo(() => JSON.stringify({ ...layoutInput, engine }), [layoutInput, engine]);
+  const layoutKey = useMemo(() => JSON.stringify(layoutInput), [layoutInput]);
   const [layout, setLayout] = useState<{ key: string; result: TypeLayout | null } | null>(null);
   useEffect(() => {
     let live = true;
     const { nodes, edges } = JSON.parse(layoutKey) as typeof layoutInput;
-    layoutTypeGraph(nodes, edges, engine)
+    layoutTypeGraph(nodes, edges)
       .then((result) => live && setLayout({ key: layoutKey, result }))
       // A layout failure still shows every kind, in a plain grid.
       .catch(() => live && setLayout({ key: layoutKey, result: null }));
     return () => {
       live = false;
     };
-  }, [layoutKey, engine]);
+  }, [layoutKey]);
   const laidOut = layout?.key === layoutKey ? layout : null;
 
   const { nodes, edges } = useMemo(() => {
@@ -247,14 +246,6 @@ export function TypeMapScreen() {
           {graph.nodes.length} Subject kinds · {graph.edges.length} kind links · arrows point from a kind to the kind
           its field names (* = many) · unlinked kinds in the left column · dashed = no Subjects · click anything for
           its ClaimTypes
-        </span>
-        <span className="ml-auto flex items-center gap-1.5 text-[12px] text-zinc-500">
-          Layout
-          {(["elk", "dagre"] as const).map((name) => (
-            <button key={name} type="button" onClick={() => setParam("layout", name === "elk" ? null : name)} className={toggleChipClass(engine === name)}>
-              {name === "elk" ? "ELK" : "dagre"}
-            </button>
-          ))}
         </span>
       </header>
       {focus && (

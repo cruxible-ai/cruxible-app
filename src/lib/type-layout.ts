@@ -47,13 +47,7 @@ function loadElk() {
   return elkPromise;
 }
 
-export type LayoutEngine = "elk" | "dagre";
-
-export async function layoutTypeGraph(
-  nodes: LayoutNodeIn[],
-  edges: LayoutEdgeIn[],
-  engine: LayoutEngine = "elk",
-): Promise<TypeLayout> {
+export async function layoutTypeGraph(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[]): Promise<TypeLayout> {
   const linked = new Set<string>();
   for (const e of edges) {
     if (e.source === e.target) continue;
@@ -70,24 +64,7 @@ export async function layoutTypeGraph(
   let minX = 0;
   let minY = 0;
 
-  if (layered.length > 0 && engine === "dagre") {
-    const { default: dagre } = await import("@dagrejs/dagre");
-    const g = new dagre.graphlib.Graph({ multigraph: true });
-    g.setGraph({ rankdir: "LR", ranksep: 80, nodesep: 36, edgesep: 10, ranker: "network-simplex" });
-    g.setDefaultEdgeLabel(() => ({}));
-    for (const n of layered) g.setNode(n.id, { width: n.width, height: n.height });
-    for (const e of crossing) g.setEdge(e.source, e.target, {}, e.id);
-    dagre.layout(g);
-    for (const n of layered) {
-      const placed = g.node(n.id);
-      // dagre places node centres; the canvas wants top-left corners.
-      positions.set(n.id, { x: placed.x - n.width / 2, y: placed.y - n.height / 2 });
-    }
-    for (const e of crossing) {
-      const placed = g.edge({ v: e.source, w: e.target, name: e.id }) as { points?: Point[] } | undefined;
-      if (placed?.points?.length) routes.set(e.id, { points: placed.points, label: null });
-    }
-  } else if (layered.length > 0) {
+  if (layered.length > 0) {
     const elk = await loadElk();
     const graph: ElkNode = {
       id: "root",
