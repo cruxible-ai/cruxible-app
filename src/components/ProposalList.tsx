@@ -82,15 +82,14 @@ export function ProposalStateChip({
   );
 }
 
-/** The row's link: what the proposal is and how many changes, from its card (one cached get). */
+/** The row's link: what the proposal is, from its card (one cached get). */
 function ProposalTitleLink({ entry, to }: { entry: Entry; to: string }) {
   const card = cardOf(useCard(entry.proposal_id).data, "proposal");
   const words = card?.rationale ?? card?.reason ?? null;
-  const n = card?.changes?.length;
+  // No change count here: the card lists a bounded page of changes with no total.
   return (
     <Link to={to} className="text-zinc-100 hover:underline">
       {card ? proposalTitle(words, entry.target_ref) : "Proposal"}
-      {n !== undefined && <span className="text-zinc-500"> · {n} {n === 1 ? "change" : "changes"}</span>}
     </Link>
   );
 }
