@@ -35,6 +35,21 @@ export function SettingsMenu() {
           <div className="pb-2 text-[12px] font-medium text-zinc-500">
             Display settings
           </div>
+          <label className="mb-2 flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              checked={settings.followHead}
+              onChange={(e) => update({ followHead: e.target.checked })}
+              className="mt-0.5 accent-zinc-400"
+            />
+            <span>
+              <span className="block text-[14px] text-zinc-200">Follow the head</span>
+              <span className="block text-[12px] leading-snug text-zinc-500">
+                Move every screen to each newly accepted generation. Off: a
+                page keeps the generation it opened on and offers the newer one.
+              </span>
+            </span>
+          </label>
           <label className="flex cursor-pointer items-start gap-2">
             <input
               type="checkbox"

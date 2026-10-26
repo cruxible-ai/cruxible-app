@@ -39,6 +39,7 @@ import type {
 } from "./schemas";
 import { cardOf } from "./schemas";
 import { useAtParam } from "@/lib/at";
+import { useSettings } from "@/lib/settings";
 import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
 import { ontologyKinds } from "@/lib/type-graph";
 import {
@@ -74,11 +75,12 @@ const MAX_SECTION_PAGES = 20;
 export const ORIENT_PAGE = 500;
 
 /** The accepted head, or the generation `at` names (immutable once resolved). */
-export function useHead(at: string | null = null) {
+export function useHead(at: string | null = null, enabled = true) {
   const client = useApiClient();
   const instanceId = useInstanceId();
   return useQuery({
     queryKey: ["head", instanceId, at],
+    enabled,
     staleTime: at === null ? 15_000 : Infinity,
     refetchInterval: at === null ? HEAD_POLL_MS : false,
     queryFn: async (): Promise<Head> =>
@@ -90,10 +92,43 @@ export function useHead(at: string | null = null) {
   });
 }
 
-/** The coordinate this page reads at: `?at=` when pinned, else the head. */
+/**
+ * The head as first read, held: what an unpinned page reads when the viewer
+ * turned "Follow the head" off. It never refetches on its own; the
+ * generation box offers the newer head and refreshes it (`HELD_HEAD_KEY`).
+ */
+function useHeldHead(enabled: boolean) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: [...HELD_HEAD_KEY, instanceId],
+    enabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    queryFn: async (): Promise<Head> =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/head", {
+          params: { path: { instance_id: instanceId }, query: headQuery(null) },
+        }),
+      ),
+  });
+}
+
+export const HELD_HEAD_KEY = ["head-held"] as const;
+
+/**
+ * The coordinate this page reads at: `?at=` when pinned; else the head, which
+ * every screen follows as new generations are accepted (polled), unless the
+ * viewer turned "Follow the head" off: then the head as first read, held.
+ */
 export function usePin() {
   const at = useAtParam();
-  const head = useHead(at);
+  const { settings } = useSettings();
+  const hold = at === null && !settings.followHead;
+  const followed = useHead(at, !hold);
+  const held = useHeldHead(hold);
+  const head = hold ? held : followed;
   return { at, head, coordinate: head.data?.coordinate, generation: head.data?.generation };
 }
 
@@ -715,6 +750,23 @@ export function useInboxItem(itemId: string | null) {
  * One page of the generation timeline, newest first from the page's pinned
  * generation (orient section=generations, O(page)).
  */
+/**
+ * The newest accepted generations as of the latest head, whatever the page is
+ * pinned to (the generation box's list). The same read the Ledger makes at
+ * the head, so the two share it.
+ */
+export function useRecentGenerations(enabled: boolean) {
+  const orient = useOrientFetch();
+  const instanceId = useInstanceId();
+  const coordinate = useHead(null).data?.coordinate;
+  return useQuery({
+    queryKey: ["generations", instanceId, coordinate?.git_oid ?? null, null],
+    enabled: enabled && coordinate !== undefined,
+    staleTime: 60_000,
+    queryFn: () => orient(coordinate!, { section: "generations", limit: LEDGER_PAGE }),
+  });
+}
+
 export function useGenerations(cursor?: string) {
   const orient = useOrientFetch();
   return usePinnedQuery("generations", [cursor ?? null], (coordinate) =>

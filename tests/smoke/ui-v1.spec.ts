@@ -93,13 +93,18 @@ test("fixture-backed inspection flow: overview, kind, contract, evidence flow, t
   await expect(page.getByText(/640 Subjects · 733 Subject-valued Claims · 3 pages/)).toBeVisible();
   await expect(page.getByRole("button", { name: /security\.vulnerability/ })).toBeVisible();
 
-  // Pin a generation: links keep it, the picker names it, back to head drops it.
-  await page.getByLabel("Pin generation").fill("42");
-  await page.getByLabel("Pin generation").press("Enter");
+  // Pin a generation from the generation box's list: links keep it, the box names it, back to head drops it.
+  await page.getByRole("button", { name: /Generation 42 · head/ }).click();
+  await page.getByRole("option", { name: /^g42/ }).click();
   await expect(page).toHaveURL(/at=42/);
-  await expect(page.getByText(/pinned \(head 42\)/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Generation 42 · pinned/ })).toBeVisible();
   await page.locator("aside").getByRole("link", { name: "Overview" }).click();
   await expect(page).toHaveURL(/\/i\/inst_fixture\?at=42$/);
   await page.getByRole("button", { name: "Back to head" }).click();
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
+  // Typing a number in the list is the fallback for older generations.
+  await page.getByRole("button", { name: /Generation 42 · head/ }).click();
+  await page.getByLabel("Pin generation").fill("42");
+  await page.getByLabel("Pin generation").press("Enter");
+  await expect(page).toHaveURL(/at=42/);
 });

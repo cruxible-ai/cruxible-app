@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 
 afterEach(cleanup);
@@ -32,8 +32,29 @@ describe("Overview", () => {
     const main = within(await screen.findByRole("main"));
     const kind = await main.findByRole("link", { name: "security.vulnerability" });
     expect(kind).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability?at=42");
-    expect(await screen.findByText(/pinned \(head 42\)/)).toBeInTheDocument();
+    // the picker names the pin and the head it is not following
+    expect(await screen.findByRole("button", { name: /Generation 42 · pinned/ })).toBeInTheDocument();
+    expect(screen.getByText("Head is 42")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Back to head" })).toBeInTheDocument();
+  });
+
+  it("lists recent generations in the generation box and says what is waiting to be accepted", async () => {
+    renderApp("/i/inst_fixture");
+    const box = within(await screen.findByLabelText("Generation"));
+    // why the head has not moved: the proposal waiting for review, linked
+    expect(await box.findByRole("link", { name: /1 proposal waiting for review/ })).toHaveAttribute(
+      "href",
+      "/i/inst_fixture/proposals?status=open",
+    );
+    fireEvent.click(await box.findByRole("button", { name: /Generation 42 · head/ }));
+    const list = within(await screen.findByRole("listbox", { name: "Generations" }));
+    expect(list.getByRole("option", { name: /^Head/ })).toBeInTheDocument();
+    // newest first, each with when, who and how many changes (picking one pins it: the smoke covers that in a browser)
+    const g42 = await list.findByRole("option", { name: /^g42/ });
+    expect(g42).toHaveTextContent("1 change");
+    expect(g42).toHaveTextContent("release-owner");
+    expect(g42).toHaveTextContent("Vendor advisory says rel-1 never shipped the build.");
+    expect(list.getByRole("textbox", { name: "Pin generation" })).toBeInTheDocument();
   });
 
   it("shows a refused pin instead of reading the head", async () => {

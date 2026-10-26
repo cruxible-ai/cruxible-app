@@ -72,11 +72,17 @@ what it means and what to do. Status words come from one glossary
 `ClaimType:…`); it resolves with one read and completes Subject kinds, a
 kind's sample ids, ClaimTypes and Lines from orient.
 
-**Generation picker.** The sidebar shows the accepted generation every read is
-pinned to. Unpinned, reads follow the head (polled). Enter a generation number
-or a git oid prefix to pin `?at=`; every link keeps the pin until "Back to
-head". Generations older than the last 64 rebuild their projection on the
-daemon, so the picker warns before binding one.
+**Generation box.** The sidebar shows the accepted generation every read is
+pinned to. By default every screen follows the head: when a generation is
+accepted, reads move to it without a reload (the head is polled). Open the box
+for the newest generations (when, who or which Procedure, how many changes);
+picking one pins `?at=`, and every link keeps the pin until "Back to head".
+Typing a generation number or a git oid prefix in the list reaches older ones;
+generations older than the last 64 rebuild their projection on the daemon, so
+the box warns before binding one. Under the head, what is waiting to be
+accepted ("1 proposal waiting for review", linked): the head moves only on
+acceptance. Settings → "Follow the head" (on by default, per browser) off
+holds an unpinned page on the head it opened on and offers the newer one.
 
 ## Environment
 

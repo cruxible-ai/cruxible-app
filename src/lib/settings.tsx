@@ -11,11 +11,13 @@ import {
 export interface UiSettings {
   /** Accent graph/type views by owning kit. */
   colorByLayer: boolean;
+  /** Unpinned pages move to each newly accepted generation (off: they hold the head they first read). */
+  followHead: boolean;
 }
 
 // On by default: layer accents earn their place on composed instances, and
 // single-layer instances never render them anyway.
-const DEFAULTS: UiSettings = { colorByLayer: true };
+const DEFAULTS: UiSettings = { colorByLayer: true, followHead: true };
 const STORAGE_KEY = "cruxible-ui-settings-v3";
 
 interface SettingsValue {
@@ -33,7 +35,10 @@ function load(): UiSettings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
     const stored = JSON.parse(raw) as Partial<UiSettings>;
-    return { colorByLayer: stored.colorByLayer ?? DEFAULTS.colorByLayer };
+    return {
+      colorByLayer: typeof stored.colorByLayer === "boolean" ? stored.colorByLayer : DEFAULTS.colorByLayer,
+      followHead: typeof stored.followHead === "boolean" ? stored.followHead : DEFAULTS.followHead,
+    };
   } catch {
     return DEFAULTS;
   }
