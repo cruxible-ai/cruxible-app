@@ -13,13 +13,21 @@ describe("Ledger", () => {
     const main = within(await screen.findByRole("main"));
     const g42 = await main.findByRole("link", { name: "g42" });
     expect(g42).toHaveAttribute("href", "/i/inst_fixture?at=42");
-    expect(main.getByText("approved by security-lead")).toBeInTheDocument();
+    const row = within(g42.closest("tr")!);
+    expect(row.getByText("security-lead")).toBeInTheDocument(); // the Approved by column
     expect(main.getByText("14 changes")).toBeInTheDocument(); // a change set counted in the one word for its members
     expect(main.getByRole("button", { name: "Next page →" })).toBeInTheDocument();
     fireEvent.click(main.getByRole("button", { name: "Expand generation 42" }));
     expect(await main.findByRole("link", { name: /CLM-0+a3/ })).toBeInTheDocument();
     // the reason shows once: on the row, not again in its change set
     expect(main.getAllByText("Vendor advisory says rel-1 never shipped the build.").length).toBeGreaterThan(0);
+  });
+
+  it("says a sort covers only the page in hand: the ledger is ordered by sequence on the daemon", async () => {
+    renderApp("/i/inst_fixture/ledger?sort=-changes");
+    const main = within(await screen.findByRole("main"));
+    await main.findByRole("link", { name: "g42" });
+    expect(main.getByText(/^Sorted within the newest \d+ generations\.$/)).toBeInTheDocument();
   });
 });
 

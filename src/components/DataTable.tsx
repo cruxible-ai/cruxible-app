@@ -85,6 +85,7 @@ export function DataTable<T>({
   note,
   count,
   expanded,
+  canExpand,
   open,
   onToggle,
   group,
@@ -108,6 +109,8 @@ export function DataTable<T>({
   count?: ReactNode;
   /** A row's expanded detail; rows then carry a disclosure toggle. */
   expanded?: (row: T) => ReactNode;
+  /** Rows that have a detail (default: every row). */
+  canExpand?: (row: T) => boolean;
   /** Controlled open row (one at a time); without it, rows open independently. */
   open?: string | null;
   onToggle?: (key: string) => void;
@@ -169,6 +172,7 @@ export function DataTable<T>({
         <tr className={`border-t border-zinc-800/70 align-top ${opened ? "bg-zinc-900/40" : ""} ${rowClassName?.(row) ?? ""}`}>
           {expanded && (
             <td className="w-5 py-1.5 pr-1">
+              {(canExpand?.(row) ?? true) && (
               <button
                 onClick={() => toggle(key)}
                 aria-label={`${opened ? "Collapse" : "Expand"} ${rowLabel?.(row) ?? key}`}
@@ -177,6 +181,7 @@ export function DataTable<T>({
               >
                 {opened ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
               </button>
+              )}
             </td>
           )}
           {cols.map((column) => (
