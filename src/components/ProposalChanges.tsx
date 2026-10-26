@@ -1,4 +1,7 @@
+import { Link } from "react-router-dom";
+import { useInstanceId } from "@/api/hooks";
 import type { Schemas } from "@/api/schemas";
+import { useAtLink } from "@/lib/at";
 import { ChangeMark } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
 import { captureHandle } from "@/lib/next-reasons";
@@ -130,6 +133,8 @@ function runsOf(claims: ClaimLine[]) {
 }
 
 export function ProposalChanges({ review, limit }: { review: Review; limit?: number }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
   const groups = groupChanges(review.members);
   const unreadable = unreadableChanges(review.members);
   let shown = 0;
@@ -196,7 +201,14 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
           </span>
         </div>
       ))}
-      {hidden > 0 && <div className="text-[12px] text-zinc-500">+{hidden} more on the proposal page</div>}
+      {hidden > 0 && (
+        <Link
+          to={link(`/i/${instanceId}/p/${encodeURIComponent(review.proposal_id)}`)}
+          className="block text-[12px] text-zinc-400 hover:text-zinc-200 hover:underline"
+        >
+          +{hidden} more on the proposal page →
+        </Link>
+      )}
     </div>
   );
 }
