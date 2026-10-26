@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Settings } from "lucide-react";
 import { useSettings } from "@/lib/settings";
+import { NO_SIGNAL_LEGEND, SIGNAL_LEGEND } from "@/lib/vocabulary";
 
 /**
  * Sidebar settings: client-side display preferences only. Anything that
@@ -24,7 +25,13 @@ export function SettingsMenu() {
   return (
     <div ref={ref} className="relative">
       {open && (
-        <div className="absolute bottom-8 left-0 w-52 border border-zinc-700 bg-zinc-900 p-3 shadow-lg">
+        <div className="absolute bottom-8 left-0 w-64 border border-zinc-700 bg-zinc-900 p-3 shadow-lg">
+          <p className="mb-3 border-b border-zinc-800 pb-2 text-[12px] leading-snug text-zinc-400">
+            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400 align-middle" aria-hidden />
+            {SIGNAL_LEGEND.waiting}{" "}
+            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-red-500 align-middle" aria-hidden />
+            {SIGNAL_LEGEND.wrong} {NO_SIGNAL_LEGEND} Hover a dot for what to do.
+          </p>
           <div className="pb-2 text-[12px] font-medium text-zinc-500">
             Display settings
           </div>

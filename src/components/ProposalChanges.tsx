@@ -1,6 +1,8 @@
 import type { Schemas } from "@/api/schemas";
+import { ChangeMark } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
 import { captureHandle } from "@/lib/next-reasons";
+import { changeMark, roleWord } from "@/lib/vocabulary";
 
 type Review = Schemas["ProposalReview"];
 type Member = Review["members"][number];
@@ -55,8 +57,6 @@ function objectValue(object: unknown): { text: string; ref: string | null } {
   return { text: JSON.stringify(o), ref: null };
 }
 
-const ROLE_WORDS: Record<string, string> = { observation: "observed", normative: "stated" };
-
 /** Members whose artifact this read doesn't carry (withheld or not served): listed by path. */
 export function unreadableChanges(members: Member[]): { path: string; disposition: string }[] {
   return members
@@ -79,7 +79,7 @@ export function groupChanges(members: Member[]): SubjectGroup[] {
     if (!artifact) continue;
     if (member.artifact_kind === "subject") {
       const name = str(obj(artifact.identity)?.name);
-      if (name) group(name).created ||= member.disposition === "create";
+      if (name) group(name).created ||= changeMark(member.disposition).mark === "+";
       continue;
     }
     if (member.artifact_kind !== "claim") continue;
@@ -129,8 +129,6 @@ function runsOf(claims: ClaimLine[]) {
   return runs;
 }
 
-const DISPOSITION_MARK: Record<string, string> = { create: "+", retire: "−", revise: "~" };
-
 export function ProposalChanges({ review, limit }: { review: Review; limit?: number }) {
   const groups = groupChanges(review.members);
   const unreadable = unreadableChanges(review.members);
@@ -147,9 +145,11 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
         if (claims.length === 0 && !g.created) return null;
         return (
           <div key={g.subject}>
-            <div className="flex flex-wrap items-baseline gap-x-2">
+            <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
+              {/* A new Subject is marked once, here; its Claims are new with it. */}
+              {g.created ? <ChangeMark change="create" /> : <span />}
+              <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
               <RefLink value={g.subject} />
-              {g.created && <span className="text-[11px] uppercase tracking-wide text-emerald-400/80">new</span>}
               {captures.length > 0 && (
                 <span className="text-[12px] text-zinc-500">
                   from{" "}
@@ -161,13 +161,12 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
                   ))}
                 </span>
               )}
+              </span>
             </div>
             <div className="ml-4 mt-0.5 space-y-0.5">
               {runsOf(claims).map((run, i) => (
                 <div key={`${run.field}-${i}`} className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
-                  <span className="text-zinc-500" title={run.disposition}>
-                    {DISPOSITION_MARK[run.disposition] ?? "·"}
-                  </span>
+                  {g.created && changeMark(run.disposition).mark === "+" ? <span /> : <ChangeMark change={run.disposition} />}
                   <span className="min-w-0 break-words">
                     <span className="text-zinc-400">{run.field}</span>
                     {run.values.length > 1 && <span className="ml-1 text-[11px] text-zinc-500">({run.values.length})</span>}
@@ -181,7 +180,7 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
                         ))}
                       </span>
                     )}
-                    {run.role && <span className="ml-2 text-[11px] text-zinc-500">{ROLE_WORDS[run.role] ?? run.role}</span>}
+                    {run.role && <span className="ml-2 text-[11px] text-zinc-500">{roleWord(run.role)}</span>}
                   </span>
                 </div>
               ))}
@@ -191,9 +190,7 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
       })}
       {unreadable.slice(0, limit ?? unreadable.length).map((u) => (
         <div key={u.path} className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
-          <span className="text-zinc-500" title={u.disposition}>
-            {DISPOSITION_MARK[u.disposition] ?? "·"}
-          </span>
+          <ChangeMark change={u.disposition} />
           <span className="min-w-0 break-all">
             <RefLink value={refFromPath(u.path)} />
           </span>

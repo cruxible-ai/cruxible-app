@@ -77,7 +77,7 @@ export function ContractScreen() {
         facts={
           <>
             <Fact label="State">
-              <Chip value={contract.lifecycle} />
+              <Chip concept="lifecycle" value={contract.lifecycle} />
             </Fact>
             <Fact label="Version">
               <span className="font-mono">v{contract.version}</span>
@@ -166,7 +166,7 @@ export function ContractScreen() {
               </div>
             ))}
           </div>
-          {pins.data?.truncated && <div className="mt-1 text-[12px] text-amber-400/90">The pins listing stopped at its page cap.</div>}
+          {pins.data?.truncated && <div className="mt-1 text-[12px] text-zinc-500">The pins listing stopped at its page cap.</div>}
           <div className="mt-2 text-[12px] text-zinc-500">
             Landings, cited Captures and citing Claims <Pending gap="K4" />
           </div>
@@ -207,7 +207,7 @@ export function ContractScreen() {
           })}
         </div>
         {model.data?.truncated && (
-          <div className="mt-1 text-[12px] text-amber-400/90">A definition listing stopped at its cap.</div>
+          <div className="mt-1 text-[12px] text-zinc-500">A definition listing stopped at its cap.</div>
         )}
       </Panel>
 
@@ -237,7 +237,7 @@ export function ContractScreen() {
                       <span className="font-mono text-zinc-300">{predicate}</span>
                     )}
                   </td>
-                  <td className={`py-1 pr-3 ${row?.evidence_requirement === "captured" ? "text-amber-400/90" : "text-zinc-500"}`}>
+                  <td className={`py-1 pr-3 ${row?.evidence_requirement === "captured" ? "text-zinc-300" : "text-zinc-500"}`}>
                     {row?.evidence_requirement === "captured" ? "required" : "admitted"}
                   </td>
                   <td className="py-1 pr-3 text-zinc-400">{row?.default_role ?? "—"}</td>

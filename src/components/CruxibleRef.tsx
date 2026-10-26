@@ -17,9 +17,10 @@ import {
  * arranges refs, state renders them. A ref only ever maps to an in-app route
  * and one get read at the page's coordinate; nothing in a ref is executed.
  *
- * The dot is the TRUST cue separating state-backed elements from author
- * prose: emerald = get resolved it at this generation, amber = state does not
- * know this ref, pulsing zinc = hydrating. Authored labels ([label](cruxible://…))
+ * The chip's frame is the trust cue separating state-backed elements from
+ * author prose: a solid frame = get resolved it at this generation (no dot:
+ * nothing is wrong), a dashed frame with a red dot = state does not know this
+ * ref, a pulsing dot = hydrating. Authored labels ([label](cruxible://…))
  * are kept; bare refs show the ref's name. Unresolved refs degrade to a
  * non-link chip so broken refs never break the prose flow.
  */
@@ -30,10 +31,9 @@ const CHIP_LIVE = `${CHIP_BASE} border-zinc-700 bg-zinc-900/70 text-zinc-200 no-
 const CHIP_PENDING = `${CHIP_BASE} border-zinc-800 bg-zinc-900/40 text-zinc-500`;
 const CHIP_UNRESOLVED = `${CHIP_BASE} border-dashed border-zinc-700 bg-transparent text-zinc-500`;
 
-const DOT: Record<"live" | "pending" | "unresolved", string> = {
-  live: "bg-emerald-500",
+const DOT: Record<"pending" | "unresolved", string> = {
   pending: "bg-zinc-600 animate-pulse",
-  unresolved: "bg-amber-500",
+  unresolved: "bg-red-500",
 };
 
 function Dot({ state }: { state: keyof typeof DOT }) {
@@ -112,7 +112,6 @@ export function RefChip({ refValue, label }: { refValue: ParsedRef; label?: stri
   const route = refRoute(instanceId, refValue);
   const body = (
     <>
-      <Dot state="live" />
       <KindTag label={kindLabel} />
       <span>{text}</span>
     </>

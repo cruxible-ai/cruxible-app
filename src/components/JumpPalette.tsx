@@ -208,7 +208,7 @@ export function JumpPalette() {
           {exact && resolved.isPending && settled !== "" && (
             <div className="px-3 py-2 text-[13px] text-zinc-500">Resolving {formatRef(exact)}…</div>
           )}
-          {refusal && <div className="px-3 py-2 text-[13px] text-amber-400/90">{refusal}</div>}
+          {refusal && <div className="px-3 py-2 text-[13px] text-red-400/80">{refusal}</div>}
           {query !== "" && items.length === 0 && !refusal && !(exact && resolved.isPending) && (
             <div className="px-3 py-2 text-[13px] text-zinc-500">No matching kind or reference.</div>
           )}

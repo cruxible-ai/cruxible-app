@@ -1,113 +1,52 @@
-import { humanize } from "@/lib/text";
+import { changeMark, term as termFor, type Concept, type Signal, type Term } from "@/lib/vocabulary";
 
 /**
- * Muted color-coded chip for config-enforced enum values (status, priority,
- * type, review state). Values come straight from the API; color carries
- * meaning only — unknown values fall back to neutral rather than free-text
- * styling.
+ * The status chip: a word, with a dot only for the two signals (amber:
+ * waiting on you or someone; red: wrong or blocked). The word and its hover
+ * meaning come from the glossary (src/lib/vocabulary.ts); there is no other
+ * tone. Pass a concept and its raw value, or a term already looked up.
  */
-const TONES = {
-  green: "bg-emerald-950/60 text-emerald-400 border-emerald-900",
-  red: "bg-red-950/60 text-red-400 border-red-900",
-  amber: "bg-amber-950/60 text-amber-400 border-amber-900",
-  blue: "bg-sky-950/60 text-sky-400 border-sky-900",
-  violet: "bg-violet-950/60 text-violet-400 border-violet-900",
-  zinc: "bg-zinc-900 text-zinc-400 border-zinc-800",
-} as const;
-
-type Tone = keyof typeof TONES;
-
-// STOPGAP (approved as such in rr-ui-v1-walking-skeleton-checkpoint): this
-// value→tone map hardcodes the project-state kit vocabulary. The structural
-// fix — presentation semantics carried by the config's enum definitions — is
-// oq-enum-presentation-semantics (owner robert). Unknown values fall back to
-// neutral, so other kits render legibly but uncolored.
-// Green = currently alive or a positive verdict; amber = awaiting someone;
-// blue = scheduled future; red = needs attention; zinc = cold/inert. Closed
-// work is cold, not a success signal.
-const VALUE_TONES: Record<string, Tone> = {
-  // status
-  active: "green",
-  in_progress: "green",
-  approved: "green",
-  accepted: "green",
-  resolved: "green",
-  answered: "green",
-  mitigated: "green",
-  done: "zinc",
-  closed: "zinc",
-  requested: "amber",
-  in_review: "amber",
-  open: "amber",
-  planned: "blue",
-  blocked: "red",
-  changes_requested: "red",
-  watching: "zinc",
-  deferred: "zinc",
-  superseded: "zinc",
-  abandoned: "zinc",
-  draft: "zinc",
-  withdrawn: "zinc",
-  unreviewed: "zinc",
-  // priority
-  critical: "red",
-  high: "amber",
-  medium: "zinc",
-  low: "zinc",
-  // playbill Claim verdicts, statuses, read flags and admission
-  supported: "green",
-  conflicted: "red",
-  contested: "amber",
-  contradicted: "red",
-  stale: "amber",
-  uncovered: "amber",
-  unsure_hold: "amber",
-  overturned: "zinc",
-  refused: "red",
-  retired: "zinc",
-  live: "green",
-  admitted: "green",
-  not_admitted: "red",
-  not_evidence: "zinc",
-  // candidate groups + proposal signals
-  pending_review: "amber",
-  auto_resolved: "green",
-  support: "green",
-  contradict: "red",
-  unsure: "amber",
+const DOT: Record<Signal, string> = {
+  waiting: "bg-amber-400",
+  wrong: "bg-red-500",
 };
 
-// Dot hues for the quiet default treatment.
-const DOTS: Record<Tone, string> = {
-  green: "bg-emerald-500",
-  red: "bg-red-500",
-  amber: "bg-amber-400",
-  blue: "bg-sky-500",
-  violet: "bg-violet-400",
-  zinc: "bg-zinc-600",
-};
-
-// Attention states share the dot shape but carry their tone in the text too,
-// so they pop without breaking the one-chip-shape rule.
-const EMPHATIC = new Set(["blocked", "critical", "changes_requested"]);
-
-/** Semantic tone for an enum value (shared by chips and the status bars). */
-export function toneFor(value: string): Tone {
-  return VALUE_TONES[value] ?? "zinc";
+/** A signal dot on its own (inline notes that are not chips); `title` says what it means and what to do. */
+export function SignalDot({ signal, title }: { signal: Signal; title: string }) {
+  return (
+    <span
+      role="img"
+      aria-label={title}
+      title={title}
+      className={`inline-block h-1.5 w-1.5 shrink-0 self-center rounded-full ${DOT[signal]}`}
+    />
+  );
 }
 
-/** Solid segment fills for the status meter; cold uses zinc-500 so every
- * segment clears 3:1 on the dark surface (validated). */
-export const SEGMENT_FILLS: Record<Tone, string> = {
-  green: "bg-emerald-500",
-  amber: "bg-amber-400",
-  blue: "bg-sky-500",
-  red: "bg-red-500",
-  violet: "bg-violet-400",
-  zinc: "bg-zinc-500",
-};
+type ChipProps = { concept: Concept; value: string; term?: never } | { term: Term; concept?: never; value?: never };
 
-export const TONE_ORDER: Tone[] = ["green", "amber", "blue", "red", "violet", "zinc"];
+export function Chip(props: ChipProps) {
+  const resolved = props.term ?? termFor(props.concept, props.value);
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] leading-4 text-zinc-400"
+      title={resolved.meaning}
+    >
+      {resolved.signal && <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[resolved.signal]}`} />}
+      {resolved.word}
+    </span>
+  );
+}
+
+/** A change mark (+ create, ~ revise, − retire), its meaning on hover. */
+export function ChangeMark({ change, className = "" }: { change: string; className?: string }) {
+  const { mark, word } = changeMark(change);
+  return (
+    <span className={`font-mono text-zinc-400 ${className}`} title={word} aria-label={word} role="img">
+      {mark}
+    </span>
+  );
+}
 
 /**
  * Toggle/filter chip buttons (status filters, hide-cold, relationship
@@ -128,17 +67,3 @@ export const defChipClass =
 /** Bordered secondary action (header buttons, context-query links). */
 export const actionChipClass =
   "border border-zinc-800 px-2 py-0.5 text-[12px] text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900";
-
-/** "changes_requested" -> "Changes requested"; tone/emphasis key on the raw value. */
-export function Chip({ value, tone }: { value: string; tone?: Tone }) {
-  const resolved = tone ?? VALUE_TONES[value] ?? "zinc";
-  const textClass = EMPHATIC.has(value) ? "text-red-400" : "text-zinc-400";
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 text-[12px] leading-4 whitespace-nowrap ${textClass}`}
-    >
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOTS[resolved]}`} />
-      {humanize(value)}
-    </span>
-  );
-}

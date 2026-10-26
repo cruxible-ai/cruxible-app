@@ -125,7 +125,7 @@ export function ClaimTypeTable({
                         {row.revision ? <span className="text-zinc-600"> r{row.revision}</span> : null}
                       </span>
                       {row.format && row.format < CURRENT_CLAIM_TYPE_FORMAT && (
-                        <span className="ml-1 font-sans text-amber-400/90" title="An upgrade to the current ClaimType format is available">
+                        <span className="ml-1 font-sans text-zinc-400" title="An upgrade to the current ClaimType format is available">
                           upgrade
                         </span>
                       )}
@@ -148,7 +148,7 @@ export function ClaimTypeTable({
                   <td className="py-1.5 pr-3 font-mono text-zinc-400">{row.cardinality === "many" ? "many" : "one"}</td>
                   <td className="py-1.5 pr-3 text-zinc-400">{row.default_role ?? "—"}</td>
                   <td className="py-1.5 pr-3">
-                    <span className={mode === "captured" ? "text-amber-400/90" : "text-zinc-500"}>
+                    <span className={mode === "captured" ? "text-zinc-300" : "text-zinc-500"}>
                       {mode === "own-words" ? "own words" : mode}
                     </span>
                     {(row.evidence ?? []).slice(0, EVIDENCE_SHOWN).map((contract) => (
@@ -175,7 +175,7 @@ export function ClaimTypeTable({
                     <td className="py-1.5 pr-3 font-mono text-[12px] text-zinc-400">
                       {row.kit ? (row.kit === kindKit ? null : row.kit) : kindKit ? <span className="font-sans text-zinc-500">here</span> : null}
                       {edited && (
-                        <span className="ml-1 font-sans text-amber-400/90" title={`${row.path} is edited locally`}>
+                        <span className="ml-1 font-sans text-zinc-400" title={`${row.path} is edited locally`}>
                           edited
                         </span>
                       )}
@@ -188,7 +188,7 @@ export function ClaimTypeTable({
                       <span className="text-zinc-500">review</span>
                     ) : (
                       who.map((s) => (
-                        <Link key={`${s.line}\n${s.mandate}`} to={link(`/i/${instanceId}/lines/${encodeURIComponent(s.line)}`)} className={`block font-mono hover:underline ${s.kind === "settles" ? "text-emerald-400/90" : s.kind === "suspended" ? "text-red-400/80 line-through" : "text-zinc-400"}`} title={`${SETTLER_VERB[s.kind]} under ${s.mandate}`}>
+                        <Link key={`${s.line}\n${s.mandate}`} to={link(`/i/${instanceId}/lines/${encodeURIComponent(s.line)}`)} className={`block font-mono hover:underline ${s.kind === "settles" ? "text-zinc-200" : s.kind === "suspended" ? "text-zinc-500 line-through" : "text-zinc-400"}`} title={`${SETTLER_VERB[s.kind]} under ${s.mandate}`}>
                           {s.line}
                         </Link>
                       ))

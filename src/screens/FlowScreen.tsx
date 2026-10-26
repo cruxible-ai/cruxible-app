@@ -111,7 +111,7 @@ export function FlowScreen() {
           </span>
           <span>
             <span className="font-mono text-zinc-200">{admissions.length}</span> {admissions.length === 1 ? "admission" : "admissions"},{" "}
-            <span className="text-amber-400/90">{admissions.filter((e) => e.required).length} required</span>
+            <span>{admissions.filter((e) => e.required).length} required</span>
           </span>
           {focus && (
             <button onClick={() => setFocus(null)} className="inline-flex items-center gap-1 text-zinc-300 hover:text-white">
@@ -119,7 +119,7 @@ export function FlowScreen() {
             </button>
           )}
         </div>
-        {capped && <div className="mt-1 text-[12px] text-amber-400/90">A listing stopped at its page cap: the flow may be incomplete.</div>}
+        {capped && <div className="mt-1 text-[12px] text-zinc-500">A listing stopped at its page cap: the flow may be incomplete.</div>}
       </header>
 
       {shown.nodes.length === 0 ? (
@@ -277,7 +277,7 @@ function FlowCell({
     return (
       <div
         style={style}
-        className={`${base} flex-col items-stretch justify-center gap-0 border-l-2 border-sky-700/70 pl-2 leading-4`}
+        className={`${base} flex-col items-stretch justify-center gap-0 border-l-2 border-zinc-600 pl-2 leading-4`}
         title={node.sources?.length ? `fires on landings from ${node.sources.join(", ")}` : "fires on any landing under its contract"}
         {...hover}
       >
@@ -312,7 +312,7 @@ function FlowCell({
         {node.label}
       </Link>
       {node.required && (
-        <span className="shrink-0 text-[10px] text-amber-400/90" title="A Capture under one of its contracts is required">
+        <span className="shrink-0 text-[10px] text-zinc-400" title="A Capture under one of its contracts is required">
           captured
         </span>
       )}

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { NextItem, NextSeverity } from "@/api/schemas";
-import { toggleChipClass } from "@/components/Chip";
+import { SignalDot, toggleChipClass } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { NextGroups } from "@/components/next/NextItemRow";
 import { Page, PageHeader } from "@/components/Page";
@@ -10,6 +10,7 @@ import { useNextPage } from "@/components/next/useNextPage";
 import { FAMILY_LABEL, familyOf, type NextFamily } from "@/lib/next-reasons";
 import { humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { term } from "@/lib/vocabulary";
 
 const SEVERITIES: NextSeverity[] = ["blocking", "repair", "warning"];
 
@@ -62,8 +63,8 @@ export function NextScreen() {
                     {counts.map(([severity, n], i) => (
                       <span key={severity}>
                         {i > 0 && ", "}
-                        <span className={severity === "blocking" ? "text-red-400" : undefined}>
-                          {n} {severity === "repair" ? (n === 1 ? "repair" : "repairs") : severity}
+                        <span>
+                          {n} {term("severity", severity).word.toLowerCase()}{n === 1 || severity === "blocking" ? "" : "s"}
                         </span>
                       </span>
                     ))}
@@ -96,7 +97,7 @@ export function NextScreen() {
         const rows = bySeverity.get(severity)!;
         if (rows.length === 0) return null;
         return (
-          <Panel key={severity} title={humanize(severity)} meta={<span>{rows.length}</span>}>
+          <Panel key={severity} title={term("severity", severity).word} meta={<SeverityCount severity={severity} count={rows.length} />}>
             <NextGroups items={rows} />
           </Panel>
         );
@@ -109,5 +110,16 @@ export function NextScreen() {
         </div>
       )}
     </Page>
+  );
+}
+
+/** A severity panel's count, with its signal dot (blocking: red, repair: amber). */
+function SeverityCount({ severity, count }: { severity: NextSeverity; count: number }) {
+  const t = term("severity", severity);
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      {t.signal && <SignalDot signal={t.signal} title={t.meaning} />}
+      {count}
+    </span>
   );
 }

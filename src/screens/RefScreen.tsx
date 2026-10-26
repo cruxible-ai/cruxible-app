@@ -176,7 +176,7 @@ function RecordTable({ rows, depth }: { rows: Record<string, unknown>[]; depth: 
                   {column === "flags" && Array.isArray(row[column]) ? (
                     <span className="flex flex-wrap gap-1.5">
                       {(row[column] as string[]).map((flag) => (
-                        <Chip key={flag} value={flag} />
+                        <Chip key={flag} concept="claim" value={flag} />
                       ))}
                     </span>
                   ) : (

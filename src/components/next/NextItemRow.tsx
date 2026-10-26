@@ -7,8 +7,6 @@ import { parseRef } from "@/lib/cruxible-ref";
 import { captureHandle, detailRecord, reasonMeta, splitDetail, type FieldSpec } from "@/lib/next-reasons";
 import { formatDateTime, formatWhen } from "@/lib/text";
 
-export const SEVERITY_TONE = { blocking: "red", repair: "amber", warning: "zinc" } as const;
-
 function FieldValue({ spec, value }: { spec: FieldSpec; value: unknown }) {
   if (spec.kind === "time" && typeof value === "string") {
     return <span title={formatDateTime(value)}>{formatWhen(value)}</span>;
@@ -129,7 +127,7 @@ export function NextItemRow({
       <div className={grouped ? "grid grid-cols-[minmax(10rem,max-content)_minmax(0,1fr)_auto] items-baseline gap-x-5" : "flex flex-wrap items-baseline gap-x-5 gap-y-1"}>
         {!grouped && (
           <>
-            <Chip value={item.severity} tone={SEVERITY_TONE[item.severity]} />
+            <Chip concept="severity" value={item.severity} />
             <span className="text-zinc-100" title={item.reason}>
               {meta.label}
             </span>

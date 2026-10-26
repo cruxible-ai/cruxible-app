@@ -99,7 +99,7 @@ function GenerationRow({ row }: { row: Generation }) {
         </div>
         <div className="text-right text-[12px]">
           <div className="text-zinc-400">
-            {row.members ?? 0} member{row.members === 1 ? "" : "s"}
+            {row.members ?? 0} change{row.members === 1 ? "" : "s"}
           </div>
           <div className="flex justify-end gap-2">
             <span className="font-mono text-zinc-500" title={row.git_oid}>

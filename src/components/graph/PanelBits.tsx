@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { Edge } from "@xyflow/react";
 import type { GraphPanelApi } from "./GraphCanvas";
-import { Chip } from "@/components/Chip";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
 
 /** Kicker + title header for the graph context panel. */
@@ -117,7 +116,7 @@ export function PropertyList({
               title={looksLikeDateTime(v) ? String(v) : undefined}
             >
               {isStatusLike ? (
-                <Chip value={v as string} />
+                humanize(v as string)
               ) : text.length > LONG_TEXT_CUTOFF ? (
                 `${text.slice(0, LONG_TEXT_CUTOFF)}…`
               ) : (

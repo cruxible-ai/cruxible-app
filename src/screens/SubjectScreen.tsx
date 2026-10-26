@@ -22,7 +22,7 @@ import {
   type OrientPredicate,
   type SubjectHistoryEvent,
 } from "@/api/schemas";
-import { actionChipClass, Chip, toneFor } from "@/components/Chip";
+import { actionChipClass, ChangeMark, Chip, SignalDot } from "@/components/Chip";
 import { Corroboration, type CorroborationSummary } from "@/components/Corroboration";
 import { CountsMark } from "@/components/CountsMark";
 import { LongText } from "@/components/LongText";
@@ -42,11 +42,11 @@ import {
   countsReasonText,
   publicName,
   recordLabel,
-  STATUS_MEANING,
 } from "@/lib/evidence";
 import { predicateIndex } from "@/lib/neighborhood";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { term } from "@/lib/vocabulary";
 
 type SubjectClaim = GetSubjectCard["claims"][number];
 
@@ -54,7 +54,7 @@ function claimIds(entry: SubjectClaim): string[] {
   return Array.isArray(entry.claim) ? entry.claim : [entry.claim];
 }
 
-/** Verdicts that need no attention render as a dot only; the summary names them. */
+/** Verdicts that need no attention are named once, in the header tally; field rows leave them out. */
 const QUIET_VERDICTS = new Set(["supported"]);
 
 /**
@@ -136,7 +136,7 @@ export function SubjectScreen() {
               .sort(([a], [b]) => (QUIET_VERDICTS.has(a) ? 1 : 0) - (QUIET_VERDICTS.has(b) ? 1 : 0))
               .map(([verdict, count]) => (
                 <span key={verdict} className="inline-flex items-baseline gap-1.5 text-[13px]">
-                  <Chip value={verdict} />
+                  <Chip concept="claim" value={verdict} />
                   <span className="font-mono text-zinc-200">{count}</span>
                 </span>
               ))}
@@ -145,7 +145,7 @@ export function SubjectScreen() {
         facts={
           <>
             <Fact label="State">
-              <Chip value={subject.lifecycle} />
+              <Chip concept="lifecycle" value={subject.lifecycle} />
             </Fact>
             <Fact
               label="Evidence admitted"
@@ -154,7 +154,10 @@ export function SubjectScreen() {
               {evidence.offered === 0 ? (
                 <span className="text-zinc-500">{evidence.notEvidence === 0 ? "no evidence citations" : "none"}</span>
               ) : (
-                <span className={evidence.admitted < evidence.offered ? "text-amber-400" : undefined}>
+                <span className="inline-flex items-baseline gap-1.5">
+                  {evidence.admitted < evidence.offered && (
+                    <SignalDot signal="wrong" title={term("evidence", "not_admitted").meaning} />
+                  )}
                   {evidence.admitted} of {evidence.offered}
                 </span>
               )}
@@ -253,6 +256,7 @@ function ClaimRow({
   const link = useAtLink();
   const [open, setOpen] = useState(false);
   const ids = claimIds(entry);
+  const flags: readonly string[] = entry.flags ?? [];
   const predicate = descriptor?.predicate ?? entry.predicate;
   return (
     <div className="py-2 first:pt-0 last:pb-0">
@@ -277,18 +281,13 @@ function ClaimRow({
           <FieldValue value={entry.value} />
         </div>
         <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5">
-          {(entry.flags ?? []).map((flag) => (
-            <Chip key={flag} value={flag} />
+          {flags.map((flag) => (
+            <Chip key={flag} concept="claim" value={flag} />
           ))}
-          {ids.map((id) => {
-            const claim = cards.get(id);
-            if (!claim) return null;
-            return QUIET_VERDICTS.has(claim.verdict) ? (
-              <QuietVerdict key={id} verdict={claim.verdict} />
-            ) : (
-              <Chip key={id} value={claim.verdict} />
-            );
-          })}
+          {/* Each verdict once per field; one a flag already names is not repeated. */}
+          {[...new Set(ids.map((id) => cards.get(id)?.verdict))].filter((v): v is string => !!v && !QUIET_VERDICTS.has(v) && !flags.includes(v)).map((verdict) => (
+            <Chip key={verdict} concept="claim" value={verdict} />
+          ))}
           <AdmissionSummary accounts={ids.flatMap((id) => accounts.get(id) ?? [])} />
         </div>
       </div>
@@ -303,29 +302,16 @@ function ClaimRow({
   );
 }
 
-const DOT: Record<string, string> = { green: "bg-emerald-500", amber: "bg-amber-400", red: "bg-red-500", blue: "bg-sky-500", violet: "bg-violet-400", zinc: "bg-zinc-600" };
-
-/** A healthy verdict as its dot alone; the word is on hover and in the header tally. */
-function QuietVerdict({ verdict }: { verdict: string }) {
-  return (
-    <span
-      className={`inline-block h-1.5 w-1.5 self-center rounded-full ${DOT[toneFor(verdict)]}`}
-      title={verdict.replaceAll("_", " ")}
-      aria-label={verdict.replaceAll("_", " ")}
-      role="img"
-    />
-  );
-}
-
 /** Citations offered as evidence that the rule admits; copies that are not evidence are left out. */
 function AdmissionSummary({ accounts }: { accounts: CaptureAdmissionAccount[] }) {
   const { admitted, offered } = admissionTally(accounts);
   if (offered === 0) return null;
   return (
     <span
-      className={`whitespace-nowrap text-[12px] ${admitted < offered ? "text-amber-400/90" : "text-zinc-500"}`}
+      className="inline-flex items-baseline gap-1.5 whitespace-nowrap text-[12px] text-zinc-500"
       title="Citations offered as evidence that the ClaimType's evidence rule admits"
     >
+      {admitted < offered && <SignalDot signal="wrong" title={term("evidence", "not_admitted").meaning} />}
       {admitted}/{offered} admitted
     </span>
   );
@@ -355,11 +341,13 @@ function ClaimDetail({
         {card && (
           <>
             <span className="text-zinc-500">
-              verdict <Chip value={card.verdict} />
+              verdict <Chip concept="claim" value={card.verdict} />
             </span>
-            <span className="text-zinc-500">
-              status <Chip value={card.status} />
-            </span>
+            {card.status !== "accepted" && (
+              <span className="text-zinc-500">
+                status <Chip concept="claim" value={card.status} />
+              </span>
+            )}
             <span className="text-zinc-500">
               revision <span className="font-mono text-zinc-300">{card.revision}</span>
             </span>
@@ -374,7 +362,7 @@ function ClaimDetail({
             <div key={contender.claim} className="flex flex-wrap items-baseline gap-x-3">
               <RefLink value={contender.claim} short />
               <ShownValue value={contender.value} />
-              <Chip value={contender.verdict} />
+              <Chip concept="claim" value={contender.verdict} />
             </div>
           ))}
         </SubSection>
@@ -413,9 +401,7 @@ function ClaimDetail({
                         {citationLabel(capture)}
                       </Td>
                       <Td className="whitespace-nowrap">
-                        <span title={STATUS_MEANING[capture.status]}>
-                          <Chip value={capture.status} />
-                        </span>
+                        <Chip concept="evidence" value={capture.status} />
                       </Td>
                       <Td className="max-w-[18rem] truncate text-zinc-400" title={capture.source}>
                         {publicName(capture.source)}
@@ -464,7 +450,7 @@ function ClaimDetail({
                   <Td className="text-zinc-400">{account.citation_role}</Td>
                   <Td className="text-zinc-400">{account.citation_origin}</Td>
                   <Td>
-                    <Chip value={account.status} />
+                    <Chip concept="evidence" value={account.status} />
                   </Td>
                   <Td className="text-zinc-500">
                     {account.decision ? (
@@ -472,7 +458,7 @@ function ClaimDetail({
                         {account.decision.status.replaceAll("_", " ")}
                         {account.decision.admission && <span> ({account.decision.admission.replaceAll("_", " ")})</span>}
                         {account.decision.rule_id && <span className="font-mono"> {account.decision.rule_id}</span>}
-                        {account.decision.refusal_code && <span className="text-amber-400/90"> {account.decision.refusal_code}</span>}
+                        {account.decision.refusal_code && <span className="font-mono text-zinc-400"> {account.decision.refusal_code}</span>}
                         {account.decision.closest_rule_id && (
                           <span className="font-mono"> closest {account.decision.closest_rule_id}</span>
                         )}
@@ -524,7 +510,7 @@ function AttestationList({ attestations }: { attestations: GetAttestationEvidenc
           {attestations.map((attestation, i) => (
             <tr key={`${attestation.event ?? attestation.principal}\n${attestation.at}\n${i}`} className={`${trClass} ${attestation.current ? "" : "opacity-60"}`}>
               <Td>
-                <Chip value={attestation.stance} />
+                <Chip concept="stance" value={attestation.stance} />
               </Td>
               <Td className="font-mono text-[12px] text-zinc-300">{attestation.principal}</Td>
               <Td className="whitespace-nowrap text-zinc-400" title={attestation.at}>
@@ -593,7 +579,7 @@ function RevisionLine({ revision }: { revision: GetRevision }) {
       <div className="flex flex-wrap items-baseline gap-x-3">
         <span className="font-mono text-zinc-500">r{revision.revision}</span>
         <GenerationLink sequence={revision.sequence} />
-        {revision.change && <Chip value={revision.change} />}
+        {revision.change && <ChangeMark change={revision.change} />}
         {revision.value !== undefined && <ShownValue value={revision.value} />}
         {revision.actor && <span className="font-mono text-zinc-400">{revision.actor}</span>}
         {(revision.approved_by?.length ?? 0) > 0 && <span className="text-zinc-500">approved by {revision.approved_by!.join(", ")}</span>}
@@ -709,7 +695,7 @@ function HistoryGroup({ events }: { events: SubjectHistoryEvent[] }) {
               {fields.map((event, i) => (
                 <Fragment key={`${event.claim}\n${i}`}>
                   <dt className="flex items-baseline gap-2 whitespace-nowrap">
-                    <Chip value={event.change ?? "stated"} />
+                    <ChangeMark change={event.change ?? "stated"} />
                     <span className="font-mono text-[12px] text-zinc-400">{event.field}</span>
                   </dt>
                   <dd className="min-w-0">
@@ -735,7 +721,7 @@ function EventValue({ event }: { event: SubjectHistoryEvent }) {
           </span>
         )}
         {event.change === "retired" && event.retirement && <span className="text-zinc-500">{event.retirement}</span>}
-        {"contended" in event && event.contended && <Chip value="contested" />}
+        {"contended" in event && event.contended && <Chip concept="claim" value="contested" />}
       </div>
       {event.change === "changed" && event.before !== undefined && (
         <Disclosure label="previous value" className="mt-0.5">

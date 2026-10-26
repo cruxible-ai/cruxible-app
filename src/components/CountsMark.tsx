@@ -10,7 +10,7 @@ export function CountsMark({ counts, reason }: { counts: boolean; reason: string
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2">
       {counts ? (
-        <span className="inline-flex items-center gap-1 whitespace-nowrap text-emerald-400">
+        <span className="inline-flex items-center gap-1 whitespace-nowrap text-zinc-200">
           <Check className="h-3 w-3" aria-hidden />
           counts
         </span>

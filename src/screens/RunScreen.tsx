@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useCard, useInstanceId, useRunState } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { Chip } from "@/components/Chip";
+import { Chip, SignalDot } from "@/components/Chip";
 import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId, shortId } from "@/components/ShortId";
@@ -10,6 +10,7 @@ import { useAtLink, withAt } from "@/lib/at";
 import { captureHandle } from "@/lib/next-reasons";
 import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { term } from "@/lib/vocabulary";
 
 type Terminal = NonNullable<Schemas["GetProcedureRunCard"]["terminal"]>;
 type Egress = Schemas["ProcedureTerminalEgress"];
@@ -41,7 +42,7 @@ export function RunScreen() {
           runCard && (
             <>
               <Fact label="Status">
-                <Chip value={runCard.status} tone={runCard.status === "succeeded" ? "green" : runCard.status === "running" ? "blue" : "red"} />
+                <Chip concept="run" value={runCard.status} />
               </Fact>
               <Fact label="Procedure">
                 <RefLink value={runCard.procedure.startsWith("Procedure:") ? runCard.procedure : `Procedure:${runCard.procedure}`} />
@@ -91,14 +92,14 @@ export function RunScreen() {
                   <span className="text-right font-mono text-[12px] text-zinc-500">{node.sequence}</span>
                   <span className="font-mono text-zinc-100">{node.node}</span>
                   <span className="text-[12px] text-zinc-500">{node.kind ?? ""}</span>
-                  <span>{node.verdict && <Chip value={node.verdict} />}</span>
+                  <span>{node.verdict && <Chip concept="run" value={node.verdict} />}</span>
                   <span className="text-right font-mono text-[12px] text-zinc-500">
                     {node.duration_us != null ? `${(node.duration_us / 1000).toFixed(0)} ms` : ""}
                   </span>
                 </div>
               ))}
               {runCard.current_node && (
-                <div className="flex gap-3 text-sky-400">
+                <div className="flex gap-3 text-zinc-300">
                   running <span className="font-mono">{runCard.current_node.node}</span> since {formatDateTime(runCard.current_node.started_at)}
                 </div>
               )}
@@ -108,7 +109,8 @@ export function RunScreen() {
                 </div>
               )}
               {(runCard.pending_inputs ?? []).map((input) => (
-                <div key={input.name} className="text-amber-400/90">
+                <div key={input.name} className="flex items-baseline gap-1.5 text-zinc-300">
+                  <SignalDot signal="waiting" title="Waiting on an input: the run continues once it arrives" />
                   waiting on input {input.name} since {formatDateTime(input.waiting_since)}
                 </div>
               ))}
@@ -187,7 +189,7 @@ function TerminalView({ terminal }: { terminal: Terminal }) {
   return (
     <div className="text-[12px]">
       <div className="flex flex-wrap items-baseline gap-x-3">
-        <Chip value={terminal.classification ?? "terminal"} tone="red" />
+        <Chip concept="run" value={terminal.classification ?? "failed"} />
         {code && <span className="font-mono text-zinc-300">{code}</span>}
         {node && <span className="text-zinc-500">at node {node}</span>}
       </div>
@@ -205,13 +207,13 @@ function EgressView({ egress }: { egress: Egress }) {
     <div className="border-t border-zinc-800/70 pt-2 text-[13px]">
       <div className="flex flex-wrap items-baseline gap-x-3">
         <span className="text-zinc-300">{egress.kind.replaceAll("_", " ")}</span>
-        <Chip value={egress.verdict} tone={egress.verdict === "delivered" || egress.verdict === "prepared" ? "green" : egress.verdict.startsWith("refused") || egress.verdict === "failed" ? "red" : "amber"} />
+        <Chip concept="egress" value={egress.verdict} />
         <span className="text-zinc-500">
           needs {egress.required_authority}
           {egress.effective_authority && `, had ${egress.effective_authority}`}
           {egress.limiting_term && ` (limited by ${egress.limiting_term.replaceAll("_", " ")})`}
         </span>
-        {egress.settle_outcome && <Chip value={egress.settle_outcome} />}
+        {egress.settle_outcome && <span className="text-zinc-500">{egress.settle_outcome.replaceAll("_", " ")}</span>}
       </div>
       {egress.proposal_id && (
         <div className="break-all">
@@ -226,8 +228,8 @@ function EgressView({ egress }: { egress: Egress }) {
           )}
         </div>
       )}
-      {egress.refusal_code && <div className="text-red-400/90">{egress.refusal_code}</div>}
-      {egress.fallback_reason && <div className="text-amber-400/90">{egress.fallback_reason}</div>}
+      {egress.refusal_code && <div className="font-mono text-[12px] text-zinc-300">{egress.refusal_code}</div>}
+      {egress.fallback_reason && <div className="text-zinc-400">{egress.fallback_reason}</div>}
       {(egress.target_paths ?? []).length > 0 && (
         <Disclosure className="mt-1" label={`${egress.target_paths!.length} target ${egress.target_paths!.length === 1 ? "path" : "paths"}`} defaultOpen={egress.target_paths!.length <= 4}>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-x-4 gap-y-0.5">
@@ -268,13 +270,13 @@ function ResultView({ value }: { value: unknown }) {
 
 /** "Succeeded in 0.8 s, 8 of 9 nodes. Started Oct 19, 17:31." */
 function RunSummary({ card }: { card: Schemas["GetProcedureRunCard"] }) {
-  const status = card.status.replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase());
+  const status = term("run", card.status).word;
   return (
     <>
       <span className="text-zinc-100">{status}</span>
       {card.elapsed_us != null && <> in {(card.elapsed_us / 1e6).toFixed(1)} s</>}, {card.nodes_done} of {card.nodes_total} nodes
       {(card.terminal_egress ?? []).some((e) => e.proposal_id) && <>, produced a proposal</>}
-      {card.terminal && <span className="text-red-400">, stopped by {card.terminal.classification ?? "a terminal outcome"}</span>}.
+      .
     </>
   );
 }

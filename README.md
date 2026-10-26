@@ -56,12 +56,17 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | Neighborhood | a Subject's outgoing links (Subject-valued Claims), depth 1 or 2, at most 150 Subjects, plus the first page of what points at it; every node pages its incoming links |
 | Next      | the `next` queue, a page of 100 at a time, grouped by severity and then by reason (a repair or detail shared by a whole group shows once), filterable by family; each reason renders its own detail fields; repairs show as text with their CLI command |
 | Beliefs   | contested, stale and drifted beliefs: tabs over the `next` page in hand; a resurfaced attestation shows its basis and note, and a recorded contradiction with no consequence policy says it does not count toward the verdict |
-| Ledger    | accepted generations newest first: sequence (opens the instance pinned there), oid, proposer, approvals, reason, member count; a row expands to its change set |
-| Proposals | proposals by status; each opens its review: the proposal's words and a summary first, each member as what it changes (ClaimType, Subject, value before and after) with its raw field deltas behind a disclosure, prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
+| Ledger    | accepted generations newest first: sequence (opens the instance pinned there), oid, proposer, approvals, reason, change count; a row expands to its change set |
+| Proposals | proposals by state (waiting for review, incomplete, settled); each opens its review: the proposal's words and a summary first, each change marked `+` create, `~` revise, `−` retire (ClaimType, Subject, value before and after) with its raw field deltas behind a disclosure, prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
 | Lines     | every Line: Procedure, trigger, max authority, mandates, enablement, last run, inbox unread, `next` rows |
 | Line      | triggers, enablements, occurrences, runs (paged); the Line as authored (parameters, trigger input, bindings, what it retains, the logical sources its landing Triggers select) beside its Procedure's definition (slots with their interface and the build that binds each, steps with the contracts, interfaces, queries and ClaimTypes they name); the Procedure's track record, measurement reviews and resolution dispositions, readings (paged), mandate scope and condition query, the Line's inbox (paged) |
 | Run       | nodes, the terminal refusal, terminal egress with the proposal produced, Captures read, receipt and attribution (withheld where the credential may not see them) |
 | Reference | any other ref `get` resolves (Claim, Capture, Line, run, …), its card field by field; a Procedure leads with its definition (slots, steps), a Trigger with its schedule (contract, logical sources, the Line it starts) |
+
+**Color.** Two signals only: an amber dot means waiting on you or someone,
+a red dot means wrong or blocked; everything else has no dot. Hover a dot for
+what it means and what to do. Status words come from one glossary
+(`src/lib/vocabulary.ts`), so a concept reads the same on every screen.
 
 **Jump palette** (⌘K): type any ref (`kind/id`, `CLM-…`, `Line:…`,
 `ClaimType:…`); it resolves with one read and completes Subject kinds, a

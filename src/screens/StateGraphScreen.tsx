@@ -102,7 +102,7 @@ export function StateGraphScreen() {
               ? `${Math.round(graph.data.elapsedMs)} ms`
               : `${(graph.data.elapsedMs / 1000).toFixed(1)} s`}
             {graph.data.edgesCapped && (
-              <span className="text-amber-400/90"> · stopped at {GRAPH_EDGE_CAP.toLocaleString()} edges</span>
+              <span> · stopped at {GRAPH_EDGE_CAP.toLocaleString()} edges</span>
             )}
           </span>
         )}

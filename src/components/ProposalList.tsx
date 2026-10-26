@@ -8,6 +8,7 @@ import { Chip } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { formatDateTime } from "@/lib/text";
+import { term } from "@/lib/vocabulary";
 
 type Entry = Schemas["ProposalListEntry"];
 
@@ -52,16 +53,41 @@ function ProposalRow({ entry }: { entry: Entry }) {
             {entry.target_ref.includes("/procedure-") ? "from a Procedure run" : "authored"}
           </span>
         )}
-        <span className="ml-auto flex gap-2">
-          <Chip value={entry.terminal_reason ?? entry.status} />
-          {entry.verdict && <Chip value={entry.verdict} />}
-          {(entry.incomplete_reasons ?? []).map((reason) => (
-            <Chip key={reason} value={reason} tone="amber" />
-          ))}
+        <span className="ml-auto">
+          <ProposalStateChip status={entry.status} verdict={entry.verdict} outcome={entry.terminal_reason} incomplete={entry.incomplete_reasons} />
         </span>
       </div>
       {open && <ProposalPeek id={entry.proposal_id} />}
     </div>
+  );
+}
+
+/**
+ * A proposal's state as one chip, in the word its Proposals tab uses
+ * ("Waiting for review", "Incomplete", "Settled"); a settled proposal adds how
+ * it ended, an open one only a refusal. The evaluation's "candidate" verdict
+ * is the normal case and says nothing to a reader, so it has no chip.
+ */
+export function ProposalStateChip({
+  status,
+  verdict,
+  outcome,
+  incomplete,
+}: {
+  status: string;
+  verdict?: string | null | undefined;
+  outcome?: string | null | undefined;
+  incomplete?: readonly string[] | null | undefined;
+}) {
+  const state = term("proposal", status);
+  const missing = (incomplete ?? []).map((reason) => reason.replace(/^missing_/, "").replaceAll("_", " "));
+  const shown = missing.length > 0 ? { ...state, meaning: `${state.meaning} (missing: ${missing.join(", ")})` } : state;
+  const ending = status === "settled" && outcome ? term("proposalOutcome", outcome) : verdict === "refused" ? term("proposalOutcome", "refused") : null;
+  return (
+    <span className="inline-flex items-baseline gap-2">
+      <Chip term={shown} />
+      {ending && <Chip term={{ ...ending, word: ending.word.toLowerCase() }} />}
+    </span>
   );
 }
 

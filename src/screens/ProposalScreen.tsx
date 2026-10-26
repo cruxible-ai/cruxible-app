@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCard, useInstanceId, useReview } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { Chip } from "@/components/Chip";
+import { ChangeMark, SignalDot } from "@/components/Chip";
+import { ProposalStateChip } from "@/components/ProposalList";
 import { LongText } from "@/components/LongText";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
@@ -15,6 +16,7 @@ import { parseRef } from "@/lib/cruxible-ref";
 import { groupDeltas, memberSummary, readAttestations, readGovernance, readProvenance } from "@/lib/review";
 import { formatDateTime, formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { artifactNoun, changeMark, term } from "@/lib/vocabulary";
 
 type Member = Schemas["ReviewedMember"];
 type Review = Schemas["ProposalReview"];
@@ -62,7 +64,7 @@ export function ProposalScreen() {
             </span>
           )
         }
-        id={<ShortId value={id} keep={64} className="text-zinc-500" />}
+        id={headline ? <ShortId value={id} className="text-zinc-500" /> : undefined}
         summary={proposal ? <ProposalSummary proposal={proposal} review={review.data} /> : undefined}
         facts={<ProposalFacts proposal={proposal} review={review.data} />}
       >
@@ -125,29 +127,24 @@ export function ProposalScreen() {
   );
 }
 
-const sentence = (value: string) => value.replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase());
-
-/** "Settled. 3 changes: 2 claims created, 1 subject created." */
+/** "Waiting for review. 40 changes: +38 Claims, +2 Subjects." */
 function ProposalSummary({ proposal, review }: { proposal: ProposalCard; review: Review | undefined }) {
-  // disposition -> artifact kind -> count, in first-seen order
+  // change mark -> artifact kind -> count, in first-seen order
   const counts = new Map<string, Map<string, number>>();
   for (const member of review?.members ?? []) {
-    const byKind = counts.get(member.disposition) ?? new Map<string, number>();
+    const mark = changeMark(member.disposition).mark;
+    const byKind = counts.get(mark) ?? new Map<string, number>();
     byKind.set(member.artifact_kind, (byKind.get(member.artifact_kind) ?? 0) + 1);
-    counts.set(member.disposition, byKind);
+    counts.set(mark, byKind);
   }
   const n = review?.members.length ?? proposal.changes?.length ?? 0;
-  const parts = [...counts.entries()].map(
-    ([disposition, byKind]) =>
-      `${sentence(disposition)} ${[...byKind.entries()].map(([kind, count]) => `${count} ${kind.replaceAll("_", " ")}${count === 1 ? "" : "s"}`).join(", ")}`,
-  );
+  const parts = [...counts.entries()].flatMap(([mark, byKind]) => [...byKind.entries()].map(([kind, count]) => `${mark}${artifactNoun(kind, count)}`));
+  const ending = proposal.status === "settled" && proposal.reason ? term("proposalOutcome", proposal.reason).word.toLowerCase() : null;
   return (
     <>
-      <span className="text-zinc-100">{sentence(proposal.status)}</span>
-      {proposal.verdict && proposal.verdict !== proposal.status && <>, {proposal.verdict.replaceAll("_", " ")}</>}. {n}{" "}
-      {n === 1 ? "change" : "changes"}
-      {parts.length > 0 && <>: {parts.join("; ")}</>}.
-      {(proposal.incomplete?.length ?? 0) > 0 && <span className="text-amber-400/90"> Incomplete: {proposal.incomplete!.join(", ")}.</span>}
+      <span className="text-zinc-100">{term("proposal", proposal.status).word}</span>
+      {ending && <>, {ending}</>}. {n} {n === 1 ? "change" : "changes"}
+      {parts.length > 0 && <>: {parts.join(", ")}</>}.
     </>
   );
 }
@@ -163,10 +160,7 @@ function ProposalFacts({ proposal, review }: { proposal: ProposalCard | null; re
     <>
       {proposal && (
         <Fact label="Status">
-          <span className="inline-flex gap-3">
-            <Chip value={proposal.status} />
-            {proposal.verdict && <Chip value={proposal.verdict} />}
-          </span>
+          <ProposalStateChip status={proposal.status} verdict={proposal.verdict} outcome={proposal.reason} incomplete={proposal.incomplete} />
         </Fact>
       )}
       {proposer && (
@@ -212,11 +206,6 @@ function ProposalFacts({ proposal, review }: { proposal: ProposalCard | null; re
           </Link>
         </Fact>
       )}
-      {review && (
-        <Fact label="Candidate">
-          <ShortId value={review.candidate_digest} className="text-zinc-200" />
-        </Fact>
-      )}
     </>
   );
 }
@@ -228,7 +217,7 @@ function ReviewNotes({ review }: { review: Review }) {
       {review.redactions.length > 0 && (
         <div className="text-zinc-500">Withheld from this credential: {review.redactions.join(", ")} (needs a body-reading credential).</div>
       )}
-      {review.projection_advisory && <div className="text-amber-400/90">{review.projection_advisory.message}</div>}
+      {review.projection_advisory && <div className="text-zinc-400">{review.projection_advisory.message}</div>}
     </div>
   );
 }
@@ -250,7 +239,7 @@ function ChangeSetPanel({ proposal }: { proposal: ProposalCard }) {
       <div className="space-y-1 text-[13px]">
         {(proposal.changes ?? []).map((change) => (
           <div key={change.path} className="flex items-baseline gap-3">
-            <Chip value={change.change} />
+            <ChangeMark change={change.change} />
             <PathLink path={change.path} />
           </div>
         ))}
@@ -261,8 +250,8 @@ function ChangeSetPanel({ proposal }: { proposal: ProposalCard }) {
 
 function MembersPanel({ review }: { review: Review }) {
   return (
-    <Panel title="Field-level detail" meta={<span>{review.members.length} {review.members.length === 1 ? "member" : "members"}</span>}>
-      {review.members.length === 0 && <EmptyState>No members.</EmptyState>}
+    <Panel title="Each change, field by field" meta={<span>{review.members.length} {review.members.length === 1 ? "change" : "changes"}</span>}>
+      {review.members.length === 0 && <EmptyState>No changes.</EmptyState>}
       <div className="divide-y divide-zinc-800/70">
         {review.members.map((member) => (
           <MemberRow key={member.path} member={member} />
@@ -278,7 +267,7 @@ function MembersPanel({ review }: { review: Review }) {
   );
 }
 
-const INDENT = "pl-[7.75rem]";
+const INDENT = "pl-7";
 
 function MemberRow({ member }: { member: Member }) {
   const summary = memberSummary(member);
@@ -289,9 +278,7 @@ function MemberRow({ member }: { member: Member }) {
   return (
     <div className="py-3 first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[13px]">
-        <span className="w-28 shrink-0">
-          <Chip value={member.disposition} />
-        </span>
+        <ChangeMark change={member.disposition} className="w-4 shrink-0" />
         {claim ? (
           <span className="min-w-0 text-zinc-300">
             <span className="font-mono text-zinc-100">{claim.predicate ?? "Claim"}</span>
@@ -329,9 +316,10 @@ function MemberRow({ member }: { member: Member }) {
         </div>
       )}
       {(member.prior_refusals?.length ?? 0) > 0 && (
-        <div className={`mt-1.5 space-y-0.5 text-[12px] text-amber-400/90 ${INDENT}`}>
+        <div className={`mt-1.5 space-y-0.5 text-[12px] text-zinc-300 ${INDENT}`}>
           {member.prior_refusals!.map((refusal) => (
-            <div key={`${refusal.claim_id}\n${refusal.decided_at}`}>
+            <div key={`${refusal.claim_id}\n${refusal.decided_at}`} className="flex flex-wrap items-baseline gap-x-1.5">
+              <SignalDot signal="wrong" title="Refused before: read why before approving it again" />
               Earlier {refusal.kind.replaceAll("_", " ")} of <RefLink value={refusal.claim_id} short /> by {refusal.decided_by}{" "}
               <span className="text-zinc-500" title={refusal.decided_at}>
                 {formatWhen(refusal.decided_at)}

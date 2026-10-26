@@ -27,15 +27,6 @@ export function citationLabel(capture: Pick<GetCaptureEvidence, "origin" | "role
   return capture.role;
 }
 
-export type EvidenceStatus = GetCaptureEvidence["status"];
-
-/** Each evidence state in words (the chip's hover). */
-export const STATUS_MEANING: Record<EvidenceStatus, string> = {
-  admitted: "Admitted: the ClaimType's evidence rule admits it and the verdict reads it",
-  not_admitted: "Not admitted: offered as evidence, refused by the ClaimType's evidence rule",
-  not_evidence: "Not evidence: a copy the ClaimType's rule does not admit; the verdict never reads it",
-};
-
 /**
  * Admission over a set of citations: how many the verdict reads, of those
  * offered as evidence, and the copies that are not evidence at all.

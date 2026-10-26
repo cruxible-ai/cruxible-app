@@ -1,4 +1,6 @@
-import { Check, TriangleAlert, X } from "lucide-react";
+import { Check, CircleHelp, X } from "lucide-react";
+import { Chip } from "@/components/Chip";
+import { term } from "@/lib/vocabulary";
 
 /** Attestation counts for one Claim version (filled from GetEvidence.attestations by the Subject page). */
 export interface CorroborationSummary {
@@ -56,20 +58,20 @@ export function Corroboration({
       }
     >
       {support > 0 && (
-        <span className="inline-flex items-center gap-1 text-emerald-400">
+        <span className="inline-flex items-center gap-1 text-zinc-300" title="supporting">
           <Check className="h-3 w-3" />
           {support}
         </span>
       )}
       {contradict > 0 && (
-        <span className="inline-flex items-center gap-1 text-red-400">
+        <span className="inline-flex items-center gap-1 text-zinc-300" title="contradicting">
           <X className="h-3 w-3" />
           {contradict}
         </span>
       )}
       {unsure > 0 && (
-        <span className="inline-flex items-center gap-1 text-amber-400">
-          <TriangleAlert className="h-3 w-3" />
+        <span className="inline-flex items-center gap-1 text-zinc-300" title="unsure">
+          <CircleHelp className="h-3 w-3" />
           {unsure}
         </span>
       )}
@@ -79,7 +81,7 @@ export function Corroboration({
           {counting} of {total} count{total === 1 ? "s" : ""} toward the verdict
         </span>
       )}
-      {contradicted && <span className="border border-red-900 bg-red-950/60 px-1 text-red-400">Contradicted</span>}
+      {contradicted && <Chip term={term("claim", "contradicted")} />}
       {notCurrent > 0 && (
         <span className="text-zinc-500" title="Attestations no longer current: superseded, outside their window, or against earlier content">
           {notCurrent} not current

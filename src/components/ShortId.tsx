@@ -33,7 +33,7 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
       title={done ? "Copied" : `${label} ${value}`}
       className="inline-flex shrink-0 items-center text-zinc-600 hover:text-zinc-200 focus-visible:text-zinc-200"
     >
-      {done ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+      {done ? <Check className="h-3 w-3 text-zinc-200" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }

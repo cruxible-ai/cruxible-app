@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { useGetBatch, useInstanceId, useLines, useMandates, useNext } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { Chip } from "@/components/Chip";
+import { Chip, SignalDot } from "@/components/Chip";
+import { DueCount } from "@/screens/LineScreen";
 import { Page, PageHeader } from "@/components/Page";
 import { Table, Td, Th, trClass } from "@/components/Table";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
@@ -13,6 +14,7 @@ import { lineName, nextRowsByLine, runId, unreadOf } from "@/lib/lines";
 import { reasonMeta } from "@/lib/next-reasons";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { term } from "@/lib/vocabulary";
 
 type Mandate = Schemas["OrientMandate"];
 type RunRow = Schemas["RunRow"];
@@ -62,7 +64,8 @@ export function LinesScreen() {
           lines.data ? (
             <>
               {rows.length} Lines: {rows.filter((r) => r.enablement === "running").length} running,{" "}
-              {rows.filter((r) => r.enablement === "stopped" || r.enablement === "stalled").length} stopped or stalled,{" "}
+              {rows.filter((r) => r.enablement === "stalled").length} stalled,{" "}
+              {rows.filter((r) => r.enablement === "stopped" || r.enablement === "disabled").length} stopped,{" "}
               {rows.filter((r) => !r.enablement).length} not enabled.
             </>
           ) : undefined
@@ -82,7 +85,7 @@ export function LinesScreen() {
                   <Th title="Max authority">Authority</Th>
                   <Th>Mandate</Th>
                   <Th>Enabled</Th>
-                  <Th numeric title="Occurrences due / waiting">Due / waiting</Th>
+                  <Th numeric title="Occurrences due / scheduled">Due / scheduled</Th>
                   <Th>Last run</Th>
                   <Th>Inbox</Th>
                   <Th>Next</Th>
@@ -116,27 +119,27 @@ export function LinesScreen() {
                       </Td>
                       <Td className="whitespace-nowrap text-zinc-400">{row.trigger.replaceAll("+", " + ")}</Td>
                       <Td>
-                        <Chip value={row.authority} tone={row.authority === "settle" ? "violet" : row.authority === "propose" ? "blue" : "zinc"} />
+                        <span className="text-zinc-300" title={term("authority", row.authority).meaning}>{term("authority", row.authority).word}</span>
                       </Td>
                       <Td className="text-[12px]">
                         {(mandatesByProcedure.get(procedure) ?? []).map((mandate) => (
                           <div key={mandate.mandate} className="whitespace-nowrap">
                             <MandateLabel name={mandate.mandate.replace(/^(Procedure)?Mandate:/, "")} procedure={procedure} grants={mandate.grants} />{" "}
-                            <span className="text-zinc-500">{mandate.state}</span>
+                            <span className="text-zinc-500">{term("mandate", mandate.state).word.toLowerCase()}</span>
                           </div>
                         ))}
                         {!mandatesByProcedure.has(procedure) && <span className="text-zinc-500">none</span>}
                       </Td>
                       <Td className="whitespace-nowrap">
-                        {row.enablement ? <Chip value={row.enablement} tone={row.enablement === "running" ? "green" : row.enablement === "stalled" ? "red" : "zinc"} /> : <span className="text-[12px] text-zinc-500">not enabled</span>}
+                        <Chip concept="line" value={row.enablement ?? "not_enabled"} />
                       </Td>
                       <Td numeric className="whitespace-nowrap text-zinc-500">
-                        <span className={(row.due ?? 0) > 0 ? "text-amber-400" : undefined}>{row.due ?? 0}</span> / {row.waiting ?? 0}
+                        <DueCount due={row.due ?? 0} scheduled={row.waiting ?? 0} />
                       </Td>
                       <Td className="whitespace-nowrap text-[12px]">
                         {run ? (
                           <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="hover:underline">
-                            <Chip value={run.status} tone={run.status === "succeeded" ? "green" : run.status === "running" ? "blue" : "red"} />{" "}
+                            <Chip concept="run" value={run.status} />{" "}
                             <span className="text-zinc-500" title={run.started_at}>
                               {formatWhen(run.started_at)}
                             </span>
@@ -148,12 +151,26 @@ export function LinesScreen() {
                         )}
                       </Td>
                       <Td className="whitespace-nowrap font-mono text-[12px]">
-                        {unread !== null ? <span className="text-amber-400/90">{unread} unread</span> : <span className="text-zinc-600">—</span>}
+                        {unread !== null ? (
+                          <span className="inline-flex items-baseline gap-1.5 text-zinc-300">
+                            <SignalDot signal="waiting" title={term("inbox", "unread").meaning} />
+                            {unread} unread
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
                       </Td>
-                      <Td className="text-[12px] text-amber-400/90">
-                        {nextRows.map((item) => (
-                          <div key={item.item_id} className="min-w-[7rem]">{reasonMeta(item.reason).label}</div>
-                        ))}
+                      <Td className="text-[12px] text-zinc-400">
+                        {/* "Line not enabled" is the Enabled column's word already. */}
+                        {nextRows.filter((item) => item.reason !== "line_not_enabled").map((item) => {
+                          const severity = term("severity", item.severity);
+                          return (
+                            <div key={item.item_id} className="flex min-w-[7rem] items-baseline gap-1.5" title={severity.meaning}>
+                              {severity.signal && <SignalDot signal={severity.signal} title={severity.meaning} />}
+                              {reasonMeta(item.reason).label}
+                            </div>
+                          );
+                        })}
                       </Td>
                     </tr>
                   );

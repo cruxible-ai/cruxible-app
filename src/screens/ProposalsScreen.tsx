@@ -7,6 +7,7 @@ import { Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { ProposalList } from "@/components/ProposalList";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { PROPOSAL_TABS, term } from "@/lib/vocabulary";
 
 const PAGE = 50;
 
@@ -45,7 +46,7 @@ export function Pager({ index, older, newer }: { index: number; older: (() => vo
   );
 }
 
-const STATUSES: ProposalStatus[] = ["open", "incomplete", "settled"];
+const STATUSES: readonly ProposalStatus[] = PROPOSAL_TABS;
 
 /** Proposals by status, a page at a time. */
 export function ProposalsScreen() {
@@ -73,7 +74,7 @@ export function ProposalsScreen() {
               }}
               className={toggleChipClass(name === status)}
             >
-              {name}
+              {term("proposal", name).word}
             </button>
           ))}
         </div>
@@ -81,8 +82,8 @@ export function ProposalsScreen() {
       {list.isPending && <LoadState />}
       {list.error && <LoadState error={list.error} />}
       {list.data && (
-        <Panel title={status} meta={<span>{list.data.entries.length} on this page</span>}>
-          {list.data.entries.length === 0 && <EmptyState>No {status} proposals.</EmptyState>}
+        <Panel title={term("proposal", status).word} meta={<span>{list.data.entries.length} on this page</span>}>
+          {list.data.entries.length === 0 && <EmptyState>None {status === "settled" ? "settled" : status === "open" ? "waiting for review" : "incomplete"}.</EmptyState>}
           <ProposalList entries={list.data.entries} />
         </Panel>
       )}

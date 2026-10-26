@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useInstanceId, useInterfaces } from "@/api/hooks";
-import { Chip } from "@/components/Chip";
+import { SignalDot } from "@/components/Chip";
+import { humanize } from "@/lib/text";
 import { Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { Table, Td, Th, trClass } from "@/components/Table";
@@ -24,19 +25,6 @@ import { providerName } from "@/lib/ontology";
  * parameters, trigger input and bindings; a landing Trigger's contract and
  * logical sources. Every named reference is a link.
  */
-
-const STEP_TONE: Partial<Record<StepView["kind"], "blue" | "violet" | "amber" | "green" | "zinc">> = {
-  source: "blue",
-  emit: "blue",
-  call: "violet",
-  invoke: "violet",
-  propose: "amber",
-  settle: "amber",
-  claim: "amber",
-  inbox: "green",
-  guard: "zinc",
-  halt: "zinc",
-};
 
 /** The interface name a slot takes (`web.fetch@3` -> `web.fetch`), as the interfaces section names it. */
 const interfaceBase = (value: string) => (value.includes("@") ? value.slice(0, value.lastIndexOf("@")) : value);
@@ -161,7 +149,10 @@ export function ProcedureDefinition({
                     ) : interfaces.isPending ? (
                       "…"
                     ) : (
-                      <span className="text-amber-400/90">no installed build</span>
+                      <span className="inline-flex items-baseline gap-1.5">
+                        <SignalDot signal="wrong" title="No installed build fits this slot: install a Provider for its interface" />
+                        no installed build
+                      </span>
                     )}
                   </Td>
                 </tr>
@@ -176,9 +167,9 @@ export function ProcedureDefinition({
             <span className="w-24 shrink-0 truncate font-mono text-zinc-500" title={step.id}>
               {step.id}
             </span>
-            <Chip value={step.kind} tone={STEP_TONE[step.kind] ?? "zinc"} />
+            <span className="w-14 shrink-0 text-zinc-400">{humanize(step.kind)}</span>
             {step.kind === "source" && line?.triggerInput === step.name && (
-              <span className="text-sky-400/90" title="This Line's trigger input: the step reads the Capture whose landing started the run">
+              <span className="text-zinc-300" title="This Line's trigger input: the step reads the Capture whose landing started the run">
                 reads the landing
               </span>
             )}

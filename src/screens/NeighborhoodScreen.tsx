@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId, useNeighborhood } from "@/api/hooks";
-import { actionChipClass, toggleChipClass } from "@/components/Chip";
+import { actionChipClass, SignalDot, toggleChipClass } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
@@ -39,9 +39,9 @@ function SubjectNode({ data }: NodeProps<Node<SubjectNodeData>>) {
     <div
       className={`max-w-56 border px-2 py-1 text-left ${
         node.error
-          ? "border-dashed border-amber-800 bg-zinc-950"
+          ? "border-dashed border-zinc-700 bg-zinc-950"
           : root
-            ? "border-sky-600 bg-zinc-900"
+            ? "border-zinc-400 bg-zinc-900"
             : "border-zinc-700 bg-zinc-900 hover:border-zinc-400"
       }`}
     >
@@ -56,7 +56,12 @@ function SubjectNode({ data }: NodeProps<Node<SubjectNodeData>>) {
           <span title="Subject-valued Claims pointing here (counted, not walked)">←{node.incomingCount}</span>
         )}
         {hidden > 0 && <span title="Outgoing links beyond this depth or the node cap">+{hidden}→</span>}
-        {node.error && <span className="text-amber-500">unread</span>}
+        {node.error && (
+          <span className="inline-flex items-center gap-1 text-zinc-400">
+            <SignalDot signal="wrong" title={`Could not read this Subject: ${node.error}`} />
+            unread
+          </span>
+        )}
       </div>
       <Handle type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
@@ -180,7 +185,7 @@ export function NeighborhoodScreen() {
             </Link>
           )}
         </PanelActions>
-        {node.error && <div className="mt-2 text-[12px] text-amber-400/90">{node.error}</div>}
+        {node.error && <div className="mt-2 text-[12px] text-red-400/80">{node.error}</div>}
         <PanelSection title="Links">
           <ConnectionList
             nodeId={node.ref}
@@ -234,7 +239,7 @@ export function NeighborhoodScreen() {
           </span>
         )}
         {graph.data?.capped && (
-          <span className="text-[12px] text-amber-400/90">capped at {NEIGHBORHOOD_NODE_CAP} Subjects</span>
+          <span className="text-[12px] text-zinc-500">capped at {NEIGHBORHOOD_NODE_CAP} Subjects</span>
         )}
       </header>
       {graph.isPending && <LoadState />}

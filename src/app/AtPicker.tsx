@@ -67,7 +67,7 @@ export function AtPicker() {
             Generation <span className="font-mono text-zinc-200">{pin.generation}</span>
             {pinned ? (
               headGeneration !== undefined && (
-                <span className="text-amber-400/90"> · pinned (head {headGeneration})</span>
+                <span className="text-zinc-400"> · pinned (head {headGeneration})</span>
               )
             ) : (
               <span className="text-zinc-600"> · head</span>
@@ -82,10 +82,10 @@ export function AtPicker() {
       )}
       {pin.head.error && <div className="mt-1 text-red-400/80">{pin.head.error.message}</div>}
       {raw !== null && parseAt(raw) === null && (
-        <div className="mt-1 text-amber-400/90">Ignoring malformed at={raw}</div>
+        <div className="mt-1 text-red-400/80">Ignoring malformed at={raw}</div>
       )}
       {outside && (
-        <div className="mt-1 flex items-start gap-1 text-amber-400/90">
+        <div className="mt-1 flex items-start gap-1 text-zinc-400">
           <TriangleAlert className="mt-px h-3 w-3 shrink-0" />
           Older than the {RETAINED_GENERATIONS} retained generations: reads rebuild its projection.
         </div>

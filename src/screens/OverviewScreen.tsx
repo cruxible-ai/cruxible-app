@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useInstanceId, useKits, useNext, useOrient } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import type { NextHealth, NextResult, OrientResult } from "@/api/schemas";
-import { Chip } from "@/components/Chip";
+import { Chip, SignalDot } from "@/components/Chip";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId } from "@/components/ShortId";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
@@ -11,8 +11,8 @@ import { useAtLink } from "@/lib/at";
 import { formatDateTime, humanize } from "@/lib/text";
 import { summaryFieldCount } from "@/lib/type-graph";
 import { reasonMeta } from "@/lib/next-reasons";
-import { SEVERITY_TONE } from "@/components/next/NextItemRow";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { term } from "@/lib/vocabulary";
 
 const NEXT_PREVIEW = 8;
 
@@ -115,7 +115,7 @@ function AttentionPanel({ orient }: { orient: OrientResult }) {
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
         <dt className="text-zinc-500">Next items</dt>
         <dd className="font-mono text-zinc-200">{attention.next_items}</dd>
-        <dt className="text-zinc-500">Open proposals</dt>
+        <dt className="text-zinc-500">{term("proposal", "open").word}</dt>
         <dd className="font-mono text-zinc-200">{attention.open_proposals}</dd>
         {enablements && (
           <>
@@ -130,7 +130,7 @@ function AttentionPanel({ orient }: { orient: OrientResult }) {
       {(enablements?.needs_attention?.length ?? 0) > 0 && (
         <div className="mt-3">
           <div className="text-[12px] font-semibold text-zinc-300">Needs attention</div>
-          <ul className="mt-0.5 space-y-0.5 text-[12px] text-amber-400/90">
+          <ul className="mt-0.5 space-y-0.5 text-[12px] text-zinc-300">
             {enablements!.needs_attention!.map((entry) => (
               <li key={entry}>{entry}</li>
             ))}
@@ -186,7 +186,7 @@ function NextPanel({
         <div className="divide-y divide-zinc-800/60">
           {next.items.slice(0, NEXT_PREVIEW).map((item) => (
             <div key={item.item_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-[13px]">
-              <Chip value={item.severity} tone={SEVERITY_TONE[item.severity]} />
+              <Chip concept="severity" value={item.severity} />
               <span className="text-zinc-300">{reasonMeta(item.reason).label}</span>
               <RefLink value={item.subject_identity} className="ml-auto" short />
               {item.repair && (
@@ -222,23 +222,12 @@ const HEALTH_ROWS = [
   "triggers",
 ] as const;
 
-const GOOD = new Set(["current", "active", "available", "complete", "idle", "running", "scheduled"]);
-const BAD = new Set(["stalled", "stale", "invalid", "missing", "unavailable", "gone", "ambiguous"]);
-const NEUTRAL_PREFIX = "not_";
-
-function healthTone(state: string) {
-  if (GOOD.has(state)) return "green" as const;
-  if (BAD.has(state)) return "red" as const;
-  if (state.startsWith(NEUTRAL_PREFIX) || state === "decommissioned") return "zinc" as const;
-  return "amber" as const;
-}
-
 function HealthPanel({ next, pending }: { next: NextResult | undefined; pending: boolean }) {
   const status = next?.status;
   return (
     <Panel
       title="Health"
-      meta={status?.blocking ? <span className="text-red-400">blocking</span> : undefined}
+      meta={status?.blocking ? <Chip concept="severity" value="blocking" /> : undefined}
     >
       {pending && <LoadState />}
       {status && (
@@ -249,7 +238,7 @@ function HealthPanel({ next, pending }: { next: NextResult | undefined; pending:
               <div key={row} className="contents">
                 <dt className="text-zinc-500">{humanize(row)}</dt>
                 <dd className="flex flex-wrap items-baseline gap-2">
-                  <Chip value={health.state} tone={healthTone(health.state)} />
+                  <Chip concept="health" value={health.state} />
                   {health.repair && (
                     <span className="text-[12px] text-zinc-500">{health.repair.required_change}</span>
                   )}
@@ -291,7 +280,7 @@ function CountsPanel({ orient }: { orient: OrientResult }) {
       {claims && (
         <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
           <Count label="accepted Claims" value={claims.accepted} />
-          <Count label="conflicted" value={claims.conflicted} tone={claims.conflicted ? "text-red-400" : undefined} />
+          <Count label="conflicted" value={claims.conflicted} signal={claims.conflicted ? "wrong" : undefined} />
           <Count label="overturned" value={claims.overturned} />
           <Count label="ineligible" value={claims.ineligible} />
           <Count label="retired" value={claims.retired} />
@@ -309,10 +298,11 @@ function CountsPanel({ orient }: { orient: OrientResult }) {
   );
 }
 
-function Count({ label, value, tone }: { label: string; value: number | undefined; tone?: string | undefined }) {
+function Count({ label, value, signal }: { label: string; value: number | undefined; signal?: "wrong" | undefined }) {
   return (
-    <span>
-      <span className={`font-mono ${tone ?? "text-zinc-200"}`}>{value ?? 0}</span>{" "}
+    <span className="inline-flex items-baseline gap-1.5">
+      {signal && <SignalDot signal={signal} title={term("claim", "conflicted").meaning} />}
+      <span className="font-mono text-zinc-200">{value ?? 0}</span>
       <span className="text-zinc-500">{label}</span>
     </span>
   );
@@ -333,7 +323,7 @@ function KitsPanel() {
               <span className="font-mono text-zinc-200">{kit.kit_id}</span>
               <span className="font-mono text-zinc-500">{kit.version}</span>
               {(kit.drifted?.length ?? 0) > 0 && (
-                <span className="text-amber-400/90">{kit.drifted!.length} drifted</span>
+                <span className="text-zinc-400">{kit.drifted!.length} drifted</span>
               )}
               {kit.latest_available && kit.latest_available !== kit.version && (
                 <span className="text-zinc-500">latest {kit.latest_available}</span>
@@ -343,7 +333,7 @@ function KitsPanel() {
               <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-zinc-500">
                 {kit.providers!.map((provider) => (
                   <span key={provider.provider_id}>
-                    {provider.provider_id} <Chip value={provider.state} tone={provider.state === "missing" ? "red" : provider.state === "differs" ? "amber" : "green"} />
+                    {provider.provider_id} <Chip concept="provider" value={provider.state} />
                   </span>
                 ))}
               </div>

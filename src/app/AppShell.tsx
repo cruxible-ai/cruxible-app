@@ -5,7 +5,19 @@ import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { useAtLink } from "@/lib/at";
 import { useLayerColoring } from "@/lib/kit-layer";
+import { SignalDot } from "@/components/Chip";
+import { term } from "@/lib/vocabulary";
 import { AtPicker } from "./AtPicker";
+
+/** A nav count of things waiting on you: an amber dot and the number. */
+function WaitingCount({ count, title }: { count: number; title: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 font-mono text-[12px] text-zinc-300" title={title}>
+      <SignalDot signal="waiting" title={title} />
+      {count}
+    </span>
+  );
+}
 
 function navClass({ isActive }: { isActive: boolean }) {
   return `block px-2 py-1 text-[14px] ${
@@ -77,7 +89,7 @@ export function AppShell() {
                 Next
               </span>
               {(attention?.next_items ?? 0) > 0 && (
-                <span className="font-mono text-[12px] text-amber-400/90">{attention!.next_items}</span>
+                <WaitingCount count={attention!.next_items} title="Items waiting on you: open Next for the repairs" />
               )}
             </NavLink>
             <NavLink to={link(`/i/${instanceId}/beliefs`)} className={navClass}>
@@ -92,7 +104,7 @@ export function AppShell() {
                 Proposals
               </span>
               {(attention?.open_proposals ?? 0) > 0 && (
-                <span className="font-mono text-[12px] text-amber-400/90">{attention!.open_proposals}</span>
+                <WaitingCount count={attention!.open_proposals} title={term("proposal", "open").meaning} />
               )}
             </NavLink>
             <NavLink to={link(`/i/${instanceId}/lines`)} className={navClass}>

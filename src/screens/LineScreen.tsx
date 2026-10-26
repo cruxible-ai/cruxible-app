@@ -14,7 +14,7 @@ import {
 } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { Chip } from "@/components/Chip";
+import { Chip, SignalDot } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { LongText } from "@/components/LongText";
@@ -29,11 +29,10 @@ import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime, formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { term } from "@/lib/vocabulary";
 
 const READINGS_PAGE = 50;
 const INBOX_PAGE = 50;
-
-const RUN_TONE = (status: string) => (status === "succeeded" ? "green" : status === "running" ? "blue" : "red");
 
 /**
  * One Line: its card (triggers, enablements, due and waiting occurrences),
@@ -68,14 +67,12 @@ export function LineScreen() {
           <>
             <Fact label="State">
               <span className="inline-flex gap-3">
-                <Chip value={lineCard.lifecycle} />
-                {enablement && (
-                  <Chip value={enablement.state} tone={enablement.state === "running" ? "green" : enablement.state === "stalled" ? "red" : "zinc"} />
-                )}
+                {lineCard.lifecycle !== "live" && <Chip concept="line" value={lineCard.lifecycle} />}
+                <Chip concept="line" value={enablement ? enablement.state : "not_enabled"} />
               </span>
             </Fact>
             <Fact label="Max authority">
-              <Chip value={lineCard.authority} tone={lineCard.authority === "settle" ? "violet" : "blue"} />
+              <span title={term("authority", lineCard.authority).meaning}>{term("authority", lineCard.authority).word}</span>
             </Fact>
             <Fact label="Procedure">
               <RefLink value={`Procedure:${procedure}`}>
@@ -84,15 +81,13 @@ export function LineScreen() {
             </Fact>
             <Fact label="Trigger">
               {lineCard.trigger}
-              {lineCard.triggers_inactive && <span className="text-amber-400/90"> ({lineCard.triggers_inactive})</span>}
+              {lineCard.triggers_inactive && <span className="text-zinc-500"> ({lineCard.triggers_inactive})</span>}
             </Fact>
             <Fact label="Runs">
               <span className="font-mono">{lineCard.runs_total ?? 0}</span>
             </Fact>
-            <Fact label="Due / waiting">
-              <span className="font-mono">
-                <span className={(lineCard.due ?? 0) > 0 ? "text-amber-400" : undefined}>{lineCard.due ?? 0}</span> / {lineCard.waiting ?? 0}
-              </span>
+            <Fact label="Due / scheduled">
+              <DueCount due={lineCard.due ?? 0} scheduled={lineCard.waiting ?? 0} />
             </Fact>
             <Fact label="Identity">
               <ShortId value={lineCard.identity_digest} className="text-zinc-200" />
@@ -163,9 +158,19 @@ function LineSummary({ procedure }: { procedure: string }) {
 
 type LineCard = Schemas["GetLineCard"];
 
+/** Occurrences due (waiting for dispatch: amber) and scheduled. */
+export function DueCount({ due, scheduled }: { due: number; scheduled: number }) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5 font-mono">
+      {due > 0 && <SignalDot signal="waiting" title={term("occurrence", "due").meaning} />}
+      {due} / {scheduled}
+    </span>
+  );
+}
+
 function OperationsPanel({ card }: { card: LineCard }) {
   return (
-    <Panel title="Triggers and enablement" meta={<span>{card.due ?? 0} due · {card.waiting ?? 0} waiting</span>}>
+    <Panel title="Triggers and enablement" meta={<span>{card.due ?? 0} due · {card.waiting ?? 0} scheduled</span>}>
       <div className="space-y-0.5 text-[13px]">
         {(card.triggers ?? []).map((trigger) => (
           <div key={trigger.trigger} className="flex flex-wrap gap-x-3">
@@ -180,7 +185,7 @@ function OperationsPanel({ card }: { card: LineCard }) {
         {(card.enablements ?? []).map((arm) => (
           <div key={arm.enablement} className="border-t border-zinc-800/70 pt-1.5">
             <div className="flex flex-wrap items-baseline gap-x-3">
-              <Chip value={arm.state} tone={arm.state === "running" ? "green" : arm.state === "stalled" ? "red" : "zinc"} />
+              <Chip concept="line" value={arm.state} />
               <span className="text-zinc-400">
                 by{" "}
                 {arm.enabled_by_withheld ? (
@@ -202,20 +207,20 @@ function OperationsPanel({ card }: { card: LineCard }) {
               )}
             </div>
             {(arm.stop_reason || arm.detail) && (
-              <div className="text-amber-400/90">
+              <div className="text-zinc-300">
                 <span className="text-zinc-500">{arm.stop_reason ? "stopped because " : ""}</span>
                 {arm.stop_reason ?? arm.detail}
               </div>
             )}
           </div>
         ))}
-        {(card.enablements ?? []).length === 0 && <div className="text-zinc-600">Not enabled.</div>}
+        {(card.enablements ?? []).length === 0 && <div className="text-zinc-500">{term("line", "not_enabled").meaning}.</div>}
       </div>
       {(card.occurrences ?? []).length > 0 && (
         <div className="mt-2 space-y-0.5 text-[12px]">
           {card.occurrences!.map((occurrence) => (
             <div key={occurrence.occurrence} className="flex flex-wrap items-baseline gap-x-3">
-              <Chip value={occurrence.state} tone={occurrence.state === "due" ? "amber" : "zinc"} />
+              <Chip concept="occurrence" value={occurrence.state} />
               <ShortId value={occurrence.occurrence} />
               <span className="text-zinc-500" title={occurrence.eligible_at}>
                 eligible {formatWhen(occurrence.eligible_at)}
@@ -268,7 +273,7 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
             >
               {shortRunId(run.run)}
             </Link>
-            <Chip value={run.status} tone={RUN_TONE(run.status)} />
+            <Chip concept="run" value={run.status} />
             <span className="text-zinc-500" title={run.started_at}>
               {formatWhen(run.started_at)}
             </span>
@@ -324,11 +329,11 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
                   <span className="font-mono text-zinc-300">{review.measurement_name}</span>
                   <span className="text-zinc-500">{review.contract_id}</span>
                   {review.standing_resolution_id && <span className="text-zinc-500">standing {review.standing_resolution_id}</span>}
-                  {review.unavailable && <span className="text-amber-400/90">unavailable</span>}
+                  {review.unavailable && <span className="text-zinc-500">unavailable</span>}
                 </div>
                 {(review.history ?? []).map((disposition) => (
                   <div key={disposition.disposition_id} className="flex flex-wrap items-baseline gap-x-3 pl-3">
-                    <Chip value={disposition.verdict} tone={disposition.verdict === "upheld" ? "green" : "red"} />
+                    <Chip concept="reading" value={disposition.verdict} />
                     <span className="font-mono text-zinc-400">{disposition.reviewer_id}</span>
                     <span className="text-zinc-500">{formatDateTime(disposition.recorded_at)}</span>
                     {disposition.reason && <span className="text-zinc-400">{disposition.reason}</span>}
@@ -377,10 +382,9 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
     <div className="text-[12px]">
       <div className="flex flex-wrap items-baseline gap-x-3">
         <span className="font-mono text-zinc-200">{name}</span>
-        <Chip value={mandate.grants} tone={mandate.grants === "settle" ? "violet" : "blue"} />
-        <Chip value={mandate.state} tone={mandate.state === "active" ? "green" : mandate.state === "expiring" ? "amber" : "zinc"} />
+        <span className="text-zinc-400" title={term("authority", mandate.grants).meaning}>{term("authority", mandate.grants).word.toLowerCase()}</span>
+        <Chip concept="mandate" value={mandate.suspended ? "suspended" : mandate.state} />
         <span className="text-zinc-500">expires {formatDateTime(mandate.expires_at)}</span>
-        {mandate.suspended && <span className="text-red-400">suspended</span>}
       </div>
       {read.error && <div className="text-red-400/80">{read.error.message}</div>}
       {card && (
@@ -463,7 +467,7 @@ function Readings({ procedure }: { procedure: string }) {
             <div key={contract.contract_id} className="flex flex-wrap items-baseline gap-x-3">
               <span className="font-mono text-zinc-300">{contract.measurement_name}</span>
               <span className="text-zinc-500">{contract.measurement_kind.replaceAll("_", " ")}</span>
-              <Chip value={contract.status} tone={contract.status === "resolved" ? "green" : contract.status === "open" ? "amber" : "zinc"} />
+              <span className="text-zinc-500">{contract.status.replaceAll("_", " ")}</span>
               <span className="text-zinc-500">{contract.reading_count} readings</span>
             </div>
           ))}
@@ -485,7 +489,7 @@ function Readings({ procedure }: { procedure: string }) {
                     </Td>
                     <Td className="font-mono text-[12px] text-zinc-300">{reading.measurement_name ?? "—"}</Td>
                     <Td>
-                      <Chip value={reading.verdict} tone={reading.verdict === "satisfied" ? "green" : reading.verdict === "contradicted" ? "red" : "zinc"} />
+                      <Chip concept="reading" value={reading.verdict} />
                     </Td>
                     <Td className="text-zinc-500">{reading.grade}</Td>
                     <Td className="break-all">
@@ -509,7 +513,7 @@ function Readings({ procedure }: { procedure: string }) {
             </Table>
           )}
           {(data.unavailable_reading_count ?? 0) > 0 && (
-            <div className="text-amber-400/90">{data.unavailable_reading_count} readings' payloads are unavailable.</div>
+            <div className="text-zinc-500">{data.unavailable_reading_count} readings' payloads are unavailable.</div>
           )}
         </div>
       )}
@@ -551,7 +555,7 @@ function InboxPanel({ line }: { line: string }) {
           return (
             <div key={envelope.item_id} className="py-1">
               <div className="flex flex-wrap items-baseline gap-x-3">
-                <Chip value={envelope.status} tone={envelope.status === "unread" ? "amber" : "zinc"} />
+                <Chip concept="inbox" value={envelope.status} />
                 <button
                   onClick={() => setOpen(open === envelope.item_id ? null : envelope.item_id)}
                   className="font-mono text-zinc-200 hover:underline"

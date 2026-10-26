@@ -92,7 +92,7 @@ export function KindScreen() {
             )}
             {kindCard && (
               <Fact label="State">
-                <Chip value={kindCard.lifecycle} />
+                <Chip concept="lifecycle" value={kindCard.lifecycle} />
               </Fact>
             )}
             <Fact label="Identity">
