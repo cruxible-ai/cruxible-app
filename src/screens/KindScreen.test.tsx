@@ -95,6 +95,21 @@ describe("Contract page", () => {
     expect(main.getByText("required")).toBeInTheDocument();
   });
 
+  it("says what the contract is, in plain words from the stored contract, between its input and its output", async () => {
+    renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
+    const main = within(await screen.findByRole("main"));
+    expect(
+      await main.findByText("An HTTP response Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased."),
+    ).toBeInTheDocument();
+    expect(main.getByText("For at least 30 days")).toHaveAttribute("title", "body retention required_for_duration · minimum 2592000000000 µs");
+    expect(main.getByText("Never erased")).toBeInTheDocument();
+    expect(main.getByText(/^Attested/)).toBeInTheDocument();
+    // the page reads Input -> Contract -> Output, in that order
+    const [input, contract, output] = ["Input", "Contract", "Output"].map((name) => main.getByRole("heading", { name }));
+    expect(input!.compareDocumentPosition(contract!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(contract!.compareDocumentPosition(output!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("names the Procedures that capture under it, from their pins, and which retain and which read its landings", async () => {
     renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
     const main = within(await screen.findByRole("main"));

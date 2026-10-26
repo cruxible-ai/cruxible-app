@@ -1,0 +1,218 @@
+import { publicName } from "./evidence.ts";
+
+/**
+ * What a CaptureContract IS, in plain words: its terms as the stored contract
+ * states them (`get CaptureContract:<name> --detail proof`, the envelope).
+ *
+ * The pinned contract types `GetResult.proof` as an open object, and its
+ * typed `CaptureContract` schema is the v2 artifact (components as digests),
+ * while the daemon stores v3 (components as named pins). So, as with the Line
+ * envelope (lib/definitions.ts), each term is read here against the values
+ * core writes, with runtime checks: a term whose value is not one of them is
+ * left out rather than guessed. A typed terms read on the contract card
+ * would let this go (reported as a core follow-up).
+ */
+
+export type ContractShape = "http_response" | "procedure_output" | "foreign_span" | "database_snapshot" | "coordinator_self_source";
+export type ContractReplay = "exact" | "attested";
+export type BodyRetention = "never_materialize" | "optional" | "required_for_duration";
+export type Erasure = "prohibited" | "authorized_by_rule";
+export type SelectorPrivacy = "direct_allowed" | "pseudonymous_required";
+export type Grade = "observed" | "derived" | "predicted";
+
+export interface ContractTerms {
+  format: string | null;
+  shape: ContractShape | null;
+  replay: ContractReplay | null;
+  provenanceRule: string | null;
+  replayPolicy: string | null;
+  selectors: string[];
+  maxBytes: number | null;
+  maxRows: number | null;
+  maxItems: number | null;
+  bodyRetention: BodyRetention | null;
+  /** Minimum retention in microseconds; null when the contract sets none. */
+  minimumRetentionUs: number | null;
+  erasure: Erasure | null;
+  erasureRule: string | null;
+  selectorPrivacy: SelectorPrivacy | null;
+  grade: Grade | null;
+}
+
+const record = (value: unknown): Record<string, unknown> | null =>
+  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): T | null =>
+  typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : null;
+const count = (value: unknown): number | null => (typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null);
+/** A named pin `{target: {kind, name}}` -> its name. */
+const pinName = (value: unknown): string | null => {
+  const name = record(record(value)?.target)?.name;
+  return typeof name === "string" ? name : null;
+};
+
+export function readContractTerms(proof: unknown): ContractTerms | null {
+  const envelope = record(record(proof)?.envelope);
+  if (!envelope || record(envelope.identity)?.kind !== "CaptureContract") return null;
+  const components = record(envelope.components);
+  const budget = record(envelope.selection_budget);
+  const retention = record(envelope.retention_erasure_policy);
+  const minimum = record(retention?.minimum_retention);
+  return {
+    format: typeof envelope.artifact_format === "string" ? envelope.artifact_format : null,
+    shape: oneOf(envelope.shape, ["http_response", "procedure_output", "foreign_span", "database_snapshot", "coordinator_self_source"] as const),
+    replay: oneOf(envelope.replay, ["exact", "attested"] as const),
+    provenanceRule: pinName(components?.provenance_rule),
+    replayPolicy: pinName(components?.replay_policy),
+    selectors: Array.isArray(components?.selector_schemas)
+      ? components.selector_schemas.map(pinName).filter((name): name is string => name !== null)
+      : [],
+    maxBytes: count(budget?.max_bytes),
+    maxRows: count(budget?.max_rows),
+    maxItems: count(budget?.max_items),
+    bodyRetention: oneOf(retention?.body_retention, ["never_materialize", "optional", "required_for_duration"] as const),
+    minimumRetentionUs: minimum?.tag === "playbill-duration-v1" ? count(minimum.microseconds) : null,
+    erasure: oneOf(retention?.erasure, ["prohibited", "authorized_by_rule"] as const),
+    erasureRule: pinName(retention?.erasure_rule),
+    selectorPrivacy: oneOf(retention?.selector_privacy, ["direct_allowed", "pseudonymous_required"] as const),
+    grade: oneOf(envelope.epistemic_grade, ["observed", "derived", "predicted"] as const),
+  };
+}
+
+/** 16777216 -> "16 MiB". */
+export function formatBytes(bytes: number): string {
+  const units = ["bytes", "KiB", "MiB", "GiB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1 && value % 1024 === 0) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toLocaleString()} ${units[unit]}`;
+}
+
+/** 2592000000000 µs -> "30 days". */
+export function formatDuration(microseconds: number): string {
+  const seconds = microseconds / 1e6;
+  const steps: [number, string][] = [
+    [86400, "day"],
+    [3600, "hour"],
+    [60, "minute"],
+    [1, "second"],
+  ];
+  for (const [size, word] of steps) {
+    if (seconds >= size && seconds % size === 0) {
+      const n = seconds / size;
+      return `${n} ${word}${n === 1 ? "" : "s"}`;
+    }
+  }
+  return `${seconds} seconds`;
+}
+
+const SHAPE: Record<ContractShape, string> = {
+  http_response: "An HTTP response",
+  procedure_output: "A Procedure's output",
+  foreign_span: "A span of an outside document",
+  database_snapshot: "A database snapshot",
+  coordinator_self_source: "A proposer's own words",
+};
+
+/** What a provenance rule means: who obtained the bytes. Unknown rules are named as they are. */
+const PROVENANCE: Record<string, string> = {
+  "playbill.external.daemon-fetched-v1": "Cruxible obtains itself",
+  "playbill.coordinator-proposer-observed-v1": "recorded as the proposer wrote them",
+};
+
+const SELECTOR: Record<string, string> = {
+  "whole-response-v1": "kept whole",
+};
+
+export interface TermRow {
+  label: string;
+  words: string;
+  /** The stored value the words read (hover). */
+  raw: string;
+}
+
+export function termRows(terms: ContractTerms): TermRow[] {
+  const rows: TermRow[] = [];
+  if (terms.shape) rows.push({ label: "Holds", words: SHAPE[terms.shape], raw: `shape ${terms.shape}` });
+  if (terms.provenanceRule) {
+    const words = PROVENANCE[terms.provenanceRule];
+    rows.push({
+      label: "Obtained",
+      words: words ? `${words[0]!.toUpperCase()}${words.slice(1)}` : `Under the provenance rule ${publicName(terms.provenanceRule)}`,
+      raw: `provenance rule ${terms.provenanceRule}`,
+    });
+  }
+  if (terms.replay) {
+    rows.push({
+      label: "Replay",
+      words:
+        terms.replay === "exact"
+          ? "Exact: what a Claim cites can be re-derived byte for byte from what is kept"
+          : "Attested: what a Claim cites rests on the recorded fetch",
+      raw: `replay ${terms.replay}${terms.replayPolicy ? ` · ${terms.replayPolicy}` : ""}`,
+    });
+  }
+  const selection = [
+    ...terms.selectors.map((s) => SELECTOR[s] ?? s),
+    terms.maxBytes !== null ? `up to ${formatBytes(terms.maxBytes)}` : null,
+    terms.maxItems !== null && terms.maxItems > 1 ? `at most ${terms.maxItems.toLocaleString()} items` : null,
+    terms.maxRows !== null && terms.maxRows > 1 ? `at most ${terms.maxRows.toLocaleString()} rows` : null,
+  ].filter((part): part is string => part !== null);
+  if (selection.length > 0) {
+    rows.push({
+      label: "Size",
+      words: `${selection.join(", ").replace(/^./, (c) => c.toUpperCase())}`,
+      raw: `selection budget: max_bytes ${terms.maxBytes ?? "—"}, max_rows ${terms.maxRows ?? "—"}, max_items ${terms.maxItems ?? "—"}${terms.selectors.length ? ` · selectors ${terms.selectors.join(", ")}` : ""}`,
+    });
+  }
+  if (terms.bodyRetention) {
+    rows.push({
+      label: "Kept",
+      words:
+        terms.bodyRetention === "never_materialize"
+          ? "The body is never stored"
+          : terms.bodyRetention === "optional"
+            ? "The body may be kept"
+            : terms.minimumRetentionUs !== null
+              ? `For at least ${formatDuration(terms.minimumRetentionUs)}`
+              : "The body is kept",
+      raw: `body retention ${terms.bodyRetention}${terms.minimumRetentionUs !== null ? ` · minimum ${terms.minimumRetentionUs} µs` : ""}`,
+    });
+  }
+  if (terms.erasure) {
+    rows.push({
+      label: "Erasure",
+      words: terms.erasure === "prohibited" ? "Never erased" : `Erasable under ${terms.erasureRule ? publicName(terms.erasureRule) : "its erasure rule"}`,
+      raw: `erasure ${terms.erasure}${terms.erasureRule ? ` · ${terms.erasureRule}` : ""}`,
+    });
+  }
+  if (terms.selectorPrivacy) {
+    rows.push({
+      label: "Selectors",
+      words: terms.selectorPrivacy === "direct_allowed" ? "May name what was read directly" : "Must be pseudonymous",
+      raw: `selector privacy ${terms.selectorPrivacy}`,
+    });
+  }
+  if (terms.grade) rows.push({ label: "Grade", words: terms.grade[0]!.toUpperCase() + terms.grade.slice(1), raw: `epistemic grade ${terms.grade}` });
+  return rows;
+}
+
+/** "An HTTP response Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased." */
+export function contractSentence(terms: ContractTerms): string | null {
+  if (!terms.shape) return null;
+  const provenance = terms.provenanceRule ? PROVENANCE[terms.provenanceRule] : undefined;
+  let head = SHAPE[terms.shape];
+  if (provenance) head += ` ${provenance}`;
+  const tail: string[] = [];
+  for (const s of terms.selectors) if (SELECTOR[s]) tail.push(SELECTOR[s]);
+  if (terms.maxBytes !== null) tail.push(`up to ${formatBytes(terms.maxBytes)}`);
+  if (terms.bodyRetention === "never_materialize") tail.push("body never stored");
+  else if (terms.bodyRetention === "optional") tail.push("body kept optionally");
+  else if (terms.bodyRetention === "required_for_duration" && terms.minimumRetentionUs !== null)
+    tail.push(`for at least ${formatDuration(terms.minimumRetentionUs)}`);
+  if (terms.erasure === "prohibited") tail.push("never erased");
+  else if (terms.erasure === "authorized_by_rule") tail.push("erasable under its rule");
+  return `${[head, ...tail].join(", ")}.`;
+}

@@ -4,7 +4,7 @@
  * the capture_contracts section and the definition pins section.
  */
 import { defineFixture } from "../fixture";
-import { getBatchBody, LANDING_TRIGGERS_QUERY, orientQuery, queryBody } from "@/api/requests";
+import { getBatchBody, getBody, LANDING_TRIGGERS_QUERY, orientQuery, queryBody } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./world";
 
@@ -94,7 +94,50 @@ export const PINS: Schemas["OrientPin"][] = [
   pin("Trigger:security.osv-landed", "capture-contract", OSV),
 ];
 
+/** The stored contract (get detail=proof): its terms, as the daemon serves the v3 envelope. */
+const OSV_PROOF: GetResult = {
+  tag: "playbill-get-result-v1",
+  ref: OSV,
+  kind: "capture_contract",
+  detail: "proof",
+  coordinate: AT,
+  accepted_coordinate: COORDINATE,
+  evaluation_time: NOW,
+  proof: {
+    coordinate: COORDINATE,
+    path: "capture-contracts/security.osv-applicability-v1.json",
+    artifact_digest: "sha256:" + "8".repeat(64),
+    envelope: {
+      artifact_format: "cruxible-capture-contract-v3",
+      identity: { kind: "CaptureContract", name: "security.osv-applicability-v1" },
+      shape: "http_response",
+      replay: "attested",
+      components: {
+        selector_schemas: [{ target: { kind: "Contract", name: "whole-response-v1" } }],
+        replay_policy: { target: { kind: "Contract", name: "playbill.external.retained-selection-replay-v1" } },
+        provenance_rule: { target: { kind: "Contract", name: "playbill.external.daemon-fetched-v1" } },
+      },
+      selection_budget: { tag: "playbill-capture-selection-budget-v1", max_bytes: 16777216, max_rows: 1, max_items: 1 },
+      retention_erasure_policy: {
+        body_retention: "required_for_duration",
+        minimum_retention: { tag: "playbill-duration-v1", microseconds: 2592000000000 },
+        erasure: "prohibited",
+        erasure_rule: null,
+        selector_privacy: "direct_allowed",
+      },
+      epistemic_grade: "observed",
+      lifecycle: { state: "live", predecessor_digest: null },
+    },
+  },
+};
+
 export default [
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get",
+    body: getBody({ ref: OSV, coordinate: COORDINATE, detail: "proof" }),
+    response: OSV_PROOF,
+  }),
   batch(
     "SubjectKind:security.assessment",
     "subject_kind",

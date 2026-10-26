@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useCaptureContracts, useCard, useClaimTypes, useInstanceId, useLines, usePins, useSourceModel } from "@/api/hooks";
+import { useCaptureContracts, useCard, useClaimTypes, useGet, useInstanceId, useLines, usePins, useSourceModel } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
 import { Fact, Page, PageHeader } from "@/components/Page";
@@ -12,6 +12,8 @@ import { lineName } from "@/lib/lines";
 import { retainedByWords, type Retention } from "@/lib/definitions";
 import { contractName, contractProducers, providerName, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { contractSentence, readContractTerms, termRows } from "@/lib/contract-terms";
+import { roleWord, term } from "@/lib/vocabulary";
 
 /** Retentions whose step names no logical source, by why: the definitions do not say which source it is. */
 const UNNAMED: { test: (r: Retention) => boolean; words: string; title: string }[] = [
@@ -46,6 +48,10 @@ export function ContractScreen() {
   usePageTitle(name);
   const card = useCard(`CaptureContract:${name}`);
   const contract = cardOf(card.data, "capture_contract");
+  // The terms are in the stored contract (the proof envelope); the card carries only grade and source kinds.
+  const proof = useGet(`CaptureContract:${name}`, "proof");
+  const terms = readContractTerms(proof.data?.proof);
+  const sentence = terms ? contractSentence(terms) : null;
   const claimTypes = useClaimTypes();
   const lines = useLines();
   const pins = usePins();
@@ -74,6 +80,7 @@ export function ContractScreen() {
         kind="Capture contract"
         title={name}
         mono
+        summary={sentence ?? undefined}
         facts={
           <>
             <Fact label="State">
@@ -82,23 +89,19 @@ export function ContractScreen() {
             <Fact label="Version">
               <span className="font-mono">v{contract.version}</span>
             </Fact>
-            {definition.grade && <Fact label="Grade">{definition.grade}</Fact>}
+            {definition.grade && !terms?.grade && <Fact label="Grade">{definition.grade}</Fact>}
             <Fact label="Admitted by">{admitting.length} ClaimTypes</Fact>
             <Fact label="Required by">{required.length} ClaimTypes</Fact>
           </>
         }
       />
 
+      <FlowHeading step="Input" words="where Captures under it come from" />
+
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-        <Panel title="What it captures">
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-            <dt className="text-zinc-500">Source kinds</dt>
-            <dd className="text-zinc-300">{definition.sourceKinds.map(sourceKindLabel).join(", ") || "—"}</dd>
-            <dt className="text-zinc-500">Grade</dt>
-            <dd className="text-zinc-300">{definition.grade ?? "—"}</dd>
-          </dl>
-          <div className="mt-3 text-[12px] font-semibold uppercase tracking-wider text-zinc-500" title="A Capture is retained under a contract and a logical source: what was read. The steps that name it retain it; a landing Trigger selects it.">
-            Logical sources
+        <Panel title="Logical sources" meta={<span title="A Capture is retained under a contract and a logical source: what was read. The steps that name it retain it; a landing Trigger selects it.">{sources.length}</span>}>
+          <div className="text-[12px] text-zinc-500">
+            Source: <span className="text-zinc-300">{definition.sourceKinds.map(sourceKindLabel).join(", ") || "—"}</span>
           </div>
           {model.isPending && <LoadState />}
           {model.error && <LoadState error={model.error} />}
@@ -173,6 +176,30 @@ export function ContractScreen() {
         </Panel>
       </div>
 
+      <FlowHeading step="Contract" words="what a Capture under it is" />
+      <Panel title="Terms" meta={terms?.format ? <span className="font-mono">{terms.format}</span> : undefined}>
+        {proof.isPending && <LoadState />}
+        {!proof.isPending && !terms && (
+          <div className="text-[12px] text-zinc-500">
+            The stored contract was not served{proof.error ? `: ${proof.error.message}` : ""}.
+          </div>
+        )}
+        {terms && (
+          <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-1.5 text-[13px]">
+            {termRows(terms).map((row) => (
+              <div key={row.label} className="contents">
+                <dt className="text-zinc-500">{row.label}</dt>
+                <dd className="text-zinc-200" title={row.raw}>
+                  {row.words}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Panel>
+
+      <FlowHeading step="Output" words="what its landings start, and the ClaimTypes that admit it as evidence" />
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
       <Panel title="Triggers on its landings" meta={<span>{firing.length}</span>}>
         {model.isPending && <LoadState />}
         {model.data && firing.length === 0 && <EmptyState>No Trigger fires when a Capture under this contract lands.</EmptyState>}
@@ -198,8 +225,8 @@ export function ContractScreen() {
                 )}
                 {line && (
                   <span className="text-zinc-500">
-                    {line.procedure.replace(/^Procedure:/, "")} · max {line.authority}
-                    {line.enablement ? ` · ${line.enablement}` : " · not enabled"}
+                    {line.procedure.replace(/^Procedure:/, "")} · at most {term("authority", line.authority).word.toLowerCase()} ·{" "}
+                    {term("line", line.enablement ?? "not_enabled").word.toLowerCase()}
                   </span>
                 )}
               </div>
@@ -240,7 +267,7 @@ export function ContractScreen() {
                   <td className={`py-1 pr-3 ${row?.evidence_requirement === "captured" ? "text-zinc-300" : "text-zinc-500"}`}>
                     {row?.evidence_requirement === "captured" ? "required" : "admitted"}
                   </td>
-                  <td className="py-1 pr-3 text-zinc-400">{row?.default_role ?? "—"}</td>
+                  <td className="py-1 pr-3 text-zinc-400">{row?.default_role ? roleWord(row.default_role) : "—"}</td>
                   <td className="py-1 pr-3 font-mono text-zinc-400">{row?.stale_after ?? "—"}</td>
                   <td className="py-1 font-mono text-zinc-400">{row?.kit ?? "here"}</td>
                 </tr>
@@ -249,7 +276,18 @@ export function ContractScreen() {
           </tbody>
         </table>
       </Panel>
+      </div>
     </Page>
+  );
+}
+
+/** A step of the page's Input → Contract → Output reading order. */
+function FlowHeading({ step, words }: { step: string; words: string }) {
+  return (
+    <div className="flex items-baseline gap-2 border-b border-zinc-800/70 pb-1 pt-2">
+      <h2 className="text-[13px] font-semibold text-zinc-200">{step}</h2>
+      <span className="text-[12px] text-zinc-500">{words}</span>
+    </div>
   );
 }
 
