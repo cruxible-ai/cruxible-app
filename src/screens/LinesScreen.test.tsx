@@ -63,3 +63,36 @@ describe("Run page", () => {
     expect(main.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
   });
 });
+
+describe("Line definitions", () => {
+  it("shows the Line as authored and its slotted Procedure: slots with the builds they bind, steps with what each names", async () => {
+    renderApp("/i/inst_fixture/lines/kev-triage");
+    const main = within(await screen.findByRole("main"));
+    const line = within((await main.findByText("Line definition")).closest("section")!);
+    expect(await line.findByText("catalog")).toBeInTheDocument(); // trigger input step
+    expect(line.getByText("security.kev-http-v1")).toBeInTheDocument();
+    expect(line.getByText("security-analysis-provider")).toBeInTheDocument(); // explicit binding
+    const definition = within((await main.findByText("Definition")).closest("section")!);
+    expect(definition.getByText("web.fetch@3")).toBeInTheDocument();
+    // the Line binds parse explicitly; catalog binds by fit to the one installed web.fetch build
+    expect(definition.getByText("Line binds", { exact: false })).toBeInTheDocument();
+    expect(await definition.findByText("cruxible-provider-web")).toBeInTheDocument();
+    expect(definition.getByText("reads the landing")).toBeInTheDocument();
+    expect(definition.getByText("cisa.kev.catalog")).toBeInTheDocument();
+    expect(definition.getByRole("link", { name: "security.kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
+    expect(definition.getByRole("link", { name: "security.kev_exposure" })).toHaveAttribute(
+      "href",
+      `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`,
+    );
+    expect(definition.getByText("parse.changed > 0 · refuses no_change")).toBeInTheDocument();
+  });
+
+  it("shows a landing Trigger's contract, the logical sources it selects and the Line it starts", async () => {
+    renderApp(`/i/inst_fixture/ref/${encodeURIComponent("Trigger:security.kev-landed")}`);
+    const main = within(await screen.findByRole("main"));
+    const definition = within((await main.findByText("Definition")).closest("section")!);
+    expect(definition.getByText("cisa.kev.catalog")).toBeInTheDocument();
+    expect(definition.getByRole("link", { name: "security.kev-http-v1" })).toBeInTheDocument();
+    expect(definition.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+  });
+});

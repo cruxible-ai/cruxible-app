@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   useCard,
+  useGet,
+  useGetBatch,
   useInbox,
   useInboxItem,
   useInstanceId,
@@ -21,6 +23,8 @@ import { Table, Td, Th, trClass } from "@/components/Table";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextGroups } from "@/components/next/NextItemRow";
+import { LineDefinitionPanel, ProcedureDefinition } from "@/components/ontology/Definitions";
+import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger } from "@/lib/definitions";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime, formatWhen } from "@/lib/text";
@@ -36,8 +40,11 @@ const RUN_TONE = (status: string) => (status === "succeeded" ? "green" : status 
  * its runs paged newest first (get detail=runs), its Procedure's track record and measurement reviews with
  * their resolution dispositions, readings (paged), the mandates that bind
  * the Procedure with their scope and condition query, the Line's inbox
- * (paged), and its `next` rows. Every read is this Line's or its
- * Procedure's own, a page at a time.
+ * (paged), and its `next` rows; its definition as authored (parameters,
+ * trigger input, bindings, what it retains, the logical sources its landing
+ * Triggers select) beside its Procedure's (slots and the builds they bind,
+ * steps and what each names). Every read is this Line's or its Procedure's
+ * own, a page at a time.
  */
 export function LineScreen() {
   const { line: raw = "" } = useParams();
@@ -99,12 +106,50 @@ export function LineScreen() {
         <RunsPanel line={line} total={lineCard.runs_total ?? 0} />
       </div>
       <LineNextPanel line={line} />
+      <DefinitionPanels line={line} procedure={procedure} triggers={(lineCard.triggers ?? []).map((t) => t.trigger)} />
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <MandatesPanel procedure={procedure} />
         <ProcedurePanel procedure={procedure} />
       </div>
       <InboxPanel line={line} />
     </Page>
+  );
+}
+
+/**
+ * The Line and its Procedure as authored: the Line's envelope (get
+ * detail=proof: the typed Line card carries no parameters, trigger input or
+ * bindings), the Procedure's authored form, and its Triggers' cards for the
+ * logical sources a landing Trigger selects.
+ */
+function DefinitionPanels({ line, procedure, triggers }: { line: string; procedure: string; triggers: string[] }) {
+  const proof = useGet(`Line:${line}`, "proof");
+  const procedureRead = useCard(`Procedure:${procedure}`);
+  const triggerCards = useGetBatch(triggers);
+  const definition = readLineEnvelope(proof.data?.proof);
+  const spec = cardOf(procedureRead.data, "procedure")?.authored ?? null;
+  const landing: LandingTrigger[] = triggerCards.results.flatMap((result) => {
+    const card = cardOf(result, "trigger");
+    const schedule = card?.schedule as { kind?: unknown; event?: { capture_contract_identity?: { name?: unknown }; logical_sources?: unknown } } | undefined;
+    if (!card || schedule?.kind !== "capture_landing") return [];
+    const contract = schedule.event?.capture_contract_identity?.name;
+    const sources = schedule.event?.logical_sources;
+    return [
+      {
+        name: card.trigger.replace(/^Trigger:/, ""),
+        contract: typeof contract === "string" ? contract : "",
+        target: card.target,
+        logicalSources: Array.isArray(sources) ? sources.filter((s): s is string => typeof s === "string") : [],
+      },
+    ];
+  });
+  const retains = definition && spec ? retentions(sourceSteps(procedure, spec), [definition]).filter((r) => r.line === line) : [];
+  if (!definition && !spec) return proof.error ? <LoadState error={proof.error} /> : null;
+  return (
+    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+      {definition ? <LineDefinitionPanel line={definition} retains={retains} triggers={landing} /> : <Panel title="Line definition">{proof.isPending ? <LoadState /> : proof.error ? <LoadState error={proof.error} /> : null}</Panel>}
+      {spec && <ProcedureDefinition spec={spec} line={definition} />}
+    </div>
   );
 }
 

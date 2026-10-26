@@ -7,7 +7,7 @@
  * logical sources from these.
  */
 import { defineFixture } from "../fixture";
-import { getBatchBody, orientQuery } from "@/api/requests";
+import { getBatchBody, getBody, orientQuery } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./world";
 
@@ -129,7 +129,62 @@ const lineProof = (name: string, procedure: string, extra: Record<string, unknow
     },
   });
 
+const KEV_TRIAGE_PROOF = lineProof("kev-triage", "security.kev-triage", {
+  max_authority: "settle",
+  trigger_input: "catalog",
+  trigger_event: { capture_contract_identity: { kind: "CaptureContract", name: KEV } },
+  bindings: { parse: { target: { kind: "Provider", name: "security-analysis-provider/" + "f".repeat(64) } } },
+});
+
+const triggerBatch = (name: string, schedule: Record<string, unknown>, target: string) =>
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get-batch",
+    body: getBatchBody([`Trigger:${name}`], COORDINATE),
+    response: {
+      tag: "playbill-get-batch-result-v1",
+      coordinate: COORDINATE,
+      results: [result(`Trigger:${name}`, "trigger", { card: { trigger: `Trigger:${name}`, lifecycle: "live", schedule, target } })],
+    },
+  });
+
+const BASE = {
+  tag: "playbill-orient-v1" as const,
+  instance: "inst_fixture",
+  coordinate: COORDINATE,
+  generation: AT.generation,
+  accepted_at: "2026-10-19T09:30:00Z",
+  evaluation_time: NOW,
+};
+
 export default [
+  // The Line page reads its Line's envelope alone, and its Triggers' cards.
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get",
+    body: getBody({ ref: "Line:kev-triage", coordinate: COORDINATE, detail: "proof" }),
+    response: KEV_TRIAGE_PROOF,
+  }),
+  triggerBatch("security.kev-daily", { kind: "cron", cron: "0 6 * * *" }, "Line:kev-triage"),
+  triggerBatch(
+    "security.kev-landed",
+    { kind: "capture_landing", event: { capture_contract_identity: { kind: "CaptureContract", name: KEV }, logical_sources: ["cisa.kev.catalog"] } },
+    "Line:kev-triage",
+  ),
+  // Installed builds per interface (the slot table's "binds").
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/orient",
+    query: orientQuery({ coordinate: COORDINATE, section: "interfaces", limit: 500 }),
+    response: {
+      ...BASE,
+      section: "interfaces",
+      interfaces: [
+        { name: "security.kev-catalog", effect: "pure", providers: [{ provider: "security-analysis-provider/" + "f".repeat(64) }] },
+        { name: "web.fetch", effect: "external_read", providers: [{ provider: "cruxible-provider-web/" + "a".repeat(64) }] },
+      ],
+    },
+  }),
   defineFixture({
     method: "get",
     path: "/api/v1/{instance_id}/orient",
@@ -169,12 +224,7 @@ export default [
           trigger_input: "record",
           trigger_event: { capture_contract_identity: { kind: "CaptureContract", name: OSV } },
         }),
-        lineProof("kev-triage", "security.kev-triage", {
-          max_authority: "settle",
-          trigger_input: "catalog",
-          trigger_event: { capture_contract_identity: { kind: "CaptureContract", name: KEV } },
-          bindings: { parse: { target: { kind: "Provider", name: "security-analysis-provider/" + "f".repeat(64) } } },
-        }),
+        KEV_TRIAGE_PROOF,
       ],
     },
   }),

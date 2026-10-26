@@ -1,5 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useCard } from "@/api/hooks";
+import { cardOf } from "@/api/schemas";
+import { ProcedureDefinition, TriggerDefinition } from "@/components/ontology/Definitions";
 import { Disclosure, Panel, LoadState } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId, shortId } from "@/components/ShortId";
@@ -13,7 +15,10 @@ import { usePageTitle } from "@/lib/usePageTitle";
  * The reference card: one get (summary) of any ref at the page coordinate,
  * rendered field by field from the card the daemon returns. Kinds with a
  * dedicated screen route there instead (ClaimTypes and SubjectKinds open on
- * the type map); this is the shared view for everything else.
+ * the type map); this is the shared view for everything else. A Procedure
+ * leads with its authored definition (slots, steps and what each names) and a
+ * Trigger with its schedule (contract, logical sources, the Line it starts);
+ * the rest of their card follows field by field.
  */
 export function RefScreen() {
   const { ref: raw = "" } = useParams();
@@ -30,6 +35,8 @@ export function RefScreen() {
     );
   }
   const full = read.data?.ref ?? formatRef(ref);
+  const procedure = cardOf(read.data, "procedure");
+  const trigger = cardOf(read.data, "trigger");
   // ids that fit stay whole; digests and run ids shorten, whole underneath with copy
   const long = full.length > 40;
   return (
@@ -58,9 +65,11 @@ export function RefScreen() {
       />
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
+      {procedure?.authored && <ProcedureDefinition spec={procedure.authored} />}
+      {trigger && <TriggerDefinition schedule={trigger.schedule} target={trigger.target} />}
       {read.data?.card && (
         <Panel title="Card">
-          <Fields value={read.data.card as Record<string, unknown>} depth={0} />
+          <Fields value={rest(read.data.card as Record<string, unknown>, procedure?.authored ? ["authored"] : [])} depth={0} />
         </Panel>
       )}
     </Page>
@@ -68,6 +77,11 @@ export function RefScreen() {
 }
 
 const MAX_DEPTH = 3;
+
+/** A card without the fields a dedicated panel already shows. */
+function rest(card: Record<string, unknown>, omit: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(card).filter(([key]) => !omit.includes(key)));
+}
 
 function Fields({ value, depth }: { value: Record<string, unknown>; depth: number }) {
   const entries = Object.entries(value).filter(([, v]) => v !== null && v !== undefined);
