@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useCard } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
-import { ProcedureDefinition, TriggerDefinition } from "@/components/ontology/Definitions";
+import { ProcedureWithGraph, TriggerDefinition } from "@/components/ontology/Definitions";
 import { Disclosure, Panel, LoadState } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId, shortId } from "@/components/ShortId";
@@ -65,7 +65,7 @@ export function RefScreen() {
       />
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
-      {procedure?.authored && <ProcedureDefinition spec={procedure.authored} />}
+      {procedure?.authored && <ProcedureWithGraph spec={procedure.authored} />}
       {trigger && <TriggerDefinition schedule={trigger.schedule} target={trigger.target} />}
       {read.data?.card && (
         <Panel title="Card">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   useCard,
@@ -11,6 +11,7 @@ import {
   useMandates,
   useNext,
   useReadings,
+  useRunState,
 } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
@@ -24,7 +25,10 @@ import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextGroups } from "@/components/next/NextItemRow";
 import { LineDefinitionPanel, ProcedureDefinition } from "@/components/ontology/Definitions";
-import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger } from "@/lib/definitions";
+import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
+import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
+import { buildProcedureGraph, cronWords, INPUT_NODE } from "@/lib/procedure-graph";
+import { runMarks } from "@/lib/run-marks";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime, formatWhen } from "@/lib/text";
@@ -101,7 +105,7 @@ export function LineScreen() {
         <RunsPanel line={line} total={lineCard.runs_total ?? 0} />
       </div>
       <LineNextPanel line={line} />
-      <DefinitionPanels line={line} procedure={procedure} triggers={(lineCard.triggers ?? []).map((t) => t.trigger)} />
+      <DefinitionPanels line={line} card={lineCard} procedure={procedure} />
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <MandatesPanel procedure={procedure} />
         <ProcedurePanel procedure={procedure} />
@@ -117,10 +121,12 @@ export function LineScreen() {
  * bindings), the Procedure's authored form, and its Triggers' cards for the
  * logical sources a landing Trigger selects.
  */
-function DefinitionPanels({ line, procedure, triggers }: { line: string; procedure: string; triggers: string[] }) {
+function DefinitionPanels({ line, card, procedure }: { line: string; card: LineCard; procedure: string }) {
+  const triggers = (card.triggers ?? []).map((t) => t.trigger);
   const proof = useGet(`Line:${line}`, "proof");
   const procedureRead = useCard(`Procedure:${procedure}`);
   const triggerCards = useGetBatch(triggers);
+  const [selected, setSelected] = useState<string | null>(null);
   const definition = readLineEnvelope(proof.data?.proof);
   const spec = cardOf(procedureRead.data, "procedure")?.authored ?? null;
   const landing: LandingTrigger[] = triggerCards.results.flatMap((result) => {
@@ -138,13 +144,132 @@ function DefinitionPanels({ line, procedure, triggers }: { line: string; procedu
       },
     ];
   });
+  // Each Trigger as the graph shows it: a landing ("when <source> lands") or a schedule in words.
+  const graphTriggers: GraphTrigger[] = (card.triggers ?? []).map((t) => {
+    const name = t.trigger.replace(/^Trigger:/, "");
+    const read = triggerCards.results.find((r) => r.ref === t.trigger || r.ref === `Trigger:${name}`);
+    const schedule = (cardOf(read, "trigger")?.schedule ?? {}) as { kind?: unknown; expression?: unknown; cron?: unknown };
+    const hit = landing.find((l) => l.name === name);
+    if (hit) {
+      const what = hit.logicalSources.length ? hit.logicalSources.join(" or ") : `a Capture under ${hit.contract.replace(/^CaptureContract:/, "")}`;
+      return { name, words: `when ${what} lands`, landing: true };
+    }
+    const cron = typeof schedule.expression === "string" ? schedule.expression : typeof schedule.cron === "string" ? schedule.cron : null;
+    const utc = t.fires.includes("UTC") ? " UTC" : "";
+    return { name, words: cron ? `${cronWords(cron)}${utc}` : t.fires, landing: false };
+  });
   const retains = definition && spec ? retentions(sourceSteps(procedure, spec), [definition]).filter((r) => r.line === line) : [];
   if (!definition && !spec) return proof.error ? <LoadState error={proof.error} /> : null;
   return (
-    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-      {definition ? <LineDefinitionPanel line={definition} retains={retains} triggers={landing} /> : <Panel title="Line definition">{proof.isPending ? <LoadState /> : proof.error ? <LoadState error={proof.error} /> : null}</Panel>}
-      {spec && <ProcedureDefinition spec={spec} line={definition} />}
-    </div>
+    <>
+      {spec && (
+        <LineGraphPanel
+          line={line}
+          spec={spec}
+          context={{ definition, maxAuthority: definition?.maxAuthority ?? card.authority, triggers: graphTriggers }}
+          runsTotal={card.runs_total ?? 0}
+          onSelectStep={setSelected}
+        />
+      )}
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+        {definition ? <LineDefinitionPanel line={definition} retains={retains} triggers={landing} /> : <Panel title="Line definition">{proof.isPending ? <LoadState /> : proof.error ? <LoadState error={proof.error} /> : null}</Panel>}
+        {spec && <ProcedureDefinition spec={spec} line={definition} selectedStep={selected} />}
+      </div>
+    </>
+  );
+}
+
+/**
+ * The Procedure's graph wrapped by the Line (its Triggers and parameters on
+ * the left, its max authority on the terminals) and, when the Line has runs,
+ * a run picker: a picked run marks each step with what happened there, from
+ * the run's card, journal and receipt.
+ */
+function LineGraphPanel({
+  line,
+  spec,
+  context,
+  runsTotal,
+  onSelectStep,
+}: {
+  line: string;
+  spec: ProcedureSpec;
+  context: Parameters<typeof ProcedureGraph>[0]["line"];
+  runsTotal: number;
+  onSelectStep: (step: string | null) => void;
+}) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const runs = useLineRuns(runsTotal > 0 ? line : null);
+  const runRows = runs.data?.runs?.runs ?? [];
+  const [picked, setPicked] = useState<string | null>(null);
+  const runCard = cardOf(useCard(picked ? `ProcedureRun:${picked}` : null).data, "procedure_run");
+  const runState = useRunState(picked);
+  const model = useMemo(() => buildProcedureGraph(spec), [spec]);
+  const marks = useMemo(() => {
+    if (!picked || !runCard) return null;
+    const ids = model.nodes.filter((n) => n.id !== INPUT_NODE).map((n) => n.id);
+    // A pending input names the source step that reads it (its alias or id).
+    const inputStep = (name: string) => model.nodes.find((n) => n.view?.kind === "source" && (n.view.name === name || n.id === name))?.id ?? null;
+    return runMarks(ids, runCard, runState.data ?? null, inputStep);
+  }, [picked, runCard, runState.data, model]);
+  return (
+    <Panel
+      title="Steps"
+      meta={
+        <span className="flex flex-wrap items-baseline gap-x-3">
+          <span>arrows: what each step reads · dashed: where a guard goes otherwise · click a step to follow it</span>
+          {runsTotal > 0 && (
+            <label className="inline-flex items-baseline gap-1.5">
+              <span>Run</span>
+              <select
+                value={picked ?? ""}
+                onChange={(e) => setPicked(e.target.value || null)}
+                className="w-80 max-w-full border border-zinc-800 bg-zinc-950 px-1 py-px font-mono text-[12px] text-zinc-200"
+                aria-label="Mark the steps with a run"
+              >
+                <option value="">none</option>
+                {runRows.map((run) => (
+                  <option key={run.run} value={runId(run.run)}>
+                    {shortRunId(run.run)} · {term("run", run.status).word} · {formatWhen(run.started_at)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </span>
+      }
+    >
+      <ProcedureGraph spec={spec} line={context} run={marks} onSelectStep={onSelectStep} />
+      {picked && (
+        <div className="mt-2 space-y-0.5 text-[12px] text-zinc-500">
+          {runCard ? (
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <span>Each step marked with what happened in run</span>
+              <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(picked)}`)} className="font-mono text-zinc-300 hover:underline" title={picked}>
+                {shortRunId(picked)}
+              </Link>
+              <Chip concept="run" value={runCard.status} />
+              {runState.data?.receipt_digest ? <span>(its card, journal and receipt)</span> : <span>(its card and journal; the receipt is withheld or not written yet)</span>}
+            </div>
+          ) : (
+            <LoadState />
+          )}
+          {marks?.partial && <div>The run card lists only the latest {runCard?.nodes?.length ?? 0} of {runCard?.nodes_done} finished nodes; the run's journal marks the rest as ran.</div>}
+          {(marks?.others.length ?? 0) > 0 && (
+            <div>
+              Also in this run, with no step of their own here:{" "}
+              {marks!.others.map((o, i) => (
+                <span key={o.node}>
+                  {i > 0 && ", "}
+                  <span className="font-mono text-zinc-400">{o.node}</span> {o.term.word.toLowerCase()}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </Panel>
   );
 }
 

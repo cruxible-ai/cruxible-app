@@ -16,6 +16,8 @@ export interface RoutedEdgeData {
   targetAt: Point;
   /** Stamped by GraphCanvas: the edge is in the selected neighborhood. */
   lit?: boolean;
+  /** Show the label whether or not the edge is in a selection (small graphs). */
+  always?: boolean;
   [key: string]: unknown;
 }
 
@@ -95,10 +97,13 @@ export function RoutedEdge(props: EdgeProps) {
   return (
     <>
       <BaseEdge id={id} path={curve ? splinePath(data.points) : roundedPath(data.points)} style={style} {...(markerEnd ? { markerEnd } : {})} />
-      {data.text && data.lit && (
+      {data.text && (data.lit || data.always) && (
         <EdgeLabelRenderer>
           <div
-            style={{ transform: `translate(-50%, -50%) translate(${label.x}px, ${label.y}px)` }}
+            style={{
+              transform: `translate(-50%, -50%) translate(${label.x}px, ${label.y}px)`,
+              opacity: typeof style?.opacity === "number" ? Math.max(style.opacity, 0.3) : 1,
+            }}
             className="nodrag nopan pointer-events-none absolute bg-zinc-950/90 px-1 font-mono text-[11px] leading-[14px] text-zinc-200"
           >
             {data.text}

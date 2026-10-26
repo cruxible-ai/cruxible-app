@@ -24,11 +24,14 @@ export interface GraphPanelApi {
 const edgeTypes = { floating: FloatingEdge, routed: RoutedEdge };
 
 /** What the focus chip names: the node's id, or an edge as source → target. */
-function selectionLabel(selection: GraphSelection, edges: Edge[]): string {
-  if (selection.kind === "node") return selection.id;
+function selectionLabel(selection: GraphSelection, edges: Edge[], name: (id: string) => string = (id) => id): string {
+  if (selection.kind === "node") return name(selection.id);
   const edge = edges.find((e) => e.id === selection.id);
-  return edge ? `${edge.source} → ${edge.target}` : selection.id;
+  return edge ? `${name(edge.source)} → ${name(edge.target)}` : selection.id;
 }
+
+/** What stays lit around a selected node (default: the node and its 1-hop neighborhood). */
+export type Neighborhood = (nodeId: string, edges: Edge[]) => { nodes: Set<string>; edges: Set<string> };
 const PANEL_WIDTH = 320;
 
 /**
@@ -51,6 +54,16 @@ export function GraphCanvas(props: {
   children?: ReactNode;
   /** External selection request (a search hit, a URL param); re-fires on nonce change. */
   selectRequest?: { id: string; nonce: number; kind?: GraphSelection["kind"] } | null;
+  /** What a selected node keeps lit; default its 1-hop neighborhood. */
+  neighborhood?: Neighborhood;
+  /** Told whenever the selection changes (null: cleared). */
+  onSelectionChange?: (selection: GraphSelection | null) => void;
+  /** Recenter the canvas on a selected node (off for graphs that fit whole). */
+  recenter?: boolean;
+  /** How the focus chip names a node (default its id). */
+  nodeName?: (id: string) => string;
+  /** Space fitView leaves around the graph, as a share of the canvas (default 0.12). */
+  fitPadding?: number;
 }) {
   return (
     <ReactFlowProvider>
@@ -68,6 +81,11 @@ function Canvas({
   overlay,
   children,
   selectRequest,
+  neighborhood,
+  onSelectionChange,
+  recenter = true,
+  nodeName,
+  fitPadding = 0.12,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
@@ -110,10 +128,18 @@ function Canvas({
   const select = useCallback(
     (nodeId: string) => {
       setSelection({ kind: "node", id: nodeId });
-      centerOn(nodeId);
+      if (recenter) centerOn(nodeId);
     },
-    [centerOn],
+    [centerOn, recenter],
   );
+
+  // Tell the screen about every selection change (a click, Esc, the chip, the pane).
+  const reported = useRef<GraphSelection | null>(null);
+  useEffect(() => {
+    if (!onSelectionChange || reported.current === selection) return;
+    reported.current = selection;
+    onSelectionChange(selection);
+  }, [selection, onSelectionChange]);
 
   useEffect(() => {
     if (!selectRequest) return;
@@ -128,6 +154,10 @@ function Canvas({
     if (!selection) return { litNodes: null as Set<string> | null, litEdges: null as Set<string> | null };
     const litNodes = new Set<string>();
     const litEdges = new Set<string>();
+    if (selection.kind === "node" && neighborhood) {
+      const lit = neighborhood(selection.id, edges);
+      return { litNodes: lit.nodes, litEdges: lit.edges };
+    }
     if (selection.kind === "node") {
       litNodes.add(selection.id);
       for (const e of edges) {
@@ -146,7 +176,7 @@ function Canvas({
       }
     }
     return { litNodes, litEdges };
-  }, [selection, edges]);
+  }, [selection, edges, neighborhood]);
 
   // `data.lit` marks the selection's neighborhood so node/edge renderers can
   // reveal detail (labels) that stays hidden at full-canvas density — but
@@ -244,7 +274,7 @@ function Canvas({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
-          fitViewOptions={{ maxZoom: 1.15, padding: 0.12 }}
+          fitViewOptions={{ maxZoom: 1.15, padding: fitPadding }}
           colorMode="dark"
           nodesDraggable
           nodesConnectable={false}
@@ -267,7 +297,7 @@ function Canvas({
 
         {(selection || overlay) && (
           <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-24rem)] flex-wrap items-center gap-2">
-            {selection && <FocusChip label={selectionLabel(selection, edges)} onClear={() => setSelection(null)} />}
+            {selection && <FocusChip label={selectionLabel(selection, edges, nodeName)} onClear={() => setSelection(null)} />}
             {overlay}
           </div>
         )}

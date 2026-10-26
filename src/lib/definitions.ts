@@ -312,3 +312,32 @@ export function retainedByWords(all: readonly Retention[]): string {
   if (direct.length) parts.push(`a direct ${direct.join(" or ")} run`);
   return parts.join(" or ") || "nothing defined here";
 }
+
+// -- slot bindings --------------------------------------------------------------
+
+/** The interface name a slot takes (`web.fetch@3` -> `web.fetch`), as the interfaces section names it. */
+export const interfaceBase = (value: string) => (value.includes("@") ? value.slice(0, value.lastIndexOf("@")) : value);
+
+/**
+ * The build a slot binds to, from what is served: the Line's explicit binding,
+ * else the installed builds of its interface (exactly one binds by fit; more
+ * than one leaves which one to the run). The bound build of an unbound slot
+ * is not served as such.
+ */
+export type SlotBinding =
+  | { kind: "line"; provider: string }
+  | { kind: "fit"; provider: string }
+  | { kind: "fit_many"; providers: string[] }
+  | { kind: "none" };
+
+export function slotBinding(
+  slotInterface: string | null | undefined,
+  explicit: string | null | undefined,
+  builds: ReadonlyMap<string, readonly string[]>,
+): SlotBinding {
+  if (explicit) return { kind: "line", provider: explicit };
+  const installed = slotInterface ? (builds.get(interfaceBase(slotInterface)) ?? []) : [];
+  if (installed.length === 1) return { kind: "fit", provider: installed[0]! };
+  if (installed.length > 1) return { kind: "fit_many", providers: [...installed] };
+  return { kind: "none" };
+}

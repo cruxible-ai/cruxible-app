@@ -129,6 +129,37 @@ const RUN: Record<string, Term> = {
   budget_exceeded: t("Out of budget", "Out of budget: the run used up its budget", "wrong"),
 };
 
+/** What happened at one step in a run, where the run's own words (the node verdicts) do not say. */
+const STEP: Record<string, Term> = {
+  fired: t("Ran", "Ran: the run's journal records this step firing"),
+  not_run: t("Not run", "Not run: this step did not fire in this run"),
+  waiting_input: t("Waiting on input", "Waiting on an input: the run continues once it arrives", "waiting"),
+};
+
+/** A Procedure step's kind (and the nodes a Procedure or Line graph adds), with what it does. */
+const STEP_KIND: Record<string, Term> = {
+  source: t("Source", "Source: retains a Capture under a contract, through a slot's Provider"),
+  tap: t("Tap", "Tap: reads accepted state through a query"),
+  claim: t("Claim", "Claim: reads one ClaimType's Claims"),
+  call: t("Call", "Call: asks a slot's Provider, which computes from what it is given"),
+  invoke: t("Invoke", "Invoke: runs a child Procedure and reads its result"),
+  guard: t("Guard", "Guard: the run goes on only while its condition holds; else it halts, refuses or hands over"),
+  project: t("Project", "Project: shapes fields from earlier steps"),
+  transform: t("Transform", "Transform: reshapes items from earlier steps"),
+  select: t("Select", "Select: picks among earlier steps' results"),
+  repeat: t("Repeat", "Repeat: runs its body until its condition holds"),
+  propose: t("Propose", "Propose: submits its changes as a proposal, for review"),
+  settle: t("Settle", "Settle: accepts its changes under a settle mandate, within the Line's authority; otherwise it proposes"),
+  emit: t("Emit", "Emit: retains the run's output as a Capture under a contract"),
+  inbox: t("Inbox", "Inbox: posts items to the Line's inbox"),
+  halt: t("Halt", "Halt: stops the run on purpose, with a code"),
+  returns: t("Returns", "Returns: the run's result, from the fields it names"),
+  explicit: t("Step", "A stored step outside the recognised kinds"),
+  input: t("Input", "Input: what a run is given"),
+  parameters: t("Parameters", "Parameters: the Line's values for the Procedure's input"),
+  trigger: t("Trigger", "Trigger: what starts the Line's runs"),
+};
+
 /** What became of a run's terminal output. */
 const EGRESS: Record<string, Term> = {
   delivered: t("Delivered", "Delivered: the output reached its sink"),
@@ -217,6 +248,8 @@ export const VOCABULARY = {
   line: LINE,
   authority: AUTHORITY,
   run: RUN,
+  step: STEP,
+  stepKind: STEP_KIND,
   egress: EGRESS,
   severity: SEVERITY,
   health: HEALTH,

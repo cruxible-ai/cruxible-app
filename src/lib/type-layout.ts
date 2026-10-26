@@ -1,19 +1,27 @@
 import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api";
 
 /**
- * Left-to-right layout of the type map: Subject-valued ClaimType edges point
- * from the holding kind to the named kind, so a layered layout (ELK
- * `layered`, direction RIGHT, which breaks cycles itself) puts judgments and
- * work on the left, the systems they concern in the middle, and what
- * everything is about on the right. Kinds with no links to another kind sit
- * in one column to the left of the layers. ELK (~1.5 MB) loads on first use,
- * so it never weighs on the other screens.
+ * Left-to-right layered layout (ELK `layered`, direction RIGHT, which breaks
+ * cycles itself), shared by the graphs that read as a flow:
+ *
+ * - the type map: Subject-valued ClaimType edges point from the holding kind
+ *   to the named kind, so judgments and work sit on the left, the systems
+ *   they concern in the middle, and what everything is about on the right;
+ *   kinds with no links sit in one column to the left of the layers;
+ * - a Procedure (and a Line around it): steps along the references between
+ *   them, edge labels placed by ELK, the authored step order kept where the
+ *   references leave it free, and a Line's Triggers and parameters pinned to
+ *   the first layer.
+ *
+ * ELK (~1.5 MB) loads on first use, so it never weighs on the other screens.
  */
 
 export interface LayoutNodeIn {
   id: string;
   width: number;
   height: number;
+  /** Pin the node to the first (leftmost) layer. */
+  first?: boolean;
 }
 
 export interface LayoutEdgeIn {
@@ -22,6 +30,19 @@ export interface LayoutEdgeIn {
   target: string;
   label: string;
 }
+
+export interface LayeredOptions {
+  /** Nodes with no links to another node sit in one column left of the layers (else ELK places them). */
+  looseColumn: boolean;
+  /** Reserve room for each edge's label (12px mono, one line) and place it. */
+  edgeLabels: boolean;
+  /** Keep the input order of nodes where the edges leave it free. */
+  modelOrder: boolean;
+  /** Space between layers (default 80). */
+  layerGap?: number;
+}
+
+const TYPE_MAP: LayeredOptions = { looseColumn: true, edgeLabels: false, modelOrder: false };
 
 export interface Point {
   x: number;
@@ -47,17 +68,24 @@ function loadElk() {
   return elkPromise;
 }
 
-export async function layoutTypeGraph(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[]): Promise<TypeLayout> {
+/** The type map's layout: unlinked kinds in their own column, labels shown by the canvas on selection. */
+export function layoutTypeGraph(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[]): Promise<TypeLayout> {
+  return layoutLayered(nodes, edges, TYPE_MAP);
+}
+
+export async function layoutLayered(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[], options: LayeredOptions): Promise<TypeLayout> {
   const linked = new Set<string>();
   for (const e of edges) {
     if (e.source === e.target) continue;
     linked.add(e.source);
     linked.add(e.target);
   }
-  const layered = nodes.filter((n) => linked.has(n.id));
-  const loose = nodes.filter((n) => !linked.has(n.id)).sort((a, b) => a.id.localeCompare(b.id));
+  const inLayers = (id: string) => !options.looseColumn || linked.has(id);
+  const layered = nodes.filter((n) => inLayers(n.id));
+  const loose = nodes.filter((n) => !inLayers(n.id)).sort((a, b) => a.id.localeCompare(b.id));
+  const known = new Set(layered.map((n) => n.id));
   // Self-references stay out of the layering; the canvas draws them as loops.
-  const crossing = edges.filter((e) => e.source !== e.target && linked.has(e.source) && linked.has(e.target));
+  const crossing = edges.filter((e) => e.source !== e.target && known.has(e.source) && known.has(e.target));
 
   const positions = new Map<string, Point>();
   const routes: TypeLayout["routes"] = new Map();
@@ -72,7 +100,7 @@ export async function layoutTypeGraph(nodes: LayoutNodeIn[], edges: LayoutEdgeIn
         "elk.algorithm": "layered",
         "elk.direction": "RIGHT",
         "elk.edgeRouting": "SPLINES",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "80",
+        "elk.layered.spacing.nodeNodeBetweenLayers": String(options.layerGap ?? 80),
         "elk.layered.spacing.edgeNodeBetweenLayers": "18",
         "elk.layered.spacing.edgeEdgeBetweenLayers": "8",
         "elk.spacing.nodeNode": "36",
@@ -83,13 +111,25 @@ export async function layoutTypeGraph(nodes: LayoutNodeIn[], edges: LayoutEdgeIn
         "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
         "elk.layered.cycleBreaking.strategy": "GREEDY",
         "elk.layered.mergeEdges": "false",
+        ...(options.edgeLabels ? { "elk.edgeLabels.placement": "CENTER", "elk.spacing.edgeLabel": "2" } : {}),
+        ...(options.modelOrder ? { "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES" } : {}),
+        // Without the loose column, every node stays in one layering (a first-layer pin holds for an unlinked node too).
+        ...(options.looseColumn ? {} : { "elk.separateConnectedComponents": "false" }),
       },
-      children: layered.map((n) => ({ id: n.id, width: n.width, height: n.height })),
+      children: layered.map((n) => ({
+        id: n.id,
+        width: n.width,
+        height: n.height,
+        ...(n.first ? { layoutOptions: { "elk.layered.layering.layerConstraint": "FIRST" } } : {}),
+      })),
       edges: crossing.map(
         (e): ElkExtendedEdge => ({
           id: e.id,
           sources: [e.source],
           targets: [e.target],
+          ...(options.edgeLabels && e.label
+            ? { labels: [{ id: `${e.id}:label`, text: e.label, width: monoWidth(e.label, 11) + 8, height: 14 }] }
+            : {}),
         }),
       ),
     };
