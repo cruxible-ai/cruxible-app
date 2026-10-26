@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Crosshair } from "lucide-react";
+import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId, useOntologyKinds, useSubjectKinds } from "@/api/hooks";
 import type { OrientPredicate, OrientSubjectKind } from "@/api/schemas";
-import { actionChipClass } from "@/components/Chip";
+import { actionChipClass, toggleChipClass } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import { PanelActions, PanelHeading, PanelSection } from "@/components/graph/PanelBits";
@@ -15,7 +17,7 @@ import {
   type TypeGraphEdge,
 } from "@/lib/type-graph";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { layoutTypeGraph, monoWidth, type TypeLayout } from "@/lib/type-layout";
+import { layoutTypeGraph, monoWidth, type LayoutEngine, type TypeLayout } from "@/lib/type-layout";
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { contractName } from "@/lib/ontology";
@@ -87,10 +89,37 @@ function cardinalityMark(cardinality: string): string {
 export function TypeMapScreen() {
   const kinds = useOntologyKinds();
   const subjectKinds = useSubjectKinds();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   usePageTitle("Type map");
 
-  const graph = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
+  const fullGraph = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
+  // ?focus=<kind> keeps that kind and the kinds one link away (either direction).
+  const focus = params.get("focus");
+  const engine: LayoutEngine = params.get("layout") === "dagre" ? "dagre" : "elk";
+  const graph = useMemo(() => {
+    if (!focus || !fullGraph.nodes.some((n) => n.kind === focus)) return fullGraph;
+    const keep = new Set([focus]);
+    for (const e of fullGraph.edges) {
+      if (e.source === focus) keep.add(e.target);
+      if (e.target === focus) keep.add(e.source);
+    }
+    return {
+      ...fullGraph,
+      nodes: fullGraph.nodes.filter((n) => keep.has(n.kind)),
+      edges: fullGraph.edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
+    };
+  }, [fullGraph, focus]);
+  const setParam = useCallback(
+    (name: string, value: string | null) => {
+      const next = new URLSearchParams(params);
+      if (value === null) next.delete(name);
+      else next.set(name, value);
+      setParams(next);
+    },
+    [params, setParams],
+  );
+  const clearFocus = useCallback(() => setParam("focus", null), [setParam]);
+  useClearOnEscape(focus !== null, clearFocus);
   const coloring = useLayerColoring(graph.nodes.map((n) => n.kind));
   const rulesByKind = useMemo(
     () => new Map((subjectKinds.data?.rows ?? []).map((row) => [row.kind, row])),
@@ -106,19 +135,19 @@ export function TypeMapScreen() {
     [graph],
   );
   // The ontology read can hand back a new object on every render; key the layout by content.
-  const layoutKey = useMemo(() => JSON.stringify(layoutInput), [layoutInput]);
+  const layoutKey = useMemo(() => JSON.stringify({ ...layoutInput, engine }), [layoutInput, engine]);
   const [layout, setLayout] = useState<{ key: string; result: TypeLayout | null } | null>(null);
   useEffect(() => {
     let live = true;
     const { nodes, edges } = JSON.parse(layoutKey) as typeof layoutInput;
-    layoutTypeGraph(nodes, edges)
+    layoutTypeGraph(nodes, edges, engine)
       .then((result) => live && setLayout({ key: layoutKey, result }))
       // A layout failure still shows every kind, in a plain grid.
       .catch(() => live && setLayout({ key: layoutKey, result: null }));
     return () => {
       live = false;
     };
-  }, [layoutKey]);
+  }, [layoutKey, engine]);
   const laidOut = layout?.key === layoutKey ? layout : null;
 
   const { nodes, edges } = useMemo(() => {
@@ -202,6 +231,7 @@ export function TypeMapScreen() {
           owner={coloring.ownerOfKind(selection.id)}
           edges={graph.edges}
           api={api}
+          onFocus={focus === selection.id ? undefined : () => setParam("focus", selection.id)}
         />
       );
     }
@@ -218,7 +248,20 @@ export function TypeMapScreen() {
           its field names (* = many) · unlinked kinds in the left column · dashed = no Subjects · click anything for
           its ClaimTypes
         </span>
+        <span className="ml-auto flex items-center gap-1.5 text-[12px] text-zinc-500">
+          Layout
+          {(["elk", "dagre"] as const).map((name) => (
+            <button key={name} type="button" onClick={() => setParam("layout", name === "elk" ? null : name)} className={toggleChipClass(engine === name)}>
+              {name === "elk" ? "ELK" : "dagre"}
+            </button>
+          ))}
+        </span>
       </header>
+      {focus && (
+        <div className="mb-2">
+          <FocusChip label={focus} onClear={clearFocus} />
+        </div>
+      )}
       {!laidOut ? (
         <LoadState />
       ) : (
@@ -245,7 +288,9 @@ function KindPanel({
   owner,
   edges,
   api,
+  onFocus,
 }: {
+  onFocus?: (() => void) | undefined;
   kind: string;
   subjects: number;
   predicates: OrientPredicate[];
@@ -277,6 +322,11 @@ function KindPanel({
         <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`)} className={actionChipClass}>
           Open kind page →
         </Link>
+        {onFocus && (
+          <button type="button" onClick={onFocus} className={`inline-flex items-center gap-1 ${actionChipClass}`} title="Keep only this kind and the kinds one link away">
+            <Crosshair className="h-3 w-3" /> Focus on this kind
+          </button>
+        )}
       </PanelActions>
       {rule && (
         <PanelSection title="Identity">
