@@ -10,13 +10,14 @@ CLI/MCP surface. See [caveats](#alpha-caveats).
 
 ## Run
 
-Requires Node ≥ 22 and pnpm, plus a running Cruxible daemon
-([quickstart](https://github.com/cruxible-ai/cruxible/blob/main/docs/quickstart.md)).
+Requires Node ≥ 22 and pnpm, plus a running Cruxible daemon, cruxible-core
+0.5.x ([quickstart](https://github.com/cruxible-ai/cruxible/blob/main/docs/quickstart.md));
+the contract this build is generated from is pinned in `api/pin.json`.
 
 ```sh
 git clone https://github.com/cruxible-ai/cruxible-app.git && cd cruxible-app
 pnpm install
-cp .env.example .env.local          # set VITE_CRUXIBLE_INSTANCE_ID to your instance id
+cp .env.example .env.local          # set VITE_CRUXIBLE_INSTANCE_ID (`cruxible context show` names it)
 pnpm dev                            # http://localhost:5173
 ```
 
@@ -28,10 +29,17 @@ cruxible server start --socket "$SOCK" --capability-ceiling read_only
 CRUXIBLE_SERVER_SOCKET="$SOCK" pnpm dev
 ```
 
-A socket daemon runs with auth off, so no token is needed.
+`$SOCK` is a socket path in a directory only you can read (mode 0700), short
+enough for the OS limit (about 100 bytes on macOS); without `--socket` the
+daemon falls back to `CRUXIBLE_SERVER_SOCKET`, else TCP. A socket daemon runs
+with auth off, so no token is needed. The ceiling is fixed for the daemon's
+lifetime: to change state (install a kit, approve a proposal) stop it
+(`cruxible server stop` needs an admin daemon, so stop a read-only one with
+Ctrl-C) and start one without the ceiling.
 
 **TCP.** A TCP daemon requires `--auth`. Mint a read-only credential
-(`cruxible credential mint --principal-id <owner> --mode read_only --label console`)
+(`cruxible credential mint --principal-id <owner> --mode read_only --label console --commit`;
+without `--commit` it only previews)
 and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 `CRUXIBLE_DAEMON_URL` when the daemon is not on `http://127.0.0.1:8100`.
 
@@ -42,8 +50,8 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | Overview  | Subjects per kind, the Claim tally, artifact counts, orient's attention summary, the first `next` items, `next` health per component, installed kits |
 | Type map  | the ontology overview: Subject kinds with counts, Subject-valued ClaimTypes as kind links; per kind its identity rule and every ClaimType's cardinality, value type, evidence requirement and staleness; evidence rules per ClaimType |
 | Kind      | one Subject kind as the ontology defines it: identity, kit, what points at it; per ClaimType its value or target kind, cardinality, role, evidence contracts, freshness, kit (and local edits), contention policy, format and revision, who may settle it (typed Mandate scope), live Claims and the share of Subjects with a value (maintained counters); a row expands to its evidence rules and the definitions that pin it |
-| Contract  | one capture contract: sources, source and evidence kinds, grade; the Procedures and Blueprints that capture under it (definition pins), with their Providers and Lines; the Triggers on its landings and the Lines they start; the ClaimTypes that admit or require it |
-| Evidence flow | sources → capture contracts → the Triggers their landings fire (and the Lines they start) and the ClaimTypes that admit them, in columns; hover traces a node's path, focus keeps only it |
+| Contract  | one capture contract: grade and source kinds; its logical sources (contracts no longer list them: each comes from the source steps that retain it and the landing Triggers that select it), with who retains and selects each; the Procedures that capture under it (definition pins), with their interfaces and Lines, and which retain Captures and which read its landings; the Triggers on its landings, the logical sources they select and the Lines they start; the ClaimTypes that admit or require it |
+| Evidence flow | logical sources → capture contracts → the Triggers their landings fire (and the Lines they start) and the ClaimTypes that admit them, in columns; a source node is a logical source the definitions name (retained by a source step, literally or through a Line parameter, or selected by a landing Trigger); hover traces a node's path (a source lights only the Triggers that select it), focus keeps only it |
 | Subject   | a Subject's card: every field's value and read flags, each Claim's verdict and contenders, evidence admitted; per Claim on expand its evidence (each cited Capture as evidence, own words or a passage of its source, with its state: admitted, not admitted or not evidence; each attestation, accepted or recorded, with whether it counts toward the verdict and why; rationale), admission accounts and revisions; the field history, paged |
 | Neighborhood | a Subject's outgoing links (Subject-valued Claims), depth 1 or 2, at most 150 Subjects, plus the first page of what points at it; every node pages its incoming links |
 | Next      | the `next` queue, a page of 100 at a time, grouped by severity and then by reason (a repair or detail shared by a whole group shows once), filterable by family; each reason renders its own detail fields; repairs show as text with their CLI command |
@@ -51,9 +59,9 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | Ledger    | accepted generations newest first: sequence (opens the instance pinned there), oid, proposer, approvals, reason, member count; a row expands to its change set |
 | Proposals | proposals by status; each opens its review: the proposal's words and a summary first, each member as what it changes (ClaimType, Subject, value before and after) with its raw field deltas behind a disclosure, prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
 | Lines     | every Line: Procedure, trigger, max authority, mandates, enablement, last run, inbox unread, `next` rows |
-| Line      | triggers, enablements, occurrences, runs (paged), the Procedure's track record, measurement reviews and resolution dispositions, readings (paged), mandate scope and condition query, the Line's inbox (paged) |
+| Line      | triggers, enablements, occurrences, runs (paged); the Line as authored (parameters, trigger input, bindings, what it retains, the logical sources its landing Triggers select) beside its Procedure's definition (slots with their interface and the build that binds each, steps with the contracts, interfaces, queries and ClaimTypes they name); the Procedure's track record, measurement reviews and resolution dispositions, readings (paged), mandate scope and condition query, the Line's inbox (paged) |
 | Run       | nodes, the terminal refusal, terminal egress with the proposal produced, Captures read, receipt and attribution (withheld where the credential may not see them) |
-| Reference | any other ref `get` resolves (Claim, Capture, Line, run, …), its card field by field |
+| Reference | any other ref `get` resolves (Claim, Capture, Line, run, …), its card field by field; a Procedure leads with its definition (slots, steps), a Trigger with its schedule (contract, logical sources, the Line it starts) |
 
 **Jump palette** (⌘K): type any ref (`kind/id`, `CLM-…`, `Line:…`,
 `ClaimType:…`); it resolves with one read and completes Subject kinds, a
@@ -90,8 +98,9 @@ no proxy, no token in the client).
 ### No daemon handy
 
 `VITE_CRUXIBLE_FIXTURES=1 pnpm dev` serves the recorded world in
-`src/fixtures/recorded/` (read from a security kit 1.1.0 gate world on the
-pinned core) through an MSW worker at the network layer — same code paths,
+`src/fixtures/recorded/` (read from a security kit 1.3.0 reference instance on
+the pinned core: the example automation, an SBOM, OSV, KEV and EPSS runs, the
+repository and registry pulls, a contested assessment) through an MSW worker at the network layer — same code paths,
 canned data. `VITE_CRUXIBLE_FIXTURES=authored` serves the small hand-authored
 world in `src/fixtures/authored/` instead (contested slots, refusals, second
 pages; the Playwright smoke runs on it). A fixture answers only the exact
@@ -102,6 +111,7 @@ To re-record, serve a scratch world (never a live state root) from a
 read-only daemon on a Unix socket, point the dev proxy at it with no token in
 the environment, then run
 `node scripts/record-fixtures.ts --base http://127.0.0.1:5173 --instance <id>`
+(`--base` is the dev server's origin, whatever port it runs on)
 and `pnpm typecheck` (every recorded response is checked against the pinned
 contract). The recorder replaces `src/fixtures/recorded/` only.
 
