@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useInstanceId, useReview } from "@/api/hooks";
+import { useCard, useInstanceId, useReview } from "@/api/hooks";
+import { cardOf } from "@/api/schemas";
 import { type Schemas } from "@/api/schemas";
-import { ProposalChanges, readProposalOrigin } from "@/components/ProposalChanges";
+import { ProposalChanges, proposalTitle, readProposalOrigin } from "@/components/ProposalChanges";
 import { Chip } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
@@ -40,19 +41,9 @@ function ProposalRow({ entry }: { entry: Entry }) {
         <span className="w-36 shrink-0 text-zinc-500" title={entry.admitted_at ?? undefined}>
           {entry.admitted_at ? formatDateTime(entry.admitted_at) : "—"}
         </span>
-        <Link
-          to={link(`/i/${instanceId}/p/${encodeURIComponent(entry.proposal_id)}`)}
-          className="font-mono text-[12px] text-zinc-200 hover:underline"
-          title={entry.proposal_id}
-        >
-          {entry.proposal_id.slice(0, 19)}…
-        </Link>
-        <span className="font-mono text-[12px] text-zinc-400">{entry.actor_id ?? "—"}</span>
-        {entry.target_ref && (
-          <span className="text-[12px] text-zinc-500" title={entry.target_ref}>
-            {entry.target_ref.includes("/procedure-") ? "from a Procedure run" : "authored"}
-          </span>
-        )}
+        <ProposalTitleLink entry={entry} to={link(`/i/${instanceId}/p/${encodeURIComponent(entry.proposal_id)}`)} />
+        <span className="text-[12px] text-zinc-500">by <span className="font-mono text-zinc-400">{entry.actor_id ?? "—"}</span></span>
+        <CopyableId id={entry.proposal_id} />
         <span className="ml-auto">
           <ProposalStateChip status={entry.status} verdict={entry.verdict} outcome={entry.terminal_reason} incomplete={entry.incomplete_reasons} />
         </span>
@@ -88,6 +79,41 @@ export function ProposalStateChip({
       <Chip term={shown} />
       {ending && <Chip term={{ ...ending, word: ending.word.toLowerCase() }} />}
     </span>
+  );
+}
+
+/** The row's link: what the proposal is and how many changes, from its card (one cached get). */
+function ProposalTitleLink({ entry, to }: { entry: Entry; to: string }) {
+  const card = cardOf(useCard(entry.proposal_id).data, "proposal");
+  const words = card?.rationale ?? card?.reason ?? null;
+  const n = card?.changes?.length;
+  return (
+    <Link to={to} className="text-zinc-100 hover:underline">
+      {card ? proposalTitle(words, entry.target_ref) : "Proposal"}
+      {n !== undefined && <span className="text-zinc-500"> · {n} {n === 1 ? "change" : "changes"}</span>}
+    </Link>
+  );
+}
+
+/** The digest, short, for the CLI: click copies the whole id (commands accept a unique prefix). */
+function CopyableId({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  const short = id.slice(0, 15);
+  return (
+    <button
+      type="button"
+      title={`${id}\nClick to copy. Commands accept this short prefix too.`}
+      onClick={() => {
+        try {
+          void navigator.clipboard.writeText(id).then(() => setCopied(true));
+        } catch {
+          /* clipboard unavailable: the title still shows the id */
+        }
+      }}
+      className="font-mono text-[11px] text-zinc-600 hover:text-zinc-300"
+    >
+      {copied ? "copied" : short}
+    </button>
   );
 }
 

@@ -210,3 +210,18 @@ export function readProposalOrigin(words: string | null | undefined): { procedur
   const match = /^Proposed by Procedure (\S+) run (RUN-[0-9a-f]+)/.exec(words);
   return match?.[1] && match[2] ? { procedure: match[1], run: match[2] } : null;
 }
+
+/**
+ * What a proposal is, in words, for links and titles: a Procedure's proposal by
+ * its Procedure, a kit install by its kit, otherwise the first line of its own
+ * words. Never the digest.
+ */
+export function proposalTitle(words: string | null | undefined, targetRef: string | null | undefined): string {
+  const origin = readProposalOrigin(words);
+  if (origin) return `${origin.procedure} proposal`;
+  const kit = /\/kit-([^/]+?)-[0-9a-f]+$/.exec(targetRef ?? "");
+  if (kit?.[1]) return `Install or upgrade of kit ${kit[1]}`;
+  const first = (words ?? "").split("\n").find((line) => line.trim() !== "")?.trim();
+  if (first) return first.length > 90 ? `${first.slice(0, 89)}…` : first;
+  return "Proposal";
+}

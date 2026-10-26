@@ -27,10 +27,13 @@ describe("Proposals and review", () => {
   it("lists open proposals", async () => {
     renderApp("/i/inst_fixture/proposals");
     const main = within(await screen.findByRole("main"));
-    expect(await main.findByRole("link", { name: /^sha256:aaaa/ })).toHaveAttribute(
-      "href",
-      `/i/inst_fixture/p/${encodeURIComponent(OPEN)}`,
-    );
+    // The row links what the proposal is (never the digest); the digest is a copy chip beside it.
+    const href = `/i/inst_fixture/p/${encodeURIComponent(OPEN)}`;
+    const links = await main.findAllByRole("link");
+    const row = links.find((a) => a.getAttribute("href") === href);
+    expect(row).toBeDefined();
+    expect(row!.textContent).not.toMatch(/sha256:/);
+    expect(main.getByRole("button", { name: /^sha256:aaaa/ })).toBeInTheDocument();
   });
 
   it("renders a review read-only: deltas, governance, approvals, item reasons", async () => {
