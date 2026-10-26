@@ -68,7 +68,10 @@ export function ProposalsScreen() {
               key={name}
               onClick={() => {
                 reset();
-                const updated = new URLSearchParams(params);
+                // a tab is another list: its table starts unsorted and unfiltered
+                const updated = new URLSearchParams();
+                const at = params.get("at");
+                if (at !== null) updated.set("at", at);
                 updated.set("status", name);
                 setParams(updated);
               }}
@@ -83,8 +86,18 @@ export function ProposalsScreen() {
       {list.error && <LoadState error={list.error} />}
       {list.data && (
         <Panel title={term("proposal", status).word} meta={<span>{list.data.entries.length} on this page</span>}>
-          {list.data.entries.length === 0 && <EmptyState>None {status === "settled" ? "settled" : status === "open" ? "waiting for review" : "incomplete"}.</EmptyState>}
-          <ProposalList entries={list.data.entries} />
+          {list.data.entries.length === 0 ? (
+            <EmptyState>None {status === "settled" ? "settled" : status === "open" ? "waiting for review" : "incomplete"}.</EmptyState>
+          ) : (
+            <ProposalList
+              entries={list.data.entries}
+              partial={
+                list.data.next_cursor || index > 0
+                  ? `${index === 0 ? "the first" : "this page of"} ${list.data.entries.length} ${term("proposal", status).word.toLowerCase()}`
+                  : null
+              }
+            />
+          )}
         </Panel>
       )}
     </Page>

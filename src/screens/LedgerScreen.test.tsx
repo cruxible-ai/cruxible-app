@@ -44,6 +44,16 @@ describe("Proposals and review", () => {
     expect(main.getByRole("button", { name: /^sha256:aaaa/ })).toBeInTheDocument();
   });
 
+  it("filters a status tab's page by state and says a sort covers only that page", async () => {
+    renderApp("/i/inst_fixture/proposals?status=settled&f.state=Refused&sort=-admitted");
+    const main = within(await screen.findByRole("main"));
+    const table = within(await main.findByRole("table", { name: "Proposals" }));
+    await table.findByText("refused");
+    expect(table.getAllByRole("row").filter((row) => row.closest("tbody"))).toHaveLength(1); // the refused proposal
+    expect(main.getByText("Sorted and filtered within the first 3 settled.")).toBeInTheDocument();
+    expect(table.getByText("refused")).toBeInTheDocument();
+  });
+
   it("renders a review read-only: deltas, governance, approvals, item reasons", async () => {
     renderApp(`/i/inst_fixture/p/${encodeURIComponent(ACCEPTED)}`);
     const main = within(await screen.findByRole("main"));

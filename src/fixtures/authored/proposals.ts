@@ -27,12 +27,18 @@ const entry = (proposal_id: string, extra: Partial<Entry>): Entry => ({
   ...extra,
 });
 
-const list = (status: Schemas["ProposalListEntry"]["status"], entries: Entry[]) =>
+const list = (status: Schemas["ProposalListEntry"]["status"], entries: Entry[], nextCursor?: string) =>
   defineFixture({
     method: "get",
     path: "/api/v1/{instance_id}/proposals",
     query: proposalsQuery(status, 50),
-    response: { tag: "playbill-proposal-list-v1", coordinate: COORDINATE, status_filter: status, entries },
+    response: {
+      tag: "playbill-proposal-list-v1",
+      coordinate: COORDINATE,
+      status_filter: status,
+      entries,
+      ...(nextCursor !== undefined ? { next_cursor: nextCursor } : {}),
+    },
   });
 
 function proposalCard(id: string, card: Schemas["GetProposalCard"]): GetResult {
@@ -160,7 +166,7 @@ export default [
     entry(ACCEPTED, { actor_id: "release-owner", admitted_at: "2026-10-19T09:00:00Z", terminal_reason: "accepted" }),
     entry(ACCEPTED_OLDER, { admitted_at: "2026-10-17T10:00:00Z", actor_id: "sbom-import", terminal_reason: "accepted" }),
     entry(REFUSED, { admitted_at: "2026-10-18T12:00:00Z", verdict: "refused", terminal_reason: "refused" }),
-  ]),
+  ], "p-settled-2"), // more settled proposals behind this page: a sort covers only these
   list("open", [entry(OPEN, { admitted_at: "2026-10-19T10:00:00Z", status: "open" })]),
   cardFixture(ACCEPTED, {
     proposal: ACCEPTED,
