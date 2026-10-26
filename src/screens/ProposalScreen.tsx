@@ -1,3 +1,4 @@
+import { ProposalChanges, readProposalOrigin } from "@/components/ProposalChanges";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCard, useInstanceId, useReview } from "@/api/hooks";
@@ -39,8 +40,14 @@ export function ProposalScreen() {
   const review = useReview(id === "" ? null : id, reasonCursors[reasonCursors.length - 1]);
   usePageTitle(`Proposal ${id.slice(0, 19)}`);
   const words = proposal?.rationale ?? proposal?.reason ?? null;
-  // Short words are the title; longer ones read as the opening paragraph.
-  const headline = words !== null && words.length <= 160 && !words.includes("\n") ? words : null;
+  const origin = readProposalOrigin(words);
+  // A Procedure's proposal is titled by the Procedure; short words are the title;
+  // longer ones read as the opening paragraph.
+  const headline = origin
+    ? `${origin.procedure} proposal`
+    : words !== null && words.length <= 160 && !words.includes("\n")
+      ? words
+      : null;
 
   return (
     <Page>
@@ -59,6 +66,11 @@ export function ProposalScreen() {
         summary={proposal ? <ProposalSummary proposal={proposal} review={review.data} /> : undefined}
         facts={<ProposalFacts proposal={proposal} review={review.data} />}
       >
+        {origin && (
+          <div className="mt-2 text-[13px] text-zinc-400">
+            Proposed by <RefLink value={`Procedure:${origin.procedure}`} /> in run <RefLink value={origin.run} short />
+          </div>
+        )}
         {words && !headline && (
           <div className="mt-2">
             <LongText text={words} lines={4} className="t-lede" />
@@ -91,6 +103,9 @@ export function ProposalScreen() {
       {proposal && !review.data && !review.isPending && <ChangeSetPanel proposal={proposal} />}
       {review.data && (
         <>
+          <Panel title="What it changes">
+            <ProposalChanges review={review.data} />
+          </Panel>
           <MembersPanel review={review.data} />
           {(review.data.item_reason_count ?? 0) > 0 && (
             <ItemReasonsPanel
@@ -246,7 +261,7 @@ function ChangeSetPanel({ proposal }: { proposal: ProposalCard }) {
 
 function MembersPanel({ review }: { review: Review }) {
   return (
-    <Panel title="What it changes" meta={<span>{review.members.length} {review.members.length === 1 ? "member" : "members"}</span>}>
+    <Panel title="Field-level detail" meta={<span>{review.members.length} {review.members.length === 1 ? "member" : "members"}</span>}>
       {review.members.length === 0 && <EmptyState>No members.</EmptyState>}
       <div className="divide-y divide-zinc-800/70">
         {review.members.map((member) => (

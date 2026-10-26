@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useCard, useInstanceId } from "@/api/hooks";
-import { cardOf, type Schemas } from "@/api/schemas";
+import { useInstanceId, useReview } from "@/api/hooks";
+import { type Schemas } from "@/api/schemas";
+import { ProposalChanges, readProposalOrigin } from "@/components/ProposalChanges";
 import { Chip } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
@@ -46,7 +47,11 @@ function ProposalRow({ entry }: { entry: Entry }) {
           {entry.proposal_id.slice(0, 19)}…
         </Link>
         <span className="font-mono text-[12px] text-zinc-400">{entry.actor_id ?? "—"}</span>
-        {entry.target_ref && <span className="text-[12px] text-zinc-500">{entry.target_ref}</span>}
+        {entry.target_ref && (
+          <span className="text-[12px] text-zinc-500" title={entry.target_ref}>
+            {entry.target_ref.includes("/procedure-") ? "from a Procedure run" : "authored"}
+          </span>
+        )}
         <span className="ml-auto flex gap-2">
           <Chip value={entry.terminal_reason ?? entry.status} />
           {entry.verdict && <Chip value={entry.verdict} />}
@@ -60,28 +65,24 @@ function ProposalRow({ entry }: { entry: Entry }) {
   );
 }
 
-/** A proposal's change set and reason, from one get (expanded rows). */
+/** A proposal's origin and its changes as facts, from its review (expanded rows). */
 export function ProposalPeek({ id, indent = "ml-6", skipWords }: { id: string; indent?: string; skipWords?: string | null | undefined }) {
-  const read = useCard(id);
-  const card = cardOf(read.data, "proposal");
-  if (read.isPending) return <div className={`${indent} animate-pulse text-[12px] text-zinc-500`}>Reading…</div>;
-  if (read.error) return <div className={`${indent} text-[12px] text-red-400/80`}>{read.error.message}</div>;
-  if (!card) return null;
-  const changes = card.changes ?? [];
-  const words = card.rationale ?? card.reason;
+  const review = useReview(id);
+  if (review.isPending) return <div className={`${indent} animate-pulse text-[12px] text-zinc-500`}>Reading…</div>;
+  if (review.error) return <div className={`${indent} text-[12px] text-red-400/80`}>{review.error.message}</div>;
+  if (!review.data) return null;
+  const words = review.data.rationale ?? null;
+  const origin = readProposalOrigin(words);
   return (
-    <div className={`${indent} mt-1.5 space-y-0.5 border-l border-zinc-800 pl-3 text-[12px]`}>
-      {words && words !== skipWords && <div className="whitespace-pre-wrap text-zinc-300">{words}</div>}
-      {changes.slice(0, 12).map((change) => (
-        <div key={change.path} className="grid grid-cols-[4rem_minmax(0,1fr)] items-baseline gap-x-2">
-          <span className="text-zinc-500">{change.change}</span>
-          <span className="min-w-0 break-all">
-            <RefLink value={change.path} />
-          </span>
+    <div className={`${indent} mt-2 space-y-2 border-l border-zinc-800 pl-3`}>
+      {origin ? (
+        <div className="text-[12px] text-zinc-400">
+          Proposed by <RefLink value={`Procedure:${origin.procedure}`} /> in run <RefLink value={origin.run} short />
         </div>
-      ))}
-      {changes.length > 12 && <div className="text-zinc-500">+{changes.length - 12} more on the proposal page</div>}
+      ) : (
+        words && words !== skipWords && <div className="whitespace-pre-wrap text-[12px] text-zinc-300">{words}</div>
+      )}
+      <ProposalChanges review={review.data} limit={12} />
     </div>
   );
 }
-
