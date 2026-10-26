@@ -168,7 +168,9 @@ if (args.only === "graph") {
 // (producers, who pins a ClaimType), the capture-landing Trigger listing, and
 // every Mandate card with its condition query's card (settlers, Line pages).
 if (!args.only || args.only === "ontology") {
-  const all = async (section: "subject_kinds" | "claim_types" | "capture_contracts" | "mandates" | "lines" | "pins") => {
+  const all = async (
+    section: "subject_kinds" | "claim_types" | "capture_contracts" | "mandates" | "lines" | "pins" | "procedures" | "interfaces",
+  ) => {
     const rows: Record<string, unknown>[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < 20; page += 1) {
@@ -195,10 +197,20 @@ if (!args.only || args.only === "ontology") {
   for (let i = 0; i < contractRefs.length; i += GET_BATCH_MAX) {
     await fetchCards(contractRefs.slice(i, i + GET_BATCH_MAX)).catch(() => null);
   }
-  await all("lines");
+  const lineRows = await all("lines");
   await all("pins");
   for (const row of await all("mandates")) await recordMandate(String(row.mandate));
   await call("post", `${P}/query`, { body: queryBody(LANDING_TRIGGERS_QUERY, C) });
+  // The source model (evidence flow, contract pages): every Procedure's card
+  // (its authored form) and every Line's envelope (get-batch detail=proof),
+  // 64 per batch in section order; the interfaces section (slot builds).
+  const procedureRefs = (await all("procedures")).map((row) => `Procedure:${bareName(row.name)}`);
+  for (let i = 0; i < procedureRefs.length; i += GET_BATCH_MAX) await fetchCards(procedureRefs.slice(i, i + GET_BATCH_MAX)).catch(() => null);
+  const lineProofRefs = lineRows.map((row) => `Line:${lineName(String(row.line))}`);
+  for (let i = 0; i < lineProofRefs.length; i += GET_BATCH_MAX) {
+    await call("post", `${P}/get-batch`, { body: getBatchBody(lineProofRefs.slice(i, i + GET_BATCH_MAX), C, "proof") });
+  }
+  await all("interfaces");
   if (args.only === "ontology") {
     writeRecordings(false);
     process.exit(0);
@@ -244,7 +256,7 @@ async function recordSubject(ref: string) {
   for (let i = 0; i < full.length; i += CLAIM_READ_BATCH_MAX) {
     await call("post", `${P}/claims/read-batch`, { body: claimReadBatchBody(full.slice(i, i + CLAIM_READ_BATCH_MAX), C) });
   }
-  for (const id of ids.slice(0, 6)) {
+  for (const id of ids.slice(0, 12)) {
     await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "evidence" }) });
     await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
   }
@@ -318,18 +330,22 @@ for (const status of ["open", "incomplete", "settled"] as const) {
   }
 }
 
-// Lines: the index's card batches (request order), then for up to five Lines
+// Lines: the index's card batches (request order), then for every Line
 // every read the Line page makes, and one run's card and state.
 const lineRefs = lines.map((line) => `Line:${lineName(line.line)}`);
 for (let i = 0; i < lineRefs.length; i += GET_BATCH_MAX) await fetchCards(lineRefs.slice(i, i + GET_BATCH_MAX)).catch(() => null);
 const mandates = (await orientAll(C, "mandates")).flatMap((page) => page.mandates ?? []);
 let runId: string | null = null;
-for (const line of lines.slice(0, 5)) {
+for (const line of lines) {
   const name = lineName(line.line);
   const [card] = await fetchCards([`Line:${name}`]).catch(() => [undefined]);
   await call("post", `${P}/get`, {
     body: getBody({ ref: `Line:${name}`, coordinate: C, detail: "runs", limit: LINE_RUNS_PAGE }),
   });
+  // The Line's definition panels: its envelope and its Triggers' cards.
+  await call("post", `${P}/get`, { body: getBody({ ref: `Line:${name}`, coordinate: C, detail: "proof" }) });
+  const triggerRefs = ((card?.card as { triggers?: { trigger: string }[] } | undefined)?.triggers ?? []).map((t) => t.trigger);
+  if (triggerRefs.length) await fetchCards(triggerRefs).catch(() => null);
   const procedure = line.procedure.replace(/^Procedure:/, "");
   await fetchCards([`Procedure:${procedure}`]).catch(() => null);
   await call("post", `${P}/procedures/{name}/readings`, { pathParams: { name: procedure }, body: readingsBody(C, 50) });

@@ -22,7 +22,9 @@ test("fixture-backed inspection flow: overview, kind, contract, evidence flow, t
   await expect(page.getByText("osv-applicability", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "security.osv-applicability-v1" }).first().click();
   await expect(page).toHaveURL(/\/contracts\/security\.osv-applicability-v1$/);
-  await expect(page.getByText("security.osv-landed")).toBeVisible();
+  // the Trigger row links its card; the logical sources section also names it as selecting osv.query
+  await expect(page.getByRole("link", { name: "security.osv-landed" })).toBeVisible();
+  await expect(page.getByText("osv.query", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Procedure:security.osv-acquire" })).toBeVisible();
 
   // Evidence flow: hover lights a path, focus keeps it, clear restores.

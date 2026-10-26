@@ -1,4 +1,4 @@
-// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core fa36518ad92d9d8a2b453836f138bd1253e1baa7 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/head 1fb099fc
 import { defineFixture } from "../fixture";
 
@@ -8,14 +8,14 @@ export default defineFixture({
   "query": {},
   "response": {
     "tag": "playbill-head-v1",
-    "instance": "inst_be4d690f30d64371",
+    "instance": "inst_bff87e924cbb4f7f",
     "coordinate": {
       "tag": "playbill-accepted-coordinate-v1",
-      "git_oid": "97040dbfdd1e7e284098b49ecc6504aecb211d80",
-      "semantic_root": "sha256:888d39edd3ed8f7c63719121db28894105c74a3cfb7afc32608884f8f727f1d1",
-      "generation_root": "sha256:149d2929610dbe1f6b9c78d1f1bbeb0e14386a0f9e96dff1d30231e720acccbf",
-      "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
+      "git_oid": "f3765015f78f5ec800f959e10b5cfdc2cf0621f3",
+      "semantic_root": "sha256:4925ef69c21f08114e83af8919712034464a7aecd92c059120be0e36244d4121",
+      "generation_root": "sha256:807540b177cbc78e19e1c576c35c87fc2bd5d1c70d57af935cffddc34fe09bfb",
+      "compiler_digest": "sha256:e77d9aaac5116b76aaf7b7060dedde6bca2cdaaeaa909c59c391bd20f3779924"
     },
-    "generation": 58
+    "generation": 12
   }
 });

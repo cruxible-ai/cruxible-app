@@ -1,4 +1,4 @@
-// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core fa36518ad92d9d8a2b453836f138bd1253e1baa7 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/inbox 3a1bc3b2
 import { defineFixture } from "../fixture";
 

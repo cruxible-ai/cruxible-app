@@ -1,4 +1,4 @@
-// Recorded from cruxible-core a725d832046a0c951064eb2792a23a1d3c2f02ad by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core fa36518ad92d9d8a2b453836f138bd1253e1baa7 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/kits 1fb099fc
 import { defineFixture } from "../fixture";
 
@@ -10,29 +10,22 @@ export default defineFixture({
     "kits": [
       {
         "kit_id": "security",
-        "version": "1.1.1",
-        "content_digest": "sha256:21687dd5c31b9f3b4bb1497b3944ec2afdb1bdf8d9ff094bd832403683147706",
-        "source": "localhost:54476/kits/security@sha256:583a3d13515b855397c2dcee0edcb46a4cd534dffaa093cf9c4aa7a1dec3b9b7",
+        "version": "1.3.0",
+        "content_digest": "sha256:945582d45c1d78af60fac2a799d4095ef904dbf79c47d501636514595079f5f0",
+        "source": "security",
         "drifted": [],
         "provenance": {
-          "instance_id": "inst_ab3253be207a45d1",
+          "instance_id": "inst_d831c3168e904a15",
           "coordinate": {
             "tag": "playbill-accepted-coordinate-v1",
-            "git_oid": "66bbfe89b45a5531d4b30bd850038b3eb337ab3d",
-            "semantic_root": "sha256:2d3c9aa43a25dec6831678bd4b49d224b4ddd9defb1694711f1067d8c8fbd4c4",
-            "generation_root": "sha256:2201c764327dfa0c53f4891f360789f71d27dc99468ee4b5616625f21605362c",
-            "compiler_digest": "sha256:8b1fc4c429fbbdc9eee3915dc3c22af64fdbdba3465795ceb270b01371f899bd"
+            "git_oid": "84524bb9767daf369e078a135df00d7fa6c7300e",
+            "semantic_root": "sha256:8ade3f45ae44a0f15798f96779c42048279fe991e952ca14bedb84ae5606d717",
+            "generation_root": "sha256:daae7598d8f4f51c151430148a4bd7626bbb3a2f0e41eea28b05284c1b271abe",
+            "compiler_digest": "sha256:e77d9aaac5116b76aaf7b7060dedde6bca2cdaaeaa909c59c391bd20f3779924"
           },
           "principal_id": "kit-author"
         },
-        "kept": [
-          {
-            "path": "query-definitions/security.kev_exposure.json",
-            "identity": "QueryDefinition:security.kev_exposure",
-            "consequence": "overwrites_your_edit",
-            "release_digest": "sha256:bf40fcce351fe149731108a1faa02ff393044cb062ab71232de1852355634938"
-          }
-        ],
+        "kept": [],
         "providers": [
           {
             "provider_id": "cruxible-provider-web",
@@ -46,8 +39,8 @@ export default defineFixture({
           {
             "provider_id": "security-analysis-provider",
             "package": "security-analysis-provider",
-            "version": "1.1.1",
-            "wheel_sha256": "sha256:03d03c13804cb616706b539f1900f7f54c7b007521a6ac5495dc385931331cd1",
+            "version": "1.3.0",
+            "wheel_sha256": "sha256:24901ea5485b12f68edafcecaf07c5237ac7173c70f25d18eacffdcb532ab180",
             "delivery": "bundled",
             "state": "installed",
             "installed_version": null
@@ -55,8 +48,8 @@ export default defineFixture({
           {
             "provider_id": "security-sources-provider",
             "package": "security-sources-provider",
-            "version": "1.1.0",
-            "wheel_sha256": "sha256:196d522dc4cf8ecf0858f65274b2b52d8a94b2606f4bb795c000981ba847714d",
+            "version": "1.2.0",
+            "wheel_sha256": "sha256:c632d96ed068a206887fde77102b5235d9bf6eda80fdd61939798f75f96568ea",
             "delivery": "bundled",
             "state": "installed",
             "installed_version": null
