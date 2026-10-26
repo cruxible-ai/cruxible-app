@@ -12,8 +12,11 @@ describe("Evidence flow", () => {
     const flow = within(await screen.findByTestId("flow"));
     expect(flow.getByText("osv.query")).toBeInTheDocument();
     expect(flow.getByText("cisa.kev.catalog")).toBeInTheDocument();
+    // a source node per logical source, from the step that retains it (contracts list no sources)
+    expect(flow.getByText("retained by a direct security.kev-acquire run")).toBeInTheDocument();
+    expect(flow.getByText("retained by a direct security.osv-acquire run")).toBeInTheDocument();
     expect(flow.getByRole("link", { name: "security.osv-applicability-v1" })).toHaveAttribute("href", `${I}/contracts/security.osv-applicability-v1`);
-    // producers from the pins section, inline under the contract
+    // the Procedures that retain Captures under it, inline under the contract
     expect(flow.getByRole("link", { name: "security.kev-acquire" })).toHaveAttribute("href", `${I}/ref/Procedure%3Asecurity.kev-acquire`);
     expect(flow.getByRole("link", { name: "security.osv-landed" })).toHaveAttribute("href", `${I}/ref/Trigger%3Asecurity.osv-landed`);
     expect(flow.getByRole("link", { name: "cve-applicability" })).toHaveAttribute("href", `${I}/lines/cve-applicability`);

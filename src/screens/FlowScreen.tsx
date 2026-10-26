@@ -1,16 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair, X } from "lucide-react";
-import {
-  useCaptureContracts,
-  useClaimTypes,
-  useGetBatch,
-  useInstanceId,
-  useLandingTriggers,
-  useLines,
-  usePins,
-} from "@/api/hooks";
-import { cardOf } from "@/api/schemas";
+import { useCaptureContracts, useClaimTypes, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
@@ -25,20 +16,21 @@ import {
   type Placed,
 } from "@/lib/evidence-flow";
 import { lineName } from "@/lib/lines";
-import { contractName, contractProducers, readContractDefinition } from "@/lib/ontology";
+import { retainedByWords } from "@/lib/definitions";
+import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
-
-const cellText = (value: unknown) => (typeof value === "string" ? value : "");
 
 /**
  * Evidence flow: logical sources -> the contracts Captures land under -> the
  * Triggers those landings fire (and the Lines they start) and the ClaimTypes
  * that admit those Captures as evidence. Columns, every node a link to its
  * page; hovering a node lights its upstream and downstream, `?focus=` keeps
- * only that path. Reads are ontology-sized: the capture_contracts,
- * claim_types, lines and pins sections, the contract cards (one get-batch
- * per 64 contracts, for their sources) and the capture-landing Trigger
- * listing.
+ * only that path. A logical source comes from the definitions (contracts no
+ * longer list sources): the source steps that retain it and the landing
+ * Triggers that select it (useSourceModel). Reads are ontology-sized: the
+ * capture_contracts, claim_types, lines and procedures sections, the
+ * Procedure cards and Line envelopes (get-batch, 64 a call) and the
+ * capture-landing Trigger listing.
  */
 export function FlowScreen() {
   const instanceId = useInstanceId();
@@ -50,41 +42,37 @@ export function FlowScreen() {
 
   const contracts = useCaptureContracts();
   const claimTypes = useClaimTypes();
-  const triggers = useLandingTriggers();
   const lines = useLines();
-  const pins = usePins();
-  const names = useMemo(() => (contracts.data?.rows ?? []).map((row) => contractName(row.contract)), [contracts.data]);
-  const cards = useGetBatch(names.map((name) => `CaptureContract:${name}`));
+  const sources = useSourceModel();
 
   const model = useMemo<FlowModel | null>(() => {
-    if (!contracts.data || !claimTypes.data || !triggers.data || !lines.data || cards.isPending) return null;
-    const sources = new Map<string, string[]>();
-    for (const result of cards.results) {
-      const card = cardOf(result, "capture_contract");
-      if (card) sources.set(contractName(card.contract), readContractDefinition(card.captures).sources);
+    if (!contracts.data || !claimTypes.data || !lines.data || !sources.data) return null;
+    // The Procedures that retain Captures under each contract (a step that reads a landing does not).
+    const producers = new Map<string, string[]>();
+    for (const retention of sources.data.retentions) {
+      const list = producers.get(retention.contract) ?? [];
+      const ref = `Procedure:${retention.procedure}`;
+      if (!list.includes(ref)) producers.set(retention.contract, [...list, ref].sort());
     }
-    const producers = new Map(
-      names.map((name) => [name, pins.data ? contractProducers(pins.data.rows, name).map((p) => p.source) : []] as const),
-    );
     return buildFlow({
       contracts: contracts.data.rows.map((row) => ({ name: contractName(row.contract), grade: row.grade })),
-      sources,
-      claimTypes: claimTypes.data.rows,
-      triggers: triggers.data.rows.map((row) => ({
-        name: cellText(row.name),
-        contract: cellText(row.capture_contract),
-        target: cellText(row.target),
+      sources: sources.data.sources.map((source) => ({
+        id: source.id,
+        contracts: source.contracts,
+        retainedBy: source.retainedBy.length ? `retained by ${retainedByWords(source.retainedBy)}` : "selected by a Trigger; no step names it",
       })),
+      claimTypes: claimTypes.data.rows,
+      triggers: sources.data.triggers,
       lineAuthority: new Map(lines.data.rows.map((row) => [lineName(row.line), row.authority] as const)),
       producers,
     });
-  }, [contracts.data, claimTypes.data, triggers.data, lines.data, cards.isPending, cards.results, pins.data, names]);
+  }, [contracts.data, claimTypes.data, lines.data, sources.data]);
 
   const shown = useMemo(() => (model ? focusFlow(model, focus) : null), [model, focus]);
   const layout = useMemo(() => (shown ? layoutFlow(shown) : null), [shown]);
   const lit = useMemo(() => (shown && hover ? related(shown, hover) : null), [shown, hover]);
 
-  const error = contracts.error ?? claimTypes.error ?? triggers.error ?? lines.error ?? cards.error;
+  const error = contracts.error ?? claimTypes.error ?? lines.error ?? sources.error;
   if (error) return <LoadState error={error} />;
   if (!model || !layout || !shown) return <LoadState />;
 
@@ -98,7 +86,7 @@ export function FlowScreen() {
   const count = (kind: string) => shown.nodes.filter((n) => n.kind === kind).length;
   const admissions = shown.edges.filter((e) => e.to.startsWith("claim_type:"));
   const focused = focus ? layout.byId.get(focus) ?? null : null;
-  const capped = (triggers.data?.capped?.length ?? 0) > 0 || contracts.data?.truncated || claimTypes.data?.truncated || pins.data?.truncated;
+  const capped = sources.data?.truncated || contracts.data?.truncated || claimTypes.data?.truncated;
 
   return (
     <div className="space-y-3">
@@ -237,9 +225,17 @@ function FlowCell({
 
   if (node.kind === "source") {
     return (
-      <div style={style} className={`${base} border border-zinc-800 bg-zinc-900/60 px-2 text-[12px]`} title={node.label} {...hover}>
-        <span className="truncate font-mono text-zinc-300">{node.label}</span>
-        <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
+      <div
+        style={style}
+        className={`${base} flex-col items-stretch justify-center gap-0 border border-zinc-800 bg-zinc-900/60 px-2 leading-4`}
+        title={node.detail ? `${node.label}: ${node.detail}` : node.label}
+        {...hover}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="truncate font-mono text-[12px] text-zinc-300">{node.label}</span>
+          <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
+        </div>
+        {node.detail && <div className="truncate text-[11px] text-zinc-500">{node.detail}</div>}
       </div>
     );
   }
@@ -257,7 +253,7 @@ function FlowCell({
           </Link>
           <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
         </div>
-        <div className="truncate text-[11px] text-zinc-500" title={producers.length ? `captured by ${producers.join(", ")}` : undefined}>
+        <div className="truncate text-[11px] text-zinc-500" title={producers.length ? `retained by ${producers.join(", ")}` : undefined}>
           {node.detail ?? "not in the contracts section"}
           {producers.length > 0 && (
             <>
@@ -279,7 +275,12 @@ function FlowCell({
   if (node.kind === "trigger") {
     const target = node.detail ?? "";
     return (
-      <div style={style} className={`${base} flex-col items-stretch justify-center gap-0 border-l-2 border-sky-700/70 pl-2 leading-4`} {...hover}>
+      <div
+        style={style}
+        className={`${base} flex-col items-stretch justify-center gap-0 border-l-2 border-sky-700/70 pl-2 leading-4`}
+        title={node.sources?.length ? `fires on landings from ${node.sources.join(", ")}` : "fires on any landing under its contract"}
+        {...hover}
+      >
         <div className="flex items-center gap-1.5">
           <RefLink value={`Trigger:${node.label}`} className="truncate">
             <span className="font-mono text-[12px]">{node.label}</span>

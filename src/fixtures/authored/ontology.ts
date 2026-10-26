@@ -46,42 +46,52 @@ const pin = (source: string, role: string, target: string, current: boolean | nu
 });
 const OSV = "CaptureContract:security.osv-applicability-v1";
 const KEV = "CaptureContract:security.kev-http-v1";
-const GATE = "Provider:security-gate-sources/" + "d".repeat(64);
-const ANALYSIS = "Provider:security-analysis-provider/" + "f".repeat(64);
+const FETCH = "ProviderInterface:web.fetch/v3";
+const OSV_QUERY = "ProviderInterface:security.osv-query/v1";
+const DECIDE = "ProviderInterface:security.cve-applicability/v1";
+const KEV_PARSE = "ProviderInterface:security.kev-catalog/v2";
 
 const OSV_CARD: Schemas["GetCaptureContractCard"] = {
   contract: OSV,
   version: 1,
   lifecycle: "live",
-  captures: { sources: ["osv.query"], evidence_kinds: ["http_response"], grade: "observed", source_kinds: ["external"] },
+  captures: { grade: "observed", source_kinds: ["external"] },
   admitted_by: ["security.assessment.status"],
 };
 const KEV_CARD: Schemas["GetCaptureContractCard"] = {
   contract: KEV,
   version: 1,
   lifecycle: "live",
-  captures: { sources: ["cisa.kev.catalog"], evidence_kinds: ["http_response"], grade: "observed", source_kinds: ["external"] },
+  captures: { grade: "observed", source_kinds: ["external"] },
   admitted_by: ["security.vulnerability.kev_listed"],
 };
 
-/** Definition pins, by source as the section pages them. */
+/**
+ * Definition pins, by source as the section pages them (compiler revision 36:
+ * Lines and Triggers pin the contract they name under `capture-contract`,
+ * Procedures pin the interfaces their slots take under `provider-interface`).
+ */
 export const PINS: Schemas["OrientPin"][] = [
-  pin("Blueprint:security.osv-acquire", "capture-contract", OSV),
+  pin("Line:cve-applicability", "capture-contract", OSV),
   pin("Line:cve-applicability", "procedure", "Procedure:security.cve-applicability"),
-  pin("Line:cve-applicability", "trigger-capture-contract", OSV),
+  pin("Line:kev-triage", "capture-contract", KEV),
   pin("Line:kev-triage", "procedure", "Procedure:security.kev-triage"),
   pin("Procedure:security.cve-applicability", "capture-contract", OSV),
-  pin("Procedure:security.cve-applicability", "provider", ANALYSIS, null),
+  pin("Procedure:security.cve-applicability", "provider-interface", DECIDE),
+  pin("Procedure:security.cve-applicability", "provider-interface", OSV_QUERY),
   pin("Procedure:security.kev-acquire", "capture-contract", KEV),
-  pin("Procedure:security.kev-acquire", "provider", GATE, null),
+  pin("Procedure:security.kev-acquire", "provider-interface", FETCH),
+  pin("Procedure:security.kev-triage", "capture-contract", KEV),
+  pin("Procedure:security.kev-triage", "provider-interface", FETCH),
+  pin("Procedure:security.kev-triage", "provider-interface", KEV_PARSE),
   pin("Procedure:security.osv-acquire", "capture-contract", OSV),
-  pin("Procedure:security.osv-acquire", "provider", GATE, null),
+  pin("Procedure:security.osv-acquire", "provider-interface", OSV_QUERY),
   pin("ProcedureMandate:security.kev-settle", "claim-type", "ClaimType:security.assessment.status"),
   pin("ProcedureMandate:security.kev-settle", "procedure", "Procedure:security.kev-triage"),
   pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.assessment.status"),
   pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.vulnerability.kev_listed", false),
-  pin("Trigger:security.kev-landed", "trigger-capture-contract", KEV),
-  pin("Trigger:security.osv-landed", "trigger-capture-contract", OSV),
+  pin("Trigger:security.kev-landed", "capture-contract", KEV),
+  pin("Trigger:security.osv-landed", "capture-contract", OSV),
 ];
 
 export default [
@@ -119,10 +129,23 @@ export default [
         { name: "schedule", type: "enum" },
         { name: "target", type: "string" },
         { name: "capture_contract", type: "string" },
+        { name: "logical_sources", type: "string", cardinality: "many" },
       ],
       rows: [
-        { name: "security.osv-landed", schedule: "capture_landing", target: "Line:cve-applicability", capture_contract: "CaptureContract:security.osv-applicability-v1" },
-        { name: "security.kev-landed", schedule: "capture_landing", target: "Line:kev-triage", capture_contract: "CaptureContract:security.kev-http-v1" },
+        {
+          name: "security.osv-landed",
+          schedule: "capture_landing",
+          target: "Line:cve-applicability",
+          capture_contract: "CaptureContract:security.osv-applicability-v1",
+          logical_sources: ["osv.query"],
+        },
+        {
+          name: "security.kev-landed",
+          schedule: "capture_landing",
+          target: "Line:kev-triage",
+          capture_contract: "CaptureContract:security.kev-http-v1",
+          logical_sources: ["cisa.kev.catalog"],
+        },
       ],
       receipt: { mode: "inline", spec_digest: "sha256:" + "e".repeat(64), coordinate: COORDINATE, evaluation_time: NOW },
     },

@@ -134,8 +134,9 @@ export const GET_BATCH_MAX = 64;
 export function getBatchBody(
   refs: string[],
   coordinate: AcceptedCoordinate,
+  detail: "summary" | "proof" = "summary",
 ): RequestBody<"/api/v1/{instance_id}/get-batch", "post"> {
-  return { refs, detail: "summary", at: coordinate, surface: "sdk", subject_suggestions: false };
+  return { refs, detail, at: coordinate, surface: "sdk", subject_suggestions: false };
 }
 
 export type QueryArgs = Omit<RequestBody<"/api/v1/{instance_id}/query", "post">, "at" | "evaluation_time">;
@@ -144,7 +145,7 @@ export type QueryArgs = Omit<RequestBody<"/api/v1/{instance_id}/query", "post">,
 export const LANDING_TRIGGERS_QUERY: QueryArgs = {
   kind: "Trigger",
   where: [{ field: "schedule", eq: "capture_landing" }],
-  select: ["name", "schedule", "target", "capture_contract"],
+  select: ["name", "schedule", "target", "capture_contract", "logical_sources"],
   limit: 500,
 };
 

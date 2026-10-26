@@ -7,6 +7,7 @@ import { defineFixture } from "../fixture";
 import { getBatchBody, getBody, inboxQuery, LINE_RUNS_PAGE, orientQuery, readingsBody } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./world";
+import { KEV_TRIAGE_SPEC, procedureCard } from "./definitions";
 
 const ORIENT_PAGE = 500;
 const KEV = "kev-triage";
@@ -150,10 +151,7 @@ export default [
     [`Procedure:${PROCEDURE}`],
     [
       result(`Procedure:${PROCEDURE}`, "procedure", {
-        procedure: PROCEDURE,
-        description: "Triage newly KEV-listed CVEs against shipped releases.",
-        inputs: {},
-        runnable: "line",
+        ...procedureCard(KEV_TRIAGE_SPEC),
         track_record: [
           {
             promotion: "kev-triage-agreement",

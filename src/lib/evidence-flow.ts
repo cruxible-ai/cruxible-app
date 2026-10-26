@@ -6,6 +6,13 @@ import type { OrientPredicate } from "../api/schemas.ts";
  * and what each contract feeds: the Triggers its landings fire (and the
  * Lines they start) and the ClaimTypes that admit it as evidence.
  *
+ * Contracts no longer list their sources (compiler revision 36): a source
+ * node is a logical source the definitions name, from the source steps that
+ * retain it and the landing Triggers that select it (lib/definitions). A
+ * Trigger that selects logical sources fires only on their landings, so its
+ * edge from the contract carries them, and tracing from a source follows
+ * only the Triggers that select it (or select none).
+ *
  * Layered, not force-directed: every edge runs one column to the right, so
  * the page reads left to right and stays legible at ontology size (the gate
  * world: 14 contracts, 12 landing Triggers, 42 evidence-taking ClaimTypes of
@@ -22,13 +29,15 @@ export interface FlowNode {
   kind: FlowNodeKind;
   /** Display label: a source id, contract name, Trigger name or ClaimType short name. */
   label: string;
-  /** contract: grade; trigger: the Line it starts; claim_type: predicate. */
+  /** source: who retains it, in words; contract: grade; trigger: the Line it starts; claim_type: predicate. */
   detail?: string;
+  /** trigger: the logical sources it selects (none: any landing under its contract). */
+  sources?: string[];
   /** claim_type: its first Subject kind (the group it renders under). */
   group?: string;
   /** claim_type: a Capture under one of its contracts is required. */
   required?: boolean;
-  /** contract: Procedures and Blueprints that capture under it (pins). */
+  /** contract: the Procedures that retain Captures under it. */
   producers?: string[];
   /** trigger: the Line's max authority. */
   authority?: string;
@@ -39,6 +48,8 @@ export interface FlowEdge {
   to: string;
   /** contract -> claim_type where the ClaimType requires a Capture. */
   required?: boolean;
+  /** contract -> trigger: the logical sources whose landings fire it (absent: any). */
+  sources?: string[];
 }
 
 export interface FlowModel {
@@ -49,14 +60,14 @@ export interface FlowModel {
 export interface FlowInputs {
   /** Contract names (bare), from the capture_contracts section. */
   contracts: { name: string; grade?: string | undefined }[];
-  /** Logical source ids per contract name (the contract card's `captures.sources`). */
-  sources: ReadonlyMap<string, readonly string[]>;
+  /** Logical sources: id, the bare contract names it is captured under, who retains it (words). */
+  sources: readonly { id: string; contracts: readonly string[]; retainedBy?: string | undefined }[];
   claimTypes: readonly OrientPredicate[];
-  /** Capture-landing Triggers: name, bare contract name, target ref. */
-  triggers: { name: string; contract: string; target: string }[];
+  /** Capture-landing Triggers: name, bare contract name, target ref, the logical sources it selects. */
+  triggers: { name: string; contract: string; target: string; logicalSources?: readonly string[] }[];
   /** Max authority per bare Line name. */
   lineAuthority?: ReadonlyMap<string, string>;
-  /** Producers per bare contract name. */
+  /** Retaining Procedures per bare contract name. */
   producers?: ReadonlyMap<string, readonly string[]>;
 }
 
@@ -88,13 +99,11 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     }
     return id;
   };
-  for (const row of [...inputs.contracts].sort((a, b) => byText(a.name, b.name))) {
-    const id = contract(row.name, row.grade);
-    for (const source of inputs.sources.get(row.name) ?? []) {
-      const sid = nodeId.source(source);
-      if (!nodes.has(sid)) nodes.set(sid, { id: sid, kind: "source", label: source });
-      edges.push({ from: sid, to: id });
-    }
+  for (const row of [...inputs.contracts].sort((a, b) => byText(a.name, b.name))) contract(row.name, row.grade);
+  for (const source of [...inputs.sources].sort((a, b) => byText(a.id, b.id))) {
+    const sid = nodeId.source(source.id);
+    nodes.set(sid, { id: sid, kind: "source", label: source.id, ...(source.retainedBy ? { detail: source.retainedBy } : {}) });
+    for (const name of [...source.contracts].sort(byText)) edges.push({ from: sid, to: contract(bareContract(name)) });
   }
   for (const trigger of [...inputs.triggers].sort((a, b) => byText(a.name, b.name))) {
     const name = bareContract(trigger.contract);
@@ -102,8 +111,16 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     const id = nodeId.trigger(trigger.name);
     const line = trigger.target.replace(/^Line:/, "");
     const authority = inputs.lineAuthority?.get(line);
-    nodes.set(id, { id, kind: "trigger", label: trigger.name, detail: trigger.target, ...(authority ? { authority } : {}) });
-    edges.push({ from: contract(name), to: id });
+    const sources = [...(trigger.logicalSources ?? [])].sort(byText);
+    nodes.set(id, {
+      id,
+      kind: "trigger",
+      label: trigger.name,
+      detail: trigger.target,
+      ...(authority ? { authority } : {}),
+      ...(sources.length ? { sources } : {}),
+    });
+    edges.push({ from: contract(name), to: id, ...(sources.length ? { sources } : {}) });
   }
   for (const row of [...inputs.claimTypes].sort((a, b) => byText(a.predicate, b.predicate))) {
     const evidence = row.evidence ?? [];
@@ -126,7 +143,9 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
 /**
  * The nodes a focus keeps: the node, everything upstream of it and everything
  * downstream (not its siblings). A `kind:` focus keeps that kind's ClaimTypes
- * and their upstream.
+ * and their upstream. Logical sources narrow the Trigger edges: downstream of
+ * a source, a Trigger that selects other sources is not kept; upstream of a
+ * Trigger that selects sources, only those sources are.
  */
 export function related(model: FlowModel, focus: string): Set<string> {
   const keep = new Set<string>();
@@ -147,9 +166,22 @@ export function related(model: FlowModel, focus: string): Set<string> {
       }
     }
   };
-  const ups = (id: string) => model.edges.filter((e) => e.to === id).map((e) => e.from);
-  const downs = (id: string) => model.edges.filter((e) => e.from === id).map((e) => e.to);
+  const byId = new Map(model.nodes.map((n) => [n.id, n] as const));
   for (const seed of seeds) {
+    const node = byId.get(seed);
+    // A source seed fires only the Triggers that select it (or select none).
+    const fromSource = node?.kind === "source" ? node.label : null;
+    // A Trigger seed that selects sources is reached only from those sources.
+    const toSources = node?.kind === "trigger" && node.sources?.length ? new Set(node.sources) : null;
+    const ups = (id: string) =>
+      model.edges
+        .filter((e) => e.to === id)
+        .map((e) => e.from)
+        .filter((from) => !toSources || byId.get(from)?.kind !== "source" || toSources.has(byId.get(from)!.label));
+    const downs = (id: string) =>
+      model.edges
+        .filter((e) => e.from === id && (!fromSource || !e.sources || e.sources.includes(fromSource)))
+        .map((e) => e.to);
     keep.add(seed);
     walk(seed, ups);
     walk(seed, downs);
@@ -200,7 +232,7 @@ export const COLUMNS = [
 ] as const;
 
 const HEIGHT: Record<PlacedKind, number> = {
-  source: 26,
+  source: 38,
   contract: 44,
   trigger: 38,
   claim_type: 18,

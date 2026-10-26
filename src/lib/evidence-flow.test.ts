@@ -18,11 +18,13 @@ const INPUTS: FlowInputs = {
     { name: "repo-v1", grade: "observed" },
     { name: "lonely-v1", grade: "observed" },
   ],
-  sources: new Map([
-    ["kev-v1", ["cisa.kev"]],
-    ["repo-v1", ["github.repo", "github.api"]],
-    ["lonely-v1", ["doc"]],
-  ]),
+  // Logical sources, from the steps that retain them and the Triggers that select them.
+  sources: [
+    { id: "cisa.kev", contracts: ["kev-v1"], retainedBy: "retained by Line kev-daily" },
+    { id: "github.repo", contracts: ["repo-v1"] },
+    { id: "github.api", contracts: ["repo-v1"] },
+    { id: "doc", contracts: ["lonely-v1"] },
+  ],
   claimTypes: [
     ct("sec.vuln.kev_listed", ["kev-v1"], true),
     ct("sec.vuln.title", ["kev-v1", "repo-v1"]),
@@ -31,8 +33,9 @@ const INPUTS: FlowInputs = {
     ct("sec.job.ghost", ["unlisted-v1"]),
   ],
   triggers: [
-    { name: "kev-landed", contract: "CaptureContract:kev-v1", target: "Line:kev-triage" },
+    { name: "kev-landed", contract: "CaptureContract:kev-v1", target: "Line:kev-triage", logicalSources: ["cisa.kev"] },
     { name: "repo-landed", contract: "CaptureContract:repo-v1", target: "Line:repo-parse" },
+    { name: "api-landed", contract: "CaptureContract:repo-v1", target: "Line:api-parse", logicalSources: ["github.api"] },
   ],
   lineAuthority: new Map([["kev-triage", "settle"]]),
   producers: new Map([["kev-v1", ["Procedure:kev-acquire"]]]),
@@ -53,6 +56,29 @@ describe("evidence flow model", () => {
     expect(model.edges).toContainEqual({ from: nodeId.contract("repo-v1"), to: nodeId.claimType("sec.vuln.title") });
     expect(model.nodes.find((n) => n.id === nodeId.trigger("kev-landed"))).toMatchObject({ detail: "Line:kev-triage", authority: "settle" });
     expect(model.nodes.find((n) => n.id === nodeId.contract("kev-v1"))?.producers).toEqual(["Procedure:kev-acquire"]);
+  });
+
+  it("draws a source node per logical source, with who retains it, and Trigger edges carrying their selection", () => {
+    expect(model.nodes.find((n) => n.id === nodeId.source("cisa.kev"))).toMatchObject({ kind: "source", detail: "retained by Line kev-daily" });
+    expect(model.edges).toContainEqual({ from: nodeId.source("github.api"), to: nodeId.contract("repo-v1") });
+    expect(model.edges).toContainEqual({ from: nodeId.contract("repo-v1"), to: nodeId.trigger("api-landed"), sources: ["github.api"] });
+    expect(model.edges).toContainEqual({ from: nodeId.contract("repo-v1"), to: nodeId.trigger("repo-landed") });
+    expect(model.nodes.find((n) => n.id === nodeId.trigger("api-landed"))?.sources).toEqual(["github.api"]);
+  });
+
+  it("traces a source only into the Triggers that select it, and a selecting Trigger only back to its sources", () => {
+    const repo = related(model, nodeId.source("github.repo"));
+    expect(repo.has(nodeId.trigger("repo-landed"))).toBe(true); // selects any landing
+    expect(repo.has(nodeId.trigger("api-landed"))).toBe(false); // selects github.api only
+    expect(repo.has(nodeId.claimType("sec.job.uses"))).toBe(true);
+    const api = related(model, nodeId.trigger("api-landed"));
+    expect(api.has(nodeId.source("github.api"))).toBe(true);
+    expect(api.has(nodeId.source("github.repo"))).toBe(false);
+    // a contract still traces to every source and Trigger it carries
+    const contract = related(model, nodeId.contract("repo-v1"));
+    for (const id of [nodeId.source("github.repo"), nodeId.source("github.api"), nodeId.trigger("api-landed"), nodeId.trigger("repo-landed")]) {
+      expect(contract.has(id)).toBe(true);
+    }
   });
 
   it("a focus keeps upstream and downstream, never siblings", () => {

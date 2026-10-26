@@ -1,0 +1,314 @@
+// Relative .ts imports: scripts/record-fixtures.ts may run this under Node.
+import type { Schemas } from "../api/schemas.ts";
+
+/**
+ * Definitions as authored (compiler revision 36, light artifacts): a
+ * Procedure's authored form (`GetProcedureCard.authored`, typed
+ * ProcedureSpec), a Line's envelope (served only through `get detail=proof`,
+ * untyped: read here with runtime checks), and the capture-landing Triggers
+ * with the logical sources they select. From these the console derives where
+ * evidence comes from, the way the kit reference does: a logical source is
+ * retained by the source steps that name it (literally, or through a Line
+ * parameter the step takes from `$input.`), and selected by the landing
+ * Triggers that name it. Contracts no longer list their sources.
+ *
+ * Nothing here guesses a fact the daemon does not serve: a source step whose
+ * logical source the Provider names (no `logical_source` in its request) has
+ * no source here, and its retention says so.
+ */
+
+export type ProcedureSpec = Schemas["ProcedureSpec"];
+export type ProcedureStep = ProcedureSpec["steps"][number];
+
+/** The step kinds of an authored Procedure, by the key that names each. */
+export const STEP_KINDS = [
+  "source",
+  "emit",
+  "tap",
+  "call",
+  "invoke",
+  "claim",
+  "project",
+  "transform",
+  "select",
+  "guard",
+  "repeat",
+  "inbox",
+  "propose",
+  "settle",
+  "halt",
+  "explicit",
+] as const;
+export type StepKind = (typeof STEP_KINDS)[number];
+
+export function stepKind(step: ProcedureStep): StepKind {
+  for (const kind of STEP_KINDS) if (kind in step) return kind;
+  return "explicit";
+}
+
+const str = (value: unknown): string | null => (typeof value === "string" && value !== "" ? value : null);
+const record = (value: unknown): Record<string, unknown> | null =>
+  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+
+/** A request's logical source: a literal, or the run input field it is given. */
+export type LogicalSourceRef = { literal: string } | { input: string };
+
+export function logicalSourceRef(request: unknown): LogicalSourceRef | null {
+  const raw = str(record(request)?.logical_source);
+  if (raw === null) return null;
+  return raw.startsWith("$input.") ? { input: raw.slice("$input.".length) } : { literal: raw };
+}
+
+/**
+ * One step as the definition panels show it: what it is and the definitions
+ * it names (contracts, interfaces, queries, ClaimTypes, by name).
+ */
+export interface StepView {
+  id: string;
+  kind: StepKind;
+  /** The step's alias or name (source alias, call alias, tap name, …). */
+  name: string | null;
+  contract: string | null;
+  interface: string | null;
+  /** The slot its Provider binds through (source and call steps). */
+  slot: string | null;
+  query: string | null;
+  claimType: string | null;
+  procedure: string | null;
+  logicalSource: LogicalSourceRef | null;
+  /** guard: the condition; halt: the reason; settle/propose: what it writes. */
+  detail: string | null;
+}
+
+export function stepView(step: ProcedureStep, index: number): StepView {
+  const kind = stepKind(step);
+  const s = step as Record<string, unknown>;
+  const name = str(s[kind]);
+  const view: StepView = {
+    id: str(s.id) ?? name ?? `step_${index + 1}`,
+    kind,
+    name,
+    contract: null,
+    interface: str(s.interface),
+    slot: kind === "source" || kind === "call" ? (str(s.provider) ?? name) : null,
+    query: null,
+    claimType: null,
+    procedure: null,
+    logicalSource: null,
+    detail: null,
+  };
+  if (kind === "source") {
+    view.contract = str(s.contract);
+    view.logicalSource = logicalSourceRef(s.request);
+  } else if (kind === "emit") {
+    view.contract = name;
+    view.name = null;
+  } else if (kind === "tap") {
+    view.query = str(s.query);
+  } else if (kind === "claim") {
+    view.claimType = str(s.claim_type);
+  } else if (kind === "invoke") {
+    view.procedure = name;
+    view.name = str(s.as);
+  } else if (kind === "guard") {
+    view.detail = [name, str(s.refusal_code) && `refuses ${str(s.refusal_code)}`].filter(Boolean).join(" · ") || null;
+    view.name = null;
+  } else if (kind === "halt") {
+    view.detail = name;
+    view.name = null;
+  } else if (kind === "settle" || kind === "propose") {
+    view.detail = typeof s[kind] === "string" ? (s[kind] as string) : `${(s[kind] as unknown[]).length} changes`;
+    view.name = null;
+  } else if (kind === "select" || kind === "project" || kind === "transform") {
+    view.contract = str(s.contract) ?? str(s.contract_out);
+  }
+  return view;
+}
+
+/** A Procedure's slots: slot name -> the interface (and major) it takes. */
+export function procedureSlots(spec: ProcedureSpec): { slot: string; interface: string }[] {
+  return Object.entries(spec.slots ?? {})
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    .map(([slot, iface]) => ({ slot, interface: iface }))
+    .sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : 0));
+}
+
+/** The ProviderInterface ref a slot's `name@major` names (`name/vmajor`), as get resolves it. */
+export function slotInterfaceRef(value: string): string {
+  const at = value.lastIndexOf("@");
+  return at > 0 ? `ProviderInterface:${value.slice(0, at)}/v${value.slice(at + 1)}` : `ProviderInterface:${value}`;
+}
+
+// -- source steps and retentions ------------------------------------------------
+
+/** One step that retains (source) or emits a Capture under a contract. */
+export interface SourceStep {
+  procedure: string;
+  /** The source step's alias (what a Line's trigger_input names); null for an emit. */
+  alias: string | null;
+  contract: string;
+  interface: string | null;
+  logicalSource: LogicalSourceRef | null;
+  emitted: boolean;
+}
+
+export function sourceSteps(procedure: string, spec: ProcedureSpec): SourceStep[] {
+  const out: SourceStep[] = [];
+  for (const step of spec.steps) {
+    const s = step as Record<string, unknown>;
+    if ("source" in s && str(s.contract)) {
+      out.push({
+        procedure,
+        alias: str(s.source),
+        contract: str(s.contract)!,
+        interface: str(s.interface),
+        logicalSource: logicalSourceRef(s.request),
+        emitted: false,
+      });
+    } else if ("emit" in s && str(s.emit)) {
+      out.push({ procedure, alias: null, contract: str(s.emit)!, interface: null, logicalSource: null, emitted: true });
+    }
+  }
+  return out;
+}
+
+/** A Line as authored: its envelope (get detail=proof), read with runtime checks. */
+export interface LineDefinition {
+  line: string;
+  procedure: string;
+  parameters: Record<string, unknown>;
+  /** The source step alias that reads the Capture whose landing started the run. */
+  triggerInput: string | null;
+  /** The contract the trigger input reads (envelope trigger_event). */
+  triggerContract: string | null;
+  /** Explicit slot bindings: slot -> Provider build; empty when the slots bind by fit. */
+  bindings: Record<string, string>;
+  acquisitionPolicy: string | null;
+  maxAuthority: string | null;
+  occurrenceEpoch: number | null;
+}
+
+const targetName = (value: unknown): string | null => str(record(record(value)?.target)?.name);
+
+/** A Line's definition from its `get detail=proof` payload; null when it is not a Line envelope. */
+export function readLineEnvelope(proof: unknown): LineDefinition | null {
+  const envelope = record(record(proof)?.envelope);
+  if (!envelope) return null;
+  const line = str(record(envelope.identity)?.name);
+  const procedure = targetName(envelope.procedure);
+  if (!line || !procedure) return null;
+  const bindings: Record<string, string> = {};
+  for (const [slot, ref] of Object.entries(record(envelope.bindings) ?? {})) {
+    const name = targetName(ref);
+    if (name) bindings[slot] = name;
+  }
+  return {
+    line,
+    procedure,
+    parameters: record(envelope.parameters) ?? {},
+    triggerInput: str(envelope.trigger_input),
+    triggerContract: str(record(record(envelope.trigger_event)?.capture_contract_identity)?.name),
+    bindings,
+    acquisitionPolicy: targetName(envelope.acquisition_policy),
+    maxAuthority: str(envelope.max_authority),
+    occurrenceEpoch: typeof envelope.occurrence_epoch === "number" ? envelope.occurrence_epoch : null,
+  };
+}
+
+/** One Capture a run retains: its contract and logical source, and who runs it. */
+export interface Retention {
+  contract: string;
+  /** The logical source; null when the run's Provider names it (or the run emits its output). */
+  source: string | null;
+  procedure: string;
+  /** The Line that runs it; null for a direct run. */
+  line: string | null;
+  emitted: boolean;
+  /** The input field a direct run is given its logical source by (`$input.<field>`). */
+  given: string | null;
+}
+
+/**
+ * Every Capture a run retains: a source step no Line feeds from its landing
+ * (one per Line running the Procedure, else one direct run), and every emit.
+ * A Line's `$input.` logical source resolves through its parameters.
+ */
+export function retentions(steps: readonly SourceStep[], lines: readonly LineDefinition[]): Retention[] {
+  const out: Retention[] = [];
+  for (const step of steps) {
+    const running = lines.filter((line) => line.procedure === step.procedure).sort((a, b) => (a.line < b.line ? -1 : 1));
+    const runs: (LineDefinition | null)[] = running.length ? running : [null];
+    for (const line of runs) {
+      if (line && line.triggerInput !== null && line.triggerInput === step.alias) continue;
+      const ref = step.logicalSource;
+      let source: string | null = null;
+      let given: string | null = null;
+      if (ref && "literal" in ref) source = ref.literal;
+      else if (ref && "input" in ref) {
+        const value = line?.parameters[ref.input];
+        if (typeof value === "string" && value) source = value;
+        else given = ref.input;
+      }
+      out.push({ contract: step.contract, source, procedure: step.procedure, line: line?.line ?? null, emitted: step.emitted, given });
+    }
+  }
+  return out;
+}
+
+/** A capture-landing Trigger: the contract whose landings fire it, the logical sources it selects, its target. */
+export interface LandingTrigger {
+  name: string;
+  contract: string;
+  target: string;
+  /** Empty: any landing under the contract fires it. */
+  logicalSources: string[];
+}
+
+/** One logical source: the contracts it is captured under, who retains it, and the Triggers that select it. */
+export interface LogicalSource {
+  id: string;
+  contracts: string[];
+  retainedBy: Retention[];
+  selectedBy: LandingTrigger[];
+}
+
+export function logicalSources(all: readonly Retention[], triggers: readonly LandingTrigger[]): LogicalSource[] {
+  const byId = new Map<string, LogicalSource>();
+  const entry = (id: string) => {
+    let found = byId.get(id);
+    if (!found) {
+      found = { id, contracts: [], retainedBy: [], selectedBy: [] };
+      byId.set(id, found);
+    }
+    return found;
+  };
+  const addContract = (source: LogicalSource, contract: string) => {
+    if (!source.contracts.includes(contract)) source.contracts.push(contract);
+  };
+  for (const retention of all) {
+    if (retention.source === null) continue;
+    const source = entry(retention.source);
+    source.retainedBy.push(retention);
+    addContract(source, retention.contract);
+  }
+  for (const trigger of triggers) {
+    for (const id of trigger.logicalSources) {
+      const source = entry(id);
+      source.selectedBy.push(trigger);
+      addContract(source, trigger.contract);
+    }
+  }
+  return [...byId.values()]
+    .map((source) => ({ ...source, contracts: [...source.contracts].sort() }))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/** Who retains, in words: the Lines that run it, then the direct runs. */
+export function retainedByWords(all: readonly Retention[]): string {
+  const lines = [...new Set(all.filter((r) => r.line).map((r) => r.line!))].sort();
+  const direct = [...new Set(all.filter((r) => !r.line).map((r) => r.procedure))].sort();
+  const parts = [];
+  if (lines.length) parts.push(`${lines.length === 1 ? "Line" : "Lines"} ${lines.join(", ")}`);
+  if (direct.length) parts.push(`a direct ${direct.join(" or ")} run`);
+  return parts.join(" or ") || "nothing defined here";
+}

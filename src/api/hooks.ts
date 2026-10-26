@@ -37,9 +37,19 @@ import type {
   OrientSection,
   ProposalStatus,
 } from "./schemas";
+import { cardOf } from "./schemas";
 import { useAtParam } from "@/lib/at";
 import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
 import { ontologyKinds } from "@/lib/type-graph";
+import {
+  logicalSources,
+  readLineEnvelope,
+  retentions,
+  sourceSteps,
+  type LandingTrigger,
+  type ProcedureSpec,
+} from "@/lib/definitions";
+import { lineName } from "@/lib/lines";
 
 /**
  * Read hooks over the playbill daemon. Every state read is pinned to one
@@ -203,7 +213,7 @@ export function useOntologyKinds() {
 
 /** All rows of one paged orient section, following next_cursor. */
 function useOrientSectionAll<
-  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins",
+  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins" | "procedures" | "interfaces",
 >(
   section: K,
   enabled = true,
@@ -236,6 +246,16 @@ export function useSubjectKinds(enabled = true) {
   return useOrientSectionAll("subject_kinds", enabled);
 }
 
+/** Every Procedure (name, lifecycle, how it runs). */
+export function useProcedures(enabled = true) {
+  return useOrientSectionAll("procedures", enabled);
+}
+
+/** Every ProviderInterface with its installed Provider builds. */
+export function useInterfaces(enabled = true) {
+  return useOrientSectionAll("interfaces", enabled);
+}
+
 /** Every Line (lifecycle, procedure, authority, trigger, enablement). */
 export function useLines(enabled = true) {
   return useOrientSectionAll("lines", enabled);
@@ -266,6 +286,60 @@ export function usePins(enabled = true) {
  */
 export function useLandingTriggers() {
   return useStateQuery(LANDING_TRIGGERS_QUERY);
+}
+
+const cellText = (value: unknown) => (typeof value === "string" ? value : "");
+const cellList = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
+
+/**
+ * Where evidence comes from (compiler revision 36): every Procedure's authored
+ * form (one get-batch per 64 Procedures), every Line's envelope (get-batch
+ * detail=proof: parameters, trigger input, bindings), and the capture-landing
+ * Triggers with the logical sources they select, joined into retentions and
+ * logical sources (lib/definitions). Ontology-sized: Procedures, Lines,
+ * Triggers.
+ */
+export function useSourceModel(enabled = true) {
+  const procedures = useProcedures(enabled);
+  const lines = useLines(enabled);
+  const triggers = useStateQuery(enabled ? LANDING_TRIGGERS_QUERY : null);
+  const procedureCards = useGetBatch((procedures.data?.rows ?? []).map((row) => `Procedure:${row.name.replace(/^Procedure:/, "")}`));
+  const lineProofs = useGetBatch((lines.data?.rows ?? []).map((row) => `Line:${lineName(row.line)}`), "proof");
+  const pending =
+    procedures.isPending || lines.isPending || triggers.isPending || procedureCards.isPending || lineProofs.isPending;
+  const data = useMemo(() => {
+    if (pending || !procedures.data || !lines.data || !triggers.data) return undefined;
+    const specs = new Map<string, ProcedureSpec>();
+    for (const result of procedureCards.results) {
+      const card = cardOf(result, "procedure");
+      if (card?.authored) specs.set(card.procedure.replace(/^Procedure:/, ""), card.authored);
+    }
+    const lineDefinitions = lineProofs.results.flatMap((result) => {
+      const line = readLineEnvelope(result.proof);
+      return line ? [line] : [];
+    });
+    const landing: LandingTrigger[] = triggers.data.rows.map((row) => ({
+      name: cellText(row.name),
+      contract: cellText(row.capture_contract).replace(/^CaptureContract:/, ""),
+      target: cellText(row.target),
+      logicalSources: cellList(row.logical_sources),
+    }));
+    const all = retentions([...specs].flatMap(([name, spec]) => sourceSteps(name, spec)), lineDefinitions);
+    return {
+      specs,
+      lines: lineDefinitions,
+      triggers: landing,
+      retentions: all,
+      sources: logicalSources(all, landing),
+      truncated:
+        procedures.data.truncated || lines.data.truncated || (triggers.data.capped?.length ?? 0) > 0 || triggers.data.truncated === true,
+    };
+  }, [pending, procedures.data, lines.data, triggers.data, procedureCards.results, lineProofs.results]);
+  return {
+    isPending: pending,
+    error: procedures.error ?? lines.error ?? triggers.error ?? procedureCards.error ?? lineProofs.error,
+    data,
+  };
 }
 
 /** One kind's detail: incoming predicates and sample Subject ids. */
@@ -322,7 +396,7 @@ export function useGet(
  * route also pins every ref to the first result's coordinate). Results keep
  * the order of `refs`.
  */
-export function useGetBatch(refs: string[]) {
+export function useGetBatch(refs: string[], detail: "summary" | "proof" = "summary") {
   const client = useApiClient();
   const instanceId = useInstanceId();
   const { coordinate } = usePin();
@@ -330,14 +404,14 @@ export function useGetBatch(refs: string[]) {
   for (let i = 0; i < refs.length; i += GET_BATCH_MAX) chunks.push(refs.slice(i, i + GET_BATCH_MAX));
   return useQueries({
     queries: chunks.map((chunk) => ({
-      queryKey: ["get-batch", instanceId, coordinate?.git_oid ?? null, chunk],
+      queryKey: ["get-batch", instanceId, coordinate?.git_oid ?? null, detail, chunk],
       enabled: coordinate !== undefined,
       staleTime: 60_000,
       queryFn: async () =>
         unwrap(
           await client.POST("/api/v1/{instance_id}/get-batch", {
             params: { path: { instance_id: instanceId } },
-            body: getBatchBody(chunk, coordinate!),
+            body: getBatchBody(chunk, coordinate!, detail),
           }),
         ),
     })),

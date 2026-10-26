@@ -79,7 +79,9 @@ describe("Contract page", () => {
     renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
     expect(await screen.findByRole("heading", { name: "security.osv-applicability-v1" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
-    expect(main.getByText("osv.query")).toBeInTheDocument();
+    // Contracts no longer list sources: the logical source comes from the step that retains it.
+    expect(await main.findByText("osv.query")).toBeInTheDocument();
+    expect(main.getByText("retained by a direct security.osv-acquire run · selected by security.osv-landed", { exact: false })).toBeInTheDocument();
     expect(main.getByText("fetched from outside")).toBeInTheDocument();
     expect(await main.findByText("security.osv-landed")).toBeInTheDocument();
     for (const line of main.getAllByRole("link", { name: "cve-applicability" })) {
@@ -93,13 +95,14 @@ describe("Contract page", () => {
     expect(main.getByText("required")).toBeInTheDocument();
   });
 
-  it("names the Procedures and Blueprints that capture under it, from their pins", async () => {
+  it("names the Procedures that capture under it, from their pins, and which retain and which read its landings", async () => {
     renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
     const main = within(await screen.findByRole("main"));
     const panel = within((await main.findByText("Captured under it by")).closest("section")!);
-    expect(await panel.findByRole("link", { name: "Blueprint:security.osv-acquire" })).toBeInTheDocument();
-    expect(panel.getByRole("link", { name: "Procedure:security.osv-acquire" })).toBeInTheDocument();
-    expect(panel.getByRole("link", { name: "security-gate-sources" })).toBeInTheDocument();
+    // Blueprints are folded into slotted Procedures: a Procedure pins the interfaces its slots take.
+    expect(await panel.findByRole("link", { name: "Procedure:security.osv-acquire" })).toBeInTheDocument();
+    expect(panel.getAllByRole("link", { name: "security.osv-query/v1" }).length).toBeGreaterThan(0);
+    expect(await panel.findAllByText("retains Captures under it")).toHaveLength(1);
     // cve-applicability's Line starts on this contract's landings: it reads them
     expect(panel.getByRole("link", { name: "Procedure:security.cve-applicability" })).toBeInTheDocument();
     expect(panel.getAllByText("reads its landings")).toHaveLength(1);

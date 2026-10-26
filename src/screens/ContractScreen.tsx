@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useCaptureContracts, useCard, useClaimTypes, useInstanceId, useLandingTriggers, useLines, usePins } from "@/api/hooks";
+import { useCaptureContracts, useCard, useClaimTypes, useInstanceId, useLines, usePins, useSourceModel } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
 import { Fact, Page, PageHeader } from "@/components/Page";
@@ -9,18 +9,20 @@ import { Pending } from "@/components/ontology/Pending";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
+import { retainedByWords } from "@/lib/definitions";
 import { contractName, contractProducers, providerName, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 
-const cellText = (value: unknown) => (typeof value === "string" ? value : "");
-
 /**
- * One CaptureContract: what it captures (sources, source kinds, evidence
- * kinds, grade), the Procedures and Blueprints that capture under it (their
- * pins), the Triggers that fire on its landings and the Lines they start,
- * and the ClaimTypes that admit or require it. Landing and citation numbers
- * are post-v1 (K4). Reads: the contract card, the claim_types, lines and
- * pins sections, and the capture-landing Trigger listing, all ontology-sized.
+ * One CaptureContract: what it captures (grade, source kinds) and the logical
+ * sources Captures land under it from (the source steps that retain each and
+ * the Triggers that select it: contracts no longer list sources), the
+ * Procedures that capture under it (their pins: interfaces, Lines), the
+ * Triggers that fire on its landings, the logical sources they select and
+ * the Lines they start, and the ClaimTypes that admit or require it. Landing
+ * and citation numbers are post-v1 (K4). Reads: the contract card, the
+ * claim_types, lines and pins sections, and the source model (Procedure
+ * cards, Line envelopes, the landing Trigger listing), all ontology-sized.
  */
 export function ContractScreen() {
   const { name = "" } = useParams();
@@ -30,16 +32,19 @@ export function ContractScreen() {
   const card = useCard(`CaptureContract:${name}`);
   const contract = cardOf(card.data, "capture_contract");
   const claimTypes = useClaimTypes();
-  const triggers = useLandingTriggers();
   const lines = useLines();
   const pins = usePins();
+  const model = useSourceModel();
 
   const definition = contract ? readContractDefinition(contract.captures) : null;
   const admitting = useMemo(() => {
     const byPredicate = new Map((claimTypes.data?.rows ?? []).map((row) => [row.predicate, row]));
     return (contract?.admitted_by ?? []).map((predicate) => ({ predicate, row: byPredicate.get(predicate) }));
   }, [contract, claimTypes.data]);
-  const firing = (triggers.data?.rows ?? []).filter((row) => contractName(cellText(row.capture_contract)) === name);
+  const firing = (model.data?.triggers ?? []).filter((trigger) => trigger.contract === name);
+  const sources = (model.data?.sources ?? []).filter((source) => source.contracts.includes(name));
+  const unnamed = (model.data?.retentions ?? []).filter((r) => r.contract === name && r.source === null);
+  const retaining = new Set((model.data?.retentions ?? []).filter((r) => r.contract === name).map((r) => `Procedure:${r.procedure}`));
   const lineByName = new Map((lines.data?.rows ?? []).map((row) => [lineName(row.line), row]));
   const producers = useMemo(() => (pins.data ? contractProducers(pins.data.rows, name) : null), [pins.data, name]);
 
@@ -72,29 +77,55 @@ export function ContractScreen() {
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <Panel title="What it captures">
           <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-            <dt className="text-zinc-500">Sources</dt>
-            <dd className="font-mono text-zinc-200">{definition.sources.join(", ") || "—"}</dd>
             <dt className="text-zinc-500">Source kinds</dt>
             <dd className="text-zinc-300">{definition.sourceKinds.map(sourceKindLabel).join(", ") || "—"}</dd>
-            <dt className="text-zinc-500">Evidence kinds</dt>
-            <dd className="font-mono text-zinc-300">{definition.evidenceKinds.join(", ") || "—"}</dd>
             <dt className="text-zinc-500">Grade</dt>
             <dd className="text-zinc-300">{definition.grade ?? "—"}</dd>
           </dl>
+          <div className="mt-3 text-[12px] font-semibold uppercase tracking-wider text-zinc-500" title="A Capture is retained under a contract and a logical source: what was read. The steps that name it retain it; a landing Trigger selects it.">
+            Logical sources
+          </div>
+          {model.isPending && <LoadState />}
+          {model.error && <LoadState error={model.error} />}
+          {model.data && sources.length === 0 && unnamed.length === 0 && (
+            <div className="text-[12px] text-zinc-600">No definition names a logical source under this contract.</div>
+          )}
+          <div className="mt-1 space-y-1 text-[12px]">
+            {sources.map((source) => (
+              <div key={source.id}>
+                <span className="font-mono text-zinc-200">{source.id}</span>
+                <span className="text-zinc-500">
+                  {" "}
+                  {source.retainedBy.some((r) => r.contract === name)
+                    ? `retained by ${retainedByWords(source.retainedBy.filter((r) => r.contract === name))}`
+                    : "no step names it"}
+                  {source.selectedBy.some((t) => t.contract === name) &&
+                    ` · selected by ${source.selectedBy.filter((t) => t.contract === name).map((t) => t.name).join(", ")}`}
+                </span>
+              </div>
+            ))}
+            {unnamed.length > 0 && (
+              <div className="text-zinc-500" title="The step's request names no logical source: the Provider names it, or the run is given it, or it emits its own output">
+                also retained by {retainedByWords(unnamed)}, under a logical source{" "}
+                {unnamed.every((r) => r.emitted) ? "the run's own output" : unnamed.some((r) => r.given) ? "the run is given" : "its Provider names"}
+              </div>
+            )}
+          </div>
         </Panel>
         <Panel
           title="Captured under it by"
-          meta={<span title="Procedures and Blueprints with a source or capture-egress node pinning this contract. Pins are at Procedure grain.">{producers?.length ?? "…"}</span>}
+          meta={<span title="Procedures with a source or emit step naming this contract. Pins are at Procedure grain.">{producers?.length ?? "…"}</span>}
         >
           {pins.isPending && <LoadState />}
           {pins.error && <LoadState error={pins.error} />}
-          {producers && producers.length === 0 && <EmptyState>No Procedure or Blueprint pins this contract.</EmptyState>}
+          {producers && producers.length === 0 && <EmptyState>No Procedure pins this contract.</EmptyState>}
           <div className="space-y-1 text-[12px]">
             {(producers ?? []).map((p) => (
               <div key={p.source}>
                 <div className="flex flex-wrap items-baseline gap-x-2">
                   <RefLink value={p.source} />
                   <span className="text-zinc-600">{p.source.startsWith("Blueprint:") ? "Blueprint" : "Procedure"}</span>
+                  {retaining.has(p.source) && <span className="text-zinc-500">retains Captures under it</span>}
                   {p.startedByLanding.length > 0 && (
                     <span className="text-zinc-500" title="Its Lines start on this contract's landings: it reads what landed">
                       reads its landings
@@ -126,16 +157,20 @@ export function ContractScreen() {
       </div>
 
       <Panel title="Triggers on its landings" meta={<span>{firing.length}</span>}>
-        {triggers.isPending && <LoadState />}
-        {triggers.error && <LoadState error={triggers.error} />}
-        {triggers.data && firing.length === 0 && <EmptyState>No Trigger fires when a Capture under this contract lands.</EmptyState>}
+        {model.isPending && <LoadState />}
+        {model.data && firing.length === 0 && <EmptyState>No Trigger fires when a Capture under this contract lands.</EmptyState>}
         <div className="space-y-0.5 text-[12px]">
           {firing.map((row) => {
-            const target = cellText(row.target);
+            const target = row.target;
             const line = target.startsWith("Line:") ? lineByName.get(lineName(target)) : undefined;
             return (
-              <div key={cellText(row.name)} className="flex flex-wrap items-baseline gap-x-3">
-                <span className="font-mono text-zinc-300">{cellText(row.name)}</span>
+              <div key={row.name} className="flex flex-wrap items-baseline gap-x-3">
+                <RefLink value={`Trigger:${row.name}`}>
+                  <span className="font-mono text-zinc-300">{row.name}</span>
+                </RefLink>
+                <span className="text-zinc-500" title="The logical sources whose landings fire it">
+                  {row.logicalSources.length ? `on ${row.logicalSources.join(", ")}` : "on any landing"}
+                </span>
                 <span className="text-zinc-600">→</span>
                 {target.startsWith("Line:") ? (
                   <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(target))}`)} className="font-mono text-zinc-200 hover:underline">
@@ -154,8 +189,8 @@ export function ContractScreen() {
             );
           })}
         </div>
-        {(triggers.data?.capped?.length ?? 0) > 0 && (
-          <div className="mt-1 text-[12px] text-amber-400/90">The Trigger listing stopped at its cap.</div>
+        {model.data?.truncated && (
+          <div className="mt-1 text-[12px] text-amber-400/90">A definition listing stopped at its cap.</div>
         )}
       </Panel>
 
