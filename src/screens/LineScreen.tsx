@@ -225,7 +225,7 @@ function LineGraphPanel({
               <select
                 value={picked ?? ""}
                 onChange={(e) => setPicked(e.target.value || null)}
-                className="border border-zinc-800 bg-zinc-950 px-1 py-px font-mono text-[12px] text-zinc-200"
+                className="w-80 max-w-full border border-zinc-800 bg-zinc-950 px-1 py-px font-mono text-[12px] text-zinc-200"
                 aria-label="Mark the steps with a run"
               >
                 <option value="">none</option>
