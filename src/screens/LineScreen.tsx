@@ -22,7 +22,7 @@ import { ShortId } from "@/components/ShortId";
 import { Table, Td, Th, trClass } from "@/components/Table";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
-import { NextGroups } from "@/components/next/NextItemRow";
+import { NextTable } from "@/components/next/NextTable";
 import { LineDefinitionPanel, ProcedureDefinition } from "@/components/ontology/Definitions";
 import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger } from "@/lib/definitions";
 import { useAtLink } from "@/lib/at";
@@ -291,7 +291,12 @@ function LineNextPanel({ line }: { line: string }) {
   if (!next.data || rows.length === 0) return null;
   return (
     <Panel title="Next" meta={<span>{rows.length} on the first page</span>}>
-      <NextGroups items={rows} />
+      <NextTable
+        items={rows}
+        urlKey="next"
+        label={`Next for ${line}`}
+        partial={next.data.next_cursor ? `the ${rows.length} on the first page of next` : null}
+      />
     </Panel>
   );
 }

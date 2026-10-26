@@ -2,7 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import { toggleChipClass } from "@/components/Chip";
 import { Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
-import { NextGroups } from "@/components/next/NextItemRow";
+import { NextTable } from "@/components/next/NextTable";
 import { PageNav } from "@/components/next/PageNav";
 import { useNextPage } from "@/components/next/useNextPage";
 import { BELIEF_TABS, FAMILY_LABEL, familyOf, REASONS, type BeliefTab } from "@/lib/next-reasons";
@@ -34,7 +34,10 @@ export function BeliefsScreen() {
     .map(([, meta]) => meta.label);
 
   function setTab(next: BeliefTab) {
-    const updated = new URLSearchParams(params);
+    // a tab is another list: its table starts unsorted and unfiltered
+    const updated = new URLSearchParams();
+    const at = params.get("at");
+    if (at !== null) updated.set("at", at);
     updated.set("tab", next);
     setParams(updated);
   }
@@ -59,8 +62,16 @@ export function BeliefsScreen() {
       {page.error && <LoadState error={page.error} />}
       {page.data && (
         <Panel title={FAMILY_LABEL[tab]} meta={<span>{rows.length} on this page of {items.length}</span>}>
-          {rows.length === 0 && <EmptyState>None on this page.</EmptyState>}
-          <NextGroups items={rows} />
+          {rows.length === 0 ? (
+            <EmptyState>None on this page.</EmptyState>
+          ) : (
+            <NextTable
+              items={rows}
+              family={false}
+              label={FAMILY_LABEL[tab]}
+              partial={page.data.total_items > items.length ? `${index === 0 ? "the first" : "this page of"} ${items.length} next rows` : null}
+            />
+          )}
         </Panel>
       )}
     </Page>
