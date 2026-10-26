@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Crosshair, X } from "lucide-react";
+import { Crosshair } from "lucide-react";
 import { useCaptureContracts, useClaimTypes, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
 import { EmptyState, LoadState } from "@/components/Panel";
+import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import {
@@ -68,6 +69,13 @@ export function FlowScreen() {
     });
   }, [contracts.data, claimTypes.data, lines.data, sources.data]);
 
+  const clearFocus = useCallback(() => {
+    const next = new URLSearchParams(params);
+    next.delete("focus");
+    setParams(next);
+  }, [params, setParams]);
+  useClearOnEscape(focus !== null, clearFocus);
+
   const shown = useMemo(() => (model ? focusFlow(model, focus) : null), [model, focus]);
   const layout = useMemo(() => (shown ? layoutFlow(shown) : null), [shown]);
   const lit = useMemo(() => (shown && hover ? related(shown, hover) : null), [shown, hover]);
@@ -113,20 +121,28 @@ export function FlowScreen() {
             <span className="font-mono text-zinc-200">{admissions.length}</span> {admissions.length === 1 ? "admission" : "admissions"},{" "}
             <span>{admissions.filter((e) => e.required).length} required</span>
           </span>
-          {focus && (
-            <button onClick={() => setFocus(null)} className="inline-flex items-center gap-1 text-zinc-300 hover:text-white">
-              <X className="h-3.5 w-3.5" /> clear focus{focused?.node ? ` on ${focused.node.label}` : focus.startsWith("kind:") ? ` on ${focus.slice(5)}` : ""}
-            </button>
-          )}
         </div>
         {capped && <div className="mt-1 text-[12px] text-zinc-500">A listing stopped at its page cap: the flow may be incomplete.</div>}
       </header>
+
+      {focus && (
+        // Sticky: the flow is long, and the way out of a focus stays in reach.
+        <div className="sticky top-0 z-10 py-1">
+          <FocusChip label={focused?.node ? focused.node.label : focus.startsWith("kind:") ? focus.slice(5) : focus} onClear={() => setFocus(null)} />
+        </div>
+      )}
 
       {shown.nodes.length === 0 ? (
         <EmptyState>No capture contracts at this generation.</EmptyState>
       ) : (
         <div className="overflow-x-auto">
-          <div className="relative" style={{ width: layout.width, height: layout.height }} data-testid="flow">
+          <div
+            className="relative"
+            style={{ width: layout.width, height: layout.height }}
+            data-testid="flow"
+            // A click on the empty canvas clears the focus.
+            onClick={(event) => focus && event.target === event.currentTarget && setFocus(null)}
+          >
             <svg width={layout.width} height={layout.height} className="pointer-events-none absolute inset-0" aria-hidden>
               {layout.edges.map((edge) => {
                 const from = layout.byId.get(edge.from);
@@ -138,9 +154,10 @@ export function FlowScreen() {
                     key={`${edge.from}\n${edge.to}`}
                     d={edgePath(from, to)}
                     fill="none"
-                    stroke={edge.required ? "rgb(251 191 36)" : "rgb(161 161 170)"}
+                    // Required admissions draw brighter, not in a color: color is for waiting and wrong only.
+                    stroke={edge.required ? "rgb(222 219 208)" : "rgb(163 160 148)"}
                     strokeWidth={on ? 1.5 : 1}
-                    strokeOpacity={on === null ? (edge.required ? 0.35 : 0.25) : on ? 0.9 : 0.05}
+                    strokeOpacity={on === null ? (edge.required ? 0.4 : 0.2) : on ? 0.9 : 0.05}
                   />
                 );
               })}
@@ -296,7 +313,7 @@ function FlowCell({
           ) : (
             <span className="font-mono">{target || "—"}</span>
           )}
-          {node.authority && <span> · max {node.authority}</span>}
+          {node.authority && <span> · at most {node.authority}</span>}
         </div>
       </div>
     );

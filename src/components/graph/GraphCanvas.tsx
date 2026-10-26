@@ -12,6 +12,7 @@ import "@xyflow/react/dist/style.css";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { FloatingEdge } from "./FloatingEdge";
 import { RoutedEdge } from "./RoutedEdge";
+import { FocusChip } from "./FocusChip";
 
 export type GraphSelection = { kind: "node"; id: string } | { kind: "edge"; id: string };
 
@@ -21,6 +22,13 @@ export interface GraphPanelApi {
 }
 
 const edgeTypes = { floating: FloatingEdge, routed: RoutedEdge };
+
+/** What the focus chip names: the node's id, or an edge as source → target. */
+function selectionLabel(selection: GraphSelection, edges: Edge[]): string {
+  if (selection.kind === "node") return selection.id;
+  const edge = edges.find((e) => e.id === selection.id);
+  return edge ? `${edge.source} → ${edge.target}` : selection.id;
+}
 const PANEL_WIDTH = 320;
 
 /**
@@ -257,7 +265,12 @@ function Canvas({
           {children}
         </ReactFlow>
 
-        {overlay && <div className="absolute left-2 top-2 z-10">{overlay}</div>}
+        {(selection || overlay) && (
+          <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-24rem)] flex-wrap items-center gap-2">
+            {selection && <FocusChip label={selectionLabel(selection, edges)} onClear={() => setSelection(null)} />}
+            {overlay}
+          </div>
+        )}
 
         <button
           onClick={() => setFullscreen((f) => !f)}

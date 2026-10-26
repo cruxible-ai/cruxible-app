@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
 import { toggleChipClass } from "@/components/Chip";
@@ -6,6 +6,7 @@ import { LoadState } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { CosmosDots, type GlDotEdge, type GlDotNode } from "@/components/graph/CosmosDots";
 import { PanelHeading } from "@/components/graph/PanelBits";
+import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
 import { buildTypeColors } from "@/lib/type-colors";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -80,6 +81,9 @@ export function StateGraphScreen() {
   }, [search, drawn.nodes]);
 
   const edgeById = useMemo(() => new Map((graph.data?.edges ?? []).map((edge) => [edge.claim, edge])), [graph.data]);
+
+  const showAllKinds = useCallback(() => setHiddenKinds(new Set()), []);
+  useClearOnEscape(hiddenKinds.size > 0, showAllKinds);
 
   function toggleKind(kind: string) {
     setHiddenKinds((current) => {
@@ -162,7 +166,14 @@ export function StateGraphScreen() {
 
       {graph.data && (
         <>
-          <div className="mb-2 flex flex-wrap gap-1.5">
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            {hiddenKinds.size > 0 && (
+              <FocusChip
+                prefix="Hiding"
+                label={`${hiddenKinds.size} ${hiddenKinds.size === 1 ? "kind" : "kinds"}`}
+                onClear={showAllKinds}
+              />
+            )}
             {kinds.map(([kind, count]) => (
               <button
                 key={kind}

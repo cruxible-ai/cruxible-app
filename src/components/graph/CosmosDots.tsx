@@ -11,6 +11,7 @@ import { Graph, type GraphConfigInterface } from "@cosmograph/cosmos";
 import { Maximize2, Minimize2, Minus, Plus, Scan, X } from "lucide-react";
 import type { GraphPanelApi, GraphSelection } from "./GraphCanvas";
 import type { LayoutUpdate } from "./layout.worker";
+import { FocusChip } from "./FocusChip";
 
 /** Clears the focused-point ring. GraphConfigInterface declares the index as
  * non-optional under exactOptionalPropertyTypes, but the library treats
@@ -694,7 +695,24 @@ export function CosmosDots({
           )}
         </div>
 
-        {overlay && <div className="absolute left-2 top-2 z-10">{overlay}</div>}
+        {(selection || overlay) && (
+          <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-24rem)] flex-wrap items-center gap-2">
+            {selection && (
+              <FocusChip
+                label={
+                  selection.kind === "node"
+                    ? selection.id
+                    : (() => {
+                        const edge = data.drawn[data.edgeIndexById.get(selection.id) ?? -1];
+                        return edge ? `${edge.label}: ${edge.source} → ${edge.target}` : selection.id;
+                      })()
+                }
+                onClear={() => setSelection(null)}
+              />
+            )}
+            {overlay}
+          </div>
+        )}
 
         {/* Canvas controls: zoom in/out, fit, fullscreen — square, warm-dark,
             matching the ReactFlow Controls on the type map and path graphs. */}

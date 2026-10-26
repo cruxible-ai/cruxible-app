@@ -186,7 +186,7 @@ export function TypeMapScreen() {
     return null;
   }, [kindParam, claimTypeParam, graph, kinds.data, nonce]);
 
-  if (kinds.isPending || (kinds.data && !laidOut)) return <LoadState />;
+  if (kinds.isPending) return <LoadState />;
   if (kinds.error) return <LoadState error={kinds.error} />;
 
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
@@ -219,6 +219,9 @@ export function TypeMapScreen() {
           its ClaimTypes
         </span>
       </header>
+      {!laidOut ? (
+        <LoadState />
+      ) : (
       <GraphCanvas
         nodes={nodes}
         edges={edges}
@@ -228,6 +231,7 @@ export function TypeMapScreen() {
         className="min-h-0 flex-1"
         overlay={coloring.enabled ? <LayerLegend layers={coloring.layers} /> : undefined}
       />
+      )}
     </div>
   );
 }

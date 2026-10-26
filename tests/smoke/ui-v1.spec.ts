@@ -35,7 +35,7 @@ test("fixture-backed inspection flow: overview, kind, contract, evidence flow, t
   await flow.getByRole("button", { name: "Focus security.kev-http-v1" }).click();
   await expect(page).toHaveURL(/focus=contract%3Asecurity\.kev-http-v1/);
   await expect(flow.getByText("osv.query")).toHaveCount(0);
-  await page.getByRole("button", { name: /clear focus/ }).click();
+  await page.getByRole("button", { name: /^Clear: Focused on/ }).click();
   await expect(flow.getByText("osv.query")).toBeVisible();
   await flow.getByRole("link", { name: "status" }).click();
   await expect(page).toHaveURL(/\/kinds\/security\.assessment\?claim_type=security\.assessment\.status$/);

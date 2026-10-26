@@ -39,7 +39,8 @@ describe("Evidence flow", () => {
     expect(flow.getByRole("link", { name: "kev_listed" })).toBeInTheDocument();
     expect(flow.getByRole("link", { name: "security.kev-landed" })).toBeInTheDocument();
     expect(flow.queryByRole("link", { name: "status" })).toBeNull();
-    expect(screen.getByRole("button", { name: "clear focus on security.kev-http-v1" })).toBeInTheDocument();
+    // the focus is a separate control at the top of the graph
+    expect(screen.getByRole("button", { name: "Clear: Focused on security.kev-http-v1" })).toBeInTheDocument();
     expect(flow.getByRole("button", { name: "Focus cisa.kev.catalog" })).toBeInTheDocument();
   });
 });
