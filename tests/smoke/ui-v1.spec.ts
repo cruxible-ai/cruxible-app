@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Runs against `VITE_CRUXIBLE_FIXTURES=1` (playwright.config.ts): the MSW
 // worker serves src/fixtures/recorded/ at the network layer, offline.
-test("fixture-backed inspection flow: overview, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines, run, pin", async ({ page }) => {
+test("fixture-backed inspection flow: overview, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
@@ -83,9 +83,25 @@ test("fixture-backed inspection flow: overview, kind, contract, evidence flow, t
   await expect(page).toHaveURL(/\/lines\/kev-triage$/);
   await expect(page.getByText("page 1 · 12 in all")).toBeVisible();
   await expect(page.getByText(/otherwise propose/)).toBeVisible();
+  // The Line's graph: its Trigger, its steps, a picked run's marks.
+  const lineGraph = page.getByTestId("procedure-graph");
+  await expect(lineGraph.getByText("daily at 06:00 UTC")).toBeVisible();
+  await expect(lineGraph.locator(".react-flow__node")).toHaveCount(7);
+  await page.getByRole("combobox", { name: "Mark the steps with a run" }).selectOption("run-7");
+  await expect(lineGraph.getByText("Refused · guard_refused")).toBeVisible();
   await page.getByRole("link", { name: "run-7", exact: true }).first().click();
   await expect(page).toHaveURL(/\/runs\/run-7$/);
   await expect(page.getByText("guard_refused")).toBeVisible();
+
+  // A Procedure page leads with its step graph; a click on a step focuses its lineage and marks its row.
+  await page.goto("/i/inst_fixture/ref/Procedure%3Asecurity.kev-triage");
+  const steps = page.getByTestId("procedure-graph");
+  await expect(steps.locator(".react-flow__node")).toHaveCount(6);
+  await steps.locator('.react-flow__node[data-id="parse"]').click({ position: { x: 12, y: 8 } });
+  await expect(page.getByRole("button", { name: "Clear: Focused on parse" })).toBeVisible();
+  await expect(page.locator('[data-step="parse"]')).toHaveAttribute("aria-current", "step");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: /^Clear: Focused on/ })).toHaveCount(0);
 
   // State graph: pages the whole graph (headless WebGL draws no dots, but
   // the read, counts and kind filter run).

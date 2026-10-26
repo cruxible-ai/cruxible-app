@@ -203,7 +203,7 @@ export function ProcedureGraph({
         },
       ];
       if (mark?.provider) {
-        lines.push({ text: `bound ${providerName(mark.provider)}`, title: `This run's receipt pins ${mark.provider}`, tone: "plain" });
+        lines.push({ text: `pinned ${providerName(mark.provider)}`, title: `This run's receipt pins ${mark.provider}`, tone: "plain" });
         return lines;
       }
       const binding = slotBinding(iface, definition?.bindings[slot], builds);
