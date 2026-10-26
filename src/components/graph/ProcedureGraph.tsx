@@ -130,7 +130,7 @@ function NodeText({ line }: { line: NodeLine }) {
 function MarkLine({ mark }: { mark: StepMark }) {
   const text = [mark.term.word, ...mark.notes].join(" · ");
   return (
-    <div className="mt-0.5 flex h-[15px] items-center gap-1.5 border-t border-zinc-800 pt-0.5 text-[11px] leading-[15px] text-zinc-300" title={`${mark.term.meaning}${mark.notes.length ? ` (${mark.notes.join("; ")})` : ""}`}>
+    <div className="mt-0.5 flex h-[15px] items-center gap-1.5 border-t border-zinc-800 pt-0.5 text-[11px] leading-[15px] text-zinc-300" title={[mark.term.meaning, ...mark.notes, ...mark.hints].join("\n")}>
       {mark.term.signal && <SignalDot signal={mark.term.signal} title={mark.term.meaning} />}
       <span className="truncate">{text}</span>
     </div>
@@ -414,7 +414,7 @@ export function ProcedureGraph({
   if (!laidOut) return <LoadState />;
   // As tall as the graph is at the zoom the canvas width allows, within the page.
   const zoom = canvasWidth > 0 && width > 0 ? Math.min(FIT_MAX_ZOOM, canvasWidth / (width * (1 + 2 * FIT_PADDING))) : 1;
-  const canvasHeight = Math.min(640, Math.max(180, Math.ceil(height * zoom * (1 + 2 * FIT_PADDING)) + 40));
+  const canvasHeight = Math.min(640, Math.max(180, Math.ceil(height * zoom * (1 + 2 * FIT_PADDING)) + 64));
   return (
     <div ref={measure} style={{ height: canvasHeight }} data-testid="procedure-graph">
       <GraphCanvas

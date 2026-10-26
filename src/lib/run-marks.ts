@@ -21,6 +21,8 @@ export interface StepMark {
   term: Term;
   /** Further words: the refusal code, the egress, the Captures read. */
   notes: string[];
+  /** Longer words, on hover only (the authority an output needed and had). */
+  hints: string[];
   /** The Provider build the receipt pins for this node (source and call steps). */
   provider: string | null;
 }
@@ -67,7 +69,7 @@ export function runMarks(nodeIds: readonly string[], card: RunCard, state: RunSt
     if (note) notes.push(note);
     // A signal (refused, failed, waiting) wins over a plain word.
     const keep = prev && prev.term.signal && !t.signal ? prev.term : t;
-    marks.set(node, { term: keep, notes, provider: providers.get(node) ?? prev?.provider ?? null });
+    marks.set(node, { term: keep, notes, hints: prev?.hints ?? [], provider: providers.get(node) ?? prev?.provider ?? null });
   };
   const cardNodes = card.nodes ?? [];
   for (const n of cardNodes) mark(n.node, n.verdict ? term("run", n.verdict) : term("step", "fired"));
@@ -95,7 +97,8 @@ export function runMarks(nodeIds: readonly string[], card: RunCard, state: RunSt
     const prev = marks.get(egress.node_id);
     marks.set(egress.node_id, {
       term: prev?.term.signal ? prev.term : e.signal ? e : (prev?.term ?? e),
-      notes: [...(prev?.notes ?? []), `${e.word.toLowerCase()}, ${authority}`],
+      notes: [...(prev?.notes ?? []), e.word.toLowerCase()],
+      hints: [...(prev?.hints ?? []), `${e.word}: ${authority}`],
       provider: prev?.provider ?? null,
     });
   }
@@ -113,7 +116,7 @@ export function runMarks(nodeIds: readonly string[], card: RunCard, state: RunSt
     if (prev) prev.provider = provider;
   }
   if (card.status !== "running") {
-    for (const id of nodeIds) if (!marks.has(id)) marks.set(id, { term: term("step", "not_run"), notes: [], provider: providers.get(id) ?? null });
+    for (const id of nodeIds) if (!marks.has(id)) marks.set(id, { term: term("step", "not_run"), notes: [], hints: [], provider: providers.get(id) ?? null });
   }
   const others = [...marks.entries()].filter(([node]) => !known.has(node)).map(([node, m]) => ({ node, term: m.term }));
   for (const { node } of others) marks.delete(node);

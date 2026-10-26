@@ -113,6 +113,8 @@ export async function layoutLayered(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[]
         "elk.layered.mergeEdges": "false",
         ...(options.edgeLabels ? { "elk.edgeLabels.placement": "CENTER", "elk.spacing.edgeLabel": "2" } : {}),
         ...(options.modelOrder ? { "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES" } : {}),
+        // Without the loose column, every node stays in one layering (a first-layer pin holds for an unlinked node too).
+        ...(options.looseColumn ? {} : { "elk.separateConnectedComponents": "false" }),
       },
       children: layered.map((n) => ({
         id: n.id,
