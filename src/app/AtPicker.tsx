@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, History, TriangleAlert } from "lucide-react";
@@ -36,6 +37,7 @@ export function AtPicker() {
   const instanceId = useInstanceId();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
 
   const headGeneration = latest.data?.generation;
   const pinned = pin.at !== null;
@@ -49,7 +51,8 @@ export function AtPicker() {
   useEffect(() => {
     if (!open) return;
     const onDown = (event: MouseEvent) => {
-      if (box.current && !box.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (box.current && !box.current.contains(target) && !list.current?.contains(target)) setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDown);
@@ -140,6 +143,8 @@ export function AtPicker() {
 
       {open && (
         <GenerationList
+          anchor={box}
+          listRef={list}
           current={pinned ? (pin.generation ?? null) : null}
           head={headGeneration}
           onHead={() => (pinned ? setAt(null) : (showHead(), setOpen(false)))}
@@ -183,11 +188,15 @@ type Generation = Schemas["OrientGeneration"];
 
 /** The newest generations as of the head, the head first; typing a number or oid is the fallback. */
 function GenerationList({
+  anchor,
+  listRef,
   current,
   head,
   onHead,
   onPin,
 }: {
+  anchor: RefObject<HTMLDivElement | null>;
+  listRef: RefObject<HTMLDivElement | null>;
   current: number | null;
   head: number | undefined;
   onHead: () => void;
@@ -209,11 +218,30 @@ function GenerationList({
     onPin(value.raw);
   }
 
-  return (
+  // Rendered above every view (a portal), placed under the generation box, so the
+  // sidebar's bounds and the active view never clip it.
+  const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    const update = () => {
+      const rect = anchor.current?.getBoundingClientRect();
+      if (rect) setPlace({ top: rect.bottom + 4, left: rect.left });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [anchor]);
+
+  return createPortal(
     <div
+      ref={listRef}
       role="listbox"
       aria-label="Generations"
-      className="absolute left-0 top-full z-30 mt-1 w-[24rem] border border-zinc-700 bg-zinc-950 shadow-2xl"
+      style={place ? { top: place.top, left: place.left } : { visibility: "hidden" }}
+      className="fixed z-50 w-[26rem] max-w-[calc(100vw-1rem)] border border-zinc-700 bg-zinc-950 shadow-2xl"
     >
       <button
         type="button"
@@ -247,7 +275,8 @@ function GenerationList({
         </button>
       </form>
       {error && <div className="px-2.5 pb-1.5 text-red-400/80">{error}</div>}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
