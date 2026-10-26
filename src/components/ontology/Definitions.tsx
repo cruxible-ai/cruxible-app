@@ -1,12 +1,13 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useInstanceId, useInterfaces } from "@/api/hooks";
 import { SignalDot } from "@/components/Chip";
-import { humanize } from "@/lib/text";
 import { Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { Table, Td, Th, trClass } from "@/components/Table";
 import { useAtLink } from "@/lib/at";
 import {
+  interfaceBase,
   procedureSlots,
   slotInterfaceRef,
   stepView,
@@ -17,6 +18,9 @@ import {
   type StepView,
 } from "@/lib/definitions";
 import { providerName } from "@/lib/ontology";
+import { term } from "@/lib/vocabulary";
+import { cronWords } from "@/lib/procedure-graph";
+import { ProcedureGraph } from "@/components/graph/ProcedureGraph";
 
 /**
  * Definitions as authored (compiler revision 36): a slotted Procedure's
@@ -25,9 +29,6 @@ import { providerName } from "@/lib/ontology";
  * parameters, trigger input and bindings; a landing Trigger's contract and
  * logical sources. Every named reference is a link.
  */
-
-/** The interface name a slot takes (`web.fetch@3` -> `web.fetch`), as the interfaces section names it. */
-const interfaceBase = (value: string) => (value.includes("@") ? value.slice(0, value.lastIndexOf("@")) : value);
 
 function NamedRef({ kind, name }: { kind: "contract" | "query" | "interface" | "claim_type" | "procedure"; name: string }) {
   const instanceId = useInstanceId();
@@ -82,12 +83,20 @@ function LogicalSourceText({ view, parameters }: { view: StepView; parameters?: 
 export function ProcedureDefinition({
   spec,
   line,
+  selectedStep = null,
 }: {
   spec: ProcedureSpec;
   /** The Line running it, for its parameters, trigger input and bindings. */
   line?: LineDefinition | null | undefined;
+  /** The step picked on the graph: highlighted and scrolled into view. */
+  selectedStep?: string | null | undefined;
 }) {
   const interfaces = useInterfaces();
+  const rows = useRef(new Map<string, HTMLLIElement>());
+  useEffect(() => {
+    if (selectedStep === null) return;
+    rows.current.get(selectedStep)?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [selectedStep]);
   const builds = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, (row.providers ?? []).map((p) => p.provider)] as const));
   const slots = procedureSlots(spec);
   const steps = spec.steps.map(stepView);
@@ -163,11 +172,24 @@ export function ProcedureDefinition({
       )}
       <ol className="mt-3 space-y-1 text-[12px]">
         {steps.map((step) => (
-          <li key={step.id} className="flex flex-wrap items-baseline gap-x-2 border-t border-zinc-900 pt-1">
-            <span className="w-24 shrink-0 truncate font-mono text-zinc-500" title={step.id}>
+          <li
+            key={step.id}
+            ref={(el) => {
+              if (el) rows.current.set(step.id, el);
+              else rows.current.delete(step.id);
+            }}
+            data-step={step.id}
+            aria-current={selectedStep === step.id ? "step" : undefined}
+            className={`flex flex-wrap items-baseline gap-x-2 border-t border-zinc-900 pt-1 ${
+              selectedStep === step.id ? "-mx-1.5 bg-zinc-800/60 px-1.5 outline outline-1 outline-zinc-600" : ""
+            }`}
+          >
+            <span className={`w-24 shrink-0 truncate font-mono ${selectedStep === step.id ? "text-zinc-100" : "text-zinc-500"}`} title={step.id}>
               {step.id}
             </span>
-            <span className="w-14 shrink-0 text-zinc-400">{humanize(step.kind)}</span>
+            <span className="w-14 shrink-0 text-zinc-400" title={term("stepKind", step.kind).meaning}>
+              {term("stepKind", step.kind).word}
+            </span>
             {step.kind === "source" && line?.triggerInput === step.name && (
               <span className="text-zinc-300" title="This Line's trigger input: the step reads the Capture whose landing started the run">
                 reads the landing
@@ -291,7 +313,7 @@ export function LineDefinitionPanel({
   );
 }
 
-type TriggerSchedule = { kind?: unknown; event?: unknown; cron?: unknown; every?: unknown };
+type TriggerSchedule = { kind?: unknown; event?: unknown; cron?: unknown; expression?: unknown; every?: unknown };
 
 /** A Trigger card's schedule: a landing's contract and logical sources, or its timing, and the Line it starts. */
 export function TriggerDefinition({ schedule, target }: { schedule: Record<string, unknown>; target: string }) {
@@ -302,6 +324,7 @@ export function TriggerDefinition({ schedule, target }: { schedule: Record<strin
   };
   const contract = typeof event.capture_contract_identity?.name === "string" ? event.capture_contract_identity.name : null;
   const sources = Array.isArray(event.logical_sources) ? event.logical_sources.filter((x): x is string => typeof x === "string") : [];
+  const cron = typeof s.expression === "string" ? s.expression : typeof s.cron === "string" ? s.cron : null;
   const instanceId = useInstanceId();
   const link = useAtLink();
   return (
@@ -321,10 +344,12 @@ export function TriggerDefinition({ schedule, target }: { schedule: Record<strin
             <dd className="font-mono text-zinc-200">{sources.length ? sources.join(", ") : <span className="font-sans text-zinc-500">any</span>}</dd>
           </>
         )}
-        {typeof s.cron === "string" && (
+        {cron !== null && (
           <>
-            <dt className="text-zinc-500">Cron</dt>
-            <dd className="font-mono text-zinc-300">{s.cron}</dd>
+            <dt className="text-zinc-500">Schedule</dt>
+            <dd className="text-zinc-300">
+              {cronWords(cron)} <span className="font-mono text-zinc-500">({cron})</span>
+            </dd>
           </>
         )}
         <dt className="text-zinc-500">Starts</dt>
@@ -339,5 +364,21 @@ export function TriggerDefinition({ schedule, target }: { schedule: Record<strin
         </dd>
       </dl>
     </Panel>
+  );
+}
+
+/**
+ * A Procedure page's definition: its graph, then its definition panel. A
+ * step picked on the graph is highlighted (and scrolled to) in the panel.
+ */
+export function ProcedureWithGraph({ spec }: { spec: ProcedureSpec }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  return (
+    <>
+      <Panel title="Steps" meta={<span>arrows: what each step reads · dashed: where a guard goes otherwise · click a step to follow it</span>}>
+        <ProcedureGraph spec={spec} onSelectStep={setSelected} />
+      </Panel>
+      <ProcedureDefinition spec={spec} selectedStep={selected} />
+    </>
   );
 }
