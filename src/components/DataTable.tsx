@@ -31,6 +31,8 @@ export interface Column<T> extends ColumnSpec<T> {
   cell: (row: T) => ReactNode;
   numeric?: boolean | undefined;
   className?: string | undefined;
+  /** Extra classes on the header cell (a long header that may wrap). */
+  headerClassName?: string | undefined;
   /** Fixed enum values (in this order) instead of the values found in the rows. */
   options?: readonly string[] | undefined;
   /** The word an enum value shows as (glossary words). */
@@ -76,6 +78,7 @@ export function DataTable<T>({
   rows,
   columns,
   rowKey,
+  rowLabel,
   urlKey = "",
   apply = "client",
   partial = null,
@@ -95,6 +98,8 @@ export function DataTable<T>({
   rows: readonly T[];
   columns: readonly Column<T>[];
   rowKey: (row: T) => string;
+  /** The row's name for its disclosure toggle ("Expand status"); defaults to the key. */
+  rowLabel?: (row: T) => string;
   urlKey?: string;
   apply?: "client" | "external";
   partial?: string | null;
@@ -166,7 +171,7 @@ export function DataTable<T>({
             <td className="w-5 py-1.5 pr-1">
               <button
                 onClick={() => toggle(key)}
-                aria-label={`${opened ? "Collapse" : "Expand"} ${key}`}
+                aria-label={`${opened ? "Collapse" : "Expand"} ${rowLabel?.(row) ?? key}`}
                 aria-expanded={opened}
                 className="relative top-[2px] text-zinc-500 hover:text-zinc-200"
               >
@@ -187,7 +192,8 @@ export function DataTable<T>({
           <tr className="bg-zinc-900/40">
             <td />
             <td colSpan={span - 1} className="pb-2 pr-3">
-              {expanded!(row)}
+              {/* the detail fills the row's width and never widens the table */}
+              <div className="[contain:inline-size]">{expanded!(row)}</div>
             </td>
           </tr>
         )}
@@ -294,7 +300,7 @@ export function DataTable<T>({
 }
 
 function HeaderCell<T>({ column, sort, onSort }: { column: Column<T>; sort: "asc" | "desc" | null; onSort: () => void }) {
-  const base = `sticky top-0 z-10 whitespace-nowrap border-b border-zinc-800 bg-zinc-950 py-1.5 pr-4 align-bottom text-[12px] font-medium text-zinc-500 last:pr-0 ${column.numeric ? "text-right" : ""}`;
+  const base = `sticky top-0 z-10 whitespace-nowrap border-b border-zinc-800 bg-zinc-950 py-1.5 pr-4 align-bottom text-[12px] font-medium text-zinc-500 last:pr-0 ${column.numeric ? "text-right" : ""} ${column.headerClassName ?? ""}`;
   const ariaSort = sort === "asc" ? "ascending" : sort === "desc" ? "descending" : "none";
   if (!column.sortValue) {
     const title = [column.title, column.noSort].filter(Boolean).join("\n") || undefined;

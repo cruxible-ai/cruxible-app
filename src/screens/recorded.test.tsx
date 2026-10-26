@@ -150,12 +150,12 @@ describe("recorded reference world", () => {
   });
 
   it("kind page: security.job with keys, ClaimTypes, evidence and settlers", async () => {
-    renderApp(`${I}/kinds/security.job`, RECORDED);
+    renderApp(`${I}/kinds/security.job?view=claim-types`, RECORDED);
     expect(await screen.findByRole("heading", { name: "security.job" })).toBeInTheDocument();
     const m = within(screen.getByRole("main"));
     expect(await m.findByText(/One job of a workflow/)).toBeInTheDocument();
     expect(m.getAllByText("workflow_ref").length).toBeGreaterThan(1); // a key, and a ClaimType row
-    expect(m.getByText("ClaimTypes (9)")).toBeInTheDocument();
+    expect(m.getByRole("heading", { name: "ClaimTypes (9)" })).toBeInTheDocument();
     const workflow = within(m.getByText("workflow", { selector: "td > span" }).closest("tr")!);
     expect(workflow.getByRole("link", { name: "→ security.workflow" })).toHaveAttribute("href", `${I}/kinds/security.workflow`);
     expect(workflow.getByRole("link", { name: "security.fetched-v1" })).toHaveAttribute("href", `${I}/contracts/security.fetched-v1`);
