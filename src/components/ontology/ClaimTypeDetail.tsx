@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { roleWord } from "@/lib/vocabulary";
 import { useGet, useInstanceId, usePins } from "@/api/hooks";
 import { RefLink } from "@/components/RefLink";
 import { cardOf, type OrientPredicate } from "@/api/schemas";
@@ -92,8 +93,8 @@ export function ClaimTypeDetail({
           <>
             <dt className="text-zinc-600">roles</dt>
             <dd>
-              {descriptor.roles!.join(", ")}
-              {descriptor.default_role && ` (default ${descriptor.default_role})`}
+              {descriptor.roles!.map(roleWord).join(", ")}
+              {descriptor.default_role && ` (default ${roleWord(descriptor.default_role)})`}
             </dd>
           </>
         )}

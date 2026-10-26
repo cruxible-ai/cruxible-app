@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { roleWord } from "@/lib/vocabulary";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useInstanceId } from "@/api/hooks";
@@ -146,7 +147,7 @@ export function ClaimTypeTable({
                     )}
                   </td>
                   <td className="py-1.5 pr-3 font-mono text-zinc-400">{row.cardinality === "many" ? "many" : "one"}</td>
-                  <td className="py-1.5 pr-3 text-zinc-400">{row.default_role ?? "—"}</td>
+                  <td className="py-1.5 pr-3 text-zinc-400" title={row.default_role ?? undefined}>{row.default_role ? roleWord(row.default_role) : "—"}</td>
                   <td className="py-1.5 pr-3">
                     <span className={mode === "captured" ? "text-zinc-300" : "text-zinc-500"}>
                       {mode === "own-words" ? "own words" : mode}

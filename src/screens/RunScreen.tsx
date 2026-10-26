@@ -4,7 +4,7 @@ import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
-import { ShortId, shortId } from "@/components/ShortId";
+import { CopyButton, ShortId, shortId } from "@/components/ShortId";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink, withAt } from "@/lib/at";
 import { captureHandle } from "@/lib/next-reasons";
@@ -36,7 +36,7 @@ export function RunScreen() {
         kind="Procedure run"
         title={<span title={run}>{shortId(run, 16)}</span>}
         mono
-        id={shortId(run, 16) !== run ? <ShortId value={run} keep={128} className="text-zinc-500" /> : undefined}
+        id={shortId(run, 16) !== run ? <CopyButton value={run} label="Copy run id" /> : undefined}
         summary={runCard ? <RunSummary card={runCard} /> : undefined}
         facts={
           runCard && (

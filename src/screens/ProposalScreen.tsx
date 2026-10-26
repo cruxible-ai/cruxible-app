@@ -1,4 +1,4 @@
-import { ProposalChanges, readProposalOrigin } from "@/components/ProposalChanges";
+import { groupChanges, ProposalChanges, readProposalOrigin, unreadableChanges } from "@/components/ProposalChanges";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCard, useInstanceId, useReview } from "@/api/hooks";
@@ -105,9 +105,12 @@ export function ProposalScreen() {
       {proposal && !review.data && !review.isPending && <ChangeSetPanel proposal={proposal} />}
       {review.data && (
         <>
-          <Panel title="What it changes">
-            <ProposalChanges review={review.data} />
-          </Panel>
+          {/* Claims and Subjects read as facts; a proposal of other artifacts has only the panel below. */}
+          {(groupChanges(review.data.members).length > 0 || unreadableChanges(review.data.members).length > 0) && (
+            <Panel title="What it changes">
+              <ProposalChanges review={review.data} />
+            </Panel>
+          )}
           <MembersPanel review={review.data} />
           {(review.data.item_reason_count ?? 0) > 0 && (
             <ItemReasonsPanel
