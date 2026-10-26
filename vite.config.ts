@@ -21,6 +21,9 @@ export default defineConfig({
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "src") },
   },
+  // The type map's layout engine loads on first use; pre-bundle it at startup
+  // so its first import does not make the dev server reload the page.
+  optimizeDeps: { include: ["elkjs/lib/elk.bundled.js"] },
   server: {
     proxy: {
       "/api": {
