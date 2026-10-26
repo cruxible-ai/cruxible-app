@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId, useOntologyKinds, useSubjectKinds } from "@/api/hooks";
@@ -15,6 +15,8 @@ import {
   type TypeGraphEdge,
 } from "@/lib/type-graph";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { layoutTypeGraph, monoWidth, type TypeLayout } from "@/lib/type-layout";
+import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { contractName } from "@/lib/ontology";
 
@@ -40,7 +42,7 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
       }`}
       style={data.color && !data.referencedOnly ? { borderColor: data.color } : undefined}
     >
-      <Handle type="target" position={Position.Top} className="!pointer-events-none !opacity-0" />
+      <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
       <div className="flex items-center justify-center gap-1.5">
         {data.color && (
           <span
@@ -55,48 +57,20 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
       <div className={`font-mono text-[11px] ${empty ? "text-zinc-700" : "text-zinc-500"}`}>
         {data.referencedOnly ? "not declared" : data.subjects}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!pointer-events-none !opacity-0" />
+      <Handle type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
   );
 }
 
 const nodeTypes = { typeNode: TypeNode };
 
-/**
- * Greedy adjacency ordering for the circular layout: start from the
- * highest-degree kind, then repeatedly place the unplaced kind most connected
- * to what's already placed. Keeps related kinds in contiguous arcs so seam
- * edges don't all cross the circle's center.
- */
-function orderByAdjacency(kinds: string[], pairs: Array<[string, string]>): string[] {
-  const degree = new Map<string, number>(kinds.map((t) => [t, 0]));
-  const adj = new Map<string, Map<string, number>>(kinds.map((t) => [t, new Map()]));
-  for (const [a, b] of pairs) {
-    if (!degree.has(a) || !degree.has(b) || a === b) continue;
-    degree.set(a, (degree.get(a) ?? 0) + 1);
-    degree.set(b, (degree.get(b) ?? 0) + 1);
-    adj.get(a)!.set(b, (adj.get(a)!.get(b) ?? 0) + 1);
-    adj.get(b)!.set(a, (adj.get(b)!.get(a) ?? 0) + 1);
-  }
-  const placed: string[] = [];
-  const remaining = new Set(kinds);
-  while (remaining.size > 0) {
-    let best: string | null = null;
-    let bestScore = -1;
-    for (const t of remaining) {
-      const connectivity = [...(adj.get(t) ?? new Map()).entries()]
-        .filter(([n]) => placed.includes(n))
-        .reduce((sum, [, w]) => sum + w, 0);
-      const score = placed.length === 0 ? (degree.get(t) ?? 0) : connectivity;
-      if (score > bestScore || (score === bestScore && best !== null && t < best)) {
-        best = t;
-        bestScore = score;
-      }
-    }
-    placed.push(best!);
-    remaining.delete(best!);
-  }
-  return placed;
+/** Node box: the kind name in 12px mono plus padding, two lines tall. */
+const NODE_HEIGHT = 40;
+const nodeWidth = (kind: string) => monoWidth(kind) + 26;
+
+/** An edge's label: its ClaimTypes' field names with cardinality ("component *"). */
+function edgeLabel(edge: TypeGraphEdge): string {
+  return edge.predicates.map((p) => `${p.name}${p.cardinality === "many" ? " *" : ""}`).join(" · ");
 }
 
 function cardinalityMark(cardinality: string): string {
@@ -123,61 +97,78 @@ export function TypeMapScreen() {
     [subjectKinds.data],
   );
 
+  // Layered left-to-right layout (ELK, loaded on first use); recomputed only when the graph changes.
+  const layoutInput = useMemo(
+    () => ({
+      nodes: graph.nodes.map((n) => ({ id: n.kind, width: nodeWidth(n.kind), height: NODE_HEIGHT })),
+      edges: graph.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: edgeLabel(e) })),
+    }),
+    [graph],
+  );
+  // The ontology read can hand back a new object on every render; key the layout by content.
+  const layoutKey = useMemo(() => JSON.stringify(layoutInput), [layoutInput]);
+  const [layout, setLayout] = useState<{ key: string; result: TypeLayout | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    const { nodes, edges } = JSON.parse(layoutKey) as typeof layoutInput;
+    layoutTypeGraph(nodes, edges)
+      .then((result) => live && setLayout({ key: layoutKey, result }))
+      // A layout failure still shows every kind, in a plain grid.
+      .catch(() => live && setLayout({ key: layoutKey, result: null }));
+    return () => {
+      live = false;
+    };
+  }, [layoutKey]);
+  const laidOut = layout?.key === layoutKey ? layout : null;
+
   const { nodes, edges } = useMemo(() => {
-    const ordered = orderByAdjacency(
-      graph.nodes.map((n) => n.kind),
-      graph.edges.map((e) => [e.source, e.target] as [string, string]),
-    );
-    // Two concentric rings: the best-connected kinds (up to a third) on a
-    // small inner ring, the rest outside, tight enough to read at fit zoom.
-    const degree = new Map<string, number>();
-    for (const e of graph.edges) {
-      degree.set(e.source, (degree.get(e.source) ?? 0) + 1);
-      degree.set(e.target, (degree.get(e.target) ?? 0) + 1);
-    }
-    const byDegree = [...ordered].sort((a, b) => (degree.get(b) ?? 0) - (degree.get(a) ?? 0));
-    const innerCount = ordered.length >= 6 ? Math.min(Math.floor(ordered.length / 3), 5) : 0;
-    const inner = new Set(byDegree.slice(0, innerCount).filter((t) => (degree.get(t) ?? 0) >= 3));
-    const innerOrdered = ordered.filter((t) => inner.has(t));
-    const outerOrdered = ordered.filter((t) => !inner.has(t));
-    const outerRadius = Math.max(320, outerOrdered.length * 38);
-    const innerRadius = Math.max(140, outerRadius * 0.42);
+    if (!laidOut) return { nodes: [] as Node<TypeNodeData>[], edges: [] as Edge[] };
     const byKind = new Map(graph.nodes.map((n) => [n.kind, n]));
-
-    const place = (names: string[], radius: number, offset: number): Node<TypeNodeData>[] =>
-      names.map((kind, i) => {
-        const angle = (2 * Math.PI * i) / Math.max(names.length, 1) - Math.PI / 2 + offset;
-        const node = byKind.get(kind)!;
-        return {
-          id: kind,
-          type: "typeNode",
-          position: { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius },
-          data: {
-            kind,
-            subjects: node.subjects,
-            referencedOnly: node.referencedOnly,
-            color: coloring.enabled ? coloring.colorOf(coloring.ownerOfKind(kind).layer) : null,
-          },
-        };
-      });
-
-    const nodes = [...place(innerOrdered, innerRadius, Math.PI / 6), ...place(outerOrdered, outerRadius, 0)];
+    const at = (kind: string, i: number) =>
+      laidOut.result?.positions.get(kind) ?? { x: (i % 5) * 260, y: Math.floor(i / 5) * (NODE_HEIGHT + 40) };
+    const nodes: Node<TypeNodeData>[] = graph.nodes.map((n, i) => ({
+      id: n.kind,
+      type: "typeNode",
+      position: at(n.kind, i),
+      style: { width: nodeWidth(n.kind) },
+      data: {
+        kind: n.kind,
+        subjects: byKind.get(n.kind)!.subjects,
+        referencedOnly: n.referencedOnly,
+        color: coloring.enabled ? coloring.colorOf(coloring.ownerOfKind(n.kind).layer) : null,
+      },
+    }));
+    const positions = new Map(nodes.map((n) => [n.id, n.position]));
     const edges: Edge[] = graph.edges.map((e) => {
       const stroke = "#726f63";
-      return {
+      const route = laidOut.result?.routes.get(e.id);
+      const base = {
         id: e.id,
         source: e.source,
         target: e.target,
-        data: {
-          labelClass: "text-zinc-300",
-          revealLabel: e.predicates.map((p) => `${p.name} ${cardinalityMark(p.cardinality)}`).join(" · "),
-        },
         markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
         style: { stroke, strokeWidth: 1.25 },
       };
+      return route
+        ? {
+            ...base,
+            type: "routed",
+            data: {
+              points: route.points,
+              labelAt: route.label,
+              text: edgeLabel(e),
+              curve: true,
+              sourceAt: positions.get(e.source)!,
+              targetAt: positions.get(e.target)!,
+            } satisfies RoutedEdgeData,
+          }
+        : {
+            ...base,
+            data: { labelClass: "text-zinc-300", revealLabel: edgeLabel(e) },
+          };
     });
     return { nodes, edges };
-  }, [graph, coloring]);
+  }, [graph, coloring, laidOut]);
 
   const kindParam = params.get("kind");
   const claimTypeParam = params.get("claim_type");
@@ -195,7 +186,7 @@ export function TypeMapScreen() {
     return null;
   }, [kindParam, claimTypeParam, graph, kinds.data, nonce]);
 
-  if (kinds.isPending) return <LoadState />;
+  if (kinds.isPending || (kinds.data && !laidOut)) return <LoadState />;
   if (kinds.error) return <LoadState error={kinds.error} />;
 
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
@@ -223,8 +214,9 @@ export function TypeMapScreen() {
       <header className="mb-3 flex flex-wrap items-baseline gap-3">
         <h1 className="t-title">Type map</h1>
         <span className="t-meta">
-          {graph.nodes.length} Subject kinds · {graph.edges.length} kind links · dashed = no Subjects ·
-          click anything for its ClaimTypes
+          {graph.nodes.length} Subject kinds · {graph.edges.length} kind links · arrows point from a kind to the kind
+          its field names (* = many) · unlinked kinds in the left column · dashed = no Subjects · click anything for
+          its ClaimTypes
         </span>
       </header>
       <GraphCanvas

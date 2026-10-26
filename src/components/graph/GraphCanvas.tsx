@@ -11,6 +11,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { FloatingEdge } from "./FloatingEdge";
+import { RoutedEdge } from "./RoutedEdge";
 
 export type GraphSelection = { kind: "node"; id: string } | { kind: "edge"; id: string };
 
@@ -19,7 +20,7 @@ export interface GraphPanelApi {
   select: (nodeId: string) => void;
 }
 
-const edgeTypes = { floating: FloatingEdge };
+const edgeTypes = { floating: FloatingEdge, routed: RoutedEdge };
 const PANEL_WIDTH = 320;
 
 /**
@@ -201,7 +202,8 @@ function Canvas({
       }
       const styled: Edge = {
         ...e,
-        type: "floating",
+        // Edges routed by a layout keep their route; the rest float.
+        type: e.type ?? "floating",
         data: { ...e.data, lit: reveal },
         style: {
           ...e.style,
