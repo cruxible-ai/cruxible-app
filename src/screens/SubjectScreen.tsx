@@ -1,5 +1,5 @@
-import { Fragment, useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronRight, Waypoints } from "lucide-react";
 import {
   useAdmissionAccounts,
@@ -72,6 +72,9 @@ const QUIET_VERDICTS = new Set(["supported"]);
  */
 export function SubjectScreen() {
   const { ref: raw = "" } = useParams();
+  // ?claim=CLM-… opens that Claim's field with its evidence (the kind table's cells link here)
+  const [params] = useSearchParams();
+  const focusClaim = params.get("claim");
   const instanceId = useInstanceId();
   const link = useAtLink();
   const parsed = parseRef(raw);
@@ -202,6 +205,7 @@ export function SubjectScreen() {
                 descriptor={predicates.get(`${kind}\n${entry.predicate}`)}
                 cards={claimCards}
                 accounts={admission.byClaim}
+                focus={focusClaim}
               />
             ))}
           </div>
@@ -245,21 +249,28 @@ function ClaimRow({
   descriptor,
   cards,
   accounts,
+  focus,
 }: {
   kind: string;
   entry: SubjectClaim;
   descriptor: OrientPredicate | undefined;
   cards: Map<string, GetClaimCard>;
   accounts: Map<string, CaptureAdmissionAccount[]>;
+  focus: string | null;
 }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  const [open, setOpen] = useState(false);
   const ids = claimIds(entry);
+  const focused = focus !== null && ids.includes(focus);
+  const [open, setOpen] = useState(focused);
+  const rowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focused) rowRef.current?.scrollIntoView?.({ block: "center" });
+  }, [focused]);
   const flags: readonly string[] = entry.flags ?? [];
   const predicate = descriptor?.predicate ?? entry.predicate;
   return (
-    <div className="py-2 first:pt-0 last:pb-0">
+    <div ref={rowRef} className={`py-2 first:pt-0 last:pb-0 ${focused ? "bg-zinc-900/40" : ""}`}>
       <div className="grid grid-cols-[1rem_minmax(9rem,15rem)_minmax(0,1fr)_minmax(0,max-content)] items-baseline gap-x-4 text-[13px]">
         <button
           onClick={() => setOpen((v) => !v)}

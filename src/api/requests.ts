@@ -156,6 +156,42 @@ export function queryBody(
   return { ...args, at: coordinate };
 }
 
+/** Subjects per kind-table page (the kind page's Subjects table). */
+export const KIND_PAGE = 100;
+/** The most fields one query may select (the route's cap). */
+export const SELECT_MAX = 64;
+
+/**
+ * The fields a kind's table selects: identity keys first (in key order), then
+ * the rest by predicate; at most 64 (the route's cap) — `left` names the rest.
+ */
+export function selectFields(predicates: readonly string[], keys: readonly string[]): { select: string[]; left: string[] } {
+  const known = new Set(predicates);
+  const first = keys.filter((key) => known.has(key));
+  const rest = [...predicates].filter((p) => !first.includes(p)).sort();
+  const all = [...first, ...rest];
+  return { select: all.slice(0, SELECT_MAX), left: all.slice(SELECT_MAX) };
+}
+
+/** The compact query one kind-table page sends. */
+export function kindQuery(args: {
+  kind: string;
+  select: readonly string[];
+  where?: QueryArgs["where"] | undefined;
+  orderBy?: readonly string[] | undefined;
+  cursor?: string | undefined;
+}): QueryArgs {
+  return {
+    kind: args.kind,
+    select: [...args.select],
+    claims: true,
+    limit: KIND_PAGE,
+    ...(args.where && args.where.length > 0 ? { where: args.where } : {}),
+    ...(args.orderBy && args.orderBy.length > 0 ? { order_by: [...args.orderBy] } : {}),
+    ...(args.cursor !== undefined ? { cursor: args.cursor } : {}),
+  };
+}
+
 /**
  * The console's coverage access profile for `next`: it may be told about
  * instance and public sources (sorted, as the contract requires).

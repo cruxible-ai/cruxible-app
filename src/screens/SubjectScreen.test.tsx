@@ -7,6 +7,13 @@ afterEach(cleanup);
 const ASSESSMENT = "/i/inst_fixture/s/security.assessment%2Frel-1-cve-2024-3094";
 
 describe("Subject page", () => {
+  it("opens the field whose Claim ?claim= names, with its evidence (the kind table links here)", async () => {
+    renderApp(`${ASSESSMENT}?claim=CLM-${"a3".padStart(32, "0")}`);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByRole("button", { name: "Collapse status" })).toHaveAttribute("aria-expanded", "true");
+    expect(main.getByRole("button", { name: "Expand release" })).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("pages the Subjects pointing at this one", async () => {
     renderApp("/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094");
     expect(await screen.findByText("Pointed at by")).toBeInTheDocument();

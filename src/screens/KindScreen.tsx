@@ -11,7 +11,8 @@ import {
   useSubjectKinds,
 } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
-import { actionChipClass, Chip } from "@/components/Chip";
+import { actionChipClass, Chip, toggleChipClass } from "@/components/Chip";
+import { KindTable } from "@/components/KindTable";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { ClaimTypeTable } from "@/components/ontology/ClaimTypeTable";
@@ -19,8 +20,12 @@ import { useAtLink } from "@/lib/at";
 import { claimTypesOfKind, claimTypesPointingAt, contractName, kindCounts, settlersFor } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 
+type KindView = "subjects" | "claim-types";
+const EMPTY: readonly string[] = [];
+
 /**
- * One Subject kind as the ontology defines it: identity (keys, uniqueness or
+ * One Subject kind: its Subjects as a table (one row per Subject, one
+ * column per field; components/KindTable), and, on the ClaimTypes view, the kind as the ontology defines it: identity (keys, uniqueness or
  * minted), owning kit, what points at it, and every ClaimType on it with
  * value type or target kind, cardinality, role, evidence contracts and
  * whether a Capture is required, freshness, kit, contention, format and
@@ -32,9 +37,10 @@ import { usePageTitle } from "@/lib/usePageTitle";
  */
 export function KindScreen() {
   const { kind = "" } = useParams();
-  const [params] = useSearchParams();
-  // ?claim_type= opens a row; toggling is local (no history entry per row).
+  const [params, setParams] = useSearchParams();
+  // ?claim_type= opens a row (on the ClaimTypes view); toggling is local (no history entry per row).
   const [open, setOpen] = useState<string | null>(params.get("claim_type"));
+  const view: KindView = params.get("view") === "claim-types" || params.has("claim_type") ? "claim-types" : "subjects";
   const instanceId = useInstanceId();
   const link = useAtLink();
   usePageTitle(kind);
@@ -51,6 +57,7 @@ export function KindScreen() {
   const rule = (subjectKinds.data?.rows ?? []).find((row) => row.kind === kind);
   const rows = useMemo(() => claimTypesOfKind(claimTypes.data?.rows ?? [], kind), [claimTypes.data, kind]);
   const pointing = useMemo(() => claimTypesPointingAt(claimTypes.data?.rows ?? [], kind), [claimTypes.data, kind]);
+  const predicates = useMemo(() => rows.map((row) => row.predicate), [rows]);
   const evidence = useMemo(
     () => [...new Set(rows.flatMap((row) => row.evidence ?? []))].sort(),
     [rows],
@@ -64,6 +71,15 @@ export function KindScreen() {
 
   function toggle(predicate: string) {
     setOpen((current) => (current === predicate ? null : predicate));
+  }
+
+  function setView(next: KindView) {
+    // each view keeps its own table state; the other's goes
+    const updated = new URLSearchParams();
+    const at = params.get("at");
+    if (at !== null) updated.set("at", at);
+    if (next === "claim-types") updated.set("view", "claim-types");
+    setParams(updated);
   }
 
   if (claimTypes.isPending || subjectKinds.isPending) return <LoadState />;
@@ -123,30 +139,50 @@ export function KindScreen() {
         }
       />
 
-      <Panel
-        title={`ClaimTypes (${rows.length})`}
-        meta={
-          <span title="Contested and stale counts per ClaimType wait on a post-v1 core read">
-            {detail.error ? <span className="text-red-400/80">live counts: {detail.error.message}</span> : "contested and stale: post-v1"}
-          </span>
-        }
-      >
-        {rows.length === 0 ? (
-          <EmptyState>No ClaimTypes on this kind.</EmptyState>
-        ) : (
-          <ClaimTypeTable
-            kind={kind}
-            kindKit={rule?.kit}
-            rows={rows}
-            open={open}
-            onToggle={toggle}
-            counts={counts}
-            liveSubjects={subjects}
-            kits={kits.data?.kits}
-            settlers={(predicate) => (ready ? settlersFor(predicate, mandates.data!.rows, lines.data!.rows) : null)}
-          />
-        )}
-      </Panel>
+      <div className="flex gap-1.5" role="tablist" aria-label="View">
+        {(["subjects", "claim-types"] as const).map((name) => (
+          <button
+            key={name}
+            role="tab"
+            aria-selected={view === name}
+            onClick={() => setView(name)}
+            className={toggleChipClass(view === name)}
+          >
+            {name === "subjects" ? `Subjects${subjects !== undefined ? ` (${subjects})` : ""}` : `ClaimTypes (${rows.length})`}
+          </button>
+        ))}
+      </div>
+
+      {view === "subjects" ? (
+        <Panel title="Subjects" meta={<span>one row per Subject, one column per field</span>}>
+          <KindTable kind={kind} predicates={predicates} keys={rule?.keys ?? EMPTY} />
+        </Panel>
+      ) : (
+        <Panel
+          title={`ClaimTypes (${rows.length})`}
+          meta={
+            <span title="Contested and stale counts per ClaimType wait on a post-v1 core read">
+              {detail.error ? <span className="text-red-400/80">live counts: {detail.error.message}</span> : "contested and stale: post-v1"}
+            </span>
+          }
+        >
+          {rows.length === 0 ? (
+            <EmptyState>No ClaimTypes on this kind.</EmptyState>
+          ) : (
+            <ClaimTypeTable
+              kind={kind}
+              kindKit={rule?.kit}
+              rows={rows}
+              open={open}
+              onToggle={toggle}
+              counts={counts}
+              liveSubjects={subjects}
+              kits={kits.data?.kits}
+              settlers={(predicate) => (ready ? settlersFor(predicate, mandates.data!.rows, lines.data!.rows) : null)}
+            />
+          )}
+        </Panel>
+      )}
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <Panel title="Pointed at by" meta={<span>{pointing.length}</span>}>

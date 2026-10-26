@@ -25,18 +25,18 @@ import {
 export interface Column<T> extends ColumnSpec<T> {
   header: ReactNode;
   /** The column's name in words (the Columns picker, aria labels); defaults to a string header. */
-  label?: string;
+  label?: string | undefined;
   /** What the column means (header hover). */
-  title?: string;
+  title?: string | undefined;
   cell: (row: T) => ReactNode;
-  numeric?: boolean;
-  className?: string;
+  numeric?: boolean | undefined;
+  className?: string | undefined;
   /** Fixed enum values (in this order) instead of the values found in the rows. */
-  options?: readonly string[];
+  options?: readonly string[] | undefined;
   /** The word an enum value shows as (glossary words). */
-  optionLabel?: (value: string) => string;
-  noSort?: string;
-  noFilter?: string;
+  optionLabel?: ((value: string) => string) | undefined;
+  noSort?: string | undefined;
+  noFilter?: string | undefined;
 }
 
 export interface RowGroup<T> {
@@ -90,6 +90,7 @@ export function DataTable<T>({
   label,
   maxHeight = "calc(100vh - 9rem)",
   toolbar = true,
+  actions,
 }: {
   rows: readonly T[];
   columns: readonly Column<T>[];
@@ -112,6 +113,8 @@ export function DataTable<T>({
   label?: string;
   maxHeight?: string;
   toolbar?: boolean;
+  /** Controls at the toolbar's end, before Filter and Columns (a pager). */
+  actions?: ReactNode;
 }) {
   const [state, setState] = useTableState(columns, urlKey);
   const [showFilters, setShowFilters] = useState(false);
@@ -205,6 +208,7 @@ export function DataTable<T>({
           {scope && <span className="text-zinc-400">{scope}.</span>}
           {note && <span className="text-zinc-400">{note}</span>}
           <span className="ml-auto flex items-center gap-1.5">
+            {actions}
             {active && (
               <button
                 onClick={() => setState({ ...state, sort: null, filters: {} })}
