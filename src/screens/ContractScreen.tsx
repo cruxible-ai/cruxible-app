@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCaptureContracts, useCard, useClaimTypes, useGet, useInstanceId, useLines, usePins, useSourceModel } from "@/api/hooks";
-import { cardOf } from "@/api/schemas";
+import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
+import { DataTable, type Column } from "@/components/DataTable";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Pending } from "@/components/ontology/Pending";
@@ -239,46 +240,84 @@ export function ContractScreen() {
       </Panel>
 
       <Panel title="ClaimTypes that admit it" meta={<span>{admitting.length}</span>}>
-        {admitting.length === 0 && <EmptyState>No ClaimType admits Captures under this contract.</EmptyState>}
-        <table className="w-full text-left text-[12px]">
-          <thead className="text-zinc-500">
-            <tr>
-              <th className="py-1 pr-3 font-medium">ClaimType</th>
-              <th className="py-1 pr-3 font-medium">evidence</th>
-              <th className="py-1 pr-3 font-medium">role</th>
-              <th className="py-1 pr-3 font-medium">fresh</th>
-              <th className="py-1 font-medium">kit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {admitting.map(({ predicate, row }) => {
-              const kind = row?.subject_kinds?.[0];
-              return (
-                <tr key={predicate} className="border-t border-zinc-900">
-                  <td className="py-1 pr-3">
-                    {kind ? (
-                      <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)} className="font-mono text-zinc-200 hover:underline">
-                        {predicate}
-                      </Link>
-                    ) : (
-                      <span className="font-mono text-zinc-300">{predicate}</span>
-                    )}
-                  </td>
-                  <td className={`py-1 pr-3 ${row?.evidence_requirement === "captured" ? "text-zinc-300" : "text-zinc-500"}`}>
-                    {row?.evidence_requirement === "captured" ? "required" : "admitted"}
-                  </td>
-                  <td className="py-1 pr-3 text-zinc-400">{row?.default_role ? roleWord(row.default_role) : "—"}</td>
-                  <td className="py-1 pr-3 font-mono text-zinc-400">{row?.stale_after ?? "—"}</td>
-                  <td className="py-1 font-mono text-zinc-400">{row?.kit ?? "here"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <AdmittingTable admitting={admitting} />
       </Panel>
       </div>
     </Page>
   );
+}
+
+type Admitting = { predicate: string; row: Schemas["OrientPredicate"] | undefined };
+
+/** The ClaimTypes whose evidence rules admit the contract, in the shared table. */
+function AdmittingTable({ admitting }: { admitting: Admitting[] }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const columns = useMemo<Column<Admitting>[]>(
+    () => [
+      {
+        id: "claim_type",
+        header: "ClaimType",
+        hideable: false,
+        sortValue: (a) => a.predicate,
+        filter: { kind: "text", text: (a) => a.predicate },
+        cell: ({ predicate, row }) => {
+          const kind = row?.subject_kinds?.[0];
+          return kind ? (
+            <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)} className="font-mono text-zinc-200 hover:underline">
+              {predicate}
+            </Link>
+          ) : (
+            <span className="font-mono text-zinc-300">{predicate}</span>
+          );
+        },
+      },
+      {
+        id: "evidence",
+        header: "Evidence",
+        title: "required: a Capture is required; admitted: the rule admits one",
+        sortValue: (a) => evidenceWord(a.row),
+        filter: { kind: "enum", values: (a) => [evidenceWord(a.row)] },
+        cell: ({ row }) => <span className={row?.evidence_requirement === "captured" ? "text-zinc-300" : "text-zinc-500"}>{evidenceWord(row)}</span>,
+      },
+      {
+        id: "role",
+        header: "Role",
+        sortValue: (a) => (a.row?.default_role ? roleWord(a.row.default_role) : null),
+        filter: { kind: "enum", values: (a) => (a.row?.default_role ? [roleWord(a.row.default_role)] : []) },
+        cell: ({ row }) => <span className="text-zinc-400">{row?.default_role ? roleWord(row.default_role) : "—"}</span>,
+      },
+      {
+        id: "fresh",
+        header: "Fresh",
+        title: "Evidence goes stale after",
+        sortValue: (a) => a.row?.stale_after ?? null,
+        cell: ({ row }) => <span className="font-mono text-zinc-400">{row?.stale_after ?? "—"}</span>,
+      },
+      {
+        id: "kit",
+        header: "Kit",
+        sortValue: (a) => a.row?.kit ?? "here",
+        filter: { kind: "enum", values: (a) => [a.row?.kit ?? "here"] },
+        cell: ({ row }) => <span className="font-mono text-zinc-400">{row?.kit ?? "here"}</span>,
+      },
+    ],
+    [instanceId, link],
+  );
+  return (
+    <DataTable
+      rows={admitting}
+      columns={columns}
+      rowKey={(a) => a.predicate}
+      urlKey="ct"
+      label="ClaimTypes that admit it"
+      empty="No ClaimType admits Captures under this contract."
+    />
+  );
+}
+
+function evidenceWord(row: Schemas["OrientPredicate"] | undefined): string {
+  return row?.evidence_requirement === "captured" ? "required" : "admitted";
 }
 
 /** A step of the page's Input → Contract → Output reading order. */
@@ -291,12 +330,58 @@ function FlowHeading({ step, words }: { step: string; words: string }) {
   );
 }
 
-/** Every CaptureContract (orient capture_contracts section). */
+type ContractRow = Schemas["OrientCaptureContract"];
+
+/** Every CaptureContract (orient capture_contracts section), in the shared table. */
 export function ContractsScreen() {
   const instanceId = useInstanceId();
   const link = useAtLink();
   const contracts = useCaptureContracts();
   usePageTitle("Contracts");
+  const columns = useMemo<Column<ContractRow>[]>(
+    () => [
+      {
+        id: "contract",
+        header: "Contract",
+        hideable: false,
+        sortValue: (row) => contractName(row.contract),
+        filter: { kind: "text", text: (row) => contractName(row.contract) },
+        cell: (row) => (
+          <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(contractName(row.contract))}`)} className="font-mono text-zinc-200 hover:underline">
+            {contractName(row.contract)}
+          </Link>
+        ),
+      },
+      {
+        id: "version",
+        header: "Version",
+        numeric: true,
+        sortValue: (row) => row.version,
+        cell: (row) => <span className="text-zinc-400">v{row.version}</span>,
+      },
+      {
+        id: "grade",
+        header: "Grade",
+        title: "observed, derived or predicted",
+        sortValue: (row) => row.grade,
+        filter: { kind: "enum", values: (row) => [row.grade] },
+        cell: (row) => <span className="text-zinc-400">{row.grade}</span>,
+      },
+      {
+        id: "admitted_by",
+        header: "Admitted by",
+        title: "Live ClaimTypes whose evidence rules admit it",
+        numeric: true,
+        sortValue: (row) => row.admitted_by,
+        cell: (row) => (
+          <span className="text-zinc-400">
+            {row.admitted_by} ClaimType{row.admitted_by === 1 ? "" : "s"}
+          </span>
+        ),
+      },
+    ],
+    [instanceId, link],
+  );
   return (
     <Page width="narrow">
       <PageHeader title="Capture contracts" summary="What each kind of evidence is, where it comes from, and how many ClaimTypes admit it." />
@@ -304,30 +389,14 @@ export function ContractsScreen() {
       {contracts.error && <LoadState error={contracts.error} />}
       {contracts.data && (
         <Panel title="Contracts" meta={<span>{contracts.data.rows.length}</span>}>
-          <table className="w-full text-left text-[12px]">
-            <thead className="text-zinc-500">
-              <tr>
-                <th className="py-1 pr-3 font-medium">contract</th>
-                <th className="py-1 pr-3 font-medium">version</th>
-                <th className="py-1 pr-3 font-medium">grade</th>
-                <th className="py-1 font-medium">admitted by</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contracts.data.rows.map((row) => (
-                <tr key={row.contract} className="border-t border-zinc-900">
-                  <td className="py-1 pr-3">
-                    <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(contractName(row.contract))}`)} className="font-mono text-zinc-200 hover:underline">
-                      {contractName(row.contract)}
-                    </Link>
-                  </td>
-                  <td className="py-1 pr-3 font-mono text-zinc-400">v{row.version}</td>
-                  <td className="py-1 pr-3 text-zinc-400">{row.grade}</td>
-                  <td className="py-1 font-mono text-zinc-400">{row.admitted_by} ClaimTypes</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable
+            rows={contracts.data.rows}
+            columns={columns}
+            rowKey={(row) => row.contract}
+            label="Capture contracts"
+            partial={contracts.data.truncated ? `the first ${contracts.data.rows.length} the daemon listed` : null}
+            empty="No capture contracts."
+          />
         </Panel>
       )}
     </Page>
