@@ -347,10 +347,10 @@ export default [
         elapsed_us: 8_400_000,
         elapsed_basis: "measured_wall_clock",
         nodes: [
-          { node: "read_kev", kind: "capture_read", verdict: "ok", sequence: 1, duration_us: 1_200_000 },
-          { node: "match_releases", kind: "query", verdict: "ok", sequence: 2, duration_us: 400_000 },
-          { node: "judge", kind: "provider", verdict: "ok", sequence: 3, duration_us: 6_100_000 },
-          { node: "guard_scope", kind: "guard", verdict: "refused", sequence: 4, duration_us: 2_000 },
+          { node: "catalog", kind: "source", verdict: "ok", sequence: 1, duration_us: 1_200_000 },
+          { node: "watched", kind: "state_tap", verdict: "ok", sequence: 2, duration_us: 400_000 },
+          { node: "parse", kind: "call", verdict: "ok", sequence: 3, duration_us: 6_100_000 },
+          { node: "changed", kind: "guard", verdict: "refused", sequence: 4, duration_us: 2_000 },
         ],
         triggered_by: { line: `Line:${KEV}`, occurrence: "occ-2026-10-18", enablement: "enb-1", principal_kind: "runtime_credential", enabled_by_withheld: true },
         terminal: {
@@ -358,12 +358,12 @@ export default [
           classification: "node_refusal",
           code: "guard_refused",
           message: "The settle target is outside the mandate's ClaimType scope.",
-          node_id: "guard_scope",
+          node_id: "changed",
           repair: { operation: "cruxible.authoring.example" },
         },
         terminal_egress: [
           {
-            node_id: "propose",
+            node_id: "settle",
             kind: "propose_change_set",
             verdict: "delivered",
             required_authority: "propose",
@@ -397,7 +397,7 @@ export default [
       source_observations: [
         {
           occurrence_path: "captures/9e/9e1b.json",
-          node_id: "read_kev",
+          node_id: "catalog",
           input_name: "kev_catalog",
           capture_digest: "sha256:9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b",
         },

@@ -115,6 +115,8 @@ export interface GraphNode {
   unresolved: StepRef[];
   /** halt: its code; returns: its field names; input: its field names. */
   detail: string[];
+  /** The id is the graph's own (a guard's halt with no else_id), not a name the definition gives. */
+  unnamed?: boolean;
 }
 
 export interface GraphEdge {
@@ -222,7 +224,7 @@ export function buildProcedureGraph(spec: ProcedureSpec): ProcedureGraphModel {
       if (halt) {
         const haltId = str(elseId) ?? `${node.id}.else`;
         if (!byName.has(haltId)) {
-          const haltNode: GraphNode = { id: haltId, role: "terminal", kind: "halt", view: null, index: null, unresolved: [], detail: [halt[1]!] };
+          const haltNode: GraphNode = { id: haltId, role: "terminal", kind: "halt", view: null, index: null, unresolved: [], detail: [halt[1]!], ...(str(elseId) ? {} : { unnamed: true }) };
           halts.push(haltNode);
           byName.set(haltId, haltId);
         }

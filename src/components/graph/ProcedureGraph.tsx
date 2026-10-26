@@ -222,7 +222,7 @@ export function ProcedureGraph({
       const mark = run?.marks.get(node.id) ?? null;
       const lines: NodeLine[] = [];
       let kind: string = node.kind;
-      let name: string | null = node.id;
+      let name: string | null = node.unnamed ? null : node.id;
       const v = node.view;
       if (node.kind === "input") {
         const parameters = Object.entries(definition?.parameters ?? {});
