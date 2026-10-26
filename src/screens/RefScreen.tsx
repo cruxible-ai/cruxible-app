@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useCard } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
@@ -6,6 +7,8 @@ import { Disclosure, Panel, LoadState } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId, shortId } from "@/components/ShortId";
 import { Chip } from "@/components/Chip";
+import { DataTable, type Column } from "@/components/DataTable";
+import { term } from "@/lib/vocabulary";
 import { RefLink } from "@/components/RefLink";
 import { formatRef, getRefOf, parseRef, refKindLabel } from "@/lib/cruxible-ref";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
@@ -69,7 +72,7 @@ export function RefScreen() {
       {trigger && <TriggerDefinition schedule={trigger.schedule} target={trigger.target} />}
       {read.data?.card && (
         <Panel title="Card">
-          <Fields value={rest(read.data.card as Record<string, unknown>, procedure?.authored ? ["authored"] : [])} depth={0} />
+          <Fields value={rest(read.data.card as Record<string, unknown>, procedure?.authored ? ["authored"] : [])} depth={0} path="" />
         </Panel>
       )}
     </Page>
@@ -83,7 +86,7 @@ function rest(card: Record<string, unknown>, omit: readonly string[]): Record<st
   return Object.fromEntries(Object.entries(card).filter(([key]) => !omit.includes(key)));
 }
 
-function Fields({ value, depth }: { value: Record<string, unknown>; depth: number }) {
+function Fields({ value, depth, path }: { value: Record<string, unknown>; depth: number; path: string }) {
   const entries = Object.entries(value).filter(([, v]) => v !== null && v !== undefined);
   return (
     <dl className="grid grid-cols-[minmax(7rem,max-content)_minmax(0,1fr)] gap-x-6 gap-y-2 text-[13px] leading-5">
@@ -91,7 +94,7 @@ function Fields({ value, depth }: { value: Record<string, unknown>; depth: numbe
         <div key={key} className="contents">
           <dt className="text-zinc-500">{humanize(key)}</dt>
           <dd className="min-w-0 break-words text-zinc-300">
-            <Value value={v} depth={depth + 1} />
+            <Value value={v} depth={depth + 1} path={path ? `${path}.${key}` : key} />
           </dd>
         </div>
       ))}
@@ -103,7 +106,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function Value({ value, depth }: { value: unknown; depth: number }) {
+function Value({ value, depth, path = "" }: { value: unknown; depth: number; path?: string }) {
   if (value === undefined || value === null) return null;
   if (typeof value === "string") {
     if (looksLikeDateTime(value)) return <span title={value}>{formatDateTime(value)}</span>;
@@ -116,12 +119,12 @@ function Value({ value, depth }: { value: unknown; depth: number }) {
   }
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className="text-zinc-600">none</span>;
-    if (value.every(isRecord) && depth <= MAX_DEPTH) return <RecordTable rows={value} depth={depth} />;
+    if (value.every(isRecord) && depth <= MAX_DEPTH) return <RecordTable rows={value} depth={depth} path={path} />;
     return <ValueList items={value} depth={depth} />;
   }
   if (isRecord(value)) {
     return depth <= MAX_DEPTH ? (
-      <Fields value={value} depth={depth} />
+      <Fields value={value} depth={depth} path={path} />
     ) : (
       <code className="font-mono text-[12px] text-zinc-400">{JSON.stringify(value)}</code>
     );
@@ -153,41 +156,69 @@ function ValueList({ items, depth }: { items: unknown[]; depth: number }) {
   );
 }
 
-/** An array of records as a table over the union of their keys. */
-function RecordTable({ rows, depth }: { rows: Record<string, unknown>[]; depth: number }) {
-  const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-[12px]">
-        <thead className="text-zinc-500">
-          <tr>
-            {columns.map((column) => (
-              <th key={column} className="py-0.5 pr-3 font-medium">
-                {humanize(column)}
-              </th>
+/** A cell's value as text (sorting, filtering). */
+function cellText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
+/**
+ * An array of records as the shared table over the union of their keys
+ * (its sort and filters in the URL under the field's path); records of one
+ * entry each read as a name and a value. The card holds
+ * the whole array, so a sort or filter is complete.
+ */
+function RecordTable({ rows: given, depth, path }: { rows: Record<string, unknown>[]; depth: number; path: string }) {
+  // records of one entry each ({alias: expression}) read as name and value, not a diagonal
+  const rows = useMemo(
+    () =>
+      given.length > 1 && given.every((row) => Object.keys(row).length === 1)
+        ? given.map((row) => {
+            const [name, value] = Object.entries(row)[0]!;
+            return { name, value };
+          })
+        : given,
+    [given],
+  );
+  const columns = useMemo<Column<{ index: number; row: Record<string, unknown> }>[]>(() => {
+    const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+    return keys.map((key) => ({
+      id: key,
+      header: humanize(key),
+      label: humanize(key),
+      sortValue: ({ row }) => {
+        const v = row[key];
+        return typeof v === "number" || typeof v === "boolean" ? v : cellText(v) || null;
+      },
+      filter:
+        key === "flags"
+          ? { kind: "enum" as const, values: ({ row }) => (Array.isArray(row[key]) ? (row[key] as unknown[]).map(String) : []) }
+          : { kind: "text" as const, text: ({ row }) => cellText(row[key]) },
+      ...(key === "flags" ? { optionLabel: (value: string) => term("claim", value).word } : {}),
+      className: "text-[12px]",
+      cell: ({ row }) =>
+        key === "flags" && Array.isArray(row[key]) ? (
+          <span className="flex flex-wrap gap-1.5">
+            {(row[key] as string[]).map((flag) => (
+              <Chip key={flag} concept="claim" value={flag} />
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-t border-zinc-900 align-top">
-              {columns.map((column) => (
-                <td key={column} className="py-0.5 pr-3">
-                  {column === "flags" && Array.isArray(row[column]) ? (
-                    <span className="flex flex-wrap gap-1.5">
-                      {(row[column] as string[]).map((flag) => (
-                        <Chip key={flag} concept="claim" value={flag} />
-                      ))}
-                    </span>
-                  ) : (
-                    <Value value={row[column]} depth={depth + 1} />
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </span>
+        ) : (
+          <Value value={row[key]} depth={depth + 1} path={`${path}.${key}`} />
+        ),
+    }));
+  }, [rows, depth, path]);
+  const indexed = useMemo(() => rows.map((row, index) => ({ index, row })), [rows]);
+  return (
+    <DataTable
+      rows={indexed}
+      columns={columns}
+      rowKey={({ index }) => String(index)}
+      urlKey={path}
+      label={humanize(path.split(".").pop() ?? path)}
+      toolbar={rows.length > 1}
+      maxHeight="28rem"
+    />
   );
 }
