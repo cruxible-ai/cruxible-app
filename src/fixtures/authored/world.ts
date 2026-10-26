@@ -13,7 +13,7 @@ import {
   nextBody,
   orientQuery,
 } from "@/api/requests";
-import type { AcceptedCoordinate, GetResult, OrientPredicate } from "@/api/schemas";
+import type { AcceptedCoordinate, GetResult, OrientKindSummary, OrientPredicate } from "@/api/schemas";
 
 const ORIENT_PAGE = 500;
 
@@ -192,57 +192,28 @@ function kindDescriptors(kind: string): OrientPredicate[] {
   });
 }
 
-/** The compact descriptor default orient shows inside a kind (no full-only fields). */
-function compact(predicate: string): OrientPredicate {
-  const full = CLAIM_TYPES.find((item) => item.predicate === predicate)!;
-  return {
-    name: full.name,
-    predicate: full.predicate,
-    cardinality: full.cardinality,
-    type: full.type,
-    ...(full.members ? { members: full.members } : {}),
-    ...(full.description ? { description: full.description } : {}),
-    ...(full.evidence ? { evidence: full.evidence } : {}),
-    ...(full.evidence_requirement ? { evidence_requirement: full.evidence_requirement } : {}),
-  };
-}
-
-const KINDS = [
-  {
-    kind: "security.assessment",
-    subjects: 2,
-    identity: "keys: release_id, cve_id",
-    evidence: ["security.osv-applicability-v1"],
-    predicates: [
-      compact("security.assessment.release"),
-      compact("security.assessment.status"),
-      compact("security.assessment.vulnerability"),
-    ],
-  },
-  {
-    kind: "security.product",
-    subjects: 1,
-    identity: "keys: name",
-    predicates: [compact("security.product.name")],
-  },
-  {
-    kind: "security.release",
-    subjects: 2,
-    identity: "keys: product, version",
-    predicates: [compact("security.release.product")],
-  },
-  {
-    kind: "security.vulnerability",
-    subjects: 3,
-    identity: "keys: cve_id",
-    evidence: ["security.kev-http-v1"],
-    predicates: [
-      compact("security.vulnerability.cve_id"),
-      compact("security.vulnerability.kev_listed"),
-      compact("security.vulnerability.related"),
-    ],
-  },
+/** Each kind's identity and the contract set its ClaimTypes most commonly admit (a kind detail's header). */
+const KIND_ROWS = [
+  { kind: "security.assessment", subjects: 2, identity: "keys: release_id, cve_id", evidence: ["security.osv-applicability-v1"] },
+  { kind: "security.product", subjects: 1, identity: "keys: name" },
+  { kind: "security.release", subjects: 2, identity: "keys: product, version" },
+  { kind: "security.vulnerability", subjects: 3, identity: "keys: cve_id", evidence: ["security.kev-http-v1"] },
 ];
+
+/** Orient's default map names a kind's first fields by short name (byte order) and counts the rest. */
+const KIND_FIELDS = 5;
+const KINDS: OrientKindSummary[] = KIND_ROWS.map(({ kind, subjects, identity }) => {
+  const names = CLAIM_TYPES.filter((row) => row.subject_kinds!.includes(kind))
+    .map((row) => row.name)
+    .sort();
+  return {
+    kind,
+    subjects,
+    identity,
+    ...(names.length ? { fields: names.slice(0, KIND_FIELDS) } : {}),
+    ...(names.length > KIND_FIELDS ? { more_fields: names.length - KIND_FIELDS } : {}),
+  };
+});
 
 const CLAIM_TYPE_STATUS: GetResult = {
   tag: "playbill-get-result-v1",
@@ -327,7 +298,7 @@ export default [
         mandates: 1,
         runs: 14,
         running: 1,
-        claims: { accepted: 16, conflicted: 1, overturned: 2, refused: 1, retired: 0 },
+        claims: { accepted: 16, conflicted: 1, overturned: 2, ineligible: 1, retired: 0 },
       },
       attention: {
         next_items: 6,
@@ -370,7 +341,7 @@ export default [
     response: {
       ...BASE_ORIENT,
       kind_detail: {
-        ...KINDS[3]!,
+        ...KIND_ROWS[3]!,
         predicates: kindDescriptors("security.vulnerability"),
         incoming: ["security.assessment.vulnerability", "security.vulnerability.related"],
         sample_subject_ids: ["cve-2024-3094", "cve-2023-4863", "cve-2021-44228"],
@@ -385,7 +356,7 @@ export default [
     response: {
       ...BASE_ORIENT,
       kind_detail: {
-        ...KINDS[0]!,
+        ...KIND_ROWS[0]!,
         predicates: kindDescriptors("security.assessment"),
         incoming: [],
         sample_subject_ids: ["cruxible-0.3.2--cve-2024-3094", "cruxible-0.3.1--cve-2024-3094"],

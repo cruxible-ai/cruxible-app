@@ -8,7 +8,7 @@ import {
   useClaimRevisions,
   useGetBatch,
   useInstanceId,
-  useOrientKinds,
+  useOntologyKinds,
   useSubjectHistory,
 } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
@@ -78,7 +78,7 @@ export function SubjectScreen() {
   const ref = parsed?.kind === "subject" ? formatRef(parsed) : null;
   const card = useCard(ref);
   const subject = cardOf(card.data, "subject");
-  const kinds = useOrientKinds();
+  const kinds = useOntologyKinds();
   const predicates = useMemo(() => predicateIndex(kinds.data?.kinds ?? []), [kinds.data]);
   const ids = useMemo(() => (subject?.claims ?? []).flatMap(claimIds), [subject]);
   const verdicts = useGetBatch(ids);
@@ -451,7 +451,7 @@ function ClaimDetail({
                 <Th>Role</Th>
                 <Th>Origin</Th>
                 <Th>Status</Th>
-                <Th>Rules</Th>
+                <Th>Rule</Th>
               </tr>
             </thead>
             <tbody>
@@ -467,13 +467,19 @@ function ClaimDetail({
                     <Chip value={account.status} />
                   </Td>
                   <Td className="text-zinc-500">
-                    {account.decisions.map((decision, i) => (
-                      <div key={i}>
-                        {decision.evidence_kind}: {decision.status}
-                        {decision.rule_id && <span className="font-mono"> ({decision.rule_id})</span>}
-                        {decision.refusal_code && <span className="text-amber-400/90"> {decision.refusal_code}</span>}
+                    {account.decision ? (
+                      <div>
+                        {account.decision.status.replaceAll("_", " ")}
+                        {account.decision.admission && <span> ({account.decision.admission.replaceAll("_", " ")})</span>}
+                        {account.decision.rule_id && <span className="font-mono"> {account.decision.rule_id}</span>}
+                        {account.decision.refusal_code && <span className="text-amber-400/90"> {account.decision.refusal_code}</span>}
+                        {account.decision.closest_rule_id && (
+                          <span className="font-mono"> closest {account.decision.closest_rule_id}</span>
+                        )}
                       </div>
-                    ))}
+                    ) : (
+                      <span title="Not evidence: no rule was consulted">-</span>
+                    )}
                   </Td>
                 </tr>
               ))}

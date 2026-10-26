@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { useApiClient } from "./DataSourceContext";
@@ -38,6 +39,7 @@ import type {
 } from "./schemas";
 import { useAtParam } from "@/lib/at";
 import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
+import { ontologyKinds } from "@/lib/type-graph";
 
 /**
  * Read hooks over the playbill daemon. Every state read is pinned to one
@@ -170,6 +172,32 @@ export function useOrientKinds() {
             truncated: rest.data?.truncated ?? false,
           }
         : undefined,
+  };
+}
+
+/**
+ * Every Subject kind with its ClaimTypes: the orient kinds (counts, identity)
+ * joined with the claim_types section by each ClaimType's subject_kinds. The
+ * default map names only a kind's first fields, so the type map, the Subject
+ * page and the neighborhood read the ClaimTypes from the section.
+ */
+export function useOntologyKinds() {
+  const kinds = useOrientKinds();
+  const claimTypes = useClaimTypes();
+  const data = useMemo(
+    () =>
+      kinds.data && claimTypes.data
+        ? {
+            kinds: ontologyKinds(kinds.data.kinds, claimTypes.data.rows),
+            truncated: kinds.data.truncated || claimTypes.data.truncated,
+          }
+        : undefined,
+    [kinds.data, claimTypes.data],
+  );
+  return {
+    isPending: kinds.isPending || claimTypes.isPending,
+    error: kinds.error ?? claimTypes.error,
+    data,
   };
 }
 
@@ -544,7 +572,7 @@ export function useAdmissionAccounts(claimIds: string[]) {
 export function useNeighborhood(root: string | null, depth: number) {
   const client = useApiClient();
   const instanceId = useInstanceId();
-  const kinds = useOrientKinds();
+  const kinds = useOntologyKinds();
   return usePinnedQuery(
     "neighborhood",
     [root, depth],

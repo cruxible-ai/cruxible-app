@@ -38,6 +38,7 @@ import type { AcceptedCoordinate, GetResult, OrientResult } from "../src/api/sch
 import { digest8, fixtureKey, normalizePath, normalizeQuery } from "../src/fixtures/key.ts";
 import { walkNeighborhood, type CardFetcher, type IncomingReader } from "../src/lib/neighborhood.ts";
 import { lineName } from "../src/lib/lines.ts";
+import { ontologyKinds } from "../src/lib/type-graph.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -207,6 +208,8 @@ if (!args.only || args.only === "ontology") {
 const [orient] = await orientAll(C);
 const claimTypes = (await orientAll(C, "claim_types")).flatMap((page) => page.claim_types ?? []);
 await orientAll(C, "subject_kinds");
+// The kinds with their ClaimTypes, as the app joins them (useOntologyKinds).
+const ontology = ontologyKinds(orient?.kinds ?? [], claimTypes);
 const lines = (await orientAll(C, "lines")).flatMap((page) => page.lines ?? []);
 await call("get", `${P}/kits`);
 await call("post", `${P}/next`, {
@@ -247,7 +250,7 @@ async function recordSubject(ref: string) {
   }
   const walked = [];
   for (const depth of [1, 2]) {
-    const graph = await walkNeighborhood(ref, depth, orient?.kinds ?? [], fetchCards, undefined, incoming).catch(() => null);
+    const graph = await walkNeighborhood(ref, depth, ontology, fetchCards, undefined, incoming).catch(() => null);
     if (graph) walked.push(graph);
   }
   return walked;

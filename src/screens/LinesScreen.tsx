@@ -10,7 +10,7 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, unreadOf } from "@/lib/lines";
-import { REASONS } from "@/lib/next-reasons";
+import { reasonMeta } from "@/lib/next-reasons";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -152,7 +152,7 @@ export function LinesScreen() {
                       </Td>
                       <Td className="text-[12px] text-amber-400/90">
                         {nextRows.map((item) => (
-                          <div key={item.item_id} className="min-w-[7rem]">{REASONS[item.reason].label}</div>
+                          <div key={item.item_id} className="min-w-[7rem]">{reasonMeta(item.reason).label}</div>
                         ))}
                       </Td>
                     </tr>

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { GetResult, OrientKind } from "@/api/schemas";
+import type { GetResult } from "@/api/schemas";
 import { walkNeighborhood, type CardFetcher } from "./neighborhood";
+import type { OntologyKind } from "./type-graph";
 
-const kinds: OrientKind[] = [
+const kinds: OntologyKind[] = [
   {
     kind: "a.x",
     subjects: 3,
+    evidence: [],
     predicates: [
       { name: "to", predicate: "a.x.to", cardinality: "many", type: "subject:a.x" },
       { name: "label", predicate: "a.x.label", cardinality: "one", type: "string" },

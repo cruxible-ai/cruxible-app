@@ -122,7 +122,7 @@ function account(
   origin: CaptureAdmissionAccount["citation_origin"] = "independent",
 ): CaptureAdmissionAccount {
   return {
-    tag: "playbill-capture-admission-account-v1",
+    tag: "cruxible-capture-admission-account-v2",
     citation_id: `cit-${digest.slice(7, 15)}`,
     capture_digest: digest,
     citation_role: role,
@@ -130,16 +130,16 @@ function account(
     capture_contract_identity: contract,
     capture_contract_digest: "sha256:" + "4".repeat(64),
     status,
-    decisions: [
-      {
-        tag: "playbill-capture-evidence-kind-admission-v1",
-        evidence_kind: "observation",
-        status: status === "admitted" ? "admitted" : "not_admitted",
-        rule_id: status === "admitted" ? "osv-applicability" : null,
-        admission: status === "admitted" ? "direct" : null,
-        refusal_code: status === "admitted" ? null : "cruxible.evidence.contract_not_admitted",
-      },
-    ],
+    decision:
+      status === "not_evidence"
+        ? null
+        : {
+            tag: "cruxible-capture-evidence-admission-v2",
+            status: status === "admitted" ? "admitted" : "not_admitted",
+            rule_id: status === "admitted" ? "osv-applicability" : null,
+            admission: status === "admitted" ? "direct" : null,
+            refusal_code: status === "admitted" ? null : "cruxible.evidence.contract_not_admitted",
+          },
   };
 }
 

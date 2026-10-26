@@ -9,7 +9,8 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { formatDateTime, humanize } from "@/lib/text";
-import { REASONS } from "@/lib/next-reasons";
+import { summaryFieldCount } from "@/lib/type-graph";
+import { reasonMeta } from "@/lib/next-reasons";
 import { SEVERITY_TONE } from "@/components/next/NextItemRow";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -96,7 +97,7 @@ function KindsPanel({ orient }: { orient: OrientResult }) {
             </div>
             <span className="w-12 shrink-0 text-right font-mono text-zinc-400">{kind.subjects}</span>
             <span className="w-24 shrink-0 text-right text-[12px] text-zinc-600">
-              {kind.predicates.length} ClaimTypes
+              {summaryFieldCount(kind)} ClaimTypes
             </span>
           </div>
         ))}
@@ -186,7 +187,7 @@ function NextPanel({
           {next.items.slice(0, NEXT_PREVIEW).map((item) => (
             <div key={item.item_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-[13px]">
               <Chip value={item.severity} tone={SEVERITY_TONE[item.severity]} />
-              <span className="text-zinc-300">{REASONS[item.reason].label}</span>
+              <span className="text-zinc-300">{reasonMeta(item.reason).label}</span>
               <RefLink value={item.subject_identity} className="ml-auto" short />
               {item.repair && (
                 <div className="w-full text-[12px] text-zinc-500">{item.repair.required_change}</div>
@@ -292,7 +293,7 @@ function CountsPanel({ orient }: { orient: OrientResult }) {
           <Count label="accepted Claims" value={claims.accepted} />
           <Count label="conflicted" value={claims.conflicted} tone={claims.conflicted ? "text-red-400" : undefined} />
           <Count label="overturned" value={claims.overturned} />
-          <Count label="refused" value={claims.refused} />
+          <Count label="ineligible" value={claims.ineligible} />
           <Count label="retired" value={claims.retired} />
         </div>
       )}

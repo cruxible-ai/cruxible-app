@@ -4,7 +4,7 @@ import { Chip } from "@/components/Chip";
 import { CountsMark } from "@/components/CountsMark";
 import { RefLink } from "@/components/RefLink";
 import { parseRef } from "@/lib/cruxible-ref";
-import { captureHandle, detailRecord, REASONS, splitDetail, type FieldSpec } from "@/lib/next-reasons";
+import { captureHandle, detailRecord, reasonMeta, splitDetail, type FieldSpec } from "@/lib/next-reasons";
 import { formatDateTime, formatWhen } from "@/lib/text";
 
 export const SEVERITY_TONE = { blocking: "red", repair: "amber", warning: "zinc" } as const;
@@ -14,7 +14,19 @@ function FieldValue({ spec, value }: { spec: FieldSpec; value: unknown }) {
     return <span title={formatDateTime(value)}>{formatWhen(value)}</span>;
   }
   if (spec.kind === "capture" && typeof value === "string") return <RefLink value={captureHandle(value)} />;
-  if ((spec.kind === "claim" || spec.kind === "ref") && typeof value === "string") {
+  if (spec.kind === "cause" && typeof value === "object" && value !== null && !Array.isArray(value)) {
+    // A failed run's cause: what the Provider said (code, error kind, message) at the node that failed.
+    const cause = value as { node_id?: unknown; provider_code?: unknown; kind?: unknown; message?: unknown };
+    return (
+      <span>
+        {typeof cause.node_id === "string" && <span className="font-mono text-zinc-500">{cause.node_id}: </span>}
+        {typeof cause.provider_code === "string" && <span className="font-mono">{cause.provider_code}</span>}
+        {typeof cause.kind === "string" && <span className="text-zinc-500"> ({cause.kind})</span>}
+        {typeof cause.message === "string" && cause.message && <span> {cause.message}</span>}
+      </span>
+    );
+  }
+  if ((spec.kind === "claim" || spec.kind === "ref" || spec.kind === "run") && typeof value === "string") {
     return parseRef(value) ? <RefLink value={value} short /> : <span className="font-mono">{value}</span>;
   }
   if (spec.kind === "digest" && typeof value === "string") {
@@ -102,7 +114,7 @@ export function NextItemRow({
   sharedFields?: ReadonlySet<string>;
 }) {
   const [raw, setRaw] = useState(false);
-  const meta = REASONS[item.reason];
+  const meta = reasonMeta(item.reason);
   const split = splitDetail(item.reason, item.detail);
   // A Claim field naming the row's own subject is already the row's link.
   const fields = split.fields.filter(
@@ -166,7 +178,7 @@ export function NextItemRow({
         </div>
       )}
       {(item.findings?.length ?? 0) > 0 && (
-        <div className="t-meta">also: {item.findings!.map((finding) => REASONS[finding.reason].label).join("; ")}</div>
+        <div className="t-meta">also: {item.findings!.map((finding) => reasonMeta(finding.reason).label).join("; ")}</div>
       )}
       {raw && rest !== null && (
         <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap border-l border-zinc-800 pl-3 text-[11px] text-zinc-400">
@@ -205,7 +217,7 @@ export function NextGroups({ items }: { items: NextItem[] }) {
           <div key={reason}>
             <div className="mb-1.5 flex flex-wrap items-baseline gap-x-3 border-b border-zinc-800/70 pb-1">
               <span className="text-[13px] font-semibold text-zinc-100" title={reason}>
-                {REASONS[reason as NextItem["reason"]].label}
+                {reasonMeta(reason as NextItem["reason"]).label}
               </span>
               <span className="font-mono text-[12px] text-zinc-500">{rows.length}</span>
               {common.map(({ spec, value }) => (

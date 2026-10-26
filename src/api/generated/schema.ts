@@ -581,6 +581,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/{instance_id}/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Capture Upload Open */
+        post: operations["capture_upload_open_api_v1__instance_id__uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/{instance_id}/uploads/{upload_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Capture Upload Status */
+        get: operations["capture_upload_status_api_v1__instance_id__uploads__upload_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/{instance_id}/uploads/{upload_id}/parts/{part}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Capture Upload Part */
+        post: operations["capture_upload_part_api_v1__instance_id__uploads__upload_id__parts__part__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/{instance_id}/uploads/{upload_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Capture Upload Complete */
+        post: operations["capture_upload_complete_api_v1__instance_id__uploads__upload_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/{instance_id}/documents/proposals": {
         parameters: {
             query?: never;
@@ -853,6 +921,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/{instance_id}/captures/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Erase Capture
+         * @description Erase one Capture's retained body; previews unless committed with ``at``.
+         */
+        post: operations["erase_capture_api_v1__instance_id__captures_erase_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/{instance_id}/files/context": {
         parameters: {
             query?: never;
@@ -898,6 +986,23 @@ export interface paths {
         put?: never;
         /** Propose Files */
         post: operations["propose_files_api_v1__instance_id__files_proposals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/{instance_id}/capture-contracts/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose Capture Contract */
+        post: operations["propose_capture_contract_api_v1__instance_id__capture_contracts_proposals_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2091,11 +2196,11 @@ export interface components {
             subject?: string | components["schemas"]["CreatedSubject"] | null;
             /**
              * Field
-             * @description A field from orient, or its full predicate.
+             * @description A field as orient names it, or its predicate.
              */
             field: string;
             /** Value */
-            value: boolean | number | string | components["schemas"]["CreatedSubject"];
+            value: boolean | number | string | components["schemas"]["CreatedSubject"] | components["schemas"]["NoneValue"];
             /**
              * Role
              * @description Only when the field permits more than one role.
@@ -2108,14 +2213,14 @@ export interface components {
             evidence?: (components["schemas"]["SelfEvidence"] | components["schemas"]["CaptureEvidence"] | components["schemas"]["FileEvidence"] | components["schemas"]["ContractEvidence"] | components["schemas"]["SectionEvidence"]) | null;
             /**
              * Expect Absent
-             * @description Refuse value_already_present instead of treating a live value as already done.
+             * @description Refuse value_already_present if the value is live.
              * @default false
              */
             expect_absent?: boolean;
         };
         /**
          * AppendSection
-         * @description Append a child subtree, creating a missing file with exactly the agent's text.
+         * @description Append a child subtree; a missing file is created with exactly this text.
          */
         AppendSection: {
             /**
@@ -2136,7 +2241,7 @@ export interface components {
             text: string;
             /**
              * Name
-             * @description Catalog name, used only when creating a file.
+             * @description Catalog name for a new file.
              */
             name?: string | null;
         };
@@ -2318,6 +2423,16 @@ export interface components {
             state?: "live" | "retired";
             /** Predecessor Digest */
             predecessor_digest?: string | null;
+        };
+        /**
+         * ArtifactNameRef
+         * @description A field-typed reference resolved at the selected accepted coordinate.
+         *
+         *     The containing field supplies the role. Only historical pins and evidence
+         *     carry a digest; an authored dependency names the governed identity.
+         */
+        ArtifactNameRef: {
+            target: components["schemas"]["ArtifactIdentity"];
         };
         /** ArtifactPin */
         ArtifactPin: {
@@ -2545,6 +2660,7 @@ export interface components {
             rank_score: number;
             /** Evidence Refs */
             evidence_refs: components["schemas"]["AuditEvidenceRef"][];
+            statement?: components["schemas"]["ClaimLine"] | null;
         };
         /** AuditScope */
         AuditScope: {
@@ -2594,7 +2710,7 @@ export interface components {
             /** Qualifier */
             qualifier?: string | null;
             /** Object */
-            object: components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Input"] | components["schemas"]["AuthoringExactContentObject"];
+            object: components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Input"] | components["schemas"]["AuthoringExactContentObject"] | components["schemas"]["AuthoringNoneClaimObject"];
             /**
              * Role
              * @enum {string}
@@ -2617,7 +2733,7 @@ export interface components {
              */
             tag?: "playbill-authoring-intent-compile-request-v3";
             /** Payload */
-            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["BlueprintAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
+            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
             /** Reference Expectations */
             reference_expectations: (components["schemas"]["AuthoringReferenceExpectation"] | components["schemas"]["AuthoringSlotExpectation"])[];
             program_stamp: components["schemas"]["AuthoringProgramStamp"];
@@ -2685,7 +2801,7 @@ export interface components {
              */
             tag?: "playbill-authoring-input-compile-request-v1";
             /** Input */
-            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["BlueprintInput"] | components["schemas"]["BlueprintInstanceInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ChangeSetInput"];
+            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ChangeSetInput"];
             /** Intent Id */
             intent_id?: string | null;
         };
@@ -2705,7 +2821,7 @@ export interface components {
              */
             tag?: "playbill-authoring-input-submit-request-v1";
             /** Input */
-            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["BlueprintInput"] | components["schemas"]["BlueprintInstanceInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ChangeSetInput"];
+            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ChangeSetInput"];
             /** Intent Id */
             intent_id?: string | null;
             /**
@@ -2729,7 +2845,7 @@ export interface components {
              */
             tag?: "playbill-authoring-intent-compile-request-v3";
             /** Payload */
-            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["BlueprintAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
+            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
             /** Reference Expectations */
             reference_expectations: (components["schemas"]["AuthoringReferenceExpectation"] | components["schemas"]["AuthoringSlotExpectation"])[];
             program_stamp: components["schemas"]["AuthoringProgramStamp"];
@@ -2745,7 +2861,7 @@ export interface components {
              */
             tag?: "playbill-authoring-intent-compile-request-v1";
             /** Payload */
-            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["BlueprintAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
+            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
             /** Intent Id */
             intent_id?: string | null;
         };
@@ -2785,6 +2901,23 @@ export interface components {
             /** Proposal Id */
             proposal_id?: string | null;
             accepted_coordinate: components["schemas"]["AcceptedCoordinate"];
+        };
+        /**
+         * AuthoringNoneClaimObject
+         * @description A none as authored (an inverse Claim, ClaimType v9): the unit ``of`` names holds nothing.
+         *
+         *     ``of`` is absent for a whole one-valued slot, else the object (``object``
+         *     inverse) or the key value (``object_key``). Lowering stores it as the
+         *     accepted ``NoneClaimObject``.
+         */
+        AuthoringNoneClaimObject: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "none";
+            /** Of */
+            of?: (components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Input"]) | null;
         };
         /** AuthoringPreflightRequest */
         AuthoringPreflightRequest: {
@@ -3182,6 +3315,8 @@ export interface components {
             reason?: ("block_workspace_instance_mismatch" | "block_backing_missing" | "block_backing_changed" | "block_backing_overturned" | "block_backing_retired" | "block_successor_ambiguous" | "block_query_unchecked") | null;
             /** Detail */
             detail?: string | null;
+            /** Registered */
+            registered?: boolean | null;
         };
         /** BlockSyncSuccessorCandidate */
         BlockSyncSuccessorCandidate: {
@@ -3206,109 +3341,6 @@ export interface components {
             blocked_by: string[];
             /** Reason */
             reason: string;
-        };
-        /**
-         * BlueprintAuthoringPayload
-         * @description A Blueprint envelope input: a Procedure definition whose Provider slots stay open.
-         *
-         *     It lowers to ``blueprints/<name>.json``. A Blueprint pins no acquisition
-         *     policy: that binding belongs to each Procedure instantiated from it.
-         */
-        BlueprintAuthoringPayload: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            tag: "cruxible-blueprint-authoring-payload-v1";
-            /** Definition */
-            definition: {
-                [key: string]: unknown;
-            };
-            /**
-             * Activation Policy
-             * @enum {string}
-             */
-            activation_policy: "drain" | "abort" | "snapshot" | "epoch-check";
-            /** Owned Contracts */
-            owned_contracts: components["schemas"]["ProcedureOwnedContract"][];
-            /** Acquisition Policy */
-            acquisition_policy?: string | null;
-            /**
-             * Retire
-             * @default false
-             */
-            retire?: boolean;
-        };
-        /**
-         * BlueprintInput
-         * @description A Procedure skeleton: a definition whose Provider slots stay open.
-         *
-         *     Slots are referenced as ``{"kind": "slot", "slot_name": ...}`` in Provider
-         *     positions and declared in ``definition.pin_slots`` with the interface digest
-         *     they need. A Blueprint never runs; instantiate it with ``blueprint_instance``.
-         */
-        BlueprintInput: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "blueprint";
-            /** Definition */
-            definition: {
-                [key: string]: unknown;
-            };
-            /**
-             * Activation Policy
-             * @default snapshot
-             * @enum {string}
-             */
-            activation_policy?: "drain" | "abort" | "snapshot" | "epoch-check";
-            /**
-             * Retire
-             * @default false
-             */
-            retire?: boolean;
-            /**
-             * Contracts
-             * @default []
-             */
-            contracts?: components["schemas"]["CarriedContractInput"][];
-        };
-        /**
-         * BlueprintInstanceInput
-         * @description An ordinary Procedure made from a Blueprint: one accepted Provider per slot.
-         *
-         *     ``bindings`` maps each Blueprint slot to the name of an accepted Provider
-         *     implementing that slot's interface (``cruxible get Blueprint:<name>`` lists
-         *     the Providers that fit). The Procedure records the Blueprint and bindings.
-         */
-        BlueprintInstanceInput: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "blueprint_instance";
-            /** Name */
-            name: string;
-            /** Blueprint */
-            blueprint: string;
-            /** Bindings */
-            bindings: {
-                [key: string]: string;
-            };
-            /**
-             * Activation Policy
-             * @default snapshot
-             * @enum {string}
-             */
-            activation_policy?: "drain" | "abort" | "snapshot" | "epoch-check";
-            /** Acquisition Policy */
-            acquisition_policy?: string | null;
-            /**
-             * Retire
-             * @default false
-             */
-            retire?: boolean;
         };
         /**
          * BlueprintOrigin
@@ -3379,21 +3411,6 @@ export interface components {
             ends_at: string;
             event?: components["schemas"]["TriggerEventReference"] | null;
         };
-        /** BoundedWindowCoherence */
-        BoundedWindowCoherence: {
-            /**
-             * Tag
-             * @default playbill-bounded-window-coherence-v1
-             * @constant
-             */
-            tag?: "playbill-bounded-window-coherence-v1";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "bounded_window";
-            max_cross_source_skew: components["schemas"]["CanonicalDuration"];
-        };
         /**
          * ByteRange
          * @description A half-open byte range ``[start, end)`` of a Document body.
@@ -3446,9 +3463,9 @@ export interface components {
             /** Implementation Digest */
             implementation_digest?: string | null;
             /** Contract In */
-            contract_in: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
+            contract_in?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
             /** Contract Out */
-            contract_out: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
+            contract_out?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
             /** Effect Policy */
             effect_policy?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
             /** Input */
@@ -3457,6 +3474,22 @@ export interface components {
             as: string;
             /** Next */
             next?: string | null;
+        };
+        /** CallStep */
+        CallStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Call */
+            call: string;
+            /** Interface */
+            interface: string;
+            /** Provider */
+            provider?: string | null;
+            input: components["schemas"]["JsonValue"];
+            /** Effect Policy */
+            effect_policy?: string | null;
         };
         /** CandidateStatusRecord */
         CandidateStatusRecord: {
@@ -3499,7 +3532,7 @@ export interface components {
              * Tag
              * @constant
              */
-            tag: "playbill-capture-admission-account-v1";
+            tag: "cruxible-capture-admission-account-v2";
             /** Citation Id */
             citation_id: string;
             /** Capture Digest */
@@ -3523,55 +3556,56 @@ export interface components {
              * @enum {string}
              */
             status: "admitted" | "not_admitted" | "not_evidence";
-            /** Decisions */
-            decisions: components["schemas"]["CaptureEvidenceKindAdmission"][];
+            decision: components["schemas"]["CaptureEvidenceAdmission"] | null;
         };
-        /** CaptureContract */
+        /**
+         * CaptureContract
+         * @description Current stored contract: shape and policy, with frozen expanded components.
+         */
         CaptureContract: {
             /**
              * Artifact Format
-             * @default playbill-capture-contract-v1
+             * @default cruxible-capture-contract-v2
              * @constant
              */
-            artifact_format?: "playbill-capture-contract-v1";
+            artifact_format?: "cruxible-capture-contract-v2";
             identity: components["schemas"]["ArtifactIdentity"];
-            /** Allowed Source Kinds */
-            allowed_source_kinds: ("ledger" | "cas" | "external")[];
-            /** Logical Source Identities */
-            logical_source_identities: string[];
-            /** Coordinate Schema Pins */
-            coordinate_schema_pins: components["schemas"]["ArtifactPin"][];
-            /** Selector Schema Pins */
-            selector_schema_pins: components["schemas"]["ArtifactPin"][];
-            commitment_canonicalizer: components["schemas"]["ArtifactPin"];
-            /** Allowed Materialization Modes */
-            allowed_materialization_modes: ("ledger" | "cas" | "external" | "none")[];
-            selection_budget: components["schemas"]["CaptureSelectionBudget"];
-            retention_erasure_policy: components["schemas"]["CaptureRetentionErasurePolicy"];
-            /** Replay Policy Digest */
-            replay_policy_digest: string;
+            /** Shape */
+            shape: ("http_response" | "procedure_output" | "foreign_span" | "database_snapshot") | "coordinator_self_source";
             /**
-             * Epistemic Grade
+             * Replay
              * @enum {string}
              */
-            epistemic_grade: "observed" | "derived" | "predicted";
-            /** Provenance Rule Digest */
-            provenance_rule_digest: string;
-            /** Evidence Kinds */
-            evidence_kinds: string[];
-            /** Source Subject Mapping Digest */
-            source_subject_mapping_digest: string;
+            replay: "exact" | "attested";
+            components: components["schemas"]["CaptureContractComponents"];
+            selection_budget: components["schemas"]["CaptureSelectionBudget"];
+            retention_erasure_policy: components["schemas"]["CaptureRetentionErasurePolicy"];
             /**
-             * Pins
-             * @default []
+             * Epistemic Grade
+             * @default observed
+             * @enum {string}
              */
-            pins?: components["schemas"]["ArtifactPin"][];
+            epistemic_grade?: "observed" | "derived" | "predicted";
             /**
              * @default {
              *       "state": "live"
              *     }
              */
             lifecycle?: components["schemas"]["ArtifactLifecycle"];
+        };
+        /**
+         * CaptureContractAdmission
+         * @description One named contract, optionally restricted to provider-declared sources.
+         */
+        CaptureContractAdmission: {
+            /** Role */
+            role: string;
+            target: components["schemas"]["ArtifactIdentity"];
+            /**
+             * Logical Sources
+             * @default []
+             */
+            logical_sources?: string[];
         };
         /**
          * CaptureContractAuthoringPayload
@@ -3583,7 +3617,51 @@ export interface components {
              * @enum {string}
              */
             tag: "playbill-capture-contract-authoring-payload-v1";
-            capture_contract: components["schemas"]["CaptureContract"];
+            /** Capture Contract */
+            capture_contract: components["schemas"]["CaptureContract"] | components["schemas"]["NamedCaptureContract"] | components["schemas"]["CaptureContractInputRecord"];
+        };
+        /** CaptureContractComponents */
+        CaptureContractComponents: {
+            /** Coordinate Schema Pins */
+            coordinate_schema_pins: components["schemas"]["ArtifactPin"][];
+            /** Selector Schema Pins */
+            selector_schema_pins: components["schemas"]["ArtifactPin"][];
+            commitment_canonicalizer: components["schemas"]["ArtifactPin"];
+            /** Replay Policy Digest */
+            replay_policy_digest: string;
+            /** Provenance Rule Digest */
+            provenance_rule_digest: string;
+            /** Source Subject Mapping Digest */
+            source_subject_mapping_digest: string;
+            /**
+             * Pins
+             * @default []
+             */
+            pins?: components["schemas"]["ArtifactPin"][];
+        };
+        /**
+         * CaptureContractInputRecord
+         * @description A new name and shape, or a merge patch of an accepted contract.
+         */
+        CaptureContractInputRecord: {
+            /** Name */
+            name: string;
+            /** Shape */
+            shape?: ("http_response" | "procedure_output" | "foreign_span" | "database_snapshot") | null;
+            /** Grade */
+            grade?: ("observed" | "derived" | "predicted") | null;
+            /** Replay */
+            replay?: ("exact" | "attested") | null;
+            /** Retention */
+            retention?: string | null;
+            /** Erasable */
+            erasable?: boolean | null;
+            /** Max Bytes */
+            max_bytes?: number | null;
+            /** Selector Privacy */
+            selector_privacy?: ("direct_allowed" | "pseudonymous_required") | null;
+            /** Lifecycle */
+            lifecycle?: ("live" | "retired") | null;
         };
         /** CaptureEgressNode */
         CaptureEgressNode: {
@@ -3671,6 +3749,117 @@ export interface components {
             input_receipt_set_manifest_digest?: string | null;
         };
         /**
+         * CaptureEraseRequest
+         * @description Erase one Capture's retained body; previews unless committed with ``at``.
+         */
+        CaptureEraseRequest: {
+            /**
+             * Tag
+             * @default playbill-capture-erase-request-v1
+             * @constant
+             */
+            tag?: "playbill-capture-erase-request-v1";
+            /**
+             * Capture Digest
+             * @description The Capture's full digest (sha256:<64 hex>), or the CAP-<12+ hex> handle a get card prints.
+             */
+            capture_digest: string;
+            /**
+             * Because
+             * @description Why the body is erased, recorded and shown; never repeat the erased bytes.
+             */
+            because: string;
+            /**
+             * Dry Run
+             * @description true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews).
+             */
+            dry_run?: boolean | null;
+            /**
+             * At
+             * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
+             */
+            at?: string | null;
+        };
+        /**
+         * CaptureEraseResult
+         * @description What one erasure destroyed (or, previewing, would destroy) and what it leaves.
+         *
+         *     ``would_erase`` answers a preview: nothing was erased or recorded, and
+         *     ``erasure`` shows the record a commit would write (its instant is the
+         *     preview's). ``already_erased`` answers a Capture erased before: nothing new
+         *     is recorded and ``erasure`` is the existing record. ``citing_claims`` are
+         *     the live Claims that cite the Capture at the head; ``left_without_evidence``
+         *     those of them whose every cited Capture other than their own words would
+         *     then have an erased body (``next`` lists each as ``claim_evidence_erased``).
+         *     An erasure adds no rule of its own: verdicts read the evidence as no longer
+         *     replayable, and each ClaimType's own rules decide what that means (one that
+         *     requires current replay reads the Claim ``stale``). A live Claim citing an
+         *     erased Capture moves on by a re-bind onto a fresh Capture under the same
+         *     contract, and can be revised or retired: what it inherits verifies on the
+         *     envelope and this record (compiler revision 35).
+         */
+        CaptureEraseResult: {
+            /**
+             * Tag
+             * @default playbill-capture-erase-result-v1
+             * @constant
+             */
+            tag?: "playbill-capture-erase-result-v1";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "erased" | "would_erase" | "already_erased";
+            erasure: components["schemas"]["CaptureErasureRecord"];
+            /** Citing Claims */
+            citing_claims: string[];
+            /** Citing Claim Count */
+            citing_claim_count: number;
+            /** Left Without Evidence */
+            left_without_evidence: string[];
+            coordinate: components["schemas"]["StateCoordinate"];
+        };
+        /**
+         * CaptureErasureRecord
+         * @description Who erased one Capture's retained body, when, why, and under which authority.
+         */
+        CaptureErasureRecord: {
+            /**
+             * Tag
+             * @default playbill-capture-erasure-record-v1
+             * @constant
+             */
+            tag?: "playbill-capture-erasure-record-v1";
+            /** Capture Digest */
+            capture_digest: string;
+            /**
+             * Capture Contract
+             * @description The CaptureContract identity it was taken under.
+             */
+            capture_contract: string;
+            /** Capture Contract Digest */
+            capture_contract_digest: string;
+            /**
+             * Erasure Rule Digest
+             * @description The erasure rule the contract pins.
+             */
+            erasure_rule_digest: string;
+            /**
+             * Body Digests
+             * @description The retained body objects destroyed: the CAS commitment and CAS source.
+             */
+            body_digests: string[];
+            /** Erased By */
+            erased_by: string;
+            /**
+             * Erased At
+             * Format: date-time
+             */
+            erased_at: string;
+            /** Because */
+            because: string;
+        };
+        /**
          * CaptureEventByNameWindow
          * @description An observation window anchored on a named CaptureContract's landings.
          */
@@ -3682,6 +3871,11 @@ export interface components {
             kind: "capture_event";
             /** Capture Contract */
             capture_contract: string;
+            /**
+             * Logical Sources
+             * @default []
+             */
+            logical_sources?: string[];
             /**
              * Duration Seconds
              * @description Reads VALIDITY WINDOW.
@@ -3696,6 +3890,11 @@ export interface components {
             capture_contract_identity: components["schemas"]["ArtifactIdentity"];
             /** Capture Contract Digest */
             capture_contract_digest: string;
+            /**
+             * Logical Sources
+             * @default []
+             */
+            logical_sources?: string[];
         };
         /** CaptureEventWindow */
         CaptureEventWindow: {
@@ -3723,19 +3922,17 @@ export interface components {
             kind: "capture";
             /**
              * Capture
-             * @description sha256:<64 hex> or unique CAP-<12+ hex> handle.
+             * @description sha256 digest or unique CAP-<12+ hex>.
              */
             capture: string;
         };
-        /** CaptureEvidenceKindAdmission */
-        CaptureEvidenceKindAdmission: {
+        /** CaptureEvidenceAdmission */
+        CaptureEvidenceAdmission: {
             /**
              * Tag
              * @constant
              */
-            tag: "playbill-capture-evidence-kind-admission-v1";
-            /** Evidence Kind */
-            evidence_kind: string;
+            tag: "cruxible-capture-evidence-admission-v2";
             /**
              * Status
              * @enum {string}
@@ -3762,6 +3959,11 @@ export interface components {
             kind: "capture_landing";
             /** Capture Contract */
             capture_contract: string;
+            /**
+             * Logical Sources
+             * @default []
+             */
+            logical_sources?: string[];
         };
         /** CaptureRead */
         CaptureRead: {
@@ -3781,6 +3983,7 @@ export interface components {
             status: "verified" | "unavailable";
             /** Reason */
             reason?: string | null;
+            erasure?: components["schemas"]["CaptureErasureRecord"] | null;
             /** Envelope */
             envelope?: components["schemas"]["CaptureEnvelopeV1"] | components["schemas"]["CaptureEnvelope"] | null;
             /** Contract Address */
@@ -3891,6 +4094,108 @@ export interface components {
             max_rows: number;
             /** Max Items */
             max_items: number;
+        };
+        /**
+         * CaptureUploadCompleteRequest
+         * @description Read the uploaded file as a Capture by running the acquire Procedure on it.
+         *
+         *     ``input`` is the Procedure's run input apart from the path: the daemon sets
+         *     ``input[input_path_field]`` to the staged file name, so the Procedure's
+         *     ``workspace.file`` read (``relative_path: $input.relative_path`` by default)
+         *     finds the upload in its ``uploads`` workspace.
+         */
+        CaptureUploadCompleteRequest: {
+            /**
+             * Procedure
+             * @description The acquire Procedure that reads the upload.
+             */
+            procedure: string;
+            /** Input */
+            input?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Input Path Field
+             * @default relative_path
+             */
+            input_path_field?: string;
+            at?: components["schemas"]["AcceptedCoordinate"] | null;
+        };
+        /**
+         * CaptureUploadCompleteResult
+         * @description The acquire run the upload completed into; the staged file is gone.
+         */
+        CaptureUploadCompleteResult: {
+            /**
+             * Tag
+             * @default cruxible-capture-upload-complete-result-v1
+             * @constant
+             */
+            tag?: "cruxible-capture-upload-complete-result-v1";
+            /** Upload Id */
+            upload_id: string;
+            /** Filename */
+            filename: string;
+            /** Sha256 */
+            sha256: string;
+            /** Byte Length */
+            byte_length: number;
+            run: components["schemas"]["ProcedureRunState"];
+        };
+        /**
+         * CaptureUploadOpenRequest
+         * @description Open an upload session for one file of exactly these bytes.
+         */
+        CaptureUploadOpenRequest: {
+            /**
+             * Byte Length
+             * @description The file's exact length in bytes.
+             */
+            byte_length: number;
+            /**
+             * Sha256
+             * @description The file's sha256, tagged (sha256:<hex>).
+             */
+            sha256: string;
+            /**
+             * Filename
+             * @description The name the file is staged under, and the path the acquire Procedure's workspace.file read receives.
+             */
+            filename: string;
+        };
+        /**
+         * CaptureUploadSession
+         * @description An open upload: what it will hold, and which parts the daemon holds so far.
+         */
+        CaptureUploadSession: {
+            /**
+             * Tag
+             * @default cruxible-capture-upload-session-v1
+             * @constant
+             */
+            tag?: "cruxible-capture-upload-session-v1";
+            /** Upload Id */
+            upload_id: string;
+            /** Filename */
+            filename: string;
+            /** Byte Length */
+            byte_length: number;
+            /** Sha256 */
+            sha256: string;
+            /** Part Size */
+            part_size: number;
+            /** Part Count */
+            part_count: number;
+            /**
+             * Parts Received
+             * @default []
+             */
+            parts_received?: number[];
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
         };
         /** CarriedContractInput */
         CarriedContractInput: {
@@ -4048,7 +4353,7 @@ export interface components {
              * Op
              * @enum {string}
              */
-            op: "create" | "set" | "add" | "retire";
+            op: "create" | "set" | "add" | "retire" | "rebind";
             /** Subject */
             subject?: string | null;
             /** Resolved */
@@ -4103,7 +4408,7 @@ export interface components {
              */
             tag: "playbill-change-set-authoring-payload-v1";
             /** Members */
-            members: (components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ClaimTypeAuthoringPayload"] | components["schemas"]["ClaimTypeSuccessionMember"] | components["schemas"]["ClaimRetirementMember"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["SubjectCreationAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["BlueprintAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"])[];
+            members: (components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ClaimTypeAuthoringPayload"] | components["schemas"]["ClaimTypeSuccessionMember"] | components["schemas"]["ClaimRetirementMember"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["SubjectCreationAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"])[];
             /** Rationale */
             rationale?: string | null;
         };
@@ -4115,7 +4420,7 @@ export interface components {
              */
             kind: "change_set";
             /** Members */
-            members: (components["schemas"]["ClaimInput"] | components["schemas"]["ClaimTypeInput"] | components["schemas"]["ClaimTypeSuccessionInput"] | components["schemas"]["ClaimRetirementInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["BlueprintInput"] | components["schemas"]["BlueprintInstanceInput"] | components["schemas"]["ProcedureInput"])[];
+            members: (components["schemas"]["ClaimInput"] | components["schemas"]["ClaimTypeInput"] | components["schemas"]["ClaimTypeSuccessionInput"] | components["schemas"]["ClaimRetirementInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ProcedureInput"])[];
             /** Rationale */
             rationale?: string | null;
         };
@@ -4354,6 +4659,11 @@ export interface components {
             located_at?: components["schemas"]["WorkingSelectionObservation"] | null;
             dependency_drafts: components["schemas"]["ClaimDependencyDrafts"];
             derivation?: components["schemas"]["ClaimDerivationBinding"] | null;
+            /**
+             * Replaces Citations
+             * @default []
+             */
+            replaces_citations?: string[];
         };
         /** ClaimAuthoringPayloadV1 */
         ClaimAuthoringPayloadV1: {
@@ -4401,6 +4711,11 @@ export interface components {
             existing_claim_dispositions?: components["schemas"]["AuthoringExistingClaimDisposition"][];
             located_at?: components["schemas"]["WorkingSelectionObservation"] | null;
             dependency_drafts: components["schemas"]["ClaimDependencyDrafts"];
+            /**
+             * Replaces Citations
+             * @default []
+             */
+            replaces_citations?: string[];
         };
         /** ClaimBackingsRequest */
         ClaimBackingsRequest: {
@@ -4454,10 +4769,10 @@ export interface components {
         ClaimEvidenceAdmissionPolicy: {
             /**
              * Tag
-             * @default playbill-claim-evidence-admission-policy-v3
+             * @default cruxible-claim-evidence-admission-policy-v4
              * @constant
              */
-            tag?: "playbill-claim-evidence-admission-policy-v3";
+            tag?: "cruxible-claim-evidence-admission-policy-v4";
             /**
              * Rules
              * @default []
@@ -4492,22 +4807,26 @@ export interface components {
              */
             rules?: components["schemas"]["ClaimEvidenceAdmissionRuleV2"][];
         };
-        /**
-         * ClaimEvidenceAdmissionRule
-         * @description Evidence requirements naming CaptureContracts by identity.
-         *
-         *     The rule admits evidence captured under any accepted version of a named
-         *     contract. That is safe because a contract successor must be compatible with
-         *     its predecessor; a change that alters what the evidence means is a new
-         *     contract identity, which the rule does not name until someone edits it.
-         */
+        /** ClaimEvidenceAdmissionPolicyV3 */
+        ClaimEvidenceAdmissionPolicyV3: {
+            /**
+             * Tag
+             * @default playbill-claim-evidence-admission-policy-v3
+             * @constant
+             */
+            tag?: "playbill-claim-evidence-admission-policy-v3";
+            /**
+             * Rules
+             * @default []
+             */
+            rules?: components["schemas"]["ClaimEvidenceAdmissionRuleV3"][];
+        };
+        /** ClaimEvidenceAdmissionRule */
         ClaimEvidenceAdmissionRule: {
             /** Rule Id */
             rule_id: string;
             /** Claim Roles */
             claim_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
-            /** Evidence Kinds */
-            evidence_kinds: string[];
             /**
              * Admission
              * @enum {string}
@@ -4526,12 +4845,12 @@ export interface components {
             attestation_requirement?: "none" | "verified_provider" | "verified_principal" | "any_verified";
             /**
              * Tag
-             * @default playbill-claim-evidence-admission-rule-v3
+             * @default cruxible-claim-evidence-admission-rule-v4
              * @constant
              */
-            tag?: "playbill-claim-evidence-admission-rule-v3";
+            tag?: "cruxible-claim-evidence-admission-rule-v4";
             /** Capture Contracts */
-            capture_contracts: components["schemas"]["ArtifactRef"][];
+            capture_contracts: components["schemas"]["CaptureContractAdmission"][];
         };
         /**
          * ClaimEvidenceAdmissionRuleV1
@@ -4542,8 +4861,6 @@ export interface components {
             rule_id: string;
             /** Claim Roles */
             claim_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
-            /** Evidence Kinds */
-            evidence_kinds: string[];
             /**
              * Admission
              * @enum {string}
@@ -4560,6 +4877,8 @@ export interface components {
              * @enum {string}
              */
             attestation_requirement?: "none" | "verified_provider" | "verified_principal" | "any_verified";
+            /** Evidence Kinds */
+            evidence_kinds: string[];
             /** Capture Contract Digests */
             capture_contract_digests: string[];
             /**
@@ -4583,8 +4902,6 @@ export interface components {
             rule_id: string;
             /** Claim Roles */
             claim_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
-            /** Evidence Kinds */
-            evidence_kinds: string[];
             /**
              * Admission
              * @enum {string}
@@ -4601,6 +4918,8 @@ export interface components {
              * @enum {string}
              */
             attestation_requirement?: "none" | "verified_provider" | "verified_principal" | "any_verified";
+            /** Evidence Kinds */
+            evidence_kinds: string[];
             /** Capture Contract Digests */
             capture_contract_digests: string[];
             /**
@@ -4609,6 +4928,47 @@ export interface components {
              * @constant
              */
             tag?: "playbill-claim-evidence-admission-rule-v2";
+        };
+        /**
+         * ClaimEvidenceAdmissionRuleV3
+         * @description Evidence requirements naming CaptureContracts by identity.
+         *
+         *     The rule admits evidence captured under any accepted version of a named
+         *     contract. That is safe because a contract successor must be compatible with
+         *     its predecessor; a change that alters what the evidence means is a new
+         *     contract identity, which the rule does not name until someone edits it.
+         */
+        ClaimEvidenceAdmissionRuleV3: {
+            /** Rule Id */
+            rule_id: string;
+            /** Claim Roles */
+            claim_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
+            /**
+             * Admission
+             * @enum {string}
+             */
+            admission: "origin_only" | "direct" | "derivational";
+            /**
+             * Subject Binding
+             * @enum {string}
+             */
+            subject_binding: "exact_claim_subject" | "contract_source_mapping";
+            /**
+             * Attestation Requirement
+             * @default none
+             * @enum {string}
+             */
+            attestation_requirement?: "none" | "verified_provider" | "verified_principal" | "any_verified";
+            /** Evidence Kinds */
+            evidence_kinds: string[];
+            /**
+             * Tag
+             * @default playbill-claim-evidence-admission-rule-v3
+             * @constant
+             */
+            tag?: "playbill-claim-evidence-admission-rule-v3";
+            /** Capture Contracts */
+            capture_contracts: components["schemas"]["ArtifactRef"][];
         };
         /** ClaimEvidenceFreshness */
         ClaimEvidenceFreshness: {
@@ -4619,6 +4979,19 @@ export interface components {
              */
             tag?: "playbill-claim-evidence-freshness-v1";
             stale_after: components["schemas"]["ClaimFreshnessDuration"];
+        };
+        /**
+         * ClaimEvidenceFreshnessInput
+         * @description How long a Claim's evidence stays current; ``stale_after`` takes ``P30D``.
+         */
+        ClaimEvidenceFreshnessInput: {
+            /**
+             * Tag
+             * @default playbill-claim-evidence-freshness-v1
+             * @constant
+             */
+            tag?: "playbill-claim-evidence-freshness-v1";
+            stale_after: string | components["schemas"]["ClaimFreshnessDuration"];
         };
         /** ClaimFreshnessDuration */
         ClaimFreshnessDuration: {
@@ -4674,6 +5047,113 @@ export interface components {
              * @default []
              */
             dispositions?: components["schemas"]["ClaimDispositionInput"][];
+        };
+        /**
+         * ClaimInverse
+         * @description How a ClaimType v9 states absence: the unit an inverse Claim covers and its evidence.
+         *
+         *     An inverse Claim (object ``{kind: none}``) says the unit ``key`` names holds
+         *     no value. Only a Capture one of ``evidence_rules`` admits can establish it,
+         *     whatever the type's ``evidence_requirement``. ``stale_after`` is how long an
+         *     inverse stays current (absent: the type's ``evidence_freshness``), so
+         *     absence can expire sooner than presence. ``description`` says what a none
+         *     means for this predicate.
+         */
+        ClaimInverse: {
+            /**
+             * Tag
+             * @default cruxible-claim-inverse-v1
+             * @constant
+             */
+            tag?: "cruxible-claim-inverse-v1";
+            /** Key */
+            key: components["schemas"]["ClaimInverseSlotKey"] | components["schemas"]["ClaimInverseObjectKey"] | components["schemas"]["ClaimInverseObjectKeyPart"];
+            /** Evidence Rules */
+            evidence_rules: string[];
+            stale_after?: components["schemas"]["ClaimFreshnessDuration"] | null;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * ClaimInverseInput
+         * @description How the type states that a unit holds nothing (ClaimType v9).
+         *
+         *     ``key`` names the unit: ``{kind: slot}`` for a one-valued type,
+         *     ``{kind: object}`` or ``{kind: object_key, predicate}`` (a key ClaimType of
+         *     every object SubjectKind) for a many-valued one. ``evidence_rules`` are ids
+         *     of the type's own evidence rules, in any order; only a Capture one of them
+         *     admits establishes a none. ``stale_after`` takes ``P7D`` (absent: the type's
+         *     evidence freshness applies).
+         */
+        ClaimInverseInput: {
+            /** Key */
+            key: components["schemas"]["ClaimInverseSlotKey"] | components["schemas"]["ClaimInverseObjectKey"] | components["schemas"]["ClaimInverseObjectKeyPart"];
+            /** Evidence Rules */
+            evidence_rules: string[];
+            stale_after?: string | components["schemas"]["ClaimFreshnessDuration"] | null;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * ClaimInverseObjectKey
+         * @description A many-valued unit is one object: its inverse says that object is not held.
+         */
+        ClaimInverseObjectKey: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "object";
+        };
+        /**
+         * ClaimInverseObjectKeyPart
+         * @description A many-valued, Subject-valued unit is one key part of the object Subject.
+         *
+         *     ``predicate`` is a key ClaimType of every object SubjectKind; the inverse
+         *     says no object with that key value is held, whichever Subject has it.
+         */
+        ClaimInverseObjectKeyPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "object_key";
+            /** Predicate */
+            predicate: string;
+        };
+        /**
+         * ClaimInverseSlotKey
+         * @description A one-valued slot's unit is the whole slot: its inverse says it holds nothing.
+         */
+        ClaimInverseSlotKey: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "slot";
+        };
+        /**
+         * ClaimLine
+         * @description One Claim as a text line shows it: the Subject, the field, the value, the Claim.
+         *
+         *     Every surface that prints a line about a Claim (``since``, ``coverage
+         *     resolve``, ``audit``, refusals) carries this and renders it through
+         *     ``get_display.render_claim_line``, so the line reads the same everywhere:
+         *     ``subject  field[qualifier] = value  [CLM-<12 hex>]``. ``subject`` is
+         *     ``kind/id``; ``field`` is the short field name ``get`` and ``orient`` show;
+         *     ``value`` is the summary value (a long string is a ``TruncatedText``
+         *     preview). Digests and artifact paths stay in the typed record beside it.
+         */
+        ClaimLine: {
+            /** Claim */
+            claim: string;
+            /** Subject */
+            subject: string;
+            /** Field */
+            field: string;
+            /** Qualifier */
+            qualifier?: string | null;
+            value: components["schemas"]["ShownValue"];
         };
         /**
          * ClaimQueryResult
@@ -4933,7 +5413,7 @@ export interface components {
             /** Predicate */
             predicate: string;
             /** Object */
-            object: components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Output"] | components["schemas"]["ExactContentClaimObject"];
+            object: components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Output"] | components["schemas"]["ExactContentClaimObject"] | components["schemas"]["NoneClaimObject"];
             /**
              * Role
              * @enum {string}
@@ -4970,6 +5450,22 @@ export interface components {
             claim_statement_digest: string;
             /** Acceptable Verdicts */
             acceptable_verdicts: ("supported" | "uncovered" | "stale" | "contradicted" | "unresolved")[];
+        };
+        /** ClaimStep */
+        ClaimStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Claim */
+            claim: string;
+            /** Claim Type */
+            claim_type: string;
+            subject: components["schemas"]["JsonValue"];
+            /** Subject Kind */
+            subject_kind?: string | null;
+            /** All */
+            all?: number | null;
         };
         /**
          * ClaimTapNode
@@ -5008,7 +5504,7 @@ export interface components {
              * @default playbill-claim-type-v7
              * @enum {string}
              */
-            artifact_format?: "playbill-claim-type-v1" | "playbill-claim-type-v3" | "playbill-claim-type-v4" | "playbill-claim-type-v5" | "playbill-claim-type-v6" | "playbill-claim-type-v7" | "playbill-claim-type-v8";
+            artifact_format?: "playbill-claim-type-v1" | "playbill-claim-type-v3" | "playbill-claim-type-v4" | "playbill-claim-type-v5" | "playbill-claim-type-v6" | "playbill-claim-type-v7" | "playbill-claim-type-v8" | "cruxible-claim-type-v9";
             identity: components["schemas"]["ArtifactIdentity"];
             /** Predicate */
             predicate: string;
@@ -5042,7 +5538,7 @@ export interface components {
              */
             referent_sensitivity?: "identity" | "shell";
             /** Evidence Admission Policy */
-            evidence_admission_policy: components["schemas"]["ClaimEvidenceAdmissionPolicyV1"] | components["schemas"]["ClaimEvidenceAdmissionPolicyV2"] | components["schemas"]["ClaimEvidenceAdmissionPolicy"];
+            evidence_admission_policy: components["schemas"]["ClaimEvidenceAdmissionPolicyV1"] | components["schemas"]["ClaimEvidenceAdmissionPolicyV2"] | components["schemas"]["ClaimEvidenceAdmissionPolicyV3"] | components["schemas"]["ClaimEvidenceAdmissionPolicy"];
             admission_policy: components["schemas"]["ClaimAdmissionPolicy"];
             resolution_policy: components["schemas"]["ClaimResolutionPolicy"];
             /**
@@ -5078,6 +5574,7 @@ export interface components {
             revision_evidence?: ("replace" | "accumulate") | null;
             /** Canonical Form */
             canonical_form?: ("nfc" | "nfkc" | "trim" | "collapse_whitespace" | "casefold" | "upper" | "strip_punctuation")[] | null;
+            inverse?: components["schemas"]["ClaimInverse"] | null;
         };
         /**
          * ClaimTypeAuthoringPayload
@@ -5198,29 +5695,54 @@ export interface components {
         };
         /**
          * ClaimTypeInputRecord
-         * @description One complete ClaimType, as authored.
+         * @description One ClaimType, as authored: state what differs from the defaults.
          *
-         *     The five ClaimType v7 fields follow JSON merge-patch (RFC 7396) against the
-         *     accepted predecessor: a field left out keeps the predecessor's value, so an
+         *     A new ClaimType states ``predicate`` and ``cardinality``. The predicate's
+         *     prefix before its last dot supplies ``allowed_subject_kinds``; state it for
+         *     a multi-kind field. ``literal_schema`` infers a literal object,
+         *     ``allowed_object_subject_kinds`` a Subject object; state only one. Neither
+         *     means a string literal. State ``object_kind: exact_content`` explicitly.
+         *     Every other field takes its default, written out in full in the stored ClaimType
+         *     (``cruxible claim-type propose --template --expanded`` prints them):
+         *
+         *     - ``permitted_roles``: ``[default_role]`` when one is stated, else
+         *       ``[normative]``.
+         *     - ``evidence_admission_policy``: with ``evidence_requirement`` ``self`` (the
+         *       default) or ``none``, one own-words rule (``self``, contract
+         *       ``cruxible.coordinator-self-source-v1``) for every permitted role but
+         *       ``derivation``, plus one rule per ``anticipated_source_ids`` entry; with
+         *       ``captured``, the source rules only.
+         *     - ``admission_policy``: no corroboration or freeze requirements.
+         *     - ``resolution_policy``: supported, current Claims; ``only_contender``
+         *       (one) or ``all`` (many); a conflict leaves the field unresolved.
+         *     - ``evidence_requirement``: ``captured`` for exactly ``[observation]``
+         *       (which requires a source or explicit evidence policy), otherwise ``self``.
+         *       ``revision_evidence``: ``replace``.
+         *     - ``canonical_form``: ``[nfc, trim]`` for string literals, enum included;
+         *       state ``[]`` for no transforms. Other object types have no default form.
+         *
+         *     An edit (a predicate this instance already holds) follows JSON merge-patch
+         *     (RFC 7396) against the accepted predecessor for every field but
+         *     ``predicate``: a field left out keeps the predecessor's value, so an
          *     unrelated edit never drops what the type means or how it is backed. An
-         *     explicit ``null`` clears ``description``, ``member_descriptions`` (``[]``
-         *     too) or ``default_role``. ``evidence_requirement`` and ``revision_evidence``
-         *     always have a value, so they are named or left out, never ``null``. Over a
-         *     ClaimType before v7 (or none), omitted descriptions start empty, the default
-         *     role is none, and the requirement and revision evidence are the
-         *     predecessor's meaning: ``self`` and ``accumulate`` (a new ClaimType takes
-         *     ``self`` and ``replace``).
+         *     explicit ``null`` clears a field that may be empty (``literal_schema``,
+         *     ``evidence_freshness``, ``attestation_consequence_policy``,
+         *     ``unsure_hold_for``, ``description``, ``member_descriptions`` (``[]`` too),
+         *     ``default_role``, ``canonical_form``, ``inverse``); the others always have a value, so
+         *     they are named or left out, never ``null``. Over a ClaimType before v7,
+         *     omitted descriptions start empty, the default role is none, and the
+         *     requirement and revision evidence are the predecessor's meaning: ``self``
+         *     and ``accumulate``. Durations (``evidence_freshness.stale_after``,
+         *     ``unsure_hold_for``) take ISO-8601 (``P30D``) or ``{microseconds: N}``.
+         *     A rule names a contract by its public or stored name.
          */
         ClaimTypeInputRecord: {
             /** Predicate */
             predicate: string;
             /** Allowed Subject Kinds */
-            allowed_subject_kinds: string[];
-            /**
-             * Object Kind
-             * @enum {string}
-             */
-            object_kind: "literal" | "subject" | "exact_content";
+            allowed_subject_kinds?: string[] | null;
+            /** Object Kind */
+            object_kind?: ("literal" | "subject" | "exact_content") | null;
             /** Literal Schema */
             literal_schema?: {
                 [key: string]: unknown;
@@ -5230,13 +5752,10 @@ export interface components {
              * @default []
              */
             allowed_object_subject_kinds?: string[];
-            /**
-             * Cardinality
-             * @enum {string}
-             */
-            cardinality: "one" | "many";
+            /** Cardinality */
+            cardinality?: ("one" | "many") | null;
             /** Permitted Roles */
-            permitted_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
+            permitted_roles?: ("normative" | "observation" | "environment_binding" | "derivation")[] | null;
             /**
              * Referent Sensitivity
              * @default identity
@@ -5244,17 +5763,17 @@ export interface components {
              */
             referent_sensitivity?: "identity" | "shell";
             /** Evidence Admission Policy */
-            evidence_admission_policy: {
+            evidence_admission_policy?: {
                 [key: string]: unknown;
-            };
+            } | null;
             /** Admission Policy */
-            admission_policy: {
+            admission_policy?: {
                 [key: string]: unknown;
-            };
+            } | null;
             /** Resolution Policy */
-            resolution_policy: {
+            resolution_policy?: {
                 [key: string]: unknown;
-            };
+            } | null;
             /**
              * Pins
              * @default []
@@ -5262,9 +5781,9 @@ export interface components {
             pins?: {
                 [key: string]: unknown;
             }[];
-            evidence_freshness?: components["schemas"]["ClaimEvidenceFreshness"] | null;
+            evidence_freshness?: components["schemas"]["ClaimEvidenceFreshnessInput"] | null;
             attestation_consequence_policy?: components["schemas"]["ClaimAttestationConsequencePolicy"] | null;
-            unsure_hold_for?: components["schemas"]["ClaimFreshnessDuration"] | null;
+            unsure_hold_for?: string | components["schemas"]["ClaimFreshnessDuration"] | null;
             /** Description */
             description?: string | null;
             /** Member Descriptions */
@@ -5277,6 +5796,7 @@ export interface components {
             revision_evidence?: ("replace" | "accumulate") | null;
             /** Canonical Form */
             canonical_form?: ("nfc" | "nfkc" | "trim" | "collapse_whitespace" | "casefold" | "upper" | "strip_punctuation")[] | null;
+            inverse?: components["schemas"]["ClaimInverseInput"] | null;
             /**
              * Anticipated Source Ids
              * @default []
@@ -5292,7 +5812,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "cruxible.claim_type.evidence_policy_admits_no_accepted_contract" | "cruxible.claim_type.anticipated_source_contract_omitted" | "cruxible.claim_type.attestation_threshold_disabled";
+            code: "cruxible.claim_type.evidence_policy_admits_no_accepted_contract" | "cruxible.claim_type.anticipated_source_contract_omitted" | "cruxible.claim_type.attestation_threshold_disabled" | "cruxible.claim_type.permitted_role_unadmitted" | "cruxible.claim_type.field_name_reserved" | "cruxible.claim_type.inverse_on_enum_or_boolean" | "cruxible.claim_type.stale_eligible_never_current" | "cruxible.claim_type.description_missing" | "cruxible.claim_type.subject_kind_undeclared";
             /** Field Path */
             field_path: string;
             /** Source Id */
@@ -5948,7 +6468,7 @@ export interface components {
         };
         /**
          * ContractEvidence
-         * @description Use this contract's newest verified exact-bytes Capture about the Subject.
+         * @description This contract's newest verified exact-bytes Capture about the Subject.
          */
         ContractEvidence: {
             /**
@@ -5958,7 +6478,7 @@ export interface components {
             kind: "contract";
             /**
              * Contract
-             * @description CaptureContract name from admitted_contracts.
+             * @description A name from admitted_contracts.
              */
             contract: string;
         };
@@ -6073,6 +6593,11 @@ export interface components {
             result: {
                 [key: string]: unknown;
             };
+            /**
+             * Claims
+             * @default []
+             */
+            claims?: components["schemas"]["ClaimLine"][];
         };
         /**
          * CoverageScanBudget
@@ -6109,7 +6634,7 @@ export interface components {
         };
         /**
          * CreateChange
-         * @description Create or reuse the key's sole live holder; ambiguity refuses. Core assigns the id.
+         * @description Create a Subject by kind and key, or land on its one live holder; core assigns ids.
          */
         CreateChange: {
             /**
@@ -6119,7 +6644,7 @@ export interface components {
             op: "create";
             /**
              * Label
-             * @description Unique label within this write.
+             * @description Unique in this write.
              */
             label: string;
             /**
@@ -6129,7 +6654,7 @@ export interface components {
             subject_kind: string;
             /**
              * Key
-             * @description Single key value or composite parts {"predicate", "value"}; none for minted kinds.
+             * @description One key value, or parts {"predicate", "value"}; none for a minted kind.
              */
             key?: string | number | boolean | components["schemas"]["SubjectKeyPart"][] | null;
             /**
@@ -6140,19 +6665,19 @@ export interface components {
             create_new?: boolean;
             /**
              * Expect New
-             * @description Refuse cruxible.write.subject_exists if the key has a live holder.
+             * @description Refuse subject_exists if the key has a live holder.
              * @default false
              */
             expect_new?: boolean;
         };
         /**
          * CreatedSubject
-         * @description Refer to a create change in this write by label, in any order.
+         * @description A create change of this write, by its label, in any order.
          */
         CreatedSubject: {
             /**
              * Created
-             * @description Unique label within this write.
+             * @description Unique in this write.
              */
             created: string;
         };
@@ -6470,24 +6995,6 @@ export interface components {
              * @default []
              */
             marker_notes?: ("projection_block_unstamped" | "projection_marker_invalid")[];
-        };
-        /** DeclaredSnapshotGroupCoherence */
-        DeclaredSnapshotGroupCoherence: {
-            /**
-             * Tag
-             * @default playbill-declared-snapshot-group-coherence-v1
-             * @constant
-             */
-            tag?: "playbill-declared-snapshot-group-coherence-v1";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "declared_snapshot_group";
-            /** Coordinate Grammar Digest */
-            coordinate_grammar_digest: string;
-            /** Proof Adapter Digest */
-            proof_adapter_digest: string;
         };
         /** DiagnosticFrontier */
         DiagnosticFrontier: {
@@ -6900,6 +7407,17 @@ export interface components {
              */
             keys?: number;
         };
+        /** EmitStep */
+        EmitStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Emit */
+            emit: string;
+            input: components["schemas"]["JsonValue"];
+            result: components["schemas"]["JsonValue"];
+        };
         /**
          * ErrorResponse
          * @description Structured error payload returned by the HTTP server.
@@ -7041,6 +7559,14 @@ export interface components {
             /** Capture Digest */
             capture_digest: string;
         };
+        /**
+         * ExplicitStep
+         * @description Lossless fallback for a stored graph outside the recognized patterns.
+         */
+        ExplicitStep: {
+            /** Explicit */
+            explicit: components["schemas"]["NamedInvokeNode"] | components["schemas"]["NamedClaimTapNode"] | components["schemas"]["NamedStateTapNode"] | components["schemas"]["NamedSourceNode"] | components["schemas"]["NamedExhaustTapNode"] | components["schemas"]["NamedCallNode"] | components["schemas"]["NamedTransformNode"] | components["schemas"]["GuardNode"] | components["schemas"]["NamedProjectNode"] | components["schemas"]["NamedRepeatNode"] | components["schemas"]["NamedCaptureEgressNode"] | components["schemas"]["InboxEgressNode"] | components["schemas"]["NamedProposeChangeSetNode"] | components["schemas"]["NamedSettleChangeSetNode"] | components["schemas"]["HaltNode"] | components["schemas"]["NamedSelectNode"] | components["schemas"]["NamedReturnNode"] | components["schemas"]["NamedConstantNode"];
+        };
         /** ExternalSourceReference */
         ExternalSourceReference: {
             /**
@@ -7157,7 +7683,7 @@ export interface components {
             kind: "file";
             /**
              * File
-             * @description PATH#ANCHOR: a catalogued workspace file and text found once in it.
+             * @description PATH#ANCHOR: a catalogued file and text found once in it.
              */
             file: string;
             /** @description Filled by the client that read the file; leave it out. */
@@ -7180,6 +7706,12 @@ export interface components {
              * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
              */
             at?: string | null;
+            /**
+             * Accept
+             * @default if_allowed
+             * @enum {string}
+             */
+            accept?: "if_allowed" | "never";
         };
         /** FixedWindow */
         FixedWindow: {
@@ -7615,6 +8147,7 @@ export interface components {
             status: "available" | "unavailable";
             /** Status Detail */
             status_detail?: string | null;
+            erased?: components["schemas"]["GetCaptureErasure"] | null;
             /**
              * Subjects
              * @default []
@@ -7656,6 +8189,21 @@ export interface components {
              */
             next?: string[];
         };
+        /**
+         * GetCaptureErasure
+         * @description Who erased a Capture's retained body, when and why.
+         */
+        GetCaptureErasure: {
+            /** By */
+            by: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Because */
+            because: string;
+        };
         /** GetCaptureEvidence */
         GetCaptureEvidence: {
             /**
@@ -7694,6 +8242,8 @@ export interface components {
              * @enum {string}
              */
             status: "admitted" | "not_admitted" | "not_evidence";
+            /** @description Present when the Capture's retained body was erased: its bytes are gone, so the verdict reads this evidence as no longer replayable. */
+            erased?: components["schemas"]["GetCaptureErasure"] | null;
         };
         /**
          * GetChangeSetReason
@@ -7930,6 +8480,56 @@ export interface components {
              */
             change: "changed";
             before?: components["schemas"]["ShownValue"];
+        };
+        /**
+         * GetFieldRebound
+         * @description A re-bind: the same statement, with drifted citations replaced by new ones.
+         *
+         *     ``replaced`` are the Captures (``CAP-<12 hex>`` handles) whose citations the
+         *     revision dropped; ``by`` the Captures it cited in their place. The Claim ID
+         *     and lineage stay; ``reason`` is the write's ``because``.
+         */
+        GetFieldRebound: {
+            /** Field */
+            field: string;
+            /** Predicate */
+            predicate: string;
+            /** Qualifier */
+            qualifier?: string | null;
+            /** Claim */
+            claim: string;
+            /** Sequence */
+            sequence: number;
+            /** Git Oid */
+            git_oid: string;
+            /** Accepted */
+            accepted: string;
+            /** Actor */
+            actor?: string | null;
+            /**
+             * Approved By
+             * @default []
+             */
+            approved_by?: string[];
+            /** Reason */
+            reason?: (components["schemas"]["GetChangeSetReason"] | components["schemas"]["GetProposedReason"]) | null;
+            value?: components["schemas"]["ShownValue"];
+            /** Content Digest */
+            content_digest?: string | null;
+            /**
+             * Next
+             * @default []
+             */
+            next?: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            change: "rebound";
+            /** Replaced */
+            replaced: string[];
+            /** By */
+            by: string[];
         };
         /**
          * GetFieldReobserved
@@ -8372,6 +8972,25 @@ export interface components {
              */
             next?: string[];
         };
+        /**
+         * GetNone
+         * @description One none in a field: a live inverse Claim saying the field holds nothing.
+         *
+         *     ``of`` is the unit it covers: absent for a one-valued field's whole slot,
+         *     else the value (a Subject as kind/id) or key value the field does not hold.
+         */
+        GetNone: {
+            /** Claim */
+            claim: string;
+            of?: components["schemas"]["ShownValue"];
+            /** Verdict */
+            verdict: string;
+            /**
+             * Flags
+             * @default []
+             */
+            flags?: ("stale" | "contested" | "contradicted" | "uncovered" | "unsure_hold")[];
+        };
         /** GetPendingInput */
         GetPendingInput: {
             /** Name */
@@ -8431,6 +9050,7 @@ export interface components {
         };
         /** GetProcedureCard */
         GetProcedureCard: {
+            authored?: components["schemas"]["ProcedureSpec"] | null;
             /**
              * Measurement Reviews
              * @default []
@@ -8741,14 +9361,12 @@ export interface components {
              * Effect
              * @enum {string}
              */
-            effect: "none" | "external_read" | "external_mutation";
+            effect: "pure" | "external_read" | "external_mutation";
             /**
              * Providers
              * @default []
              */
             providers?: components["schemas"]["GetProviderInterfaceProvider"][];
-            /** Interface Digest */
-            interface_digest: string;
             /**
              * Next
              * @default []
@@ -8759,13 +9377,13 @@ export interface components {
         GetProviderInterfaceProvider: {
             /** Provider */
             provider: string;
-            /** Implementation Digest */
-            implementation_digest: string;
         };
         /** GetQueryCard */
         GetQueryCard: {
             /** Query */
             query: string;
+            /** Definition */
+            definition?: components["schemas"]["QuerySpecInput"] | components["schemas"]["QueryDefinition"] | null;
             /** Description */
             description?: string | null;
             /**
@@ -8946,7 +9564,7 @@ export interface components {
              */
             digest: string;
             /** Change */
-            change?: ("stated" | "changed" | "reobserved" | "retired") | null;
+            change?: ("stated" | "changed" | "reobserved" | "rebound" | "retired") | null;
             /** Reason */
             reason?: (components["schemas"]["GetChangeSetReason"] | components["schemas"]["GetProposedReason"]) | null;
             /** Retirement */
@@ -9027,18 +9645,21 @@ export interface components {
         };
         /**
          * GetSourceAcquisitionPolicyCard
-         * @description One source acquisition policy: how each input is acquired and kept coherent.
+         * @description One source policy: age defaults and alias overrides, or frozen v1 details.
          */
         GetSourceAcquisitionPolicyCard: {
             /** Policy */
             policy: string;
             /** Lifecycle */
             lifecycle: string;
-            /**
-             * Coherence
-             * @enum {string}
-             */
-            coherence: "independent" | "bounded_window" | "declared_snapshot_group";
+            /** Max Age */
+            max_age?: string | null;
+            /** Overrides */
+            overrides?: {
+                [key: string]: string | null;
+            };
+            /** Coherence */
+            coherence?: ("independent" | "bounded_window" | "declared_snapshot_group") | null;
             /**
              * Inputs
              * @default []
@@ -9084,6 +9705,11 @@ export interface components {
              * @default []
              */
             flags?: ("stale" | "contested" | "contradicted" | "uncovered" | "unsure_hold")[];
+            /**
+             * Nones
+             * @default []
+             */
+            nones?: components["schemas"]["GetNone"][];
         };
         /**
          * GetSubjectHistory
@@ -9103,7 +9729,7 @@ export interface components {
             /** Revisions */
             revisions: components["schemas"]["GetRevision"][];
             /** Events */
-            events: (components["schemas"]["GetFieldStated"] | components["schemas"]["GetFieldChanged"] | components["schemas"]["GetFieldReobserved"] | components["schemas"]["GetFieldRetired"])[];
+            events: (components["schemas"]["GetFieldStated"] | components["schemas"]["GetFieldChanged"] | components["schemas"]["GetFieldReobserved"] | components["schemas"]["GetFieldRebound"] | components["schemas"]["GetFieldRetired"])[];
         };
         /**
          * GetSubjectKindCard
@@ -9192,9 +9818,9 @@ export interface components {
              */
             on_false?: string;
             /** Refusal Code */
-            refusal_code: string;
+            refusal_code?: string | null;
             /** Message */
-            message: string;
+            message?: string | null;
         };
         /**
          * GuardPredicate
@@ -9217,6 +9843,28 @@ export interface components {
             any_of?: components["schemas"]["GuardPredicate"][] | null;
             not_of?: components["schemas"]["GuardPredicate"] | null;
         };
+        /** GuardStep */
+        GuardStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Guard */
+            guard: string;
+            /** Then */
+            then?: string | null;
+            /** Refusal Code */
+            refusal_code?: string | null;
+            /** Message */
+            message?: string | null;
+            /** Else Id */
+            else_id?: string | null;
+            /**
+             * Else
+             * @default abort(guard_refused, "Procedure guard refused.")
+             */
+            else?: string;
+        };
         /**
          * HaltNode
          * @description A successful graph leaf that deliberately produces no result.
@@ -9231,6 +9879,19 @@ export interface components {
             node_id: string;
             /** Reason */
             reason?: string | null;
+            /** Message */
+            message?: string | null;
+        };
+        /** HaltStep */
+        HaltStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Halt */
+            halt: string;
+            /** Message */
+            message?: string | null;
         };
         /** HandEditInstruction */
         HandEditInstruction: {
@@ -9541,7 +10202,7 @@ export interface components {
          *     the earliest of them and ``recent_sightings`` the latest
          *     (``INBOX_RECENT_SIGHTINGS`` at most, newest first), each with the Captures
          *     its posting stood on. ``disposition`` is the agent's latest decision, kept
-         *     when the item recurs: a recurring item is ``unread`` again, and
+         *     when the item recurs: a recurring item keeps its status, and
          *     ``recurred_since_disposition`` counts the sightings after that decision.
          */
         InboxItemEnvelope: {
@@ -9751,19 +10412,15 @@ export interface components {
              */
             source_capture_digests?: string[];
         };
-        /** IndependentCoherence */
-        IndependentCoherence: {
-            /**
-             * Tag
-             * @default playbill-independent-coherence-v1
-             * @constant
-             */
-            tag?: "playbill-independent-coherence-v1";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "independent";
+        /** InboxStep */
+        InboxStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            inbox: components["schemas"]["JsonValue"];
+            /** Max Items */
+            max_items?: number | null;
         };
         /** InitRequest */
         InitRequest: {
@@ -9811,54 +10468,6 @@ export interface components {
             approval_policy_mode: "self_approval_allowed" | "independent_approval_required";
             workspace_advertisement: components["schemas"]["WorkspaceAdvertisement"];
             git_workspace_note?: components["schemas"]["GitWorkspaceNote"] | null;
-        };
-        /** InputAcquisitionRule */
-        InputAcquisitionRule: {
-            /**
-             * Tag
-             * @default playbill-input-acquisition-rule-v1
-             * @constant
-             */
-            tag?: "playbill-input-acquisition-rule-v1";
-            /** Input Name */
-            input_name: string;
-            /**
-             * Requirement
-             * @enum {string}
-             */
-            requirement: "required" | "optional" | "conservative_default";
-            /** Permitted Replayability */
-            permitted_replayability: ("exact" | "attested_only")[];
-            max_age?: components["schemas"]["CanonicalDuration"] | null;
-            /**
-             * Correlation Keys
-             * @default []
-             */
-            correlation_keys?: string[];
-            /** Join Semantics Digest */
-            join_semantics_digest?: string | null;
-            /**
-             * On Unavailable
-             * @enum {string}
-             */
-            on_unavailable: "refuse" | "omit_optional" | "declared_conservative_default";
-            /**
-             * On Stale
-             * @enum {string}
-             */
-            on_stale: "refuse" | "omit_optional" | "declared_conservative_default";
-            /**
-             * On Oversized
-             * @enum {string}
-             */
-            on_oversized: "refuse" | "omit_optional" | "declared_conservative_default";
-            /**
-             * On Conflict
-             * @enum {string}
-             */
-            on_conflict: "preserve" | "refuse";
-            /** Conservative Default */
-            conservative_default?: unknown | null;
         };
         /** InstalledKit */
         InstalledKit: {
@@ -9990,6 +10599,18 @@ export interface components {
             as: string;
             /** Next */
             next?: string | null;
+        };
+        /** InvokeStep */
+        InvokeStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Invoke */
+            invoke: string;
+            input: components["schemas"]["JsonValue"];
+            /** As */
+            as?: string | null;
         };
         JsonValue: unknown;
         /**
@@ -10138,6 +10759,11 @@ export interface components {
              * @default []
              */
             provider_files?: components["schemas"]["KitProviderFileBytes"][];
+            /**
+             * Files
+             * @default []
+             */
+            files?: components["schemas"]["KitFileBytes"][];
         };
         /**
          * KitChangeResult
@@ -10206,6 +10832,32 @@ export interface components {
             coordinate?: components["schemas"]["GetCoordinate"] | null;
         };
         /**
+         * KitFile
+         * @description One inert file a kit release carries for its reader: never a definition.
+         *
+         *     Kit files are not part of the release identity (``content_digest``), so a
+         *     docs fix leaves every definition digest and KitReceipt as it was; ``kit add``
+         *     never sends them to the daemon.
+         */
+        KitFile: {
+            /** Path */
+            path: string;
+            /** Sha256 */
+            sha256: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "readme" | "reference" | "example" | "skill";
+        };
+        /** KitFileBytes */
+        KitFileBytes: {
+            /** Path */
+            path: string;
+            /** Content Base64 */
+            content_base64: string;
+        };
+        /**
          * KitIdReusedRefusal
          * @description An installed kit id cannot silently become an unrelated set of prefixes.
          */
@@ -10269,6 +10921,11 @@ export interface components {
              */
             providers?: components["schemas"]["KitProvider"][];
             provenance?: components["schemas"]["KitProvenance"] | null;
+            /**
+             * Files
+             * @default []
+             */
+            files?: components["schemas"]["KitFile"][];
         };
         /**
          * KitOwnershipConflictRefusal
@@ -10680,6 +11337,10 @@ export interface components {
             name: string;
             /** Procedure Name */
             procedure_name: string;
+            /** Bindings */
+            bindings?: {
+                [key: string]: string;
+            };
             /** Acquisition Policy Name */
             acquisition_policy_name?: string | null;
             /** Max Authority */
@@ -10949,9 +11610,13 @@ export interface components {
             name: string;
             /** Procedure Name */
             procedure_name: string;
+            /** Bindings */
+            bindings?: {
+                [key: string]: string;
+            };
             /**
              * Acquisition Policy Name
-             * @description SourceAcquisitionPolicy name; required only when the Procedure has Source nodes.
+             * @description SourceAcquisitionPolicy name; omitted uses the instance default.
              */
             acquisition_policy_name?: string | null;
             /**
@@ -11276,6 +11941,766 @@ export interface components {
             binding_subject_role?: "subject" | "object";
         };
         /**
+         * NamePair
+         * @description One stored identity (or prefix) and the name a reader sees for it.
+         */
+        NamePair: {
+            /** Stored */
+            stored: string;
+            /** Public */
+            public: string;
+        };
+        /** NamedBlueprintBinding */
+        NamedBlueprintBinding: {
+            /** Slot Name */
+            slot_name: string;
+            provider: components["schemas"]["ArtifactNameRef"];
+        };
+        /** NamedBlueprintOrigin */
+        NamedBlueprintOrigin: {
+            /**
+             * Tag
+             * @default cruxible-blueprint-origin-v2
+             * @constant
+             */
+            tag?: "cruxible-blueprint-origin-v2";
+            blueprint: components["schemas"]["ArtifactNameRef"];
+            /** Bindings */
+            bindings: components["schemas"]["NamedBlueprintBinding"][];
+        };
+        /** NamedCallNode */
+        NamedCallNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "call";
+            /** Node Id */
+            node_id: string;
+            /** Provider */
+            provider: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            interface: components["schemas"]["ArtifactNameRef"];
+            /** Effect Policy */
+            effect_policy?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            /** Input */
+            input: unknown;
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedCaptureComponents */
+        NamedCaptureComponents: {
+            /** Coordinate Schemas */
+            coordinate_schemas: components["schemas"]["ArtifactNameRef"][];
+            /** Selector Schemas */
+            selector_schemas: components["schemas"]["ArtifactNameRef"][];
+            commitment_canonicalizer: components["schemas"]["ArtifactNameRef"];
+            replay_policy: components["schemas"]["ArtifactNameRef"];
+            provenance_rule: components["schemas"]["ArtifactNameRef"];
+            source_subject_mapping: components["schemas"]["ArtifactNameRef"];
+            coordinate_grammar?: components["schemas"]["ArtifactNameRef"] | null;
+            proof_adapter?: components["schemas"]["ArtifactNameRef"] | null;
+        };
+        /** NamedCaptureContract */
+        NamedCaptureContract: {
+            /**
+             * Artifact Format
+             * @default cruxible-capture-contract-v3
+             * @constant
+             */
+            artifact_format?: "cruxible-capture-contract-v3";
+            identity: components["schemas"]["ArtifactIdentity"];
+            /** Shape */
+            shape: ("http_response" | "procedure_output" | "foreign_span" | "database_snapshot") | "coordinator_self_source";
+            /**
+             * Replay
+             * @enum {string}
+             */
+            replay: "exact" | "attested";
+            components: components["schemas"]["NamedCaptureComponents"];
+            selection_budget: components["schemas"]["CaptureSelectionBudget"];
+            retention_erasure_policy: components["schemas"]["NamedCaptureRetentionPolicy"];
+            /**
+             * Epistemic Grade
+             * @default observed
+             * @enum {string}
+             */
+            epistemic_grade?: "observed" | "derived" | "predicted";
+            /**
+             * @default {
+             *       "state": "live"
+             *     }
+             */
+            lifecycle?: components["schemas"]["ArtifactLifecycle"];
+        };
+        /** NamedCaptureEgressNode */
+        NamedCaptureEgressNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "emit_capture";
+            /** Node Id */
+            node_id: string;
+            /** Capture Contract */
+            capture_contract: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** Input */
+            input: unknown;
+            /** Result */
+            result: unknown;
+        };
+        /** NamedCaptureEventSelector */
+        NamedCaptureEventSelector: {
+            capture_contract_identity: components["schemas"]["ArtifactIdentity"];
+            /**
+             * Logical Sources
+             * @default []
+             */
+            logical_sources?: string[];
+        };
+        /** NamedCaptureRetentionPolicy */
+        NamedCaptureRetentionPolicy: {
+            /**
+             * Body Retention
+             * @enum {string}
+             */
+            body_retention: "never_materialize" | "optional" | "required_for_duration";
+            minimum_retention?: components["schemas"]["CanonicalDuration"] | null;
+            /**
+             * Erasure
+             * @enum {string}
+             */
+            erasure: "prohibited" | "authorized_by_rule";
+            erasure_rule?: components["schemas"]["ArtifactNameRef"] | null;
+            /**
+             * Selector Privacy
+             * @enum {string}
+             */
+            selector_privacy: "direct_allowed" | "pseudonymous_required";
+        };
+        /** NamedClaimTapNode */
+        NamedClaimTapNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "state_claim";
+            /** Node Id */
+            node_id: string;
+            claim_type: components["schemas"]["ArtifactNameRef"];
+            /** Subject Kind */
+            subject_kind: string;
+            /** Subject Id */
+            subject_id: unknown;
+            /**
+             * Cardinality
+             * @default one
+             * @enum {string}
+             */
+            cardinality?: "one" | "all";
+            /** Limit */
+            limit?: number | null;
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedConstantNode */
+        NamedConstantNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "constant";
+            /** Node Id */
+            node_id: string;
+            /** Fields */
+            fields: unknown;
+            /** Contract Out */
+            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedExhaustTapNode */
+        NamedExhaustTapNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "exhaust_tap";
+            /** Node Id */
+            node_id: string;
+            /** Reducer Or Query */
+            reducer_or_query: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** Journal Identity */
+            journal_identity: string;
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedInvokeNode */
+        NamedInvokeNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "invoke";
+            /** Node Id */
+            node_id: string;
+            procedure: components["schemas"]["ArtifactNameRef"];
+            /** Input */
+            input: unknown;
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /**
+         * NamedProcedureArtifact
+         * @description Revision-36 writer: dependencies resolve at the accepted coordinate.
+         */
+        NamedProcedureArtifact: {
+            identity: components["schemas"]["ArtifactIdentity"];
+            definition: components["schemas"]["NamedProcedureDefinition"];
+            /** Definition Digest */
+            definition_digest: string;
+            /** Owned Contracts */
+            owned_contracts: components["schemas"]["ProcedureOwnedContract"][];
+            /**
+             * Activation Policy
+             * @enum {string}
+             */
+            activation_policy: "drain" | "abort" | "snapshot" | "epoch-check";
+            /**
+             * @default {
+             *       "state": "live"
+             *     }
+             */
+            lifecycle?: components["schemas"]["ArtifactLifecycle"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            artifact_format: "cruxible-procedure-v3";
+            /** Acquisition Policy */
+            acquisition_policy?: string | null;
+            blueprint?: components["schemas"]["NamedBlueprintOrigin"] | null;
+        };
+        /** NamedProcedureDefinition */
+        NamedProcedureDefinition: {
+            /**
+             * Graph Format
+             * @default 7
+             * @constant
+             */
+            graph_format?: 7;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Contract In */
+            contract_in: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** Contract Out */
+            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** Parameter Contract */
+            parameter_contract?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            /** Nodes */
+            nodes: (components["schemas"]["NamedInvokeNode"] | components["schemas"]["NamedClaimTapNode"] | components["schemas"]["NamedStateTapNode"] | components["schemas"]["NamedSourceNode"] | components["schemas"]["NamedExhaustTapNode"] | components["schemas"]["NamedCallNode"] | components["schemas"]["NamedTransformNode"] | components["schemas"]["GuardNode"] | components["schemas"]["NamedProjectNode"] | components["schemas"]["NamedRepeatNode"] | components["schemas"]["NamedCaptureEgressNode"] | components["schemas"]["InboxEgressNode"] | components["schemas"]["NamedProposeChangeSetNode"] | components["schemas"]["NamedSettleChangeSetNode"] | components["schemas"]["HaltNode"] | components["schemas"]["NamedSelectNode"] | components["schemas"]["NamedReturnNode"] | components["schemas"]["NamedConstantNode"])[];
+            /** Returns */
+            returns?: string | null;
+            /**
+             * Pin Slots
+             * @default []
+             */
+            pin_slots?: components["schemas"]["NamedProcedurePinSlot"][];
+            /**
+             * Measurements
+             * @default []
+             */
+            measurements?: components["schemas"]["ProcedureMeasurementDeclaration"][];
+            budget: components["schemas"]["ProcedureBudget"];
+            hard_caps: components["schemas"]["ProcedureHardCaps"];
+            /**
+             * Terminal Capability
+             * @enum {integer}
+             */
+            terminal_capability: 1 | 2 | 3;
+            /** Annotations */
+            annotations?: unknown;
+            source?: components["schemas"]["NamedProcedureSourceProgram"] | null;
+        };
+        /** NamedProcedurePinSlot */
+        NamedProcedurePinSlot: {
+            /**
+             * Tag
+             * @default cruxible-procedure-slot-v2
+             * @constant
+             */
+            tag?: "cruxible-procedure-slot-v2";
+            /** Slot Name */
+            slot_name: string;
+            interface: components["schemas"]["ArtifactNameRef"];
+        };
+        /** NamedProcedureSourceProgram */
+        NamedProcedureSourceProgram: {
+            /**
+             * Rules
+             * @default cruxible.procedure-source.v3
+             * @constant
+             */
+            rules?: "cruxible.procedure-source.v3";
+            /** Text */
+            text: string;
+            /** Filename */
+            filename: string;
+            /**
+             * First Line
+             * @default 1
+             */
+            first_line?: number;
+            /** Function */
+            function: string;
+            /** Contracts */
+            contracts?: {
+                [key: string]: components["schemas"]["SourceContract"];
+            };
+            /** Bindings */
+            bindings?: {
+                [key: string]: components["schemas"]["NamedSourceProviderBinding"] | components["schemas"]["NamedSourceSlotBinding"] | components["schemas"]["NamedSourceQueryBinding"] | components["schemas"]["NamedSourceProcedureBinding"];
+            };
+            /** Claim Types */
+            claim_types?: {
+                [key: string]: components["schemas"]["NamedSourceClaimType"];
+            };
+            /**
+             * Capture Contracts
+             * @default []
+             */
+            capture_contracts?: string[];
+            /**
+             * Subject Kinds
+             * @default []
+             */
+            subject_kinds?: string[];
+            /**
+             * Syntax Rules
+             * @default cruxible.procedure-source.v2
+             * @enum {string}
+             */
+            syntax_rules?: "cruxible.procedure-source.v1" | "cruxible.procedure-source.v2";
+        };
+        /** NamedProjectNode */
+        NamedProjectNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "project";
+            /** Node Id */
+            node_id: string;
+            /** Fields */
+            fields: unknown;
+            /** Contract Out */
+            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedProposeChangeSetNode */
+        NamedProposeChangeSetNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "propose_change_set";
+            /** Node Id */
+            node_id: string;
+            /** Candidate Templates */
+            candidate_templates: unknown[] | components["schemas"]["ProposalItemsFanOut"];
+            /**
+             * Claim Types
+             * @default []
+             */
+            claim_types?: components["schemas"]["ArtifactNameRef"][];
+            /** Result */
+            result: unknown;
+        };
+        /** NamedQueryDefinition */
+        NamedQueryDefinition: {
+            /**
+             * Artifact Format
+             * @default cruxible-query-definition-v3
+             * @constant
+             */
+            artifact_format?: "cruxible-query-definition-v3";
+            identity: components["schemas"]["ArtifactIdentity"];
+            /** Description */
+            description?: string | null;
+            /** Entry */
+            entry: components["schemas"]["QueryEntry"] | components["schemas"]["QueryArtifactsEntry"];
+            /**
+             * Traversal
+             * @default []
+             */
+            traversal?: components["schemas"]["QueryTraversalStep"][];
+            /** Where */
+            where?: (components["schemas"]["QueryComparisonFilter"] | components["schemas"]["QueryMembershipFilter"] | components["schemas"]["QueryClaimPresenceFilter"] | components["schemas"]["QueryConjunctionFilter"] | components["schemas"]["QueryDisjunctionFilter"] | components["schemas"]["QueryNegationFilter"]) | null;
+            /** Result Binding */
+            result_binding: string;
+            /**
+             * Result Shape
+             * @enum {string}
+             */
+            result_shape: "subject" | "relation_claim" | "path" | "artifact_definition";
+            /**
+             * Result Cardinality
+             * @enum {string}
+             */
+            result_cardinality: "one" | "many";
+            /**
+             * Dedupe
+             * @enum {string}
+             */
+            dedupe: "subject" | "path" | "none" | "artifact";
+            projection?: components["schemas"]["QueryProjection"] | null;
+            /**
+             * Orderings
+             * @default []
+             */
+            orderings?: components["schemas"]["QueryOrdering"][];
+            /**
+             * Includes
+             * @default []
+             */
+            includes?: components["schemas"]["QueryInclude"][];
+            /**
+             * Parameters
+             * @default []
+             */
+            parameters?: components["schemas"]["QueryParameterDeclaration"][];
+            evaluation_policy: components["schemas"]["QueryEvaluationPolicy"];
+            default_budgets: components["schemas"]["QueryBudgets"];
+            maximum_budgets: components["schemas"]["QueryBudgets"];
+            /**
+             * @default {
+             *       "state": "live"
+             *     }
+             */
+            lifecycle?: components["schemas"]["ArtifactLifecycle"];
+        };
+        /**
+         * NamedQueryDefinitionSpec
+         * @description The pin-less typed authoring form with the same stated defaults.
+         */
+        NamedQueryDefinitionSpec: {
+            /**
+             * Artifact Format
+             * @default cruxible-query-definition-v3
+             * @constant
+             */
+            artifact_format?: "cruxible-query-definition-v3";
+            identity: components["schemas"]["ArtifactIdentity"];
+            /** Description */
+            description?: string | null;
+            /** Entry */
+            entry: components["schemas"]["QueryEntry"] | components["schemas"]["QueryArtifactsEntry"];
+            /**
+             * Traversal
+             * @default []
+             */
+            traversal?: components["schemas"]["QueryTraversalStep"][];
+            /** Where */
+            where?: (components["schemas"]["QueryComparisonFilter"] | components["schemas"]["QueryMembershipFilter"] | components["schemas"]["QueryClaimPresenceFilter"] | components["schemas"]["QueryConjunctionFilter"] | components["schemas"]["QueryDisjunctionFilter"] | components["schemas"]["QueryNegationFilter"]) | null;
+            /** Result Binding */
+            result_binding: string;
+            /**
+             * Result Shape
+             * @enum {string}
+             */
+            result_shape?: "subject" | "relation_claim" | "path" | "artifact_definition";
+            /**
+             * Result Cardinality
+             * @enum {string}
+             */
+            result_cardinality?: "one" | "many";
+            /**
+             * Dedupe
+             * @enum {string}
+             */
+            dedupe?: "subject" | "path" | "none" | "artifact";
+            projection?: components["schemas"]["QueryProjection"] | null;
+            /**
+             * Orderings
+             * @default []
+             */
+            orderings?: components["schemas"]["QueryOrdering"][];
+            /**
+             * Includes
+             * @default []
+             */
+            includes?: components["schemas"]["QueryInclude"][];
+            /**
+             * Parameters
+             * @default []
+             */
+            parameters?: components["schemas"]["QueryParameterDeclaration"][];
+            evaluation_policy?: components["schemas"]["QueryEvaluationPolicy"];
+            default_budgets?: components["schemas"]["QueryBudgets"];
+            maximum_budgets?: components["schemas"]["QueryBudgets"];
+            /**
+             * @default {
+             *       "state": "live"
+             *     }
+             */
+            lifecycle?: components["schemas"]["ArtifactLifecycle"];
+        };
+        /** NamedRepeatBodyNode */
+        NamedRepeatBodyNode: {
+            /** Node Id */
+            node_id: string;
+            /**
+             * Operation
+             * @enum {string}
+             */
+            operation: "call" | "transform";
+            /** Transform Kind */
+            transform_kind?: ("shape_items" | "join_items" | "filter_items" | "aggregate_items" | "dedupe_items" | "adapter") | null;
+            /** Provider */
+            provider?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            interface?: components["schemas"]["ArtifactNameRef"] | null;
+            /** Contract In */
+            contract_in?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            /** Contract Out */
+            contract_out?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            /** Effect Policy */
+            effect_policy?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            /** Spec */
+            spec: (components["schemas"]["TransformAdapterSpec"] | components["schemas"]["TransformShapeItemsSpec"] | components["schemas"]["TransformFilterItemsSpec"] | components["schemas"]["TransformDedupeItemsSpec"] | components["schemas"]["TransformJoinItemsSpec"] | components["schemas"]["TransformAggregateItemsSpec"]) | unknown;
+            /** As */
+            as: string;
+        };
+        /** NamedRepeatNode */
+        NamedRepeatNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "repeat";
+            /** Node Id */
+            node_id: string;
+            /** Max Attempts */
+            max_attempts: number;
+            /** Body */
+            body: components["schemas"]["NamedRepeatBodyNode"][];
+            until: components["schemas"]["GuardPredicate"];
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedReturnNode */
+        NamedReturnNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "return";
+            /** Node Id */
+            node_id: string;
+            /** Fields */
+            fields: unknown;
+            /** Contract Out */
+            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedSelectNode */
+        NamedSelectNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "select";
+            /** Node Id */
+            node_id: string;
+            /** Sources */
+            sources: string[];
+            /** Contract Out */
+            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedSettleChangeSetNode */
+        NamedSettleChangeSetNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "settle_change_set";
+            /** Node Id */
+            node_id: string;
+            /** Candidate Templates */
+            candidate_templates: unknown[] | components["schemas"]["ProposalItemsFanOut"];
+            /**
+             * Claim Types
+             * @default []
+             */
+            claim_types?: components["schemas"]["ArtifactNameRef"][];
+            /** Result */
+            result: unknown;
+        };
+        /** NamedSourceClaimType */
+        NamedSourceClaimType: {
+            structure: components["schemas"]["ClaimTypeStructure"];
+        };
+        /** NamedSourceNode */
+        NamedSourceNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "source";
+            /** Node Id */
+            node_id: string;
+            /** Capture Contract */
+            capture_contract: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** Provider */
+            provider: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            interface: components["schemas"]["ArtifactNameRef"];
+            /** Request */
+            request: unknown;
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /** NamedSourceProcedureBinding */
+        NamedSourceProcedureBinding: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "procedure";
+            /** Name */
+            name: string;
+            input: components["schemas"]["ContractSchema"];
+            output: components["schemas"]["ContractSchema"];
+            /**
+             * Capture Terminal
+             * @default false
+             */
+            capture_terminal?: boolean;
+            /**
+             * Required Terminal Rung
+             * @default 0
+             */
+            required_terminal_rung?: number;
+        };
+        /** NamedSourceProviderBinding */
+        NamedSourceProviderBinding: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "provider";
+            /** Provider */
+            provider: string;
+            /** Interface */
+            interface: string;
+            /**
+             * Effect Class
+             * @enum {string}
+             */
+            effect_class: "pure" | "external_read" | "external_mutation";
+            operation: components["schemas"]["ProviderOperationContract"];
+        };
+        /** NamedSourceQueryBinding */
+        NamedSourceQueryBinding: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "query";
+            /** Name */
+            name: string;
+            definition: components["schemas"]["NamedQueryDefinition"];
+        };
+        /** NamedSourceSlotBinding */
+        NamedSourceSlotBinding: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "slot";
+            /** Interface */
+            interface: string;
+            /**
+             * Effect Class
+             * @enum {string}
+             */
+            effect_class: "pure" | "external_read" | "external_mutation";
+            operation: components["schemas"]["ProviderOperationContract"];
+        };
+        /** NamedStateTapNode */
+        NamedStateTapNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "state_tap";
+            /** Node Id */
+            node_id: string;
+            /** Query */
+            query: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** Parameters */
+            parameters?: unknown;
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+            /**
+             * View
+             * @default typed_query
+             * @constant
+             */
+            view?: "typed_query";
+            budgets?: components["schemas"]["QueryBudgets"] | null;
+        };
+        /** NamedTransformNode */
+        NamedTransformNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "transform";
+            /** Node Id */
+            node_id: string;
+            /**
+             * Transform Kind
+             * @enum {string}
+             */
+            transform_kind: "shape_items" | "join_items" | "filter_items" | "aggregate_items" | "dedupe_items" | "adapter";
+            /** Contract In */
+            contract_in: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** Contract Out */
+            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
+            /** Spec */
+            spec: components["schemas"]["TransformAdapterSpec"] | components["schemas"]["TransformShapeItemsSpec"] | components["schemas"]["TransformFilterItemsSpec"] | components["schemas"]["TransformDedupeItemsSpec"] | components["schemas"]["TransformJoinItemsSpec"] | components["schemas"]["TransformAggregateItemsSpec"];
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /**
          * NewerCaptureNotCitableWarning
          * @description Contract evidence cited an older Capture: the newest cannot back a Claim.
          *
@@ -11321,7 +12746,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "claim_conflicted" | "claim_uncovered" | "claim_stale_evidence" | "citation_drifted" | "citation_source_unobserved" | "evidence_expiring" | "floor_invalid" | "projection_dirty" | "projection_backing_stale" | "claim_dependency_stale" | "claim_attestation_threshold_met" | "claim_contradicting_evidence_available" | "claim_new_evidence_supporting" | "claim_new_evidence_unreviewed" | "document_modified" | "workspace_binding_missing" | "unregistered_projection_block" | "projection_marker_invalid" | "proposal_stale" | "proposal_awaiting_approval" | "proposal_awaiting_activation" | "mandate_expiring" | "consumer_stalled" | "line_coverage_gap" | "line_work_pending" | "line_disabled_by_upgrade" | "line_settled_prior_refusals" | "line_inbox_unread" | "evidence_unavailable" | "prediction_settleable" | "prediction_window_unbindable" | "subject_kind_undeclared" | "kit_resume_blocked";
+            reason: "claim_conflicted" | "claim_uncovered" | "claim_stale_evidence" | "citation_drifted" | "citation_source_unobserved" | "evidence_expiring" | "floor_invalid" | "projection_dirty" | "projection_backing_stale" | "claim_dependency_stale" | "claim_attestation_threshold_met" | "claim_contradicting_evidence_available" | "claim_new_evidence_supporting" | "claim_new_evidence_unreviewed" | "document_modified" | "workspace_binding_missing" | "unregistered_projection_block" | "projection_marker_invalid" | "proposal_stale" | "proposal_awaiting_approval" | "proposal_awaiting_activation" | "mandate_expiring" | "consumer_stalled" | "line_coverage_gap" | "line_work_pending" | "line_disabled_by_upgrade" | "line_not_enabled" | "line_run_failed" | "line_settled_prior_refusals" | "line_inbox_unread" | "evidence_unavailable" | "claim_evidence_erased" | "prediction_settleable" | "prediction_window_unbindable" | "subject_kind_undeclared" | "kit_resume_blocked";
             /** Subject Identity */
             subject_identity: string;
             /** Related Identities */
@@ -11373,7 +12798,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "claim_conflicted" | "claim_uncovered" | "claim_stale_evidence" | "citation_drifted" | "citation_source_unobserved" | "evidence_expiring" | "floor_invalid" | "projection_dirty" | "projection_backing_stale" | "claim_dependency_stale" | "claim_attestation_threshold_met" | "claim_contradicting_evidence_available" | "claim_new_evidence_supporting" | "claim_new_evidence_unreviewed" | "document_modified" | "workspace_binding_missing" | "unregistered_projection_block" | "projection_marker_invalid" | "proposal_stale" | "proposal_awaiting_approval" | "proposal_awaiting_activation" | "mandate_expiring" | "consumer_stalled" | "line_coverage_gap" | "line_work_pending" | "line_disabled_by_upgrade" | "line_settled_prior_refusals" | "line_inbox_unread" | "evidence_unavailable" | "prediction_settleable" | "prediction_window_unbindable" | "subject_kind_undeclared" | "kit_resume_blocked";
+            reason: "claim_conflicted" | "claim_uncovered" | "claim_stale_evidence" | "citation_drifted" | "citation_source_unobserved" | "evidence_expiring" | "floor_invalid" | "projection_dirty" | "projection_backing_stale" | "claim_dependency_stale" | "claim_attestation_threshold_met" | "claim_contradicting_evidence_available" | "claim_new_evidence_supporting" | "claim_new_evidence_unreviewed" | "document_modified" | "workspace_binding_missing" | "unregistered_projection_block" | "projection_marker_invalid" | "proposal_stale" | "proposal_awaiting_approval" | "proposal_awaiting_activation" | "mandate_expiring" | "consumer_stalled" | "line_coverage_gap" | "line_work_pending" | "line_disabled_by_upgrade" | "line_not_enabled" | "line_run_failed" | "line_settled_prior_refusals" | "line_inbox_unread" | "evidence_unavailable" | "claim_evidence_erased" | "prediction_settleable" | "prediction_window_unbindable" | "subject_kind_undeclared" | "kit_resume_blocked";
             /** Subject Identity */
             subject_identity: string;
             /** Related Identities */
@@ -11414,7 +12839,7 @@ export interface components {
              * Operation
              * @enum {string}
              */
-            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
+            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
             /** Target */
             target: string;
             /** Required Change */
@@ -11423,6 +12848,16 @@ export interface components {
             arguments?: unknown;
             /** Command */
             command?: string | null;
+            /**
+             * Alternatives
+             * @default []
+             */
+            alternatives?: components["schemas"]["NextRepair"][];
+            /**
+             * Operands To Add
+             * @default []
+             */
+            operands_to_add?: ("because" | "file" | "capture")[];
         };
         /**
          * NextRepairRequirement
@@ -11432,7 +12867,7 @@ export interface components {
          *     the gate: the permission ``tier`` the ``tool`` runs at, the MCP tool
          *     ``profile`` that advertises it, and/or ``authoring`` when this caller cannot
          *     author here at all; ``authoring_refusal`` then carries whoami's code,
-         *     detail and repair.
+         *     detail and repair. ``author``: only the proposal's author runs it.
          */
         NextRepairRequirement: {
             /**
@@ -11445,7 +12880,7 @@ export interface components {
              * Operation
              * @enum {string}
              */
-            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
+            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
             /** Tool */
             tool: string;
             /**
@@ -11456,7 +12891,7 @@ export interface components {
             /** Profile */
             profile?: "full" | null;
             /** Because */
-            because: ("tier" | "profile" | "authoring")[];
+            because: ("tier" | "profile" | "authoring" | "author")[];
             authoring_refusal?: components["schemas"]["AuthoringRefusal"] | null;
         };
         /** NextRequest */
@@ -11560,6 +12995,36 @@ export interface components {
              */
             held?: number;
             prior_refusal_coverage?: components["schemas"]["PriorRefusalCoverage"] | null;
+        };
+        /**
+         * NoneClaimObject
+         * @description An inverse Claim's object: the unit its ClaimType's inverse names holds nothing.
+         *
+         *     ``of`` names the unit within the slot: omitted for an inverse keyed by
+         *     ``slot`` (the whole one-valued slot), the absent object itself for one keyed
+         *     by ``object``, and the key value (a literal in the key ClaimType's canonical
+         *     form) for one keyed by ``object_key``. Only a ClaimType v9 that declares an
+         *     inverse admits one.
+         */
+        NoneClaimObject: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "none";
+            /** Of */
+            of?: (components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Output"]) | null;
+        };
+        /**
+         * NoneValue
+         * @description A none: the field holds nothing; needs a ClaimType inverse and its evidence.
+         */
+        NoneValue: {
+            /**
+             * None
+             * @description null, or the value (key) not held.
+             */
+            none: boolean | number | string | null;
         };
         /** ObservationSettlementEvidence */
         ObservationSettlementEvidence: {
@@ -11684,7 +13149,9 @@ export interface components {
          *
          *     ``accepted`` Claims answer their slot; ``conflicted`` ones are contenders
          *     resolution left unresolved; ``overturned`` ones lost their slot to an
-         *     accepted rival; ``refused`` ones failed their own ClaimType's admission;
+         *     accepted rival; ``ineligible`` ones are not eligible to resolve under their
+         *     own ClaimType (a verdict other than supported, or erased evidence read
+         *     stale);
          *     ``retired`` ones were withdrawn. ``query(..., status=[...])`` lists the
          *     non-live ones.
          */
@@ -11705,10 +13172,10 @@ export interface components {
              */
             overturned?: number;
             /**
-             * Refused
+             * Ineligible
              * @default 0
              */
-            refused?: number;
+            ineligible?: number;
             /**
              * Retired
              * @default 0
@@ -11891,11 +13358,10 @@ export interface components {
          *     ``name: type`` (``?`` when optional); an acquisition interface's output is
          *     the named external-capture contract instead. ``effect`` is the interface's
          *     governed effect class: an ``external_mutation`` call needs an effect policy
-         *     on its node. ``providers`` are the live Providers implementing it, each
-         *     with the implementation digest a Procedure node pins; one with none has
-         *     nothing to run it yet. ``interface_digest`` and ``operation_contract`` are
-         *     what a node pins the interface by; ``get("ProviderInterface:<name>")``
-         *     reads the whole accepted entry.
+         *     on its node. ``providers`` names the live Providers implementing it; one
+         *     with none has nothing to run it yet. ``operation_contract`` describes the
+         *     node's input and output. ``get("ProviderInterface:<name>")`` reads the
+         *     whole accepted entry. Admission records the exact versions selected by name.
          */
         OrientInterface: {
             /** Name */
@@ -11916,14 +13382,12 @@ export interface components {
              * Effect
              * @enum {string}
              */
-            effect: "none" | "external_read" | "external_mutation";
+            effect: "pure" | "external_read" | "external_mutation";
             /**
              * Providers
              * @default []
              */
             providers?: components["schemas"]["OrientInterfaceProvider"][];
-            /** Interface Digest */
-            interface_digest: string;
             operation_contract?: components["schemas"]["ProviderOperationContract"] | null;
         };
         /**
@@ -11933,34 +13397,6 @@ export interface components {
         OrientInterfaceProvider: {
             /** Provider */
             provider: string;
-            /** Implementation Digest */
-            implementation_digest: string;
-        };
-        /**
-         * OrientKind
-         * @description One Subject kind: how many live Subjects it has and its predicates.
-         *
-         *     The most common admitted CaptureContract set is named once as ``evidence``.
-         *     Predicates inheriting it omit their evidence; exceptions carry their own
-         *     set, including an explicit empty list when no contracts are admitted.
-         */
-        OrientKind: {
-            /** Kind */
-            kind: string;
-            /** Subjects */
-            subjects: number;
-            /**
-             * Identity
-             * @default undeclared
-             */
-            identity?: string;
-            /**
-             * Evidence
-             * @default []
-             */
-            evidence?: string[];
-            /** Predicates */
-            predicates: components["schemas"]["OrientPredicate"][];
         };
         /**
          * OrientKindDetail
@@ -11998,6 +13434,35 @@ export interface components {
              * @default []
              */
             sample_subject_ids?: string[];
+        };
+        /**
+         * OrientKindSummary
+         * @description One Subject kind in the default map: its live Subjects and first fields.
+         *
+         *     ``fields`` names its first predicates by short name (byte order), at most
+         *     ``ORIENT_KIND_FIELDS``; ``more_fields`` counts the rest. ``identity`` is
+         *     as on ``OrientKind``. ``orient(kind=...)`` reads every predicate in full.
+         */
+        OrientKindSummary: {
+            /** Kind */
+            kind: string;
+            /** Subjects */
+            subjects: number;
+            /**
+             * Identity
+             * @default undeclared
+             */
+            identity?: string;
+            /**
+             * Fields
+             * @default []
+             */
+            fields?: string[];
+            /**
+             * More Fields
+             * @default 0
+             */
+            more_fields?: number;
         };
         /** OrientLine */
         OrientLine: {
@@ -12078,11 +13543,10 @@ export interface components {
         };
         /**
          * OrientPin
-         * @description One required pin of a live definition: ``source`` pins ``target`` as ``role``.
+         * @description One dependency of a live definition, identified by source, field and target.
          *
-         *     ``target_digest`` is the exact version pinned; ``current`` says whether
-         *     that is the target's accepted version at the coordinate (absent when the
-         *     target is not an indexed artifact). Read in reverse, the rows name who
+         *     ``current`` says whether the reference resolves to a live target.
+         *     Read in reverse, the rows name who
          *     uses a contract, a ClaimType or a Procedure: the Procedures that capture
          *     under a contract (role ``capture-contract``), the Lines on a Procedure,
          *     the mandates that settle a ClaimType.
@@ -12094,8 +13558,6 @@ export interface components {
             role: string;
             /** Target */
             target: string;
-            /** Target Digest */
-            target_digest: string;
             /** Current */
             current?: boolean | null;
         };
@@ -12282,7 +13744,7 @@ export interface components {
             floor?: components["schemas"]["OrientFloor"] | null;
             you?: components["schemas"]["OrientYou"] | null;
             /** Kinds */
-            kinds?: components["schemas"]["OrientKind"][] | null;
+            kinds?: components["schemas"]["OrientKindSummary"][] | null;
             artifacts?: components["schemas"]["OrientArtifactCounts"] | null;
             attention?: components["schemas"]["OrientAttention"] | null;
             kind_detail?: components["schemas"]["OrientKindDetail"] | null;
@@ -12803,7 +14265,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "unsupported_node" | "not_current" | "artifact_binding_mismatch" | "pin_binding_mismatch" | "input_material_mismatch" | "state_tap_refused" | "replay_material_mismatch" | "procedure_runtime_policy_absent" | "provider_replay_receipt_required" | "exhaust_binding_carrier_required" | "source_acquisition_policy_required" | "source_acquisition_refused" | "evaluation_instant_skewed" | "line_identity_mismatch" | "line_not_accepted" | "line_closure_incomplete" | "line_mandate_required" | "occurrence_id_mismatch" | "occurrence_not_due" | "occurrence_already_admitted" | "trigger_capture_stale" | "trigger_capture_unavailable" | "trigger_capture_over_budget" | "trigger_capture_forbidden" | "trigger_capture_invalid" | "trigger_capture_not_yet_observed" | "trigger_event_precedes_acceptance" | "line_binding_superseded" | "line_trigger_mismatch";
+            code: "unsupported_node" | "not_current" | "artifact_binding_mismatch" | "pin_binding_mismatch" | "input_material_mismatch" | "state_tap_refused" | "replay_material_mismatch" | "procedure_runtime_policy_absent" | "provider_replay_receipt_required" | "exhaust_binding_carrier_required" | "source_acquisition_policy_required" | "source_acquisition_refused" | "evaluation_instant_skewed" | "line_identity_mismatch" | "line_not_accepted" | "line_closure_incomplete" | "line_mandate_required" | "occurrence_id_mismatch" | "occurrence_not_due" | "occurrence_already_admitted" | "trigger_capture_stale" | "trigger_capture_unavailable" | "trigger_capture_over_budget" | "trigger_capture_forbidden" | "trigger_capture_invalid" | "trigger_capture_not_yet_observed" | "trigger_event_precedes_acceptance" | "line_binding_superseded" | "line_trigger_mismatch" | "cruxible.procedure.slot_binding_missing" | "cruxible.procedure.slot_binding_ambiguous" | "cruxible.procedure.slot_undeclared";
             /** Message */
             message: string;
             /** Details */
@@ -12844,25 +14306,21 @@ export interface components {
              */
             lifecycle?: components["schemas"]["ArtifactLifecycle"];
             /**
-             * Artifact Format
-             * @default playbill-procedure-v2
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            artifact_format?: "playbill-procedure-v2";
+            artifact_format: "playbill-procedure-v2";
+            /** Acquisition Policy */
+            acquisition_policy?: string | null;
             blueprint?: components["schemas"]["BlueprintOrigin"] | null;
         };
         /**
          * ProcedureAuthoringPayload
-         * @description A Procedure envelope input, plus the acquisition policy that envelope pins.
+         * @description A Procedure input with an optional acquisition policy name.
          *
-         *     `acquisition_policy` is the SEMANTIC NAME of an accepted (or same-change-set
-         *     candidate) `SourceAcquisitionPolicy`, never a digest: lowering resolves it
-         *     the way every other Procedure reference resolves, and declares the resolved
-         *     exact pin under role `acquisition-policy` on the artifact envelope. The
-         *     definition never mentions it, so the definition digest is untouched -- this
-         *     is a Procedure-level binding the way a Line's policy pin is a Line-level
-         *     one, and the closure evaluator holds it to the same standard as any other
-         *     non-deferred pin.
+         *     Omitted names inherit SourceAcquisitionPolicy:default. An explicit name is
+         *     checked at authoring and resolved at run admission; the envelope does not
+         *     pin policy bytes. The admission records the resolved digest for replay.
          */
         ProcedureAuthoringPayload: {
             /**
@@ -13078,6 +14536,79 @@ export interface components {
             /** Procedure Producer Receipt Digest */
             procedure_producer_receipt_digest: string;
         };
+        /**
+         * ProcedureFailureCause
+         * @description What the Provider said when its invocation failed for an operational reason.
+         *
+         *     Projected from the run's own completion, never re-derived: ``provider_code``
+         *     is the Provider outcome's code, ``kind`` its error kind when the runtime
+         *     names one (a transport error and an HTTP status differ here), and
+         *     ``message`` the Provider's message with URL userinfo stripped.
+         */
+        ProcedureFailureCause: {
+            /**
+             * Tag
+             * @default cruxible-procedure-failure-cause-v1
+             * @constant
+             */
+            tag?: "cruxible-procedure-failure-cause-v1";
+            /** Node Id */
+            node_id: string;
+            /** Provider Code */
+            provider_code: string;
+            /** Kind */
+            kind?: string | null;
+            /**
+             * Message
+             * @default
+             */
+            message?: string;
+        };
+        /**
+         * ProcedureField
+         * @description Strict authored schema; retained PropertySchema encodings stay frozen.
+         */
+        ProcedureField: {
+            /**
+             * Type
+             * @default string
+             * @enum {string}
+             */
+            type?: "string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list";
+            /**
+             * Primary Key
+             * @default false
+             */
+            primary_key?: boolean;
+            /**
+             * Indexed
+             * @default false
+             */
+            indexed?: boolean;
+            /**
+             * Optional
+             * @default false
+             */
+            optional?: boolean;
+            /** Required */
+            required?: boolean | null;
+            /** Default */
+            default?: unknown | null;
+            /** Enum */
+            enum?: unknown[] | null;
+            /** Enum Ref */
+            enum_ref?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Json Schema */
+            json_schema?: {
+                [key: string]: unknown;
+            } | null;
+            /** Item Fields */
+            item_fields?: {
+                [key: string]: components["schemas"]["PropertySchema"];
+            } | null;
+        };
         /** ProcedureHaltTerminal */
         ProcedureHaltTerminal: {
             /**
@@ -13095,6 +14626,8 @@ export interface components {
             node_id: string;
             /** Reason */
             reason?: string | null;
+            /** Message */
+            message?: string | null;
             journal_coordinate?: components["schemas"]["ProcedureJournalCoordinate"] | null;
         };
         /** ProcedureHardCaps */
@@ -13125,14 +14658,16 @@ export interface components {
              */
             kind: "procedure";
             /** Definition */
-            definition: {
+            definition?: {
                 [key: string]: unknown;
             };
+            spec?: components["schemas"]["ProcedureSpec"] | null;
             /**
              * Activation Policy
+             * @default snapshot
              * @enum {string}
              */
-            activation_policy: "drain" | "abort" | "snapshot" | "epoch-check";
+            activation_policy?: "drain" | "abort" | "snapshot" | "epoch-check";
             /**
              * Retire
              * @default false
@@ -13192,6 +14727,33 @@ export interface components {
             sequence: number;
             /** Record Digest */
             record_digest: string;
+        };
+        /** ProcedureLimits */
+        ProcedureLimits: {
+            /**
+             * Wall Clock
+             * @default PT1M
+             */
+            wall_clock?: string;
+            /**
+             * Provider Calls
+             * @default 100
+             */
+            provider_calls?: number;
+            /**
+             * Capture Bytes
+             * @default 1048576
+             */
+            capture_bytes?: number | string;
+            /** Result Bytes */
+            result_bytes?: number | null;
+            /** Items */
+            items?: number | null;
+            /**
+             * Repeat Attempts
+             * @default 1
+             */
+            repeat_attempts?: number;
         };
         /**
          * ProcedureMandateAuthoringPayload
@@ -13741,11 +15303,12 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "wall_clock_exhausted" | "cas_unavailable_at_replay" | "replay_material_mismatch" | "journal_append_failed" | "journal_read_failed" | "journal_conflict" | "run_recovery_required" | "terminal_egress_recovered" | "admission_material_unavailable_by_policy" | "replay_material_unavailable" | "admission_material_corrupt" | "unsupported_protocol" | "unsupported_backend" | "no_compatible_artifact" | "unresolvable_source" | "air_gapped_cache_miss" | "network_disabled" | "cache_permissions" | "unresolved_secret_ref" | "secret_epoch_unavailable" | "secret_resolver_not_installed" | "provider_execution_error" | "provider_completion_not_durable";
+            code: "wall_clock_exhausted" | "cas_unavailable_at_replay" | "replay_material_mismatch" | "journal_append_failed" | "journal_read_failed" | "journal_conflict" | "run_recovery_required" | "terminal_egress_recovered" | "admission_material_unavailable_by_policy" | "replay_material_unavailable" | "admission_material_corrupt" | "unsupported_protocol" | "unsupported_backend" | "no_compatible_artifact" | "unresolvable_source" | "air_gapped_cache_miss" | "network_disabled" | "cache_permissions" | "unresolved_secret_ref" | "secret_epoch_unavailable" | "secret_resolver_not_installed" | "provider_execution_error" | "provider_completion_not_durable" | "provider_runtime_directory_unavailable";
             /** Message */
             message: string;
             /** Last Node Id */
             last_node_id?: string | null;
+            cause?: components["schemas"]["ProcedureFailureCause"] | null;
             journal_coordinate?: components["schemas"]["ProcedureJournalCoordinate"] | null;
             /** Details */
             details?: unknown;
@@ -13824,7 +15387,7 @@ export interface components {
              * Effect Class
              * @enum {string}
              */
-            effect_class: "none" | "external_read" | "external_mutation";
+            effect_class: "pure" | "external_read" | "external_mutation" | "none";
             /** Secret Binding Identity Digests */
             secret_binding_identity_digests: string[];
         };
@@ -13882,7 +15445,7 @@ export interface components {
              * Effect Class
              * @enum {string}
              */
-            effect_class: "none" | "external_read" | "external_mutation";
+            effect_class: "pure" | "external_read" | "external_mutation" | "none";
             /** Secret Binding Identity Digests */
             secret_binding_identity_digests: string[];
         };
@@ -13906,7 +15469,8 @@ export interface components {
             artifact_digest: string;
             /** Definition Digest */
             definition_digest: string;
-            artifact: components["schemas"]["ProcedureArtifact"];
+            /** Artifact */
+            artifact: components["schemas"]["ProcedureArtifact"] | components["schemas"]["NamedProcedureArtifact"];
             /**
              * Runnable
              * @enum {string}
@@ -14862,6 +16426,10 @@ export interface components {
             at?: components["schemas"]["AcceptedCoordinate"] | null;
             /** Evaluation Time */
             evaluation_time?: string | null;
+            /** Bindings */
+            bindings?: {
+                [key: string]: string;
+            };
             /** Input */
             input: unknown;
         };
@@ -15055,7 +16623,8 @@ export interface components {
             /** Name */
             name: string;
             coordinate: components["schemas"]["AcceptedCoordinate"];
-            definition?: components["schemas"]["ProcedureDefinition"] | null;
+            /** Definition */
+            definition?: components["schemas"]["ProcedureDefinition"] | components["schemas"]["NamedProcedureDefinition"] | null;
             /**
              * Contracts
              * @default []
@@ -15166,6 +16735,77 @@ export interface components {
             hard_caps: components["schemas"]["ProcedureHardCaps"];
             /** Description */
             description?: string | null;
+        };
+        /** ProcedureSpec */
+        ProcedureSpec: {
+            /** Procedure */
+            procedure: string;
+            /** Description */
+            description?: string | null;
+            /** Input */
+            input: {
+                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+            };
+            /** Params */
+            params?: {
+                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+            };
+            /** Returns */
+            returns?: string | components["schemas"]["ReturnFrom"] | components["schemas"]["ReturnFields"] | null;
+            /**
+             * Activation
+             * @default snapshot
+             * @enum {string}
+             */
+            activation?: "drain" | "abort" | "snapshot" | "epoch-check";
+            /**
+             * @default {
+             *       "wall_clock": "PT1M",
+             *       "provider_calls": 100,
+             *       "capture_bytes": 1048576,
+             *       "repeat_attempts": 1
+             *     }
+             */
+            budget?: components["schemas"]["ProcedureLimits"];
+            caps?: components["schemas"]["ProcedureLimits"] | null;
+            /** Slots */
+            slots?: {
+                [key: string]: string;
+            };
+            /** Acquisition Policy */
+            acquisition_policy?: string | null;
+            /** Steps */
+            steps: (components["schemas"]["SourceStep"] | components["schemas"]["TapStep"] | components["schemas"]["ClaimStep"] | components["schemas"]["CallStep"] | components["schemas"]["ProjectStep"] | components["schemas"]["TransformStep"] | components["schemas"]["GuardStep"] | components["schemas"]["InboxStep"] | components["schemas"]["ProposeStep"] | components["schemas"]["SettleStep"] | components["schemas"]["EmitStep"] | components["schemas"]["InvokeStep"] | components["schemas"]["SelectStep"] | components["schemas"]["RepeatStep"] | components["schemas"]["HaltStep"] | components["schemas"]["ExplicitStep"])[];
+            /** Input Contract */
+            input_contract?: string | null;
+            /** Output Contract */
+            output_contract?: string | null;
+            /** Parameter Contract */
+            parameter_contract?: string | null;
+            /** Output */
+            output?: {
+                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+            } | null;
+            /** Contracts */
+            contracts?: {
+                [key: string]: components["schemas"]["ContractSchema"];
+            };
+            /**
+             * Halt Order
+             * @default []
+             */
+            halt_order?: string[];
+            /**
+             * Source
+             * @description Retained AST provenance; revise it through source authoring.
+             */
+            readonly source?: components["schemas"]["NamedProcedureSourceProgram"] | components["schemas"]["ProcedureSourceProgram"] | null;
+            /**
+             * Measurements
+             * @default []
+             */
+            measurements?: components["schemas"]["ProcedureMeasurementDeclaration"][];
+            annotations?: components["schemas"]["JsonValue"];
         };
         /**
          * ProcedureTerminalEgress
@@ -15293,6 +16933,25 @@ export interface components {
             as: string;
             /** Next */
             next?: string | null;
+        };
+        /** ProjectStep */
+        ProjectStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Project */
+            project: string;
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Output */
+            output?: {
+                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+            } | null;
+            /** Contract */
+            contract?: string | null;
         };
         /** ProjectionAdvisory */
         ProjectionAdvisory: {
@@ -15639,6 +17298,8 @@ export interface components {
             workspace_advertisement?: components["schemas"]["WorkspaceAdvertisement"];
             lint?: components["schemas"]["ClaimTypeProposalLint"] | null;
             compiler_upgrade?: components["schemas"]["CompilerUpgradeNotice"] | null;
+            /** Outcome */
+            outcome?: (components["schemas"]["AuthoringLanded"] | components["schemas"]["AuthoringProposed"]) | null;
         };
         /**
          * ProposalItemReason
@@ -15705,7 +17366,7 @@ export interface components {
             tag?: "playbill-proposal-list-v1";
             coordinate: components["schemas"]["AcceptedCoordinate"];
             /** Status Filter */
-            status_filter?: ("open" | "settled" | "incomplete") | null;
+            status_filter?: ("open" | "awaiting_readmit" | "settled" | "incomplete") | null;
             /** Entries */
             entries: components["schemas"]["ProposalListEntry"][];
             /**
@@ -15740,9 +17401,9 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "open" | "settled" | "incomplete";
+            status: "open" | "awaiting_readmit" | "settled" | "incomplete";
             /** Terminal Reason */
-            terminal_reason?: ("accepted" | "refused" | "stale" | "withdrawn" | "rejected") | null;
+            terminal_reason?: ("accepted" | "refused" | "withdrawn" | "rejected") | null;
             /**
              * Incomplete Reasons
              * @default []
@@ -15753,6 +17414,11 @@ export interface components {
              * @default false
              */
             withdrawal_present?: boolean;
+            /**
+             * Stale Paths
+             * @default []
+             */
+            stale_paths?: string[];
         };
         /** ProposalReadmitRequest */
         ProposalReadmitRequest: {
@@ -15780,11 +17446,18 @@ export interface components {
              * @constant
              */
             tag: "playbill-proposal-readmit-result-v1";
+            /**
+             * Status
+             * @default readmitted
+             * @enum {string}
+             */
+            status?: "readmitted" | "already_live";
             /** Source Proposal Id */
             source_proposal_id: string;
             /** Operation Digest */
             operation_digest: string;
-            proposal: components["schemas"]["ProposalInspection"];
+            proposal: components["schemas"]["ProposalInspection"] | null;
+            accepted_coordinate?: components["schemas"]["AcceptedCoordinate"] | null;
         };
         /**
          * ProposalReceiveLimits
@@ -15864,6 +17537,11 @@ export interface components {
         /**
          * ProposalRecompiled
          * @description Review the new proposal normally; this call recorded no approval for it.
+         *
+         *     ``already_live``: every change the stale proposal carried is already live at
+         *     the head, so nothing is left to propose. The source is closed as answered,
+         *     no new proposal exists (``proposal_id`` and ``candidate_digest`` are absent),
+         *     and nothing needs review.
          */
         ProposalRecompiled: {
             /**
@@ -15876,13 +17554,13 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_review" | "ready_to_activate";
+            status: "pending_review" | "ready_to_activate" | "already_live";
             /** Source Proposal Id */
             source_proposal_id: string;
             /** Proposal Id */
-            proposal_id: string;
+            proposal_id?: string | null;
             /** Candidate Digest */
-            candidate_digest: string;
+            candidate_digest?: string | null;
             /** Members Identical */
             members_identical: boolean;
             /**
@@ -16103,6 +17781,35 @@ export interface components {
              * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
              */
             at?: string | null;
+            /**
+             * Accept
+             * @default if_allowed
+             * @enum {string}
+             */
+            accept?: "if_allowed" | "never";
+        };
+        /** ProposeCaptureContractRequest */
+        ProposeCaptureContractRequest: {
+            input: components["schemas"]["CaptureContractInputRecord"];
+            /** Proposal Name */
+            proposal_name: string;
+            base?: components["schemas"]["AcceptedCoordinate"] | null;
+            /**
+             * Dry Run
+             * @description true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews).
+             */
+            dry_run?: boolean | null;
+            /**
+             * At
+             * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
+             */
+            at?: string | null;
+            /**
+             * Accept
+             * @default if_allowed
+             * @enum {string}
+             */
+            accept?: "if_allowed" | "never";
         };
         /**
          * ProposeChangeSetNode
@@ -16151,6 +17858,12 @@ export interface components {
              * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
              */
             at?: string | null;
+            /**
+             * Accept
+             * @default if_allowed
+             * @enum {string}
+             */
+            accept?: "if_allowed" | "never";
         };
         /** ProposeDocumentRequest */
         ProposeDocumentRequest: {
@@ -16170,6 +17883,12 @@ export interface components {
              * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
              */
             at?: string | null;
+            /**
+             * Accept
+             * @default if_allowed
+             * @enum {string}
+             */
+            accept?: "if_allowed" | "never";
         };
         /** ProposePrincipalRequest */
         ProposePrincipalRequest: {
@@ -16187,6 +17906,16 @@ export interface components {
              * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
              */
             at?: string | null;
+        };
+        /** ProposeStep */
+        ProposeStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Propose */
+            propose: string | components["schemas"]["JsonValue"][];
+            result?: components["schemas"]["JsonValue"];
         };
         /**
          * ProviderBucketClassificationPlan
@@ -16463,7 +18192,7 @@ export interface components {
              */
             state: "available" | "unavailable" | "not_applicable";
             /** Code */
-            code: ("provider_process_lease_invalid" | "provider_process_lease_missing" | "provider_process_lease_echo_failed" | "provider_process_lease_echo_mismatch" | "provider_process_group_survived_recovery" | "provider_runtime_recovery_failed") | null;
+            code: ("provider_process_lease_invalid" | "provider_process_lease_missing" | "provider_process_lease_echo_failed" | "provider_process_lease_echo_mismatch" | "provider_process_group_survived_recovery" | "provider_runtime_recovery_failed" | "provider_runtime_directory_unavailable") | null;
             /** Detail */
             detail: string | null;
             /**
@@ -16686,6 +18415,21 @@ export interface components {
             digest: string;
         };
         /**
+         * PublicNameMap
+         * @description The reserved-name display table as data.
+         *
+         *     A client maps a stored name the way :func:`public_name` does: keep a leading
+         *     ``Kind:`` qualifier, then an ``exact`` match, else the longest matching
+         *     ``prefixes`` entry (replacing that prefix); any other name is shown as is.
+         *     Read models keep stored names, and input accepts either spelling.
+         */
+        PublicNameMap: {
+            /** Exact */
+            exact: components["schemas"]["NamePair"][];
+            /** Prefixes */
+            prefixes: components["schemas"]["NamePair"][];
+        };
+        /**
          * QueryArtifactDefinition
          * @description The full definition and its exact accepted identity/path/version binding.
          */
@@ -16767,7 +18511,7 @@ export interface components {
          * @description One Claim behind a cell value: ``rows[i].claims[column]`` lists them.
          *
          *     ``status`` tells a slot's winner (``accepted``) from the Claims resolution
-         *     set aside (``overturned``, ``refused``) and from contenders it left
+         *     set aside (``overturned``, ``ineligible``) and from contenders it left
          *     unresolved (``conflicted``); ``verdict`` is the Claim's own evidence
          *     verdict (``retired`` for a withdrawn Claim). ``get(claim)`` reads it.
          */
@@ -16781,7 +18525,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "accepted" | "conflicted" | "overturned" | "refused" | "retired";
+            status: "accepted" | "conflicted" | "ineligible" | "overturned" | "retired";
             /**
              * Role
              * @enum {string}
@@ -17085,7 +18829,7 @@ export interface components {
              */
             tag: "playbill-query-definition-authoring-payload-v1";
             /** Query Definition */
-            query_definition: components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["QueryDefinition"];
+            query_definition: components["schemas"]["QuerySpecInput"] | components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["QueryDefinition"] | components["schemas"]["NamedQueryDefinitionSpec"] | components["schemas"]["NamedQueryDefinition"];
         };
         /** QueryDefinitionInput */
         QueryDefinitionInput: {
@@ -17095,14 +18839,16 @@ export interface components {
              */
             kind: "query_definition";
             /** Query Definition */
-            query_definition: components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["QueryDefinition"];
+            query_definition: components["schemas"]["QuerySpecInput"] | components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["QueryDefinition"] | components["schemas"]["NamedQueryDefinitionSpec"] | components["schemas"]["NamedQueryDefinition"];
         };
         /**
          * QueryDefinitionSpec
          * @description Authoring grammar: omitted ClaimType pins resolve at the intent base.
          *
          *     Explicit pins remain assertions, never silently rebound. Accepted artifacts
-         *     always pass the stricter QueryDefinition validation after lowering.
+         *     always pass the stricter QueryDefinition validation after lowering. The
+         *     shape, cardinality, dedupe, evaluation policy and budgets may be left out
+         *     (``query_spec_defaults``); the stored definition states them.
          */
         QueryDefinitionSpec: {
             /**
@@ -17129,17 +18875,17 @@ export interface components {
              * Result Shape
              * @enum {string}
              */
-            result_shape: "subject" | "relation_claim" | "path" | "artifact_definition";
+            result_shape?: "subject" | "relation_claim" | "path" | "artifact_definition";
             /**
              * Result Cardinality
              * @enum {string}
              */
-            result_cardinality: "one" | "many";
+            result_cardinality?: "one" | "many";
             /**
              * Dedupe
              * @enum {string}
              */
-            dedupe: "subject" | "path" | "none" | "artifact";
+            dedupe?: "subject" | "path" | "none" | "artifact";
             projection?: components["schemas"]["QueryProjection"] | null;
             /**
              * Orderings
@@ -17156,9 +18902,9 @@ export interface components {
              * @default []
              */
             parameters?: components["schemas"]["QueryParameterDeclaration"][];
-            evaluation_policy: components["schemas"]["QueryEvaluationPolicy"];
-            default_budgets: components["schemas"]["QueryBudgets"];
-            maximum_budgets: components["schemas"]["QueryBudgets"];
+            evaluation_policy?: components["schemas"]["QueryEvaluationPolicy"];
+            default_budgets?: components["schemas"]["QueryBudgets"];
+            maximum_budgets?: components["schemas"]["QueryBudgets"];
             /**
              * Pins
              * @default []
@@ -17527,6 +19273,19 @@ export interface components {
             /** Value */
             value?: unknown;
         };
+        /** QueryMaximumInput */
+        QueryMaximumInput: {
+            /**
+             * Results
+             * @default 2000
+             */
+            results?: number;
+            /**
+             * Paths Per Result
+             * @default 1000
+             */
+            paths_per_result?: number;
+        };
         /**
          * QueryMembershipFilter
          * @description Set membership over an explicit, nonempty, canonically ordered value list.
@@ -17576,6 +19335,43 @@ export interface components {
             kind: "not";
             /** Operand */
             operand: components["schemas"]["QueryComparisonFilter"] | components["schemas"]["QueryMembershipFilter"] | components["schemas"]["QueryClaimPresenceFilter"] | components["schemas"]["QueryConjunctionFilter"] | components["schemas"]["QueryDisjunctionFilter"] | components["schemas"]["QueryNegationFilter"];
+        };
+        /**
+         * QueryNone
+         * @description One none behind a cell: ``rows[i].nones[column]`` lists a field's live nones.
+         *
+         *     A none (a ClaimType v9 inverse Claim) says the field holds nothing (``of``
+         *     absent: a one-valued field's whole slot) or does not hold ``of``; it is
+         *     never a cell value. A cell with no value and no current none is unknown.
+         */
+        QueryNone: {
+            /** Claim */
+            claim: string;
+            of?: components["schemas"]["ShownValue"];
+            /** Verdict */
+            verdict: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "accepted" | "conflicted" | "ineligible" | "overturned" | "retired";
+            /**
+             * Flags
+             * @default []
+             */
+            flags?: ("stale" | "contested" | "contradicted" | "uncovered" | "unsure_hold")[];
+            /** Qualifier */
+            qualifier?: string | null;
+        };
+        /** QueryOrderInput */
+        QueryOrderInput: {
+            /** Field */
+            field: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "string" | "integer" | "boolean" | "decimal" | "timestamp" | "subject_reference";
         };
         /**
          * QueryOrdering
@@ -17801,12 +19597,12 @@ export interface components {
             order_by?: string[];
             /**
              * Status
-             * @description Which Claims cells show: live (each slot's answer, the default), and opt-in overturned, refused or retired; retired also lists retired Subjects, each row then stating lifecycle (live or retired).
+             * @description Which Claims cells show: live (each slot's answer, the default), and opt-in overturned, ineligible or retired; retired also lists retired Subjects, each row then stating lifecycle (live or retired).
              * @default [
              *       "live"
              *     ]
              */
-            status?: ("live" | "overturned" | "refused" | "retired")[];
+            status?: ("live" | "ineligible" | "overturned" | "retired")[];
             /**
              * Claims
              * @description Also answer each cell's Claims (id, value, verdict, status) as rows[].claims.
@@ -17820,7 +19616,8 @@ export interface components {
             limit?: number;
             /** Cursor */
             cursor?: string | null;
-            spec?: components["schemas"]["QueryDefinitionSpec"] | null;
+            /** Spec */
+            spec?: components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["NamedQueryDefinitionSpec"] | null;
             /** Name */
             name?: string | null;
             /** Params */
@@ -17920,6 +19717,63 @@ export interface components {
             subject_id?: string | null;
             /** Subject Path */
             subject_path?: string | null;
+        };
+        /**
+         * QuerySpecInput
+         * @description One QueryDefinition, expressed in binding names and predicate names.
+         */
+        QuerySpecInput: {
+            /** Query */
+            query: string;
+            /** Description */
+            description?: string | null;
+            /** Params */
+            params?: {
+                [key: string]: ("string" | "integer" | "boolean" | "decimal" | "timestamp" | "subject_reference") | "subject";
+            };
+            /** From */
+            from: {
+                [key: string]: string;
+            };
+            /** Where */
+            where?: string | null;
+            /**
+             * Hops
+             * @default []
+             */
+            hops?: {
+                [key: string]: string;
+            }[];
+            /** Fields */
+            fields: (string | {
+                [key: string]: string;
+            })[];
+            /**
+             * Order
+             * @default []
+             */
+            order?: (string | components["schemas"]["QueryOrderInput"])[];
+            /** Include */
+            include?: {
+                [key: string]: string;
+            };
+            /**
+             * Visible
+             * @default current
+             * @enum {string}
+             */
+            visible?: "current" | "held";
+            /**
+             * Limit
+             * @default 200
+             */
+            limit?: number;
+            /**
+             * Paths Per Result
+             * @default 100
+             */
+            paths_per_result?: number;
+            max?: components["schemas"]["QueryMaximumInput"];
         };
         /**
          * QuerySubjectFieldRef
@@ -18064,6 +19918,31 @@ export interface components {
             visible_verdicts?: ("supported" | "uncovered" | "stale" | "contradicted" | "unresolved")[];
         };
         /**
+         * RebindChange
+         * @description Re-cite a Claim on its text now, or on a fresh Capture; the value stays.
+         */
+        RebindChange: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "rebind";
+            /** Target */
+            target?: string | null;
+            /**
+             * From Capture
+             * @description Instead of target: every live Claim citing this Capture.
+             */
+            from_capture?: string | null;
+            /**
+             * Citation
+             * @description Citation to replace (12+ hex); default: the Claim's one of that file or that Capture's contract.
+             */
+            citation?: string | null;
+            /** Evidence */
+            evidence: components["schemas"]["FileEvidence"] | components["schemas"]["SectionEvidence"] | components["schemas"]["CaptureEvidence"];
+        };
+        /**
          * RecompiledMemberChange
          * @description One own-member byte change between the stale and fresh candidates.
          */
@@ -18116,9 +19995,9 @@ export interface components {
             /** Implementation Digest */
             implementation_digest?: string | null;
             /** Contract In */
-            contract_in: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
+            contract_in?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
             /** Contract Out */
-            contract_out: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
+            contract_out?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
             /** Effect Policy */
             effect_policy?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
             /** Spec */
@@ -18145,9 +20024,24 @@ export interface components {
             /** Next */
             next?: string | null;
         };
+        /** RepeatStep */
+        RepeatStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Repeat */
+            repeat: string;
+            /** Max Attempts */
+            max_attempts: number;
+            /** Body */
+            body: components["schemas"]["NamedRepeatBodyNode"][];
+            /** Until */
+            until: string;
+        };
         /**
          * ReplaceSection
-         * @description Replace a whole subtree, or the preamble at the empty heading path.
+         * @description Replace a whole subtree, or the preamble at section [].
          */
         ReplaceSection: {
             /**
@@ -18331,11 +20225,12 @@ export interface components {
         ResolvedTriggerCaptureContract: {
             /** Trigger Name */
             trigger_name: string;
-            event: components["schemas"]["CaptureEventSelector"];
+            /** Event */
+            event: components["schemas"]["CaptureEventSelector"] | components["schemas"]["NamedCaptureEventSelector"];
         };
         /**
          * RetireChange
-         * @description End a live Claim by ID or slot; include value for a many-valued field.
+         * @description End a live Claim (by ID or slot) or a Subject (kind/id).
          */
         RetireChange: {
             /**
@@ -18347,21 +20242,27 @@ export interface components {
             target: string | components["schemas"]["SlotRef"];
             /**
              * Because
-             * @description Override the write's because for this retirement.
+             * @description Overrides the write's because here.
              */
             because?: string | null;
             /**
              * Reason
-             * @description was-rescinded: author withdrew it; was-wrong: false; superseded: valid then, obsolete form now.
+             * @description was-rescinded: withdrawn; was-wrong: false; superseded: obsolete form.
              * @default was-rescinded
              * @enum {string}
              */
             reason?: "was-rescinded" | "was-wrong" | "superseded";
             /**
              * Expect
-             * @description Compare-and-set: value read, list of all live values for many-valued fields, [] for none; mismatch: slot_changed.
+             * @description Compare-and-set: the value(s) you read, [] for none; else slot_changed.
              */
             expect?: boolean | number | string | (boolean | number | string)[] | null;
+            /**
+             * With Claims
+             * @description Subject target: also retire its live Claims.
+             * @default false
+             */
+            with_claims?: boolean;
         };
         /** RetireRequest */
         RetireRequest: {
@@ -18415,9 +20316,41 @@ export interface components {
             reason?: "was-rescinded" | "was-wrong" | "superseded";
             /**
              * Expect
-             * @description Compare-and-set: value read, list of all live values for many-valued fields, [] for none; mismatch: slot_changed.
+             * @description Compare-and-set: the value(s) you read, [] for none; else slot_changed.
              */
             expect?: boolean | number | string | (boolean | number | string)[] | null;
+            /**
+             * With Claims
+             * @default false
+             */
+            with_claims?: boolean;
+        };
+        /** ReturnFields */
+        ReturnFields: {
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Id
+             * @default summary
+             */
+            id?: string;
+        };
+        /** ReturnFrom */
+        ReturnFrom: {
+            /** From */
+            from: string;
+            /**
+             * Omit
+             * @default []
+             */
+            omit?: string[];
+            /**
+             * Id
+             * @default summary
+             */
+            id?: string;
         };
         /**
          * ReturnNode
@@ -18737,9 +20670,26 @@ export interface components {
             /** Next */
             next?: string | null;
         };
+        /** SelectStep */
+        SelectStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Select */
+            select: string;
+            /** Sources */
+            sources: string[];
+            /** Output */
+            output?: {
+                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+            } | null;
+            /** Contract */
+            contract?: string | null;
+        };
         /**
          * SelfEvidence
-         * @description Self evidence; defaults to because, or the value itself for exact content.
+         * @description Own words; default: because (exact content: the value itself).
          */
         SelfEvidence: {
             /**
@@ -18847,6 +20797,7 @@ export interface components {
              * @default []
              */
             consumers?: components["schemas"]["ConsumerStatus"][];
+            public_names?: components["schemas"]["PublicNameMap"] | null;
         };
         /** ServerRestartResult */
         ServerRestartResult: {
@@ -18875,7 +20826,7 @@ export interface components {
         };
         /**
          * SetChange
-         * @description Replace a single-value field; contend=true states a competing Claim instead.
+         * @description Replace a single-value field; contend=true contests it instead.
          */
         SetChange: {
             /**
@@ -18890,11 +20841,11 @@ export interface components {
             subject?: string | components["schemas"]["CreatedSubject"] | null;
             /**
              * Field
-             * @description A field from orient, or its full predicate.
+             * @description A field as orient names it, or its predicate.
              */
             field: string;
             /** Value */
-            value: boolean | number | string | components["schemas"]["CreatedSubject"];
+            value: boolean | number | string | components["schemas"]["CreatedSubject"] | components["schemas"]["NoneValue"];
             /**
              * Role
              * @description Only when the field permits more than one role.
@@ -18912,7 +20863,7 @@ export interface components {
             contend?: boolean;
             /**
              * Expect
-             * @description Compare-and-set: value read, list of all live values for many-valued fields, [] for none; mismatch: slot_changed.
+             * @description Compare-and-set: the value(s) you read, [] for none; else slot_changed.
              */
             expect?: boolean | number | string | (boolean | number | string)[] | null;
         };
@@ -18960,16 +20911,16 @@ export interface components {
             tag?: "playbill-set-request-v1";
             /**
              * Subject
-             * @description kind/id, kind/alias or kind/key; optional '@' prefix.
+             * @description kind/id (or kind/alias, kind/key; '@' optional).
              */
             subject: string;
             /**
              * Field
-             * @description A field from orient, or its full predicate.
+             * @description A field as orient names it, or its predicate.
              */
             field: string;
             /** Value */
-            value: boolean | number | string;
+            value: boolean | number | string | components["schemas"]["NoneValue"];
             /** Role */
             role?: ("normative" | "observation" | "environment_binding") | null;
             /** Evidence */
@@ -18981,7 +20932,7 @@ export interface components {
             contend?: boolean;
             /**
              * Expect
-             * @description Compare-and-set: value read, list of all live values for many-valued fields, [] for none; mismatch: slot_changed.
+             * @description Compare-and-set: the value(s) you read, [] for none; else slot_changed.
              */
             expect?: boolean | number | string | (boolean | number | string)[] | null;
         };
@@ -19070,6 +21021,16 @@ export interface components {
             relation: {
                 [key: string]: unknown;
             };
+        };
+        /** SettleStep */
+        SettleStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Settle */
+            settle: string | components["schemas"]["JsonValue"][];
+            result?: components["schemas"]["JsonValue"];
         };
         /**
          * ShownObject
@@ -19188,10 +21149,11 @@ export interface components {
             artifact_digest: string | null;
             /** Predecessor Artifact Digest */
             predecessor_artifact_digest: string | null;
+            statement?: components["schemas"]["ClaimLine"] | null;
         };
         /**
          * SlotRef
-         * @description A Subject's field; include value to select one of several live values.
+         * @description A Subject's field; value picks one of several live values.
          */
         SlotRef: {
             /**
@@ -19201,30 +21163,29 @@ export interface components {
             subject?: string | null;
             /**
              * Field
-             * @description A field from orient, or its full predicate.
+             * @description A field as orient names it, or its predicate.
              */
             field: string;
             /** Value */
             value?: boolean | number | string | null;
         };
-        /** SourceAcquisitionPolicy */
+        /**
+         * SourceAcquisitionPolicy
+         * @description One instance-wide age bound and only the aliases that differ.
+         */
         SourceAcquisitionPolicy: {
             /**
              * Artifact Format
-             * @default playbill-source-acquisition-policy-v1
+             * @default playbill-source-acquisition-policy-v2
              * @constant
              */
-            artifact_format?: "playbill-source-acquisition-policy-v1";
+            artifact_format?: "playbill-source-acquisition-policy-v2";
             identity: components["schemas"]["ArtifactIdentity"];
-            /** Inputs */
-            inputs: components["schemas"]["InputAcquisitionRule"][];
-            /** Coherence */
-            coherence: components["schemas"]["IndependentCoherence"] | components["schemas"]["BoundedWindowCoherence"] | components["schemas"]["DeclaredSnapshotGroupCoherence"];
-            /**
-             * Pins
-             * @default []
-             */
-            pins?: components["schemas"]["ArtifactPin"][];
+            max_age?: components["schemas"]["CanonicalDuration"] | string | null;
+            /** Overrides */
+            overrides?: {
+                [key: string]: components["schemas"]["CanonicalDuration"] | string | null;
+            };
             /**
              * @default {
              *       "state": "live"
@@ -19404,7 +21365,7 @@ export interface components {
              * Effect Class
              * @enum {string}
              */
-            effect_class: "none" | "external_read" | "external_mutation";
+            effect_class: "pure" | "external_read" | "external_mutation" | "none";
             operation: components["schemas"]["ProviderOperationContract"];
         };
         /** SourceProviderSelection */
@@ -19514,7 +21475,7 @@ export interface components {
              * Effect Class
              * @enum {string}
              */
-            effect_class: "none" | "external_read" | "external_mutation";
+            effect_class: "pure" | "external_read" | "external_mutation" | "none";
             operation: components["schemas"]["ProviderOperationContract"];
         };
         /**
@@ -19542,6 +21503,22 @@ export interface components {
             end_line: number;
             /** End Column */
             end_column: number;
+        };
+        /** SourceStep */
+        SourceStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Source */
+            source: string;
+            /** Contract */
+            contract: string;
+            /** Interface */
+            interface: string;
+            /** Provider */
+            provider?: string | null;
+            request: components["schemas"]["JsonValue"];
         };
         /**
          * StateCoordinate
@@ -19791,9 +21768,9 @@ export interface components {
          * @description One SubjectKind decision: how core names Subjects of one kind.
          *
          *     Exactly one of ``keys`` (the key ClaimTypes by predicate, in key order, with
-         *     ``uniqueness``) or ``minted``. Lowering writes ``subject-kinds/<name>.json``
-         *     as the successor of the accepted one when there is one; changing the keys or
-         *     the uniqueness of an accepted kind is that governed successor, and no
+         *     optional ``uniqueness``, default ``unique``) or ``minted``. Lowering writes
+         *     ``subject-kinds/<name>.json`` as the successor of the accepted one when there
+         *     is one; changing the keys or uniqueness is that governed successor, and no
          *     existing Subject's id moves.
          */
         SubjectKindAuthoringPayload: {
@@ -19831,8 +21808,8 @@ export interface components {
          *     Every new Subject is of a kind with an accepted SubjectKind. ``keys`` names
          *     the key ClaimTypes (by predicate, in key order): each a ClaimType v8 about
          *     this kind only, literal and one-valued, accepted here or earlier; a Subject's
-         *     id is then the readable rendering of its canonical key. ``uniqueness:
-         *     unique`` refuses a second live Subject with the same key; ``hint`` only
+         *     id is then the readable rendering of its canonical key. The default
+         *     ``uniqueness: unique`` refuses a second live Subject with the same key; ``hint`` only
          *     surfaces it in the duplicates audit. ``minted: true`` has core mint opaque
          *     ids instead. Change it, or retire it, through a successor.
          */
@@ -19857,7 +21834,7 @@ export interface components {
             keys?: string[];
             /**
              * Uniqueness
-             * @description With keys: unique refuses a duplicate key; hint does not.
+             * @description With keys: defaults to unique, which refuses a duplicate key; hint does not.
              */
             uniqueness?: ("unique" | "hint") | null;
             /**
@@ -19928,6 +21905,19 @@ export interface components {
              */
             kind: "subject_succession";
             subject: components["schemas"]["SubjectShell"];
+        };
+        /** TapStep */
+        TapStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Tap */
+            tap: string;
+            /** Query */
+            query: string;
+            params?: components["schemas"]["JsonValue"];
+            budgets?: components["schemas"]["JsonValue"];
         };
         /** TerminalSettlementEvidence */
         TerminalSettlementEvidence: {
@@ -20055,6 +22045,34 @@ export interface components {
              * @default false
              */
             include_input?: boolean;
+        };
+        /** TransformStep */
+        TransformStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Transform */
+            transform: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "shape_items" | "join_items" | "filter_items" | "aggregate_items" | "dedupe_items" | "adapter";
+            /** Spec */
+            spec: components["schemas"]["TransformAdapterSpec"] | components["schemas"]["TransformShapeItemsSpec"] | components["schemas"]["TransformFilterItemsSpec"] | components["schemas"]["TransformDedupeItemsSpec"] | components["schemas"]["TransformJoinItemsSpec"] | components["schemas"]["TransformAggregateItemsSpec"];
+            /** Input */
+            input: {
+                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+            };
+            /** Output */
+            output: {
+                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+            };
+            /** Contract In */
+            contract_in?: string | null;
+            /** Contract Out */
+            contract_out?: string | null;
         };
         /**
          * TriggerAuthoringPayload
@@ -20575,7 +22593,7 @@ export interface components {
              * Changes
              * @default []
              */
-            changes?: (components["schemas"]["CreateChange"] | components["schemas"]["SetChange"] | components["schemas"]["AddChange"] | components["schemas"]["RetireChange"])[];
+            changes?: (components["schemas"]["CreateChange"] | components["schemas"]["SetChange"] | components["schemas"]["AddChange"] | components["schemas"]["RetireChange"] | components["schemas"]["RebindChange"])[];
             /**
              * Docs
              * @default []
@@ -23480,6 +25498,362 @@ export interface operations {
             };
         };
     };
+    capture_upload_open_api_v1__instance_id__uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureUploadOpenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureUploadSession"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    capture_upload_status_api_v1__instance_id__uploads__upload_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureUploadSession"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    capture_upload_part_api_v1__instance_id__uploads__upload_id__parts__part__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+                upload_id: string;
+                part: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureUploadSession"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    capture_upload_complete_api_v1__instance_id__uploads__upload_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureUploadCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureUploadCompleteResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     propose_document_api_v1__instance_id__documents_proposals_post: {
         parameters: {
             query?: never;
@@ -24027,7 +26401,7 @@ export interface operations {
     list_proposals_api_v1__instance_id__proposals_get: {
         parameters: {
             query?: {
-                status?: ("open" | "settled" | "incomplete") | null;
+                status?: ("open" | "awaiting_readmit" | "settled" | "incomplete") | null;
                 limit?: number;
                 cursor?: string | null;
             };
@@ -24915,6 +27289,95 @@ export interface operations {
             };
         };
     };
+    erase_capture_api_v1__instance_id__captures_erase_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureEraseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureEraseResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     file_context_api_v1__instance_id__files_context_get: {
         parameters: {
             query?: never;
@@ -25101,6 +27564,95 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["FileProposeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalInspection"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    propose_capture_contract_api_v1__instance_id__capture_contracts_proposals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposeCaptureContractRequest"];
             };
         };
         responses: {
@@ -30164,5 +32716,7 @@ export interface operations {
 
 export type RecursiveQueryCell = components["schemas"]["TruncatedText"] | components["schemas"]["ExactContentRef"] | components["schemas"]["ShownObject"] | string | boolean | number | RecursiveQueryCell[] | {
             [key: string]: components["schemas"]["QueryClaim"][];
+        } | {
+            [key: string]: components["schemas"]["QueryNone"][];
         } | null;
 export type RecursiveShownValue = components["schemas"]["TruncatedText"] | components["schemas"]["ExactContentRef"] | components["schemas"]["ShownObject"] | string | boolean | number | RecursiveShownValue[] | null;

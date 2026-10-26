@@ -1,8 +1,8 @@
 // Relative .ts imports: scripts/record-fixtures.ts runs this walk under Node.
-import type { GetResult, OrientKind, OrientPredicate, Schemas } from "../api/schemas.ts";
+import type { GetResult, OrientPredicate, Schemas } from "../api/schemas.ts";
 import { cardOf } from "../api/schemas.ts";
 import { formatRef, parseRef } from "./cruxible-ref.ts";
-import { isSubjectValued } from "./type-graph.ts";
+import { isSubjectValued, type OntologyKind } from "./type-graph.ts";
 
 /**
  * The neighborhood graph around one Subject: breadth-first over OUTGOING
@@ -64,7 +64,7 @@ export interface Neighborhood {
 export type CardFetcher = (refs: string[]) => Promise<GetResult[]>;
 
 /** (kind, field shown on its cards) -> the ClaimType descriptor, from orient. */
-export function predicateIndex(kinds: readonly OrientKind[]): Map<string, OrientPredicate> {
+export function predicateIndex(kinds: readonly Pick<OntologyKind, "kind" | "predicates">[]): Map<string, OrientPredicate> {
   const index = new Map<string, OrientPredicate>();
   for (const kind of kinds) {
     for (const predicate of kind.predicates) {
@@ -133,7 +133,7 @@ async function readCards(
 export async function walkNeighborhood(
   root: string,
   depth: number,
-  kinds: readonly OrientKind[],
+  kinds: readonly Pick<OntologyKind, "kind" | "predicates">[],
   fetch: CardFetcher,
   cap = NEIGHBORHOOD_NODE_CAP,
   incoming: IncomingReader | null = null,

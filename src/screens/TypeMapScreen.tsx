@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { useInstanceId, useOrientKinds, useSubjectKinds } from "@/api/hooks";
+import { useInstanceId, useOntologyKinds, useSubjectKinds } from "@/api/hooks";
 import type { OrientPredicate, OrientSubjectKind } from "@/api/schemas";
 import { actionChipClass } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
@@ -111,7 +111,7 @@ function cardinalityMark(cardinality: string): string {
  * `?kind=` and `?claim_type=` open the map on that kind or edge.
  */
 export function TypeMapScreen() {
-  const kinds = useOrientKinds();
+  const kinds = useOntologyKinds();
   const subjectKinds = useSubjectKinds();
   const [params] = useSearchParams();
   usePageTitle("Type map");

@@ -38,12 +38,10 @@ const subjectKind = (kind: string, description: string, keys: string[], live: nu
   kit: "security",
 });
 
-const digest = (c: string) => "sha256:" + c.repeat(64);
-const pin = (source: string, role: string, target: string, c: string, current: boolean | null = true): Schemas["OrientPin"] => ({
+const pin = (source: string, role: string, target: string, current: boolean | null = true): Schemas["OrientPin"] => ({
   source,
   role,
   target,
-  target_digest: digest(c),
   ...(current === null ? {} : { current }),
 });
 const OSV = "CaptureContract:security.osv-applicability-v1";
@@ -68,22 +66,22 @@ const KEV_CARD: Schemas["GetCaptureContractCard"] = {
 
 /** Definition pins, by source as the section pages them. */
 export const PINS: Schemas["OrientPin"][] = [
-  pin("Blueprint:security.osv-acquire", "capture-contract", OSV, "a"),
-  pin("Line:cve-applicability", "procedure", "Procedure:security.cve-applicability", "b"),
-  pin("Line:cve-applicability", "trigger-capture-contract", OSV, "a"),
-  pin("Line:kev-triage", "procedure", "Procedure:security.kev-triage", "c"),
-  pin("Procedure:security.cve-applicability", "capture-contract", OSV, "a"),
-  pin("Procedure:security.cve-applicability", "provider", ANALYSIS, "f", null),
-  pin("Procedure:security.kev-acquire", "capture-contract", KEV, "e"),
-  pin("Procedure:security.kev-acquire", "provider", GATE, "d", null),
-  pin("Procedure:security.osv-acquire", "capture-contract", OSV, "a"),
-  pin("Procedure:security.osv-acquire", "provider", GATE, "d", null),
-  pin("ProcedureMandate:security.kev-settle", "claim-type", "ClaimType:security.assessment.status", "4"),
-  pin("ProcedureMandate:security.kev-settle", "procedure", "Procedure:security.kev-triage", "c"),
-  pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.assessment.status", "4"),
-  pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.vulnerability.kev_listed", "9", false),
-  pin("Trigger:security.kev-landed", "trigger-capture-contract", KEV, "e"),
-  pin("Trigger:security.osv-landed", "trigger-capture-contract", OSV, "a"),
+  pin("Blueprint:security.osv-acquire", "capture-contract", OSV),
+  pin("Line:cve-applicability", "procedure", "Procedure:security.cve-applicability"),
+  pin("Line:cve-applicability", "trigger-capture-contract", OSV),
+  pin("Line:kev-triage", "procedure", "Procedure:security.kev-triage"),
+  pin("Procedure:security.cve-applicability", "capture-contract", OSV),
+  pin("Procedure:security.cve-applicability", "provider", ANALYSIS, null),
+  pin("Procedure:security.kev-acquire", "capture-contract", KEV),
+  pin("Procedure:security.kev-acquire", "provider", GATE, null),
+  pin("Procedure:security.osv-acquire", "capture-contract", OSV),
+  pin("Procedure:security.osv-acquire", "provider", GATE, null),
+  pin("ProcedureMandate:security.kev-settle", "claim-type", "ClaimType:security.assessment.status"),
+  pin("ProcedureMandate:security.kev-settle", "procedure", "Procedure:security.kev-triage"),
+  pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.assessment.status"),
+  pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.vulnerability.kev_listed", false),
+  pin("Trigger:security.kev-landed", "trigger-capture-contract", KEV),
+  pin("Trigger:security.osv-landed", "trigger-capture-contract", OSV),
 ];
 
 export default [

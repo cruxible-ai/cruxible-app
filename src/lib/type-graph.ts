@@ -1,4 +1,49 @@
-import type { OrientKind, OrientPredicate } from "../api/schemas.ts";
+import type { OrientKindSummary, OrientPredicate } from "../api/schemas.ts";
+
+/**
+ * A Subject kind with every ClaimType it carries. Orient's default map names
+ * a kind's first fields only (OrientKindSummary); the ClaimTypes come from
+ * orient section=claim_types, each listed under every kind its
+ * `subject_kinds` names (a ClaimType shared by several kinds appears under
+ * each), in section order. `evidence` is the sorted union of the contracts its ClaimTypes admit.
+ */
+export interface OntologyKind {
+  kind: string;
+  subjects: number;
+  identity?: string;
+  evidence: string[];
+  predicates: OrientPredicate[];
+}
+
+/** The kinds orient lists, each with its ClaimTypes from the claim_types section. */
+export function ontologyKinds(
+  summaries: readonly OrientKindSummary[],
+  claimTypes: readonly OrientPredicate[],
+): OntologyKind[] {
+  const byKind = new Map<string, OrientPredicate[]>();
+  for (const predicate of claimTypes) {
+    for (const kind of predicate.subject_kinds ?? []) {
+      const list = byKind.get(kind) ?? [];
+      list.push(predicate);
+      byKind.set(kind, list);
+    }
+  }
+  return summaries.map((summary) => {
+    const predicates = byKind.get(summary.kind) ?? [];
+    return {
+      kind: summary.kind,
+      subjects: summary.subjects,
+      ...(summary.identity !== undefined ? { identity: summary.identity } : {}),
+      evidence: [...new Set(predicates.flatMap((p) => p.evidence ?? []))].sort(),
+      predicates,
+    };
+  });
+}
+
+/** How many ClaimTypes orient's kind summary counts (its first fields plus the rest). */
+export function summaryFieldCount(summary: OrientKindSummary): number {
+  return (summary.fields ?? []).length + (summary.more_fields ?? 0);
+}
 
 /**
  * The ontology as a graph: SubjectKinds are nodes, and every Subject-valued
@@ -42,7 +87,7 @@ export function edgeId(source: string, target: string): string {
   return `${source}->${target}`;
 }
 
-export function buildTypeGraph(kinds: readonly OrientKind[]): {
+export function buildTypeGraph(kinds: readonly OntologyKind[]): {
   nodes: TypeGraphNode[];
   edges: TypeGraphEdge[];
 } {

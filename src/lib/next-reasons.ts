@@ -33,7 +33,7 @@ export const FAMILY_LABEL: Record<NextFamily, string> = {
 };
 
 /** How a detail field renders. */
-export type FieldKind = "text" | "words" | "count" | "time" | "ref" | "capture" | "claim" | "list" | "digest";
+export type FieldKind = "text" | "words" | "count" | "time" | "ref" | "run" | "capture" | "claim" | "list" | "digest" | "cause";
 
 export interface FieldSpec {
   key: string;
@@ -139,6 +139,11 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
     family: "evidence",
     fields: DOOR_FIELDS,
   },
+  claim_evidence_erased: {
+    label: "Cited evidence erased",
+    family: "evidence",
+    fields: [f("predicate", "predicate"), f("erased_capture_digests", "erased captures", "list"), f("checked_at", "checked", "time")],
+  },
   evidence_unavailable: {
     label: "Evidence body unavailable",
     family: "evidence",
@@ -173,6 +178,16 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
     label: "Line disabled by upgrade",
     family: "lines",
     fields: [f("procedure_version", "version"), f("detail", "")],
+  },
+  line_not_enabled: {
+    label: "Line not enabled",
+    family: "lines",
+    fields: [f("detail", "")],
+  },
+  line_run_failed: {
+    label: "Line run failed",
+    family: "lines",
+    fields: [f("run_id", "run", "run"), f("finalized_at", "at", "time"), f("failure_code", "code", "words"), f("cause", "cause", "cause"), f("detail", "")],
   },
   line_settled_prior_refusals: {
     label: "Line settled over prior refusals",
@@ -209,8 +224,17 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
 export const BELIEF_TABS = ["contested", "stale", "drifted"] as const satisfies readonly NextFamily[];
 export type BeliefTab = (typeof BELIEF_TABS)[number];
 
+/**
+ * A reason's metadata. The table is total over the pinned contract; a reason
+ * a newer daemon serves renders under its own words in Operations, its detail
+ * as JSON, instead of breaking the page.
+ */
+export function reasonMeta(reason: NextReason): ReasonMeta {
+  return REASONS[reason] ?? { label: String(reason).replaceAll("_", " "), family: "operations", fields: [] };
+}
+
 export function familyOf(reason: NextReason): NextFamily {
-  return REASONS[reason].family;
+  return reasonMeta(reason).family;
 }
 
 /** A detail as a record, or null when the contract served something else. */
@@ -224,7 +248,7 @@ export function detailRecord(detail: unknown): Record<string, unknown> | null {
 export function splitDetail(reason: NextReason, detail: unknown) {
   const record = detailRecord(detail);
   if (!record) return { fields: [] as { spec: FieldSpec; value: unknown }[], rest: detail ?? null };
-  const specs = REASONS[reason].fields;
+  const specs = reasonMeta(reason).fields;
   const fields = specs
     .filter((spec) => record[spec.key] !== undefined && record[spec.key] !== null)
     .map((spec) => ({ spec, value: record[spec.key] }));
