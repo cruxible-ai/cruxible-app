@@ -9,9 +9,24 @@ import { Pending } from "@/components/ontology/Pending";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
-import { retainedByWords } from "@/lib/definitions";
+import { retainedByWords, type Retention } from "@/lib/definitions";
 import { contractName, contractProducers, providerName, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
+
+/** Retentions whose step names no logical source, by why: the definitions do not say which source it is. */
+const UNNAMED: { test: (r: Retention) => boolean; words: string; title: string }[] = [
+  {
+    test: (r) => !r.emitted && r.given === null,
+    words: "under a logical source its Provider names",
+    title: "The source step's request names no logical source: the Provider names it at run time, and the daemon does not serve which",
+  },
+  {
+    test: (r) => r.given !== null,
+    words: "under the logical source a direct run is given",
+    title: "The source step takes its logical source from the run's input ($input.<field>)",
+  },
+  { test: (r) => r.emitted, words: "as the run's own output (emitted)", title: "An emit step retains the run's output under this contract" },
+];
 
 /**
  * One CaptureContract: what it captures (grade, source kinds) and the logical
@@ -104,12 +119,14 @@ export function ContractScreen() {
                 </span>
               </div>
             ))}
-            {unnamed.length > 0 && (
-              <div className="text-zinc-500" title="The step's request names no logical source: the Provider names it, or the run is given it, or it emits its own output">
-                also retained by {retainedByWords(unnamed)}, under a logical source{" "}
-                {unnamed.every((r) => r.emitted) ? "the run's own output" : unnamed.some((r) => r.given) ? "the run is given" : "its Provider names"}
-              </div>
-            )}
+            {UNNAMED.map(({ test, words, title }) => {
+              const group = unnamed.filter(test);
+              return group.length > 0 ? (
+                <div key={words} className="text-zinc-500" title={title}>
+                  also retained by {retainedByWords(group)}, {words}
+                </div>
+              ) : null;
+            })}
           </div>
         </Panel>
         <Panel
