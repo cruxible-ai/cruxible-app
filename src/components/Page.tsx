@@ -58,7 +58,7 @@ export function PageHeader({
       )}
       <h1 className={`${mono ? "t-title-mono" : "t-title"} break-words`}>{title}</h1>
       {id && <div className="mt-0.5">{id}</div>}
-      {summary && <p className="t-lede measure mt-1.5">{summary}</p>}
+      {summary && <div className="t-lede measure mt-1.5">{summary}</div>}
       {facts && <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">{facts}</dl>}
       {children}
     </header>
