@@ -57,6 +57,13 @@ function objectValue(object: unknown): { text: string; ref: string | null } {
 
 const ROLE_WORDS: Record<string, string> = { observation: "observed", normative: "stated" };
 
+/** Members whose artifact this read doesn't carry (withheld or not served): listed by path. */
+export function unreadableChanges(members: Member[]): { path: string; disposition: string }[] {
+  return members
+    .filter((m) => !obj(m.candidate_semantic_artifact) && !obj(m.base_semantic_artifact))
+    .map((m) => ({ path: m.path, disposition: m.disposition }));
+}
+
 export function groupChanges(members: Member[]): SubjectGroup[] {
   const groups = new Map<string, SubjectGroup>();
   const group = (subject: string) => {
@@ -100,6 +107,13 @@ export function groupChanges(members: Member[]): SubjectGroup[] {
   return out.sort((a, b) => Number(b.created) - Number(a.created) || a.subject.localeCompare(b.subject));
 }
 
+/** "claims/04/CLM-….json" -> "CLM-…"; "subjects/k/id.json" -> "k/id"; else the path. */
+function refFromPath(path: string): string {
+  const claim = /(CLM-[0-9a-f]+)\.json$/.exec(path);
+  if (claim?.[1]) return claim[1];
+  return subjectFromPath(path) ?? path;
+}
+
 function Value({ value }: { value: { text: string; ref: string | null } }) {
   return value.ref ? <RefLink value={value.ref} /> : <span className="font-mono text-[12.5px] text-zinc-100">{value.text}</span>;
 }
@@ -119,6 +133,7 @@ const DISPOSITION_MARK: Record<string, string> = { create: "+", retire: "−", r
 
 export function ProposalChanges({ review, limit }: { review: Review; limit?: number }) {
   const groups = groupChanges(review.members);
+  const unreadable = unreadableChanges(review.members);
   let shown = 0;
   let hidden = 0;
   return (
@@ -174,6 +189,16 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
           </div>
         );
       })}
+      {unreadable.slice(0, limit ?? unreadable.length).map((u) => (
+        <div key={u.path} className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
+          <span className="text-zinc-500" title={u.disposition}>
+            {DISPOSITION_MARK[u.disposition] ?? "·"}
+          </span>
+          <span className="min-w-0 break-all">
+            <RefLink value={refFromPath(u.path)} />
+          </span>
+        </div>
+      ))}
       {hidden > 0 && <div className="text-[12px] text-zinc-500">+{hidden} more on the proposal page</div>}
     </div>
   );
