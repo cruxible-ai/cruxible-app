@@ -105,7 +105,7 @@ export function AtPicker() {
       >
         <History className="h-3.5 w-3.5 shrink-0" />
         {pin.head.error ? (
-          <span className="text-red-400">at {pin.at} refused</span>
+          <span className="text-red-400">At {pin.at} refused</span>
         ) : pin.generation === undefined ? (
           <span className="animate-pulse text-zinc-600">Resolving…</span>
         ) : (

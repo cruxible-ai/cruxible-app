@@ -64,7 +64,7 @@ describe("evidence flow model: sources -> Lines -> ClaimTypes", () => {
     expect(edge(nodeId.source("cisa.kev"), nodeId.line("epss-triage"))).toBeUndefined();
     expect(model.nodes.find((n) => n.id === nodeId.line("kev-triage"))).toMatchObject({
       authority: "settle",
-      detail: "when cisa.kev lands",
+      detail: "When cisa.kev lands",
       triggers: ["kev-landed"],
     });
   });

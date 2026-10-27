@@ -118,7 +118,7 @@ function Value({ value, depth, path = "" }: { value: unknown; depth: number; pat
     return <span className="font-mono">{String(value)}</span>;
   }
   if (Array.isArray(value)) {
-    if (value.length === 0) return <span className="text-zinc-600">none</span>;
+    if (value.length === 0) return <span className="text-zinc-600">None</span>;
     if (value.every(isRecord) && depth <= MAX_DEPTH) return <RecordTable rows={value} depth={depth} path={path} />;
     return <ValueList items={value} depth={depth} />;
   }

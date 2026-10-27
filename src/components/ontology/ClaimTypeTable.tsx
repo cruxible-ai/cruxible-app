@@ -17,13 +17,14 @@ import {
   type Settler,
 } from "@/lib/ontology";
 import { DataTable, type Column } from "@/components/DataTable";
+import { sentence } from "@/lib/text";
 import { ClaimTypeDetail } from "./ClaimTypeDetail";
 import { Pending } from "./Pending";
 
 const SETTLER_VERB: Record<Settler["kind"], string> = {
-  settles: "settles",
-  capped: "proposes (Line capped at propose)",
-  suspended: "suspended: settles nothing",
+  settles: "Settles",
+  capped: "Proposes (Line capped at propose)",
+  suspended: "Suspended: settles nothing",
 };
 
 /** Evidence contracts shown in a row before the rest fold into "+N". */
@@ -73,16 +74,16 @@ export function ClaimTypeTable({
     };
     const valueWords = (row: OrientPredicate) => {
       const targets = targetKinds(row.type);
-      return targets.length ? targets.map((t) => `→ ${t}`).join(" ") : row.type === "subject" ? "any Subject" : row.type;
+      return targets.length ? targets.map((t) => `→ ${t}`).join(" ") : row.type === "subject" ? "Any Subject" : row.type;
     };
     const modeWord = (row: OrientPredicate) => {
       const mode = evidenceMode(row);
-      return mode === "own-words" ? "own words" : mode;
+      return mode === "own-words" ? "Own words" : sentence(mode);
     };
-    const kitWord = (row: OrientPredicate) => (row.kit ? (row.kit === kindKit ? "" : row.kit) : kindKit ? "here" : "");
+    const kitWord = (row: OrientPredicate) => (row.kit ? (row.kit === kindKit ? "" : row.kit) : kindKit ? "Here" : "");
     const settledBy = (row: OrientPredicate) => {
       const who = settlers(row.predicate);
-      return who === null ? null : who.length === 0 ? ["review"] : who.map((s) => s.line);
+      return who === null ? null : who.length === 0 ? ["Review"] : who.map((s) => s.line);
     };
     const all: (Column<OrientPredicate> | null)[] = [
       {
@@ -104,7 +105,7 @@ export function ClaimTypeTable({
               </span>
               {row.format && row.format < CURRENT_CLAIM_TYPE_FORMAT && (
                 <span className="ml-1 font-sans text-zinc-400" title="An upgrade to the current ClaimType format is available">
-                  upgrade
+                  Upgrade
                 </span>
               )}
             </span>
@@ -113,7 +114,7 @@ export function ClaimTypeTable({
       },
       {
         id: "value",
-        header: "value",
+        header: "Value",
         title: "Literal type, or the Subject kinds it points at",
         sortValue: valueWords,
         filter: { kind: "text", text: valueWords },
@@ -127,7 +128,7 @@ export function ClaimTypeTable({
             ))
           ) : (
             <span className="text-zinc-400">
-              {row.type === "subject" ? "any Subject" : row.type}
+              {row.type === "subject" ? "Any Subject" : row.type}
               {row.members && <span className="text-zinc-600"> ({row.members.length})</span>}
             </span>
           );
@@ -135,8 +136,8 @@ export function ClaimTypeTable({
       },
       {
         id: "card",
-        header: "card.",
-        title: "one or many values per Subject",
+        header: "Card.",
+        title: "One or many values per Subject",
         sortValue: (row) => (row.cardinality === "many" ? "many" : "one"),
         filter: { kind: "enum", values: (row) => [row.cardinality === "many" ? "many" : "one"] },
         options: ["one", "many"],
@@ -145,19 +146,19 @@ export function ClaimTypeTable({
       },
       {
         id: "role",
-        header: "role",
+        header: "Role",
         title: "Default role of its Claims",
-        sortValue: (row) => (row.default_role ? roleWord(row.default_role) : null),
-        filter: { kind: "enum", values: (row) => (row.default_role ? [roleWord(row.default_role)] : []) },
+        sortValue: (row) => (row.default_role ? sentence(roleWord(row.default_role)) : null),
+        filter: { kind: "enum", values: (row) => (row.default_role ? [sentence(roleWord(row.default_role))] : []) },
         cell: (row) => (
           <span className="text-zinc-400" title={row.default_role ?? undefined}>
-            {row.default_role ? roleWord(row.default_role) : "—"}
+            {row.default_role ? sentence(roleWord(row.default_role)) : "—"}
           </span>
         ),
       },
       {
         id: "evidence",
-        header: "evidence",
+        header: "Evidence",
         title: "Admitted contracts; captured = a Capture is required, own words = the author's statement may stand",
         sortValue: modeWord,
         filter: { kind: "enum", values: (row) => [modeWord(row)] },
@@ -190,7 +191,7 @@ export function ClaimTypeTable({
       },
       {
         id: "fresh",
-        header: "fresh",
+        header: "Fresh",
         title: "Evidence goes stale after",
         sortValue: (row) => row.stale_after ?? null,
         className: "font-mono text-zinc-400",
@@ -199,17 +200,17 @@ export function ClaimTypeTable({
       showKit
         ? {
             id: "kit",
-            header: "kit",
+            header: "Kit",
             title: "Owning kit when it differs from the kind's; edited = the kit reports this ClaimType's path as changed locally",
             sortValue: kitWord,
-            filter: { kind: "enum", values: (row) => [kitWord(row) || "the kind's"] },
+            filter: { kind: "enum", values: (row) => [kitWord(row) || "The kind's"] },
             className: "font-mono text-[12px] text-zinc-400",
             cell: (row) => (
               <>
-                {row.kit ? (row.kit === kindKit ? null : row.kit) : kindKit ? <span className="font-sans text-zinc-500">here</span> : null}
+                {row.kit ? (row.kit === kindKit ? null : row.kit) : kindKit ? <span className="font-sans text-zinc-500">Here</span> : null}
                 {driftedLocally(row, kits) && (
                   <span className="ml-1 font-sans text-zinc-400" title={`${row.path} is edited locally`}>
-                    edited
+                    Edited
                   </span>
                 )}
               </>
@@ -218,14 +219,14 @@ export function ClaimTypeTable({
         : null,
       {
         id: "settled_by",
-        header: "settled by",
+        header: "Settled by",
         title: "Lines whose live settle Mandate scopes this ClaimType; otherwise changes go to review",
         sortValue: (row) => settledBy(row)?.join(" ") ?? null,
         filter: { kind: "text", text: (row) => settledBy(row)?.join(" ") ?? "" },
         cell: (row) => {
           const who = settlers(row.predicate);
           if (who === null) return <span className="animate-pulse text-zinc-600">…</span>;
-          if (who.length === 0) return <span className="text-zinc-500">review</span>;
+          if (who.length === 0) return <span className="text-zinc-500">Review</span>;
           return who.map((s) => (
             <Link
               key={`${s.line}\n${s.mandate}`}
@@ -240,13 +241,13 @@ export function ClaimTypeTable({
       },
       {
         id: "contention",
-        header: "contention",
+        header: "Contention",
         title: "How rival Claims of one slot settle: every eligible Claim answers, or rivals stay conflicted, or a rival is refused",
-        sortValue: (row) => (row.contention ? contentionLabel(row.contention) : null),
-        filter: { kind: "enum", values: (row) => (row.contention ? [contentionLabel(row.contention)] : []) },
+        sortValue: (row) => (row.contention ? sentence(contentionLabel(row.contention)) : null),
+        filter: { kind: "enum", values: (row) => (row.contention ? [sentence(contentionLabel(row.contention))] : []) },
         cell: (row) => (
           <span className="text-zinc-400" title={row.contention ? contentionTitle(row.contention) : undefined}>
-            {row.contention ? contentionLabel(row.contention) : "—"}
+            {row.contention ? sentence(contentionLabel(row.contention)) : "—"}
           </span>
         ),
       },
@@ -264,7 +265,7 @@ export function ClaimTypeTable({
       },
       {
         id: "share",
-        header: "share",
+        header: "Share",
         title: "Live Subjects of this kind holding a value",
         numeric: true,
         sortValue: (row) => {
@@ -283,7 +284,7 @@ export function ClaimTypeTable({
       },
       {
         id: "contested_stale",
-        header: "contested / stale",
+        header: "Contested / stale",
         title: "Claims in conflict, and Claims with expired support (K2, post-v1)",
         headerClassName: "w-20 whitespace-normal!",
         className: "whitespace-nowrap",

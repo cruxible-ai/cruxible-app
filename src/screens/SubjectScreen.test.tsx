@@ -57,9 +57,9 @@ describe("Subject page", () => {
   it("labels each citation and says whether the verdict reads it", async () => {
     renderApp(ASSESSMENT);
     fireEvent.click(await screen.findByRole("button", { name: "Expand status" }));
-    expect(await screen.findByText("own words")).toBeInTheDocument();
+    expect(await screen.findByText("Own words")).toBeInTheDocument();
     // a copy reads as a passage of its source, under the source's public name
-    expect(screen.getByText("passage of cruxible.page")).toBeInTheDocument();
+    expect(screen.getByText("Passage of cruxible.page")).toBeInTheDocument();
     expect(screen.getByText("cruxible.coordinator-authoring")).toBeInTheDocument();
     expect(screen.queryByText("playbill.page")).toBeNull();
     expect(screen.getByText("Not evidence")).toBeInTheDocument();
@@ -73,8 +73,8 @@ describe("Subject page", () => {
     expect(screen.getByText("recorded, not accepted: the verdict reads accepted attestations")).toBeInTheDocument();
     expect(screen.getByText("consequence policy rule owner-confirms-scope")).toBeInTheDocument();
     expect(screen.getByText("not current")).toBeInTheDocument();
-    expect(screen.getAllByText("counts")).toHaveLength(2);
-    expect(screen.getAllByText("doesn't count")).toHaveLength(2);
+    expect(screen.getAllByText("Counts")).toHaveLength(2);
+    expect(screen.getAllByText("Doesn't count")).toHaveLength(2);
     // the recorded contradiction does not count, so no Claim reads as contradicted
     expect(screen.getByText("1 of 2 count toward the verdict")).toBeInTheDocument();
     expect(screen.getByText("1 of 1 counts toward the verdict")).toBeInTheDocument();

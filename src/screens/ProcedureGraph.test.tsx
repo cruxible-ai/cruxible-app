@@ -25,7 +25,7 @@ describe("Procedure graph", () => {
     // the guard's else halts under no id: the graph names it after the guard
     expect(node("changed.else")).not.toBeNull();
     expect(g.getByText("from cisa.kev.catalog")).toBeInTheDocument();
-    expect(g.getByText("by fit: security-analysis-provider")).toBeInTheDocument();
+    expect(g.getByText("By fit: security-analysis-provider")).toBeInTheDocument();
 
     fireEvent.click(node("parse"));
     expect(await screen.findByRole("button", { name: "Clear: Focused on parse" })).toBeInTheDocument();
@@ -47,8 +47,8 @@ describe("Procedure graph", () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const g = await graph();
     await waitFor(() => expect(node("trigger:security.kev-daily")).not.toBeNull());
-    expect(g.getByText("daily at 06:00 UTC")).toBeInTheDocument();
-    expect(within(node("settle")).getByText("max authority Settle")).toBeInTheDocument();
+    expect(g.getByText("Daily at 06:00 UTC")).toBeInTheDocument();
+    expect(within(node("settle")).getByText("Max authority Settle")).toBeInTheDocument();
     expect(within(node("parse")).getByText("Line binds security-analysis-provider")).toBeInTheDocument();
 
     const picker = await screen.findByRole("combobox", { name: "Mark the steps with a run" });

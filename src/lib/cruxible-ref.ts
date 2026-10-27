@@ -172,6 +172,8 @@ export function refKindLabel(ref: ParsedRef): string {
       return "Proposal";
     case "inbox":
       return "Inbox";
+    case "query":
+      return "Query";
     default:
       return DISPLAY_PREFIX[ref.kind];
   }

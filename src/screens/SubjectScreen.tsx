@@ -44,7 +44,7 @@ import {
   recordLabel,
 } from "@/lib/evidence";
 import { predicateIndex } from "@/lib/neighborhood";
-import { formatWhen } from "@/lib/text";
+import { formatWhen, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
 
@@ -134,7 +134,7 @@ export function SubjectScreen() {
         summary={
           <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
             {ids.length === 0 && <span>No live Claims.</span>}
-            {verdicts.isPending && ids.length > 0 && <span className="t-meta animate-pulse">reading verdicts…</span>}
+            {verdicts.isPending && ids.length > 0 && <span className="t-meta animate-pulse">Reading verdicts…</span>}
             {[...tally.entries()]
               .sort(([a], [b]) => (QUIET_VERDICTS.has(a) ? 1 : 0) - (QUIET_VERDICTS.has(b) ? 1 : 0))
               .map(([verdict, count]) => (
@@ -155,7 +155,7 @@ export function SubjectScreen() {
               title="Citations offered as evidence that their ClaimTypes' rules admit, so the verdict reads them; a copy the rule does not admit is not evidence"
             >
               {evidence.offered === 0 ? (
-                <span className="text-zinc-500">{evidence.notEvidence === 0 ? "no evidence citations" : "none"}</span>
+                <span className="text-zinc-500">{evidence.notEvidence === 0 ? "No evidence citations" : "None"}</span>
               ) : (
                 <span className="inline-flex items-baseline gap-1.5">
                   {evidence.admitted < evidence.offered && (
@@ -231,7 +231,7 @@ function FieldValue({ value }: { value: unknown }) {
       <div className="measure">
         <LongText text={`${preview}…`} lines={2} className="text-zinc-100" />
         <span className="t-meta" title="get serves a preview; the whole text is in the Claim's evidence read">
-          preview of {String(length)} characters
+          Preview of {String(length)} characters
         </span>
       </div>
     );
@@ -352,15 +352,15 @@ function ClaimDetail({
         {card && (
           <>
             <span className="text-zinc-500">
-              verdict <Chip concept="claim" value={card.verdict} />
+              Verdict <Chip concept="claim" value={card.verdict} />
             </span>
             {card.status !== "accepted" && (
               <span className="text-zinc-500">
-                status <Chip concept="claim" value={card.status} />
+                Status <Chip concept="claim" value={card.status} />
               </span>
             )}
             <span className="text-zinc-500">
-              revision <span className="font-mono text-zinc-300">{card.revision}</span>
+              Revision <span className="font-mono text-zinc-300">{card.revision}</span>
             </span>
           </>
         )}
@@ -466,7 +466,7 @@ function ClaimDetail({
                   <Td className="text-zinc-500">
                     {account.decision ? (
                       <div>
-                        {account.decision.status.replaceAll("_", " ")}
+                        {sentence(account.decision.status.replaceAll("_", " "))}
                         {account.decision.admission && <span> ({account.decision.admission.replaceAll("_", " ")})</span>}
                         {account.decision.rule_id && <span className="font-mono"> {account.decision.rule_id}</span>}
                         {account.decision.refusal_code && <span className="font-mono text-zinc-400"> {account.decision.refusal_code}</span>}
@@ -735,7 +735,7 @@ function EventValue({ event }: { event: SubjectHistoryEvent }) {
         {"contended" in event && event.contended && <Chip concept="claim" value="contested" />}
       </div>
       {event.change === "changed" && event.before !== undefined && (
-        <Disclosure label="previous value" className="mt-0.5">
+        <Disclosure label="Previous value" className="mt-0.5">
           <span className="text-zinc-500">
             <HistoryValue value={event.before} muted />
           </span>

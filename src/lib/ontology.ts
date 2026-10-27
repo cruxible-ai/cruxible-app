@@ -38,7 +38,7 @@ export function contentionLabel(contention: Contention): string {
 }
 
 export function contentionTitle(contention: Contention): string {
-  return `selector ${contention.selector}, on conflict ${contention.on_conflict}, corroboration ${contention.corroboration ?? 0}, freeze ${contention.freeze ?? 0}`;
+  return `Selector ${contention.selector}, on conflict ${contention.on_conflict}, corroboration ${contention.corroboration ?? 0}, freeze ${contention.freeze ?? 0}`;
 }
 
 /** ClaimType formats below v7 have an upgrade (`claim-types/upgrade`). */

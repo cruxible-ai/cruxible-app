@@ -102,7 +102,7 @@ export function JumpPalette() {
         out.push({
           action: { route: `/i/${instanceId}/kinds/${encodeURIComponent(kind.kind)}` },
           label: kind.kind,
-          hint: "kind page",
+          hint: "Kind page",
         });
       }
     }
@@ -111,7 +111,7 @@ export function JumpPalette() {
         if (!id.startsWith(prefix.partial)) continue;
         const ref = parseRef(`${knownKind}/${id}`);
         const route = ref ? refRoute(instanceId, ref) : null;
-        if (route) out.push({ action: { route }, label: `${knownKind}/${id}`, hint: "sample Subject" });
+        if (route) out.push({ action: { route }, label: `${knownKind}/${id}`, hint: "Sample Subject" });
       }
     }
     if (query.startsWith("ClaimType:")) {
@@ -202,7 +202,7 @@ export function JumpPalette() {
             placeholder="kind/id, CLM-…, CAP-…, Line:…, ClaimType:…"
             className="w-full bg-transparent font-mono text-[14px] text-zinc-100 placeholder-zinc-600 outline-none"
           />
-          <kbd className="border border-zinc-700 px-1 text-[10px] text-zinc-500">esc</kbd>
+          <kbd className="border border-zinc-700 px-1 text-[10px] text-zinc-500">Esc</kbd>
         </div>
         <div className="max-h-80 overflow-y-auto">
           {exact && resolved.isPending && settled !== "" && (

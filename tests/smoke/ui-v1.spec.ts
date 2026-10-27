@@ -76,7 +76,7 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   // Its neighborhood, then one more hop.
   await page.getByRole("link", { name: "Neighborhood" }).click();
   await expect(page.getByText(/3 Subjects · 2 links/)).toBeVisible();
-  await page.getByRole("button", { name: "depth 2" }).click();
+  await page.getByRole("button", { name: "Depth 2" }).click();
   await expect(page).toHaveURL(/graph\?depth=2$/);
   await expect(page.getByText(/5 Subjects · 4 links/)).toBeVisible();
   await expect(page.locator(".react-flow__node")).toHaveCount(5);
@@ -98,11 +98,11 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   await page.locator("aside").getByRole("link", { name: "Lines" }).click();
   await page.getByRole("link", { name: "kev-triage", exact: true }).click();
   await expect(page).toHaveURL(/\/lines\/kev-triage$/);
-  await expect(page.getByText("page 1 · 12 in all")).toBeVisible();
+  await expect(page.getByText("Page 1 · 12 in all")).toBeVisible();
   await expect(page.getByText(/otherwise propose/)).toBeVisible();
   // The Line's graph: its Trigger, its steps, a picked run's marks.
   const lineGraph = page.getByTestId("procedure-graph");
-  await expect(lineGraph.getByText("daily at 06:00 UTC")).toBeVisible();
+  await expect(lineGraph.getByText("Daily at 06:00 UTC")).toBeVisible();
   await expect(lineGraph.locator(".react-flow__node")).toHaveCount(7);
   await page.getByRole("combobox", { name: "Mark the steps with a run" }).selectOption("run-7");
   await expect(lineGraph.getByText("Refused · guard_refused")).toBeVisible();

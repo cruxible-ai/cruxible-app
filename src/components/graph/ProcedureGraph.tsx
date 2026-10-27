@@ -16,6 +16,7 @@ import type { RunMarks, StepMark } from "@/lib/run-marks";
 import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
 import { ROLE_COLOR } from "@/lib/palette";
+import { sentence } from "@/lib/text";
 
 /**
  * A Procedure as a left-to-right graph: one node per step, typed by its role
@@ -203,24 +204,24 @@ export function ProcedureGraph({
         {
           // The slot is usually named after its step: then only the interface it takes.
           text: slot === step ? `via ${iface ?? "?"}` : `slot ${slot} → ${iface ?? "?"}`,
-          title: iface ? `slot ${slot} takes ${iface}` : `slot ${slot} (no interface declared)`,
+          title: iface ? `Slot ${slot} takes ${iface}` : `Slot ${slot} (no interface declared)`,
           to: iface ? routeOf(slotInterfaceRef(iface)) : null,
         },
       ];
       if (mark?.provider) {
-        lines.push({ text: `pinned ${providerName(mark.provider)}`, title: `This run's receipt pins ${mark.provider}`, tone: "plain" });
+        lines.push({ text: `Pinned ${providerName(mark.provider)}`, title: `This run's receipt pins ${mark.provider}`, tone: "plain" });
         return lines;
       }
       const binding = slotBinding(iface, definition?.bindings[slot], builds);
       if (binding.kind === "line") lines.push({ text: `Line binds ${providerName(binding.provider)}`, title: binding.provider, to: routeOf(`Provider:${binding.provider}`), tone: "plain" });
-      else if (binding.kind === "fit") lines.push({ text: `by fit: ${providerName(binding.provider)}`, title: `No explicit binding: binds by fit to the one installed build, ${binding.provider}`, to: routeOf(`Provider:${binding.provider}`), tone: "plain" });
-      else if (binding.kind === "fit_many") lines.push({ text: `by fit: one of ${binding.providers.length} builds`, title: binding.providers.join("\n"), tone: "plain" });
-      else if (!interfaces.isPending) lines.push({ text: "no installed build", title: "No installed build fits this slot: install a Provider for its interface", tone: "plain", signal: "wrong" });
+      else if (binding.kind === "fit") lines.push({ text: `By fit: ${providerName(binding.provider)}`, title: `No explicit binding: binds by fit to the one installed build, ${binding.provider}`, to: routeOf(`Provider:${binding.provider}`), tone: "plain" });
+      else if (binding.kind === "fit_many") lines.push({ text: `By fit: one of ${binding.providers.length} builds`, title: binding.providers.join("\n"), tone: "plain" });
+      else if (!interfaces.isPending) lines.push({ text: "No installed build", title: "No installed build fits this slot: install a Provider for its interface", tone: "plain", signal: "wrong" });
       return lines;
     };
     const authority = (kind: string): NodeLine[] =>
       line && ["propose", "settle", "emit", "inbox"].includes(kind)
-        ? [{ text: `max authority ${term("authority", line.maxAuthority).word}`, title: term("authority", line.maxAuthority).meaning, tone: "plain" }]
+        ? [{ text: `Max authority ${term("authority", line.maxAuthority).word}`, title: term("authority", line.maxAuthority).meaning, tone: "plain" }]
         : [];
 
     for (const node of model.nodes) {
@@ -238,33 +239,33 @@ export function ProcedureGraph({
         } else {
           name = null;
           for (const field of node.detail) lines.push({ text: field, tone: "dim" });
-          if (node.detail.length === 0) lines.push({ text: "given at run", tone: "plain" });
+          if (node.detail.length === 0) lines.push({ text: "Given at run", tone: "plain" });
         }
       } else if (v && node.kind === "source") {
-        if (v.contract) lines.push({ text: v.contract, title: `retains a Capture under ${v.contract}`, to: contractRoute(v.contract) });
+        if (v.contract) lines.push({ text: v.contract, title: `Retains a Capture under ${v.contract}`, to: contractRoute(v.contract) });
         if (definition?.triggerInput && definition.triggerInput === v.name) {
-          lines.push({ text: "reads the landing", title: "This Line's trigger input: the step reads the Capture whose landing started the run", tone: "plain" });
+          lines.push({ text: "Reads the landing", title: "This Line's trigger input: the step reads the Capture whose landing started the run", tone: "plain" });
         } else if (v.logicalSource && "literal" in v.logicalSource) {
-          lines.push({ text: `from ${v.logicalSource.literal}`, title: `logical source ${v.logicalSource.literal}` });
+          lines.push({ text: `from ${v.logicalSource.literal}`, title: `Logical source ${v.logicalSource.literal}` });
         } else if (v.logicalSource) {
           const given = definition?.parameters[v.logicalSource.input];
           lines.push(
             typeof given === "string"
-              ? { text: `from ${given}`, title: `logical source $input.${v.logicalSource.input} = ${given}` }
-              : { text: `from $input.${v.logicalSource.input}`, title: "logical source given at run", tone: "dim" },
+              ? { text: `from ${given}`, title: `Logical source $input.${v.logicalSource.input} = ${given}` }
+              : { text: `from $input.${v.logicalSource.input}`, title: "Logical source given at run", tone: "dim" },
           );
         } else {
-          lines.push({ text: "source its Provider names", title: "No logical_source in the request: the Provider names the logical source", tone: "plain" });
+          lines.push({ text: "Source its Provider names", title: "No logical_source in the request: the Provider names the logical source", tone: "plain" });
         }
         lines.push(...bindingLine(v.slot, node.id, mark));
       } else if (v && node.kind === "tap") {
-        if (v.query) lines.push({ text: v.query, title: `query ${v.query}`, to: routeOf(`QueryDefinition:${v.query}`) });
+        if (v.query) lines.push({ text: v.query, title: `Query ${v.query}`, to: routeOf(`QueryDefinition:${v.query}`) });
       } else if (v && node.kind === "claim") {
         if (v.claimType) lines.push({ text: v.claimType, to: routeOf(`ClaimType:${v.claimType}`) });
       } else if (v && node.kind === "call") {
         lines.push(...bindingLine(v.slot, node.id, mark));
       } else if (v && node.kind === "invoke") {
-        if (v.procedure) lines.push({ text: v.procedure, title: `runs Procedure ${v.procedure}`, to: routeOf(`Procedure:${v.procedure}`) });
+        if (v.procedure) lines.push({ text: v.procedure, title: `Runs Procedure ${v.procedure}`, to: routeOf(`Procedure:${v.procedure}`) });
         if (v.name) lines.push({ text: `as ${v.name}`, tone: "dim" });
       } else if (v && node.kind === "guard" && node.index !== null) {
         const step = spec.steps[node.index] as Record<string, unknown>;
@@ -275,26 +276,26 @@ export function ProcedureGraph({
         const handsTo = model.edges.find((e) => e.kind === "control" && e.source === node.id && e.fields.includes("else"));
         if (handsTo) {
           const target = model.nodes.find((n) => n.id === handsTo.target);
-          lines.push({ text: target?.kind === "halt" ? `else halt ${target.detail[0] ?? ""}` : `else ${handsTo.target}`, tone: "plain" });
+          lines.push({ text: target?.kind === "halt" ? `Else halt ${target.detail[0] ?? ""}` : `Else ${handsTo.target}`, tone: "plain" });
         } else if (otherwise?.startsWith("abort") || refusal) {
-          lines.push({ text: `else refuses ${refusal ?? "guard_refused"}`, tone: "plain" });
+          lines.push({ text: `Else refuses ${refusal ?? "guard_refused"}`, tone: "plain" });
         }
       } else if (v && (node.kind === "propose" || node.kind === "settle")) {
-        if (v.detail) lines.push({ text: v.detail, title: `${node.kind === "settle" ? "settles" : "proposes"} ${v.detail}` });
+        if (v.detail) lines.push({ text: v.detail, title: `${node.kind === "settle" ? "Settles" : "Proposes"} ${v.detail}` });
         lines.push(...authority(node.kind));
       } else if (v && node.kind === "emit") {
-        if (v.contract) lines.push({ text: v.contract, title: `retains the output under ${v.contract}`, to: contractRoute(v.contract) });
+        if (v.contract) lines.push({ text: v.contract, title: `Retains the output under ${v.contract}`, to: contractRoute(v.contract) });
         lines.push(...authority(node.kind));
       } else if (v && node.kind === "inbox" && node.index !== null) {
         const max = (spec.steps[node.index] as { max_items?: unknown }).max_items;
-        if (typeof max === "number") lines.push({ text: `at most ${max} items`, tone: "plain" });
+        if (typeof max === "number") lines.push({ text: `At most ${max} items`, tone: "plain" });
         lines.push(...authority(node.kind));
       } else if (node.kind === "halt") {
-        lines.push({ text: node.detail[0] ?? "", title: `halts with ${node.detail[0] ?? "a code"}` });
+        lines.push({ text: node.detail[0] ?? "", title: `Halts with ${node.detail[0] ?? "a code"}` });
       } else if (node.kind === "returns") {
         lines.push({ text: `${node.detail.length} ${node.detail.length === 1 ? "field" : "fields"}`, title: node.detail.join(", "), tone: "plain" });
       } else if (v && (node.kind === "project" || node.kind === "transform" || node.kind === "select" || node.kind === "repeat")) {
-        if (v.contract) lines.push({ text: v.contract, title: `contract ${v.contract}` });
+        if (v.contract) lines.push({ text: v.contract, title: `Contract ${v.contract}` });
       }
       if (node.unresolved.length > 0) {
         const names = [...new Set(node.unresolved.map((r) => `$${r.name}`))];
@@ -312,7 +313,7 @@ export function ProcedureGraph({
         name: null,
         lines: [
           { text: trigger.name, to: routeOf(`Trigger:${trigger.name}`), title: `Trigger:${trigger.name}` },
-          { text: trigger.words, tone: "plain" },
+          { text: sentence(trigger.words), tone: "plain" },
         ],
         mark: null,
       });

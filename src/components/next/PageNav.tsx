@@ -20,7 +20,7 @@ export function PageNav({
         </button>
       )}
       <span>
-        page {index + 1}
+        Page {index + 1}
         {pages !== null && ` of ${pages}`}
       </span>
       {older && (

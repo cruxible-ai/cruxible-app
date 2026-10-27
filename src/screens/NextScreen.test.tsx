@@ -26,7 +26,7 @@ describe("Next", () => {
     expect(main.getByText("cruxible inbox list --line kev-triage")).toBeInTheDocument();
     expect(main.queryByRole("button", { name: /approve|reject|activate|run/i })).toBeNull();
     // unnamed detail keys fall back to JSON on demand
-    expect(main.getByRole("button", { name: "more detail" })).toBeInTheDocument();
+    expect(main.getByRole("button", { name: "More detail" })).toBeInTheDocument();
     // proposal rows open the proposal page
     // shown shortened (full id on hover)
     expect(main.getByRole("link", { name: /^sha256:a{12}…$/ })).toHaveAttribute(
@@ -71,14 +71,14 @@ describe("Beliefs", () => {
     expect(await main.findByText("NVD lists this record under a different CVE id.")).toBeInTheDocument();
     expect(main.getByText("examined existing")).toBeInTheDocument();
     // the row is about the Claim: its claim field is not repeated
-    expect(main.queryByText("claim")).toBeNull();
-    expect(main.getByText("doesn't count")).toBeInTheDocument();
+    expect(main.queryByText("Claim")).toBeNull();
+    expect(main.getByText("Doesn't count")).toBeInTheDocument();
     expect(
       main.getByText("recorded, and the ClaimType has no consequence policy: the verdict does not move"),
     ).toBeInTheDocument();
     // the row citing a Capture names it and carries no such mark
     expect(main.getByRole("link", { name: "CAP-7c1e9a3b5d7f" })).toBeInTheDocument();
-    expect(main.getAllByText("doesn't count")).toHaveLength(1);
+    expect(main.getAllByText("Doesn't count")).toHaveLength(1);
     expect(main.getByText(/counts toward the verdict only once accepted citing a Capture/)).toBeInTheDocument();
   });
 

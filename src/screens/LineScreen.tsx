@@ -32,7 +32,7 @@ import { buildProcedureGraph, cronWords, INPUT_NODE } from "@/lib/procedure-grap
 import { runMarks } from "@/lib/run-marks";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
-import { formatDateTime, formatWhen } from "@/lib/text";
+import { formatDateTime, formatWhen, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
 
@@ -219,7 +219,7 @@ function LineGraphPanel({
       title="Steps"
       meta={
         <span className="flex flex-wrap items-baseline gap-x-3">
-          <span>arrows: what each step reads · dashed: where a guard goes otherwise · click a step to follow it</span>
+          <span>Arrows: what each step reads · dashed: where a guard goes otherwise · click a step to follow it</span>
           {runsTotal > 0 && (
             <label className="inline-flex items-baseline gap-1.5">
               <span>Run</span>
@@ -229,7 +229,7 @@ function LineGraphPanel({
                 className="w-80 max-w-full border border-zinc-800 bg-zinc-950 px-1 py-px font-mono text-[12px] text-zinc-200"
                 aria-label="Mark the steps with a run"
               >
-                <option value="">none</option>
+                <option value="">None</option>
                 {runRows.map((run) => (
                   <option key={run.run} value={runId(run.run)}>
                     {shortRunId(run.run)} · {term("run", run.status).word} · {formatWhen(run.started_at)}
@@ -304,7 +304,7 @@ function OperationsPanel({ card }: { card: LineCard }) {
           <div key={trigger.trigger} className="flex flex-wrap gap-x-3">
             <RefLink value={trigger.trigger} />
             <span className="text-zinc-500">v{trigger.version}</span>
-            <span className="text-zinc-400">{trigger.fires}</span>
+            <span className="text-zinc-400">{sentence(trigger.fires)}</span>
           </div>
         ))}
         {(card.triggers ?? []).length === 0 && <div className="text-zinc-600">No triggers aimed at this Line.</div>}
@@ -418,7 +418,7 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
             </button>
           )}
           <span>
-            page {cursors.length + 1} · {total} in all
+            Page {cursors.length + 1} · {total} in all
           </span>
           {read.data?.next_cursor && (
             <button onClick={() => setCursors((c) => [...c, read.data!.next_cursor!])} className="hover:text-zinc-200">
@@ -494,7 +494,7 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
                   <span className="font-mono text-zinc-300">{review.measurement_name}</span>
                   <span className="text-zinc-500">{review.contract_id}</span>
                   {review.standing_resolution_id && <span className="text-zinc-500">standing {review.standing_resolution_id}</span>}
-                  {review.unavailable && <span className="text-zinc-500">unavailable</span>}
+                  {review.unavailable && <span className="text-zinc-500">Unavailable</span>}
                 </div>
                 {(review.history ?? []).map((disposition) => (
                   <div key={disposition.disposition_id} className="flex flex-wrap items-baseline gap-x-3 pl-3">
@@ -554,9 +554,9 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
       {read.error && <div className="text-red-400/80">{read.error.message}</div>}
       {card && (
         <dl className="mt-0.5 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 pl-2">
-          <dt className="text-zinc-600">namespace</dt>
+          <dt className="text-zinc-600">Namespace</dt>
           <dd className="font-mono text-zinc-400">{(card.namespace ?? []).join(", ") || "—"}</dd>
-          <dt className="text-zinc-600">scope</dt>
+          <dt className="text-zinc-600">Scope</dt>
           <dd>
             {(card.scope ?? []).length === 0 && <span className="text-zinc-600">—</span>}
             {(card.scope ?? []).map((scope) => (
@@ -567,9 +567,9 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
           </dd>
           <dt className="text-zinc-600">Subjects</dt>
           <dd className="text-zinc-400">
-            {card.subject_scope == null ? "any in scope" : card.subject_scope.map((path) => <RefLink key={path} value={path} />)}
+            {card.subject_scope == null ? "Any in scope" : card.subject_scope.map((path) => <RefLink key={path} value={path} />)}
           </dd>
-          <dt className="text-zinc-600">condition</dt>
+          <dt className="text-zinc-600">Condition</dt>
           <dd className="text-zinc-400">
             {condition ? (
               <>
@@ -581,17 +581,17 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
                 {queryCard?.description && <div className="text-zinc-500">{queryCard.description}</div>}
                 {(queryCard?.params ?? []).length > 0 && (
                   <div className="text-zinc-600">
-                    params: {queryCard!.params!.map((p) => `${p.name}: ${p.type}${p.required ? "" : "?"}`).join(", ")}
+                    Params: {queryCard!.params!.map((p) => `${p.name}: ${p.type}${p.required ? "" : "?"}`).join(", ")}
                   </div>
                 )}
               </>
             ) : (
-              "none (unconditional)"
+              "None (unconditional)"
             )}
           </dd>
           {(card.subject_creation ?? []).length > 0 && (
             <>
-              <dt className="text-zinc-600">may create</dt>
+              <dt className="text-zinc-600">May create</dt>
               <dd className="font-mono text-zinc-400">{card.subject_creation!.join(", ")}</dd>
             </>
           )}
@@ -616,7 +616,7 @@ function Readings({ procedure }: { procedure: string }) {
               ← Newer
             </button>
           )}
-          <span>page {cursors.length + 1}</span>
+          <span>Page {cursors.length + 1}</span>
           {data?.cursor && (
             <button onClick={() => setCursors((c) => [...c, data.cursor!])} className="hover:text-zinc-200">
               Older →
@@ -780,7 +780,7 @@ function InboxPanel({ line }: { line: string }) {
               ← Newer
             </button>
           )}
-          <span>page {cursors.length + 1}</span>
+          <span>Page {cursors.length + 1}</span>
           {inbox.data?.next_cursor && (
             <button onClick={() => setCursors((c) => [...c, inbox.data!.next_cursor!])} className="hover:text-zinc-200">
               Older →

@@ -19,7 +19,7 @@ describe("Lines", () => {
     expect(row.getByText("Line inbox unread")).toBeInTheDocument();
     const cve = within(main.getByRole("link", { name: "cve-applicability" }).closest("tr")!);
     // no mandate and no run for the capture-landing Line
-    expect(await cve.findAllByText("none")).toHaveLength(2);
+    expect(await cve.findAllByText("None")).toHaveLength(2);
   });
 });
 
@@ -48,9 +48,9 @@ describe("Line page", () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const main = within(await screen.findByRole("main"));
     expect(await main.findByRole("heading", { name: "kev-triage" })).toBeInTheDocument();
-    expect(main.getByText("daily at 06:00 UTC")).toBeInTheDocument();
+    expect(main.getByText("Daily at 06:00 UTC")).toBeInTheDocument();
     expect(main.getByText("withheld")).toBeInTheDocument();
-    expect(await main.findByText("page 1 · 12 in all")).toBeInTheDocument();
+    expect(await main.findByText("Page 1 · 12 in all")).toBeInTheDocument();
     expect(await main.findByRole("link", { name: "run-6" })).toBeInTheDocument();
     expect(main.getAllByRole("link", { name: "run-7" })[0]).toHaveAttribute("href", "/i/inst_fixture/runs/run-7");
     expect(main.getByRole("button", { name: "Older →" })).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe("Run page", () => {
       `/i/inst_fixture/p/sha256%3A${"a".repeat(64)}`,
     );
     expect(await main.findByRole("link", { name: "CAP-9e1b3d5f7a9c" })).toBeInTheDocument();
-    expect(main.getByText(/attribution withheld/)).toBeInTheDocument();
+    expect(main.getByText(/Attribution withheld/)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
   });
 });

@@ -14,7 +14,7 @@ describe("Kind page", () => {
     expect(main.getByText("(unique)")).toBeInTheDocument();
     const status = within(main.getByText("status", { selector: "td > span" }).closest("tr")!);
     expect(status.getByText("enum")).toBeInTheDocument();
-    expect(status.getByText("captured")).toBeInTheDocument();
+    expect(status.getByText("Captured")).toBeInTheDocument();
     expect(status.getByRole("link", { name: "security.osv-applicability-v1" })).toHaveAttribute(
       "href",
       "/i/inst_fixture/contracts/security.osv-applicability-v1",
@@ -23,7 +23,7 @@ describe("Kind page", () => {
     // the kev-settle Mandate scopes security.assessment.status; kev-triage settles under it
     expect(await status.findByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
     // contention, format and revision from the claim_types section; counts from orient(kind=)
-    expect(status.getByText("rivals conflict · 1 corroboration")).toBeInTheDocument();
+    expect(status.getByText("Rivals conflict · 1 corroboration")).toBeInTheDocument();
     expect(status.getByText("v8")).toBeInTheDocument();
     expect(status.getByText("r2")).toBeInTheDocument();
     expect(await status.findByText("100%")).toHaveAttribute("title", "2 of 2 live Subjects");
@@ -32,26 +32,26 @@ describe("Kind page", () => {
     expect(status.getAllByTitle(/^K2:/)).toHaveLength(2);
     const release = within(main.getByText("release", { selector: "td > span" }).closest("tr")!);
     expect(release.getByRole("link", { name: "→ security.release" })).toHaveAttribute("href", "/i/inst_fixture/kinds/security.release");
-    expect(release.getByText("review")).toBeInTheDocument();
+    expect(release.getByText("Review")).toBeInTheDocument();
     // the kit reports release.json as edited locally
-    expect(release.getByText("edited")).toHaveAttribute("title", "claim-types/security.assessment/release.json is edited locally");
+    expect(release.getByText("Edited")).toHaveAttribute("title", "claim-types/security.assessment/release.json is edited locally");
   });
 
   it("marks a refusing slot and a format with an upgrade", async () => {
     renderApp("/i/inst_fixture/kinds/security.vulnerability?view=claim-types");
     const main = within(await screen.findByRole("main"));
     const cve = within((await main.findByText("cve_id", { selector: "td > span" })).closest("tr")!);
-    expect(cve.getByText("refuses rivals")).toBeInTheDocument();
+    expect(cve.getByText("Refuses rivals")).toBeInTheDocument();
     const related = within(main.getByText("related", { selector: "td > span" }).closest("tr")!);
-    expect(related.getByText("all answer")).toBeInTheDocument();
-    expect(related.getByText("upgrade")).toBeInTheDocument();
+    expect(related.getByText("All answer")).toBeInTheDocument();
+    expect(related.getByText("Upgrade")).toBeInTheDocument();
     expect(await related.findByText("33%")).toBeInTheDocument();
   });
 
   it("opens ?claim_type= expanded with its evidence rules", async () => {
     renderApp("/i/inst_fixture/kinds/security.assessment?claim_type=security.assessment.status");
     expect(await screen.findByText("osv-applicability")).toBeInTheDocument();
-    expect(screen.getByText(/a Capture under one of these contracts is required/)).toBeInTheDocument();
+    expect(screen.getByText(/A Capture under one of these contracts is required/)).toBeInTheDocument();
     expect(screen.getByText(/settles under security.kev-settle/)).toBeInTheDocument();
     // who pins it, from the pins section
     expect(await screen.findByText("QueryDefinition (1):")).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe("Kind page", () => {
       "/i/inst_fixture/kinds/security.assessment?claim_type=security.assessment.vulnerability",
     );
     fireEvent.click(main.getByRole("button", { name: "Expand kev_listed" }));
-    expect(await main.findByText(/the author's own words|a Capture under one of these/)).toBeInTheDocument();
+    expect(await main.findByText(/The author's own words|A Capture under one of these/)).toBeInTheDocument();
   });
 });
 
@@ -173,7 +173,7 @@ describe("Contract page", () => {
       "href",
       "/i/inst_fixture/kinds/security.assessment?claim_type=security.assessment.status",
     );
-    expect(main.getByText("required")).toBeInTheDocument();
+    expect(main.getByText("Required")).toBeInTheDocument();
   });
 
   it("says what the contract is, in plain words from the stored contract, between its input and its output", async () => {

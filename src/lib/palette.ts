@@ -32,15 +32,15 @@ export type StepRoleColor =
 
 /** A Procedure step's role → its accent, with the word the legend uses. */
 export const ROLE_COLOR: Record<StepRoleColor, { color: string; legend: string }> = {
-  trigger: { color: PALETTE.sky, legend: "what starts it" },
-  input: { color: PALETTE.indigo, legend: "input and parameters" },
-  source: { color: PALETTE.teal, legend: "retains evidence" },
-  tap: { color: PALETTE.violet, legend: "reads state" },
-  call: { color: PALETTE.blue, legend: "calls a Provider" },
-  invoke: { color: PALETTE.fuchsia, legend: "runs a Procedure" },
-  guard: { color: PALETTE.stone, legend: "checks a condition" },
-  shape: { color: PALETTE.slate, legend: "reshapes data" },
-  terminal: { color: PALETTE.emerald, legend: "writes or returns" },
+  trigger: { color: PALETTE.sky, legend: "What starts it" },
+  input: { color: PALETTE.indigo, legend: "Input and parameters" },
+  source: { color: PALETTE.teal, legend: "Retains evidence" },
+  tap: { color: PALETTE.violet, legend: "Reads state" },
+  call: { color: PALETTE.blue, legend: "Calls a Provider" },
+  invoke: { color: PALETTE.fuchsia, legend: "Runs a Procedure" },
+  guard: { color: PALETTE.stone, legend: "Checks a condition" },
+  shape: { color: PALETTE.slate, legend: "Reshapes data" },
+  terminal: { color: PALETTE.emerald, legend: "Writes or returns" },
 };
 
 /** The evidence flow's columns. */

@@ -82,10 +82,10 @@ export function LinesScreen() {
               <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)} className="font-mono text-[12px] text-zinc-100 hover:underline">
                 {name}
               </Link>
-              {row.lifecycle === "retired" && <span className="t-meta ml-1.5">retired</span>}
+              {row.lifecycle === "retired" && <span className="t-meta ml-1.5">Retired</span>}
               {procedure !== name && (
                 <div className="t-meta">
-                  runs{" "}
+                  Runs{" "}
                   <RefLink value={`Procedure:${procedure}`}>
                     <span className="font-mono text-[12px] text-zinc-400">{procedure}</span>
                   </RefLink>
@@ -126,7 +126,7 @@ export function LinesScreen() {
         cell: (row) => {
           const procedure = procedureOf(row);
           const mandates = mandatesOf(row);
-          if (mandates.length === 0) return <span className="text-zinc-500">none</span>;
+          if (mandates.length === 0) return <span className="text-zinc-500">None</span>;
           return mandates.map((mandate) => (
             <div key={mandate.mandate} className="whitespace-nowrap">
               <MandateLabel name={mandate.mandate.replace(/^(Procedure)?Mandate:/, "")} procedure={procedure} grants={mandate.grants} />{" "}
@@ -158,7 +158,7 @@ export function LinesScreen() {
         header: "Last run",
         title: "The newest run: its outcome and when it started",
         sortValue: (row) => lastRun.get(nameOf(row))?.started_at ?? null,
-        filter: { kind: "enum", values: (row) => { const run = lastRun.get(nameOf(row)); return run ? [term("run", run.status).word] : ["none"]; } },
+        filter: { kind: "enum", values: (row) => { const run = lastRun.get(nameOf(row)); return run ? [term("run", run.status).word] : ["None"]; } },
         className: "whitespace-nowrap text-[12px]",
         cell: (row) => {
           const run = lastRun.get(nameOf(row));
@@ -172,7 +172,7 @@ export function LinesScreen() {
               </Link>
             );
           }
-          return cards.isPending ? <span className="animate-pulse text-zinc-500">…</span> : <span className="text-zinc-500">none</span>;
+          return cards.isPending ? <span className="animate-pulse text-zinc-500">…</span> : <span className="text-zinc-500">None</span>;
         },
       },
       {
@@ -236,7 +236,7 @@ export function LinesScreen() {
       {lines.isPending && <LoadState />}
       {lines.error && <LoadState error={lines.error} />}
       {lines.data && (
-        <Panel title="Lines" meta={nextPartial ? <span>next rows from the first page</span> : undefined}>
+        <Panel title="Lines" meta={nextPartial ? <span>Next rows from the first page</span> : undefined}>
           <DataTable
             rows={rows}
             columns={columns}

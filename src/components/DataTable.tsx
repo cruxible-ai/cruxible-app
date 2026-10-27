@@ -397,7 +397,7 @@ function TextFilter({ label, value, onChange }: { label: string; value: string; 
       type="search"
       value={draft}
       onChange={(event) => setDraft(event.target.value)}
-      placeholder="contains"
+      placeholder="Contains"
       aria-label={`Filter ${label}`}
       className={inputClass}
     />
@@ -443,7 +443,7 @@ function EnumPicker({
 }) {
   const { open, setOpen, ref } = usePopover();
   const id = useId();
-  const summary = picked.length === 0 ? "any" : picked.length === 1 ? word(picked[0]!) : `${picked.length} picked`;
+  const summary = picked.length === 0 ? "Any" : picked.length === 1 ? word(picked[0]!) : `${picked.length} picked`;
   return (
     <div ref={ref} className="relative">
       <button

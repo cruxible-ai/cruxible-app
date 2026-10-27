@@ -8,7 +8,7 @@ import { CopyButton, ShortId, shortId } from "@/components/ShortId";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink, withAt } from "@/lib/at";
 import { captureHandle } from "@/lib/next-reasons";
-import { formatDateTime } from "@/lib/text";
+import { formatDateTime, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
 
@@ -64,7 +64,7 @@ export function RunScreen() {
               )}
               {runCard.triggered_by && (
                 <Fact label="Enabled by">
-                  {runCard.triggered_by.enabled_by_withheld ? <span className="text-zinc-500">withheld</span> : (runCard.triggered_by.enabled_by ?? "—")}
+                  {runCard.triggered_by.enabled_by_withheld ? <span className="text-zinc-500">Withheld</span> : (runCard.triggered_by.enabled_by ?? "—")}
                 </Fact>
               )}
               <Fact label="Started" title={runCard.started_at}>
@@ -91,7 +91,7 @@ export function RunScreen() {
                 <div key={`${node.sequence}\n${node.node}`} className="grid grid-cols-[2rem_minmax(8rem,max-content)_minmax(7rem,max-content)_minmax(0,1fr)_auto] items-baseline gap-x-4">
                   <span className="text-right font-mono text-[12px] text-zinc-500">{node.sequence}</span>
                   <span className="font-mono text-zinc-100">{node.node}</span>
-                  <span className="text-[12px] text-zinc-500">{node.kind ?? ""}</span>
+                  <span className="text-[12px] text-zinc-500">{node.kind ? sentence(node.kind) : ""}</span>
                   <span>{node.verdict && <Chip concept="run" value={node.verdict} />}</span>
                   <span className="text-right font-mono text-[12px] text-zinc-500">
                     {node.duration_us != null ? `${(node.duration_us / 1000).toFixed(0)} ms` : ""}
@@ -100,7 +100,7 @@ export function RunScreen() {
               ))}
               {runCard.current_node && (
                 <div className="flex gap-3 text-zinc-300">
-                  running <span className="font-mono">{runCard.current_node.node}</span> since {formatDateTime(runCard.current_node.started_at)}
+                  Running <span className="font-mono">{runCard.current_node.node}</span> since {formatDateTime(runCard.current_node.started_at)}
                 </div>
               )}
               {(runCard.nodes?.length ?? 0) < runCard.nodes_done && (
@@ -111,7 +111,7 @@ export function RunScreen() {
               {(runCard.pending_inputs ?? []).map((input) => (
                 <div key={input.name} className="flex items-baseline gap-1.5 text-zinc-300">
                   <SignalDot signal="waiting" title="Waiting on an input: the run continues once it arrives" />
-                  waiting on input {input.name} since {formatDateTime(input.waiting_since)}
+                  Waiting on input {input.name} since {formatDateTime(input.waiting_since)}
                 </div>
               ))}
             </div>
@@ -152,7 +152,7 @@ export function RunScreen() {
               </div>
             ))}
             <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2 border-t border-zinc-800/70 pt-2.5">
-              <Fact label="Lane">{state.data.lane}</Fact>
+              <Fact label="Lane">{sentence(state.data.lane)}</Fact>
               <Fact label="Bound at">
                 <Link to={withAt(`/i/${instanceId}`, state.data.bound_coordinate.git_oid.slice(0, 12))} className="font-mono hover:underline">
                   {state.data.bound_coordinate.git_oid.slice(0, 12)}
@@ -162,7 +162,7 @@ export function RunScreen() {
                 {state.data.receipt_digest ? (
                   <ShortId value={state.data.receipt_digest} className="text-zinc-200" />
                 ) : (
-                  <span className="text-zinc-500">withheld or not yet written</span>
+                  <span className="text-zinc-500">Withheld or not yet written</span>
                 )}
               </Fact>
               {state.data.attribution && (
@@ -170,7 +170,7 @@ export function RunScreen() {
                   {"actor_id" in state.data.attribution ? (
                     <span className="font-mono">{state.data.attribution.actor_id}</span>
                   ) : (
-                    <span className="text-zinc-500">attribution withheld (names the enabling credential)</span>
+                    <span className="text-zinc-500">Attribution withheld (names the enabling credential)</span>
                   )}
                 </Fact>
               )}
@@ -195,7 +195,7 @@ function TerminalView({ terminal }: { terminal: Terminal }) {
       </div>
       {message && <div className="text-zinc-300">{message}</div>}
       {"repair" in terminal && terminal.repair && "operation" in terminal.repair && (
-        <div className="text-zinc-500">repair: {terminal.repair.operation}</div>
+        <div className="text-zinc-500">Repair: {terminal.repair.operation}</div>
       )}
     </div>
   );
@@ -206,7 +206,7 @@ function EgressView({ egress }: { egress: Egress }) {
   return (
     <div className="border-t border-zinc-800/70 pt-2 text-[13px]">
       <div className="flex flex-wrap items-baseline gap-x-3">
-        <span className="text-zinc-300">{egress.kind.replaceAll("_", " ")}</span>
+        <span className="text-zinc-300">{sentence(egress.kind.replaceAll("_", " "))}</span>
         <Chip concept="egress" value={egress.verdict} />
         <span className="text-zinc-500">
           needs {egress.required_authority}
@@ -217,7 +217,7 @@ function EgressView({ egress }: { egress: Egress }) {
       </div>
       {egress.proposal_id && (
         <div className="break-all">
-          proposal <RefLink value={egress.proposal_id} short />
+          Proposal <RefLink value={egress.proposal_id} short />
           {egress.accepted_git_oid && (
             <>
               {" "}accepted at{" "}
@@ -253,7 +253,7 @@ function ResultView({ value }: { value: unknown }) {
       return (
         <dl className="flex flex-wrap gap-x-6 gap-y-2">
           {entries.map(([key, v]) => (
-            <Fact key={key} label={key.replaceAll("_", " ")}>
+            <Fact key={key} label={sentence(key.replaceAll("_", " "))}>
               <span className={typeof v === "number" ? "font-mono" : undefined}>{String(v)}</span>
             </Fact>
           ))}

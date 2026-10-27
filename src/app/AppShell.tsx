@@ -142,7 +142,7 @@ export function AppShell() {
                     <span className="flex min-w-0 items-center gap-1.5">
                       {coloring.enabled && (
                         <span
-                          title={owner.source === "kit" ? `kit ${owner.layer}` : "authored in this instance"}
+                          title={owner.source === "kit" ? `Kit ${owner.layer}` : "Authored in this instance"}
                           className="h-1.5 w-1.5 shrink-0 rounded-full"
                           style={{ backgroundColor: coloring.colorOf(owner.layer) }}
                         />

@@ -11,9 +11,9 @@ describe("evidence display", () => {
   });
 
   it("labels a citation as own words, a passage of its source, or its role", () => {
-    expect(citationLabel({ origin: "self_source", role: "copy", source: "playbill.coordinator-authoring" })).toBe("own words");
-    expect(citationLabel({ origin: "independent", role: "copy", source: "playbill.page" })).toBe("passage of cruxible.page");
-    expect(citationLabel({ origin: "independent", role: "evidence", source: "cve.record" })).toBe("evidence");
+    expect(citationLabel({ origin: "self_source", role: "copy", source: "playbill.coordinator-authoring" })).toBe("Own words");
+    expect(citationLabel({ origin: "independent", role: "copy", source: "playbill.page" })).toBe("Passage of cruxible.page");
+    expect(citationLabel({ origin: "independent", role: "evidence", source: "cve.record" })).toBe("Evidence");
   });
 
   it("tallies admitted of offered evidence and keeps copies that are not evidence apart", () => {
