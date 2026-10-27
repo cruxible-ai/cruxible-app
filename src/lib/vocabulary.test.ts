@@ -7,6 +7,7 @@ describe("health tones", () => {
     expect(healthTone("not_observed")).toBe("off");
     expect(healthTone("lagging")).toBe("waiting");
     expect(healthTone("stalled")).toBe("wrong");
+    expect(healthTone("claim_type_upgrade_available")).toBe("waiting");
     expect(healthTone("something_new")).toBeUndefined();
   });
 });

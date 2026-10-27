@@ -190,6 +190,11 @@ const HEALTH: Record<string, Term> = {
   lagging: t("Lagging", "Lagging: behind the head; it catches up on its own", "waiting"),
   behind: t("Behind", "Behind: the mirror has generations to publish", "waiting"),
   upgrade_available: t("Upgrade available", "Upgrade available: upgrade on the CLI", "waiting"),
+  claim_type_upgrade_available: t(
+    "ClaimType upgrade available",
+    "ClaimType upgrade available: some ClaimTypes still state an older evidence policy; run the repair shown",
+    "waiting",
+  ),
 };
 
 /**

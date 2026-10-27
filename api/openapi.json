@@ -23320,6 +23320,33 @@
         ],
         "title": "ClaimTypeMigrationResultV2"
       },
+      "ClaimTypePolicyRestatement": {
+        "properties": {
+          "claim_type": {
+            "type": "string",
+            "title": "Claim Type"
+          },
+          "from_policy": {
+            "type": "string",
+            "const": "playbill-claim-evidence-admission-policy-v3",
+            "title": "From Policy",
+            "default": "playbill-claim-evidence-admission-policy-v3"
+          },
+          "to_policy": {
+            "type": "string",
+            "const": "cruxible-claim-evidence-admission-policy-v4",
+            "title": "To Policy",
+            "default": "cruxible-claim-evidence-admission-policy-v4"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_type"
+        ],
+        "title": "ClaimTypePolicyRestatement",
+        "description": "One ClaimType whose v3 identity evidence policy is restated as v4.\n\nThe v4 policy admits exactly the evidence the v3 one did: the same rules,\nroles, admission, subject binding and attestation requirement, naming the\nsame contracts with no logical-source restriction. Compiler revision 36\nwrites only v4, so a ClaimType is edited after this restatement."
+      },
       "ClaimTypeProposalLint": {
         "properties": {
           "tag": {
@@ -23629,6 +23656,18 @@
           "reason": {
             "type": "string",
             "title": "Reason"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "cruxible.claim_type.policy_restatement_inexact"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
           }
         },
         "additionalProperties": false,
@@ -23731,6 +23770,14 @@
             },
             "type": "array",
             "title": "Upgraded",
+            "default": []
+          },
+          "restated": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimTypePolicyRestatement"
+            },
+            "type": "array",
+            "title": "Restated",
             "default": []
           },
           "unchanged": {
@@ -39241,6 +39288,7 @@
               "cruxible.proposal.approve",
               "cruxible.proposal.activate",
               "cruxible.compiler.upgrade",
+              "cruxible.claim-type.upgrade",
               "cruxible.line.enable",
               "cruxible.line.evaluate",
               "cruxible.line.dispatch",
@@ -39333,6 +39381,7 @@
               "cruxible.proposal.approve",
               "cruxible.proposal.activate",
               "cruxible.compiler.upgrade",
+              "cruxible.claim-type.upgrade",
               "cruxible.line.enable",
               "cruxible.line.evaluate",
               "cruxible.line.dispatch",

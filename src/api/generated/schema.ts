@@ -6005,6 +6005,31 @@ export interface components {
             }[];
             lint?: components["schemas"]["ClaimTypeProposalLint"] | null;
         };
+        /**
+         * ClaimTypePolicyRestatement
+         * @description One ClaimType whose v3 identity evidence policy is restated as v4.
+         *
+         *     The v4 policy admits exactly the evidence the v3 one did: the same rules,
+         *     roles, admission, subject binding and attestation requirement, naming the
+         *     same contracts with no logical-source restriction. Compiler revision 36
+         *     writes only v4, so a ClaimType is edited after this restatement.
+         */
+        ClaimTypePolicyRestatement: {
+            /** Claim Type */
+            claim_type: string;
+            /**
+             * From Policy
+             * @default playbill-claim-evidence-admission-policy-v3
+             * @constant
+             */
+            from_policy?: "playbill-claim-evidence-admission-policy-v3";
+            /**
+             * To Policy
+             * @default cruxible-claim-evidence-admission-policy-v4
+             * @constant
+             */
+            to_policy?: "cruxible-claim-evidence-admission-policy-v4";
+        };
         /** ClaimTypeProposalLint */
         ClaimTypeProposalLint: {
             /**
@@ -6194,6 +6219,8 @@ export interface components {
             claim_type: string;
             /** Reason */
             reason: string;
+            /** Code */
+            code?: "cruxible.claim_type.policy_restatement_inexact" | null;
         };
         /**
          * ClaimTypeUpgradeRequest
@@ -6252,6 +6279,11 @@ export interface components {
              * @default []
              */
             upgraded?: components["schemas"]["ClaimTypeUpgrade"][];
+            /**
+             * Restated
+             * @default []
+             */
+            restated?: components["schemas"]["ClaimTypePolicyRestatement"][];
             /**
              * Unchanged
              * @default []
@@ -12839,7 +12871,7 @@ export interface components {
              * Operation
              * @enum {string}
              */
-            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
+            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.claim-type.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
             /** Target */
             target: string;
             /** Required Change */
@@ -12880,7 +12912,7 @@ export interface components {
              * Operation
              * @enum {string}
              */
-            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
+            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.claim-type.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
             /** Tool */
             tool: string;
             /**
