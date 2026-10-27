@@ -13344,6 +13344,10 @@ export interface components {
          *     ``at`` is the run's evaluation instant, not the wall time it finished:
          *     every record of a run carries that one instant (the executor's
          *     deterministic clock), so a finish lists beside its start, above it.
+         *     ``elapsed_us`` is how long the run took: the attempt's observed wall time
+         *     in microseconds, as its final record measured it (the run card's
+         *     ``measured_wall_clock`` elapsed); ``at`` stays the evaluation instant.
+         *     It is absent when the final payload is lost or records none.
          *     ``unavailable`` marks a lost payload: a lost final payload reads as
          *     ``operational_failed``, as the runs section shows it.
          */
@@ -13371,6 +13375,8 @@ export interface components {
              * @enum {string}
              */
             status: "running" | "succeeded" | "admission_refused" | "node_refused" | "operational_failed" | "internal_failed" | "halted";
+            /** Elapsed Us */
+            elapsed_us?: number | null;
             /**
              * Unavailable
              * @default false

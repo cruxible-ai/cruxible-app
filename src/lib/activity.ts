@@ -48,6 +48,17 @@ export interface ActivityRow {
   unavailable: boolean;
 }
 
+/** A run's elapsed time, short: "840 ms", "12 s", "3m 12s", "1h 4m". */
+export function formatDuration(us: number): string {
+  const ms = us / 1000;
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
 const bare = (value: string, prefix: string) => value.replace(new RegExp(`^${prefix}:`), "");
 
 export function shortRun(run: string): string {
@@ -110,7 +121,10 @@ function describe(e: OrientActivity, label: (line: string) => string): Omit<Acti
         ...base,
         family: "run",
         who: lineWho(e.line, label) ?? (e.procedure ? { text: bare(e.procedure, "Procedure"), link: { kind: "ref", ref: e.procedure } } : null),
-        what: e.status === "running" ? "is running" : `ran · ${status.word.toLowerCase()}`,
+        what:
+          e.status === "running"
+            ? "is running"
+            : `ran · ${status.word.toLowerCase()}${e.elapsed_us != null ? ` · ${formatDuration(e.elapsed_us)}` : ""}`,
         detail: null,
         object: { text: shortRun(e.run), link: { kind: "run", id: bare(e.run, "ProcedureRun") } },
         ...(status.signal ? { signal: status.signal } : {}),

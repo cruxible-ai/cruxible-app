@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OrientActivity } from "@/api/schemas";
-import { activityRows } from "./activity";
+import { activityRows, formatDuration } from "./activity";
 
 const enable = (line: string, at: string): OrientActivity => ({
   event: "line_state_changed",
@@ -36,5 +36,21 @@ describe("activity rows", () => {
       label,
     );
     expect(rows.map((r) => r.what)).toEqual(["ran · succeeded"]);
+    const timed = activityRows(
+      [{ event: "run_finished", at: "2026-10-26T20:56:03Z", ref: `ProcedureRun:${run}`, run, procedure: null, line: null, status: "succeeded", unavailable: false, elapsed_us: 192_400_000 }],
+      label,
+    );
+    expect(timed[0]!.what).toBe("ran · succeeded · 3m 12s");
+  });
+});
+
+describe("run durations", () => {
+  it.each([
+    [840_000, "840 ms"],
+    [12_400_000, "12 s"],
+    [192_400_000, "3m 12s"],
+    [3_840_000_000, "1h 4m"],
+  ])("%d µs reads %s", (us, text) => {
+    expect(formatDuration(us)).toBe(text);
   });
 });
