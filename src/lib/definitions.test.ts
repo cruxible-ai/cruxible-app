@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  arrivalWords,
+  gist,
+  lineGist,
   logicalSources,
   procedureSlots,
   readLineEnvelope,
+  urlWords,
   retainedByWords,
   retentions,
   slotInterfaceRef,
@@ -135,5 +139,41 @@ describe("definitions", () => {
     ]);
     expect(retainedByWords(sources[0]!.retainedBy)).toBe("Line kev-daily");
     expect(retainedByWords(sources[2]!.retainedBy)).toBe("a direct sec.sbom-acquire run");
+  });
+});
+
+describe("gists", () => {
+  it("keep a description's first clause, without parentheticals", () => {
+    expect(gist("Read one GitHub release asset (input.url); retain the bytes under x.")).toBe("Read one GitHub release asset");
+    expect(gist("Read one SARIF 2.1.0 scan log from the attached workspace (input.relative_path) and retain it under security.file-v1; the Line reads it.")).toBe(
+      "Read one SARIF 2.1.0 scan log from the attached workspace",
+    );
+    expect(gist("Propose what changed: each asset by key; a full scan retires runs.")).toBe("Propose what changed: each asset by key");
+    expect(gist("Ask the six hardening questions (HQ1-HQ6) about every gated target and answer each in three states: found")).toBe(
+      "Ask the six hardening questions about every gated target and answer each in three states",
+    );
+    expect(gist(null)).toBeNull();
+    expect(gist("x".repeat(200))!.endsWith("…")).toBe(true);
+  });
+
+  it("start a Line's gist at what it does, past what triggered it", () => {
+    expect(
+      lineGist(
+        "Read the KEV catalog Capture that triggered the Line (security.fetched-v1) and the watched vulnerabilities, and settle one observation Claim per KEV field that changed (kev_listed) under a settle mandate.",
+      ),
+    ).toBe("Settle one observation Claim per KEV field that changed under a settle mandate");
+    expect(lineGist("Read the SARIF log Capture that triggered the Line for the Line's repository (parameter repo_ref) and post one inbox item per location gap: one per tool")).toBe(
+      "Post one inbox item per location gap",
+    );
+    expect(lineGist("Ask one incident's five questions (parameter incident) and answer each.")).toBe("Ask one incident's five questions and answer each");
+  });
+
+  it("say how a source arrives and from where", () => {
+    expect(arrivalWords({ interface: "web.fetch@3", emitted: false })).toBe("HTTP fetch");
+    expect(arrivalWords({ interface: "workspace.file", emitted: false })).toBe("Workspace file");
+    expect(arrivalWords({ interface: "security.release-asset/v1", emitted: false })).toBe("release-asset");
+    expect(arrivalWords({ interface: null, emitted: true })).toBe("Run output");
+    expect(urlWords({ url: "https://www.cisa.gov/sites/default/files/feeds/kev.json" })).toBe("From www.cisa.gov");
+    expect(urlWords({})).toBeNull();
   });
 });

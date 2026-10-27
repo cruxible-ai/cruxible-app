@@ -37,6 +37,10 @@ export interface FlowNode {
   label: string;
   /** source: who retains it, in words; line: what starts it; claim_type: predicate. */
   detail?: string;
+  /** source, line: what it is or does, in a line (from its Procedure's description, or a fetch Line's URL). */
+  about?: string;
+  /** source: how it arrives (HTTP fetch, Workspace file, Run output, an interface). */
+  arrives?: string;
   /** source: the bare contracts it is captured under. */
   contracts?: string[];
   /** source: the pseudo source for statements on their author's own word. */
@@ -75,7 +79,13 @@ export interface AcceptedEvidence {
 
 export interface FlowInputs {
   /** Logical sources: id, the bare contract names it is captured under, who retains it (words). */
-  sources: readonly { id: string; contracts: readonly string[]; retainedBy?: string | undefined }[];
+  sources: readonly {
+    id: string;
+    contracts: readonly string[];
+    retainedBy?: string | undefined;
+    about?: string | null | undefined;
+    arrives?: string | null | undefined;
+  }[];
   claimTypes: readonly OrientPredicate[];
   /**
    * Per predicate, what its evidence rules accept. A ClaimType missing here
@@ -86,6 +96,8 @@ export interface FlowInputs {
   triggers: readonly { name: string; contract: string; target: string; logicalSources?: readonly string[] }[];
   /** Max authority per bare Line name. */
   lineAuthority?: ReadonlyMap<string, string>;
+  /** What each Line does, in a line, per bare Line name. */
+  lineAbout?: ReadonlyMap<string, string>;
 }
 
 const bareContract = (value: string) => value.replace(/^CaptureContract:/, "");
@@ -141,6 +153,8 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       label: source.id,
       contracts: [...source.contracts].map(bareContract).sort(byText),
       ...(source.retainedBy ? { detail: source.retainedBy } : {}),
+      ...(source.about ? { about: source.about } : {}),
+      ...(source.arrives ? { arrives: source.arrives } : {}),
     });
   }
   const selfContracts = [...new Set([...accepts.values()].flat().map((a) => a.contract).filter(isSelfSource))];
@@ -170,6 +184,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     const id = nodeId.line(line);
     const what = lineReads.map((r) => (r.sources ? r.sources.join(" or ") : `any ${r.contract} landing`)).join("; ");
     const authority = inputs.lineAuthority?.get(line);
+    const about = inputs.lineAbout?.get(line);
     nodes.set(id, {
       id,
       kind: "line",
@@ -177,6 +192,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       detail: `When ${what} lands`,
       triggers: triggersOf.get(line) ?? [],
       ...(authority ? { authority } : {}),
+      ...(about ? { about } : {}),
     });
     // source → line
     for (const node of nodes.values()) {
@@ -225,6 +241,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       kind: "claim_type",
       label: row.name,
       detail: row.predicate,
+      ...(row.description ? { about: row.description } : {}),
       group: [...(row.subject_kinds ?? [])].sort(byText)[0] ?? "",
       required,
     });

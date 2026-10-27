@@ -10,9 +10,14 @@ describe("Evidence flow", () => {
   it("columns sources, the Lines that read them, and the ClaimTypes they may write, each a link", async () => {
     renderApp(`${I}/flow`);
     const flow = within(await screen.findByTestId("flow", {}, { timeout: 8000 }));
-    // sources, with who retains them and the contract they're captured under as a tag
+    // sources say what they are (their retaining Procedure's description) and how they arrive;
+    // who retains them is on hover
     expect(flow.getByText("cisa.kev.catalog")).toBeInTheDocument();
-    expect(flow.getByText("Retained by a direct security.kev-acquire run")).toBeInTheDocument();
+    expect(flow.getByText("Fetch the CISA KEV catalog and retain it")).toBeInTheDocument();
+    expect(flow.getByText("cisa.kev.catalog").closest("[title]")).toHaveAttribute(
+      "title",
+      expect.stringContaining("Retained by a direct security.kev-acquire run"),
+    );
     // Lines in their own column, linked, with what starts them
     expect(flow.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/kev-triage`);
     expect(flow.getByText("When cisa.kev.catalog lands")).toBeInTheDocument();

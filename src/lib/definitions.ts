@@ -341,3 +341,61 @@ export function slotBinding(
   if (installed.length > 1) return { kind: "fit_many", providers: [...installed] };
   return { kind: "none" };
 }
+
+// -- what a thing is, in a line ---------------------------------------------------
+
+const GIST_MAX = 110;
+
+/** A description's first clause, without parentheticals or run-on detail, capitalized and capped. */
+export function gist(description: string | null | undefined): string | null {
+  if (!description) return null;
+  const clauses = description.replace(/\s*\([^()]*\)/g, "").split(/(?<=[a-z0-9'"`)])(\.\s|;\s|:\s)/i);
+  // A short lead-in before a colon ("propose what changed: …") keeps what follows it.
+  let clause = clauses[0]!;
+  if (clauses[1]?.startsWith(":") && clause.length < 30 && clauses[2]) clause = `${clause}: ${clauses[2]}`;
+  clause = clause
+    // the contract it is retained under is on the node already
+    .replace(/,?\s+and retain (?:it|them|both)(?: under [\w.-]+)?$/i, "")
+    .replace(/[.:;,\s]+$/, "")
+    .trim();
+  if (!clause) return null;
+  const capped = clause.length > GIST_MAX ? `${clause.slice(0, GIST_MAX).replace(/\s+\S*$/, "")}…` : clause;
+  return capped[0]!.toUpperCase() + capped.slice(1);
+}
+
+/**
+ * What a Line's Procedure does, in a line. Line Procedures open with what
+ * started them ("Read the KEV catalog Capture that triggered the Line …"),
+ * which the flow already draws; the gist starts at what it then does.
+ */
+export function lineGist(description: string | null | undefined): string | null {
+  if (!description) return null;
+  const opener = /^Read the .*? that triggered the Line\b/.exec(description);
+  if (!opener) return gist(description);
+  const rest = description.slice(opener[0].length);
+  const verb = /\b(?:and |, )?((?:propose|settle|post|state|ask|answer|record|retire|emit)\b[\s\S]*)$/.exec(rest);
+  return gist(verb ? verb[1] : description);
+}
+
+/** How a source arrives, from the interface its retaining step reads through. */
+export function arrivalWords(step: { interface: string | null; emitted: boolean } | null): string | null {
+  if (!step) return null;
+  if (step.emitted) return "Run output";
+  const base = step.interface ? interfaceBase(step.interface) : null;
+  if (!base) return null;
+  if (base === "web.fetch" || base.startsWith("web.fetch")) return "HTTP fetch";
+  if (base === "workspace.file") return "Workspace file";
+  return base.replace(/\/v\d+$/, "").replace(/^[a-z]+\./, "");
+}
+
+/** Where a fetch Line reads from: the host and path of its `url` parameter. */
+export function urlWords(parameters: Record<string, unknown> | undefined): string | null {
+  const url = parameters?.url;
+  if (typeof url !== "string") return null;
+  try {
+    const parsed = new URL(url);
+    return `From ${parsed.host}`;
+  } catch {
+    return null;
+  }
+}

@@ -4,7 +4,6 @@ import { Crosshair } from "lucide-react";
 import { useClaimTypes, useGetBatch, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
-import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import {
   buildFlow,
@@ -20,7 +19,7 @@ import {
 } from "@/lib/evidence-flow";
 import { lineName } from "@/lib/lines";
 import { FLOW_COLOR } from "@/lib/palette";
-import { retainedByWords } from "@/lib/definitions";
+import { arrivalWords, gist, lineGist, retainedByWords, sourceSteps, urlWords, type Retention } from "@/lib/definitions";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -56,12 +55,32 @@ export function FlowScreen() {
       const read = readClaimTypeAccepts((result as { proof?: unknown }).proof);
       if (read) accepts.set(read.predicate, read.accepts);
     }
+    const { specs, lines: lineDefinitions } = sources.data;
+    const lineOf = new Map(lineDefinitions.map((line) => [line.line, line] as const));
+    // What a source is: a fetch Line's URL, else its retaining Procedure's description; how it arrives: that step's interface.
+    const describeSource = (retainedBy: readonly Retention[]) => {
+      const retention = retainedBy.find((r) => urlWords(r.line ? lineOf.get(r.line)?.parameters : undefined)) ?? retainedBy[0];
+      if (!retention) return { about: null, arrives: null };
+      const spec = specs.get(retention.procedure);
+      const step = spec ? sourceSteps(retention.procedure, spec).find((st) => st.contract === retention.contract && st.emitted === retention.emitted) : undefined;
+      return {
+        about: urlWords(retention.line ? lineOf.get(retention.line)?.parameters : undefined) ?? gist(spec?.description),
+        arrives: arrivalWords(step ?? null),
+      };
+    };
     return buildFlow({
       sources: sources.data.sources.map((source) => ({
         id: source.id,
         contracts: source.contracts,
-        retainedBy: source.retainedBy.length ? `Retained by ${retainedByWords(source.retainedBy)}` : "Selected by a Trigger; no step names it",
+        retainedBy: source.retainedBy.length ? `Retained by ${retainedByWords(source.retainedBy)}` : "Named by its Provider at run time",
+        ...describeSource(source.retainedBy),
       })),
+      lineAbout: new Map(
+        lineDefinitions.flatMap((line) => {
+          const about = lineGist(specs.get(line.procedure)?.description);
+          return about ? [[line.line, about] as const] : [];
+        }),
+      ),
       claimTypes: claimTypes.data.rows,
       accepts,
       triggers: sources.data.triggers,
@@ -258,14 +277,15 @@ function FlowCell({
       <div
         style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.source}` }}
         className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 ${node.ownWord ? "border-dashed bg-zinc-950" : "bg-zinc-900/60"} px-2 leading-4`}
-        title={[node.label, node.detail, tags.length ? `Captured under ${tags.join(", ")}` : null].filter(Boolean).join("\n")}
+        title={[node.label, node.about, node.detail, tags.length ? `Captured under ${tags.join(", ")}` : null].filter(Boolean).join("\n")}
         {...hover}
       >
         <div className="flex items-center gap-1.5">
           <span className={`truncate text-[12px] ${node.ownWord ? "font-sans text-zinc-200" : "font-mono text-zinc-100"}`}>{node.label}</span>
+          {node.arrives && <span className="ml-auto shrink-0 text-[10.5px] text-zinc-500">{node.arrives}</span>}
           <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
         </div>
-        <div className="truncate text-[11px] text-zinc-500">{node.detail}</div>
+        <div className="truncate text-[11px] text-zinc-400">{node.about ?? node.detail}</div>
         {!node.ownWord && tags.length > 0 && (
           <div className="truncate text-[10.5px] text-zinc-600">
             {tags.map((t, i) => (
@@ -286,7 +306,7 @@ function FlowCell({
       <div
         style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.line}` }}
         className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 bg-zinc-900 px-2 leading-4`}
-        title={[node.label, node.detail, node.triggers?.length ? `Triggers: ${node.triggers.join(", ")}` : null].filter(Boolean).join("\n")}
+        title={[node.label, node.about, node.detail, node.triggers?.length ? `Triggers: ${node.triggers.join(", ")}` : null].filter(Boolean).join("\n")}
         {...hover}
       >
         <div className="flex items-center gap-1.5">
@@ -300,26 +320,15 @@ function FlowCell({
           )}
           <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
         </div>
-        <div className="truncate text-[11px] text-zinc-500">{node.detail}</div>
-        {node.triggers && node.triggers.length > 0 && (
-          <div className="truncate text-[10.5px] text-zinc-600">
-            {node.triggers.map((t, i) => (
-              <span key={t}>
-                {i > 0 && ", "}
-                <RefLink value={`Trigger:${t}`} className="hover:text-zinc-300">
-                  <span className="font-mono">{strip(t, prefix)}</span>
-                </RefLink>
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="truncate text-[11px] text-zinc-400">{node.about ?? node.detail}</div>
+        {node.about && <div className="truncate text-[10.5px] text-zinc-600">{node.detail}</div>}
       </div>
     );
   }
   // claim_type
   const kind = node.group ?? "";
   return (
-    <div style={{ ...style, borderLeft: `2px solid ${FLOW_COLOR.claimType}` }} className={`${base} pl-3 text-[12px]`} title={node.detail} {...hover}>
+    <div style={{ ...style, borderLeft: `2px solid ${FLOW_COLOR.claimType}` }} className={`${base} pl-3 text-[12px]`} title={[node.detail, node.about].filter(Boolean).join("\n")} {...hover}>
       <Link
         to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?view=claim-types&claim_type=${encodeURIComponent(node.detail ?? "")}`)}
         className="truncate font-mono text-zinc-300 hover:underline"
