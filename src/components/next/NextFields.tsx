@@ -80,7 +80,7 @@ export function RepairText({ item }: { item: NextItem }) {
       )}
       {item.repair_requires && (
         <span className={item.repair ? "ml-2" : undefined}>
-          repair needs {item.repair_requires.tier} ({item.repair_requires.because.join(", ")})
+          Repair needs {item.repair_requires.tier} ({item.repair_requires.because.join(", ")})
         </span>
       )}
     </div>

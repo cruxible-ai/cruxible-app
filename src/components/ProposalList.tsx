@@ -158,7 +158,7 @@ function CopyableId({ id }: { id: string }) {
       }}
       className="font-mono text-[11px] text-zinc-600 hover:text-zinc-300"
     >
-      {copied ? "copied" : short}
+      {copied ? "Copied" : short}
     </button>
   );
 }

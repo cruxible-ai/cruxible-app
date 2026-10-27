@@ -35,7 +35,7 @@ export function IncomingList({ subject, total }: { subject: string; total: numbe
             </button>
           )}
           <span>
-            page {cursors.length + 1}
+            Page {cursors.length + 1}
             {total !== null && ` · ${total} in all`}
           </span>
           {read.data?.next_cursor && (

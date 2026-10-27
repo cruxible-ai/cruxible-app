@@ -12,12 +12,12 @@ export function CountsMark({ counts, reason }: { counts: boolean; reason: string
       {counts ? (
         <span className="inline-flex items-center gap-1 whitespace-nowrap text-zinc-200">
           <Check className="h-3 w-3" aria-hidden />
-          counts
+          Counts
         </span>
       ) : (
         <span className="inline-flex items-center gap-1 whitespace-nowrap text-zinc-400">
           <Minus className="h-3 w-3" aria-hidden />
-          doesn't count
+          Doesn't count
         </span>
       )}
       <span className="text-zinc-500">{reason}</span>

@@ -68,6 +68,6 @@ describe("Overview", () => {
 
   it("shows a refused pin instead of reading the head", async () => {
     renderApp("/i/inst_fixture?at=7");
-    expect(await screen.findByText("at 7 refused")).toBeInTheDocument();
+    expect(await screen.findByText("At 7 refused")).toBeInTheDocument();
   });
 });

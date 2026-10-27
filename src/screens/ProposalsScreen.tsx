@@ -36,7 +36,7 @@ export function Pager({ index, older, newer }: { index: number; older: (() => vo
           ← Previous page
         </button>
       )}
-      <span>page {index + 1}</span>
+      <span>Page {index + 1}</span>
       {older && (
         <button onClick={older} className="hover:text-zinc-200">
           Next page →

@@ -1,4 +1,5 @@
 import type { CaptureAdmissionAccount, GetAttestationEvidence, GetCaptureEvidence } from "@/api/schemas";
+import { sentence } from "./text";
 
 /**
  * How a Claim's evidence reads, in the words `cruxible get --detail evidence`
@@ -22,9 +23,9 @@ export function publicName(name: string): string {
 
 /** What a cited Capture is: the Claim's own words, a passage of its source, or its role. */
 export function citationLabel(capture: Pick<GetCaptureEvidence, "origin" | "role" | "source">): string {
-  if (capture.origin === "self_source") return "own words";
-  if (capture.role === "copy") return `passage of ${publicName(capture.source)}`;
-  return capture.role;
+  if (capture.origin === "self_source") return "Own words";
+  if (capture.role === "copy") return `Passage of ${publicName(capture.source)}`;
+  return sentence(capture.role);
 }
 
 /**
@@ -54,9 +55,9 @@ export function countsReasonText(attestation: Pick<GetAttestationEvidence, "coun
   return attestation.counts_reason === "consequence_policy" && attestation.rule ? `${words} ${attestation.rule}` : words;
 }
 
-/** "accepted" (an accepted attestation artifact) or "recorded" (an event `claim attest` recorded). */
+/** "Accepted" (an accepted attestation artifact) or "Recorded" (an event `claim attest` recorded). */
 export function recordLabel(record: GetAttestationEvidence["record"]): string {
-  return record === "accepted" ? "accepted" : "recorded";
+  return record === "accepted" ? "Accepted" : "Recorded";
 }
 
 /** The attestation's basis, in words. */

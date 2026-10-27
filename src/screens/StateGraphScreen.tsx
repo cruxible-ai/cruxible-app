@@ -118,7 +118,7 @@ export function StateGraphScreen() {
               const hit = matched ? [...matched][0] : undefined;
               if (e.key === "Enter" && hit) setJump({ id: hit, nonce: Date.now() });
             }}
-            placeholder="search by id…"
+            placeholder="Search by id…"
             aria-label="Search Subjects by id"
             className="ml-auto w-64 border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
           />
@@ -204,7 +204,7 @@ export function StateGraphScreen() {
               return (
                 <div className="text-[12px]">
                   <PanelHeading kicker="Subject-valued Claim" title={edge.predicate} />
-                  {edge.qualifier && <div className="text-zinc-500">qualifier {edge.qualifier}</div>}
+                  {edge.qualifier && <div className="text-zinc-500">Qualifier {edge.qualifier}</div>}
                   <div className="mt-2 space-y-1">
                     <div>
                       <span className="text-zinc-600">from </span>

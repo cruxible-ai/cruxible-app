@@ -305,20 +305,20 @@ export interface ChangeMark {
 }
 
 const MARK: Record<string, ChangeMark> = {
-  create: { mark: "+", word: "created" },
-  created: { mark: "+", word: "created" },
-  stated: { mark: "+", word: "first stated" },
-  revise: { mark: "~", word: "revised" },
-  revised: { mark: "~", word: "revised" },
-  changed: { mark: "~", word: "value changed" },
-  reobserved: { mark: "~", word: "re-observed: same value, fresh evidence" },
-  rebound: { mark: "~", word: "rebound to a current Capture" },
-  retire: { mark: "−", word: "retired" },
-  retired: { mark: "−", word: "retired" },
+  create: { mark: "+", word: "Created" },
+  created: { mark: "+", word: "Created" },
+  stated: { mark: "+", word: "First stated" },
+  revise: { mark: "~", word: "Revised" },
+  revised: { mark: "~", word: "Revised" },
+  changed: { mark: "~", word: "Value changed" },
+  reobserved: { mark: "~", word: "Re-observed: same value, fresh evidence" },
+  rebound: { mark: "~", word: "Rebound to a current Capture" },
+  retire: { mark: "−", word: "Retired" },
+  retired: { mark: "−", word: "Retired" },
 };
 
 export function changeMark(change: string): ChangeMark {
-  return MARK[change] ?? { mark: "~", word: change.replaceAll("_", " ") };
+  return MARK[change] ?? { mark: "~", word: humanize(change) };
 }
 
 /** A Claim's role, as the proposal and Subject screens say it. */

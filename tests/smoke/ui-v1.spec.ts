@@ -76,7 +76,7 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   // Its neighborhood, then one more hop.
   await page.getByRole("link", { name: "Neighborhood" }).click();
   await expect(page.getByText(/3 Subjects · 2 links/)).toBeVisible();
-  await page.getByRole("button", { name: "depth 2" }).click();
+  await page.getByRole("button", { name: "Depth 2" }).click();
   await expect(page).toHaveURL(/graph\?depth=2$/);
   await expect(page.getByText(/5 Subjects · 4 links/)).toBeVisible();
   await expect(page.locator(".react-flow__node")).toHaveCount(5);

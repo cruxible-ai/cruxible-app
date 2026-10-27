@@ -240,7 +240,7 @@ function Cell({ row, column, instanceId, link }: { row: Row; column: KindColumn;
       <span className="inline-flex items-baseline gap-1.5">
         {dot}
         <Link to={claimHref(cell.nones[0] ?? null)} className="text-zinc-500 hover:text-zinc-200 hover:underline" title="A Claim states this field has no value">
-          none
+          None
         </Link>
       </span>
     );

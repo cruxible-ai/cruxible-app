@@ -58,19 +58,19 @@ export function Corroboration({
       }
     >
       {support > 0 && (
-        <span className="inline-flex items-center gap-1 text-zinc-300" title="supporting">
+        <span className="inline-flex items-center gap-1 text-zinc-300" title="Supporting">
           <Check className="h-3 w-3" />
           {support}
         </span>
       )}
       {contradict > 0 && (
-        <span className="inline-flex items-center gap-1 text-zinc-300" title="contradicting">
+        <span className="inline-flex items-center gap-1 text-zinc-300" title="Contradicting">
           <X className="h-3 w-3" />
           {contradict}
         </span>
       )}
       {unsure > 0 && (
-        <span className="inline-flex items-center gap-1 text-zinc-300" title="unsure">
+        <span className="inline-flex items-center gap-1 text-zinc-300" title="Unsure">
           <CircleHelp className="h-3 w-3" />
           {unsure}
         </span>

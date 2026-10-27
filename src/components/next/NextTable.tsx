@@ -176,7 +176,7 @@ function nextColumns({
             <RefLink value={item.subject_identity} short />
             {related.length > 0 && (
               <div className="min-w-0 break-words text-[12px]">
-                <span className="t-meta">about </span>
+                <span className="t-meta">About </span>
                 {related.map((ref, i) => (
                   <span key={ref}>
                     {i > 0 && ", "}
@@ -233,12 +233,12 @@ function DetailCell({ item, shared }: { item: NextItem; shared: ReasonShare | un
         {counts && <CountsMark counts={counts.counts} reason={counts.reason} />}
         {split.rest !== null && (
           <button onClick={() => setRaw((v) => !v)} className="whitespace-nowrap text-zinc-500 hover:text-zinc-200" aria-expanded={raw}>
-            {raw ? "hide detail" : "more detail"}
+            {raw ? "Hide detail" : "More detail"}
           </button>
         )}
       </span>
       {(item.findings?.length ?? 0) > 0 && (
-        <div className="t-meta">also: {item.findings!.map((finding) => reasonMeta(finding.reason).label).join("; ")}</div>
+        <div className="t-meta">Also: {item.findings!.map((finding) => reasonMeta(finding.reason).label).join("; ")}</div>
       )}
       {raw && split.rest !== null && (
         <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap border-l border-zinc-800 pl-3 text-[11px] text-zinc-400">

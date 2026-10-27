@@ -19,6 +19,7 @@ import {
   type Neighborhood,
   type NeighborhoodNode,
 } from "@/lib/neighborhood";
+import { sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 type SubjectNodeData = {
@@ -59,7 +60,7 @@ function SubjectNode({ data }: NodeProps<Node<SubjectNodeData>>) {
         {node.error && (
           <span className="inline-flex items-center gap-1 text-zinc-400">
             <SignalDot signal="wrong" title={`Could not read this Subject: ${node.error}`} />
-            unread
+            Unread
           </span>
         )}
       </div>
@@ -157,7 +158,7 @@ export function NeighborhoodScreen() {
               {edge.target}
             </button>
           </div>
-          <div className="mt-1 text-[12px] text-zinc-500">cardinality {edge.cardinality}</div>
+          <div className="mt-1 text-[12px] text-zinc-500">Cardinality {edge.cardinality}</div>
           <PanelActions>
             <RefLink value={edge.claim} />
           </PanelActions>
@@ -185,7 +186,7 @@ export function NeighborhoodScreen() {
             </Link>
           )}
         </PanelActions>
-        {node.error && <div className="mt-2 text-[12px] text-red-400/80">{node.error}</div>}
+        {node.error && <div className="mt-2 text-[12px] text-red-400/80">{sentence(node.error)}</div>}
         <PanelSection title="Links">
           <ConnectionList
             nodeId={node.ref}
@@ -228,7 +229,7 @@ export function NeighborhoodScreen() {
         <span className="flex gap-1">
           {Array.from({ length: NEIGHBORHOOD_MAX_DEPTH }, (_, i) => i + 1).map((d) => (
             <button key={d} onClick={() => setDepth(d)} className={toggleChipClass(d === depth)}>
-              depth {d}
+              Depth {d}
             </button>
           ))}
         </span>
@@ -239,7 +240,7 @@ export function NeighborhoodScreen() {
           </span>
         )}
         {graph.data?.capped && (
-          <span className="text-[12px] text-zinc-500">capped at {NEIGHBORHOOD_NODE_CAP} Subjects</span>
+          <span className="text-[12px] text-zinc-500">Capped at {NEIGHBORHOOD_NODE_CAP} Subjects</span>
         )}
       </header>
       {graph.isPending && <LoadState />}

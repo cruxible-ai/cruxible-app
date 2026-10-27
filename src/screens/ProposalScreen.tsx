@@ -14,7 +14,7 @@ import { ShownValue } from "@/components/ShownValue";
 import { withAt } from "@/lib/at";
 import { parseRef } from "@/lib/cruxible-ref";
 import { groupDeltas, memberSummary, readAttestations, readGovernance, readProvenance } from "@/lib/review";
-import { formatDateTime, formatWhen } from "@/lib/text";
+import { formatDateTime, formatWhen, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { artifactNoun, changeMark, term } from "@/lib/vocabulary";
 
@@ -182,7 +182,7 @@ function ProposalFacts({ proposal, review }: { proposal: ProposalCard | null; re
           <Fact label="Required tier">{governance.requiredTier ?? "—"}</Fact>
           <Fact label="Approvals">
             {governance.approvalRequirements.length === 0
-              ? "none required"
+              ? "None required"
               : governance.approvalRequirements.map((r) => `${r.role} ×${r.minimumDistinctSigners}`).join(", ")}
             {", "}
             {approvals.length === 0 ? (
@@ -300,7 +300,7 @@ function MemberRow({ member }: { member: Member }) {
           </span>
         )}
         <span className="ml-auto flex items-baseline gap-3">
-          {member.closure_role !== "authored" && <span className="t-meta">{member.closure_role.replaceAll("_", " ")}</span>}
+          {member.closure_role !== "authored" && <span className="t-meta">{sentence(member.closure_role.replaceAll("_", " "))}</span>}
           {claim && <PathLink path={member.path} short />}
         </span>
       </div>
@@ -308,9 +308,9 @@ function MemberRow({ member }: { member: Member }) {
         <div className={`mt-1.5 text-[13px] ${INDENT}`}>
           {changed ? (
             <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3 gap-y-1">
-              <span className="t-meta">before</span>
+              <span className="t-meta">Before</span>
               <ValueText value={claim.before} muted />
-              <span className="t-meta">after</span>
+              <span className="t-meta">After</span>
               <ValueText value={claim.after} />
             </div>
           ) : (
@@ -399,7 +399,7 @@ function DeltaTable({ member }: { member: Member }) {
 }
 
 function DeltaValue({ side }: { side: Schemas["SemanticFieldDelta"]["after"] }) {
-  if (side.state !== "present") return <span className="text-zinc-600">absent</span>;
+  if (side.state !== "present") return <span className="text-zinc-600">Absent</span>;
   const value = side.value;
   if (value !== null && typeof value === "object") {
     return (
@@ -440,7 +440,7 @@ function ItemReasonsPanel({
             </button>
           )}
           <span>
-            page {page + 1} · {review.item_reason_count} reasons
+            Page {page + 1} · {review.item_reason_count} reasons
           </span>
           {older && (
             <button onClick={older} className="hover:text-zinc-200">

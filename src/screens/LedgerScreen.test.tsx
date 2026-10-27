@@ -59,7 +59,7 @@ describe("Proposals and review", () => {
     const main = within(await screen.findByRole("main"));
     expect(await main.findByText("object.value")).toBeInTheDocument();
     // a created member is marked "+" (its word on hover) and lists its new values (no "absent" before side)
-    expect(main.getAllByRole("img", { name: "created" }).length).toBeGreaterThan(0);
+    expect(main.getAllByRole("img", { name: "Created" }).length).toBeGreaterThan(0);
     expect(main.getByText(/independent-principal ×1/)).toBeInTheDocument();
     expect(main.getByText("security-lead")).toBeInTheDocument();
     expect(main.getByText(/submitted by release-owner/)).toBeInTheDocument();

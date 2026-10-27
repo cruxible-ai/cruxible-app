@@ -74,7 +74,7 @@ describe("recorded reference world", () => {
     renderApp(`${I}/s/${encodeURIComponent(ASSESSMENT)}`, RECORDED);
     fireEvent.click(await screen.findByRole("button", { name: "Expand justification" }));
     const m = await main();
-    expect(await m.findByText("own words")).toBeInTheDocument();
+    expect(await m.findByText("Own words")).toBeInTheDocument();
     // the ClaimType admits the coordinator self-source contract: own words are admitted evidence, sourced to the principal
     expect(m.getByText("Principal:robertmalone")).toBeInTheDocument();
     expect(m.getByRole("link", { name: "playbill.coordinator-self-source-v1 v1" })).toHaveAttribute(
