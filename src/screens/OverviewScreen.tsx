@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useCards, useInstanceId, useKits, useLines, useNext, useOrient } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import type { NextHealth, NextResult, NextSeverity, OrientResult, Schemas } from "@/api/schemas";
-import { Chip, SignalDot } from "@/components/Chip";
+import { Chip, HealthChip, HealthDot, SignalDot } from "@/components/Chip";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
 import { useAtLink } from "@/lib/at";
@@ -12,7 +12,7 @@ import { lineName, nextRowsByLine, unreadOf } from "@/lib/lines";
 import { wakeOf, type Wake } from "@/lib/schedule";
 import { formatDateTime, formatRelative, humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { term, type Signal } from "@/lib/vocabulary";
+import { healthTone, term, type Signal } from "@/lib/vocabulary";
 
 type OrientLine = Schemas["OrientLine"];
 type LineCard = Schemas["GetLineCard"];
@@ -114,7 +114,10 @@ const HEALTH_ROWS = [
 function unhealthy(next: NextResult | undefined) {
   const status = next?.status;
   if (!status) return [];
-  return HEALTH_ROWS.filter((row) => term("health", status[row].state).signal);
+  return HEALTH_ROWS.filter((row) => {
+    const tone = healthTone(status[row].state);
+    return tone === "waiting" || tone === "wrong";
+  });
 }
 
 /**
@@ -186,7 +189,8 @@ function NeedsYou({
         count={next ? sick.length : null}
         countWord={sick.length ? "need a look" : "all healthy"}
         hideZero
-        signal={sick.some((row) => term("health", next!.status[row].state).signal === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
+        signal={sick.some((row) => healthTone(next!.status[row].state) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
+        healthy={next !== undefined && sick.length === 0}
         detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks · ${healthOpen ? "hide" : "show"}`}
         onClick={onHealth}
         pressed={healthOpen}
@@ -205,6 +209,7 @@ function Tile({
   to,
   onClick,
   pressed,
+  healthy = false,
 }: {
   label: string;
   count: number | null;
@@ -215,12 +220,14 @@ function Tile({
   to?: string;
   onClick?: () => void;
   pressed?: boolean;
+  healthy?: boolean;
 }) {
   const ring = signal === "wrong" ? "border-red-500/50" : signal === "waiting" ? "border-amber-400/50" : "border-zinc-800";
   const body = (
     <>
       <div className="flex items-center gap-1.5 text-[12px] text-zinc-400">
         {signal && <SignalDot signal={signal} title={signal === "wrong" ? "Wrong or blocked" : "Waiting on you"} />}
+        {!signal && healthy && <HealthDot tone="ok" title="Every check is working" />}
         {label}
       </div>
       <div className="mt-1 flex items-baseline gap-1.5">
@@ -436,7 +443,7 @@ function HealthPanel({ next, pending, error }: { next: NextResult | undefined; p
                 <div key={row} className="contents">
                   <dt className="text-zinc-500">{humanize(row)}</dt>
                   <dd className="flex flex-wrap items-baseline gap-2">
-                    <Chip concept="health" value={health.state} />
+                    <HealthChip state={health.state} />
                     {health.repair && <span className="text-[12px] text-zinc-500">{health.repair.required_change}</span>}
                   </dd>
                 </div>

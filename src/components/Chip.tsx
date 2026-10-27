@@ -1,4 +1,4 @@
-import { changeMark, term as termFor, type Concept, type Signal, type Term } from "@/lib/vocabulary";
+import { changeMark, healthTone, term as termFor, type Concept, type HealthTone, type Signal, type Term } from "@/lib/vocabulary";
 
 /**
  * The status chip: a word, with a dot only for the two signals (amber:
@@ -33,6 +33,36 @@ export function Chip(props: ChipProps) {
       title={resolved.meaning}
     >
       {resolved.signal && <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[resolved.signal]}`} />}
+      {resolved.word}
+    </span>
+  );
+}
+
+const HEALTH_DOT: Record<HealthTone, string> = {
+  ...DOT,
+  ok: "bg-emerald-400",
+  off: "border border-zinc-500",
+};
+
+/** A health dot: green working, hollow not observed or not set up, amber or red as everywhere. */
+export function HealthDot({ tone, title }: { tone: HealthTone; title: string }) {
+  return (
+    <span
+      role="img"
+      aria-label={title}
+      title={title}
+      className={`inline-block h-1.5 w-1.5 shrink-0 self-center rounded-full ${HEALTH_DOT[tone]}`}
+    />
+  );
+}
+
+/** A health check's state: its word, with the health dot (see healthTone). */
+export function HealthChip({ state }: { state: string }) {
+  const resolved = termFor("health", state);
+  const tone = healthTone(state);
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] leading-4 text-zinc-300" title={resolved.meaning}>
+      {tone && <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${HEALTH_DOT[tone]}`} />}
       {resolved.word}
     </span>
   );

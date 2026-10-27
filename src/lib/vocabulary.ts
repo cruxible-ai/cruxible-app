@@ -11,7 +11,7 @@ import { humanize } from "./text.ts";
  *   repair to run, an unread inbox item, a due occurrence);
  * - red dot: wrong or blocked (refused, conflicted, not admitted, a failed run);
  * - no dot: everything else (accepted, live, supported, running, retired).
- * There is no green. Every term carries a meaning, shown on hover, that says
+ * There is no green, except on Health (see healthTone). Every term carries a meaning, shown on hover, that says
  * what the word means and, for a signal, what to do. Values the glossary does
  * not know read as their humanized raw value, with no dot.
  */
@@ -191,6 +191,27 @@ const HEALTH: Record<string, Term> = {
   behind: t("Behind", "Behind: the mirror has generations to publish", "waiting"),
   upgrade_available: t("Upgrade available", "Upgrade available: upgrade on the CLI", "waiting"),
 };
+
+/**
+ * Health is the one place a third color earns its keep: a row of checks reads
+ * at a glance when the healthy ones are green. So health states carry a tone
+ * beside their term: `ok` (green: working), `off` (hollow: not observed from
+ * here or not set up), or the term's own signal. Nowhere else uses green.
+ */
+export type HealthTone = Signal | "ok" | "off";
+
+const HEALTH_OK = new Set(["active", "current", "available", "idle", "scheduled", "running", "present", "publishing", "ready"]);
+const HEALTH_OFF = new Set(["not_observed", "not_configured", "not_reported", "not_required", "unscheduled", "never_run", "none", "absent"]);
+
+export function healthTone(state: string): HealthTone | undefined {
+  const signal = HEALTH[state]?.signal;
+  if (signal) return signal;
+  if (HEALTH_OK.has(state)) return "ok";
+  if (HEALTH_OFF.has(state)) return "off";
+  return undefined;
+}
+
+export const HEALTH_LEGEND = "On Health only, a green dot is working and a hollow one is not observed from here or not set up.";
 
 /** A mandate's state. */
 const MANDATE: Record<string, Term> = {
