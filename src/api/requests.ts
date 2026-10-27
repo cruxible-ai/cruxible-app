@@ -35,7 +35,8 @@ export type OkResponse<P extends keyof paths, M extends Method> =
  * routes are absent on purpose: POST /lines/{line}/runs, POST
  * /procedures/{name}/runs, /measurements, /resolution-dispositions, and
  * /lines/{line}/evaluate (which mutates unless dry_run). POST /captures/read
- * needs GOVERNED_WRITE; the console shows Capture cards through get instead.
+ * writes nothing but needs GOVERNED_WRITE (bodies can be private): a Capture
+ * page reads its contents through it, and says so when the token can't.
  */
 export const READ_ROUTES = [
   "GET /api/v1/{instance_id}/head",
@@ -50,6 +51,7 @@ export const READ_ROUTES = [
   "POST /api/v1/{instance_id}/query",
   "POST /api/v1/{instance_id}/next",
   "POST /api/v1/{instance_id}/claims/read-batch",
+  "POST /api/v1/{instance_id}/captures/read",
   "POST /api/v1/{instance_id}/proposals/{proposal_id}/review",
   "POST /api/v1/{instance_id}/procedures/{name}/readings",
 ] as const satisfies readonly `${"GET" | "POST"} ${keyof paths}`[];
@@ -121,6 +123,13 @@ export const LEDGER_PAGE = 50;
 
 /** Activity rows per page (orient section=activity; Overview's feed). */
 export const ACTIVITY_PAGE = 30;
+
+/** The most of a Capture's body the page reads (larger ones point to the CLI). */
+export const CAPTURE_READ_MAX_BYTES = 32 * 1024 * 1024;
+
+export function captureReadBody(capture: string, coordinate: AcceptedCoordinate): RequestBody<"/api/v1/{instance_id}/captures/read", "post"> {
+  return { capture_digest: capture, at: coordinate, max_bytes: CAPTURE_READ_MAX_BYTES };
+}
 
 /** Incoming links per page (get allows up to 200). */
 export const INCOMING_PAGE = 50;

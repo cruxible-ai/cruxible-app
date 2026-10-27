@@ -104,7 +104,7 @@ describe("data-source boundary", () => {
       "/measurements",
       "/resolution-dispositions",
       "/evaluate",
-      "/captures/read",
+      "/captures/erase",
     ];
     for (const route of READ_ROUTES) {
       for (const fragment of forbidden) expect(route).not.toContain(fragment);

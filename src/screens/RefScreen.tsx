@@ -6,6 +6,8 @@ import { ProcedureWithGraph, TriggerDefinition } from "@/components/ontology/Def
 import { Disclosure, Panel, LoadState } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId, shortId } from "@/components/ShortId";
+import { CaptureContents } from "@/components/CaptureContents";
+import { formatSize } from "@/lib/capture-body";
 import { Chip } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { term } from "@/lib/vocabulary";
@@ -40,18 +42,37 @@ export function RefScreen() {
   const full = read.data?.ref ?? formatRef(ref);
   const procedure = cardOf(read.data, "procedure");
   const trigger = cardOf(read.data, "trigger");
+  const capture = cardOf(read.data, "capture");
   // ids that fit stay whole; digests and run ids shorten, whole underneath with copy
   const long = full.length > 40;
+  // A Capture leads with its handle, where it came from and when; its contents follow.
+  const title = capture ? capture.capture : long ? shortId(full, 16) : full;
   return (
     <Page>
       <PageHeader
         kind={refKindLabel(ref)}
-        title={<span title={full}>{long ? shortId(full, 16) : full}</span>}
+        title={<span title={full}>{title}</span>}
         mono
         id={long ? <ShortId value={full} keep={128} className="text-zinc-500" /> : undefined}
         facts={
           read.data && (
             <>
+              {capture && (
+                <>
+                  {capture.source && (
+                    <Fact label="Source">
+                      <span className="font-mono">{capture.source}</span>
+                    </Fact>
+                  )}
+                  <Fact label="Observed" title={capture.observed_at}>
+                    {formatDateTime(capture.observed_at)}
+                  </Fact>
+                  {capture.size != null && <Fact label="Size">{formatSize(capture.size)}</Fact>}
+                  <Fact label="Contract">
+                    <RefLink value={capture.contract} />
+                  </Fact>
+                </>
+              )}
               <Fact label="Kind">{humanize(read.data.kind)}</Fact>
               <Fact label="Generation">
                 <span className="font-mono">{read.data.coordinate.generation}</span>
@@ -70,9 +91,10 @@ export function RefScreen() {
       {read.error && <LoadState error={read.error} />}
       {procedure?.authored && <ProcedureWithGraph spec={procedure.authored} />}
       {trigger && <TriggerDefinition schedule={trigger.schedule} target={trigger.target} />}
+      {capture && <CaptureContents card={capture} />}
       {read.data?.card && (
         <Panel title="Card">
-          <Fields value={rest(read.data.card as Record<string, unknown>, procedure?.authored ? ["authored"] : [])} depth={0} path="" />
+          <Fields value={rest(read.data.card as Record<string, unknown>, omitted(procedure?.authored != null, capture != null))} depth={0} path="" />
         </Panel>
       )}
     </Page>
@@ -80,6 +102,14 @@ export function RefScreen() {
 }
 
 const MAX_DEPTH = 3;
+
+/** Card fields the header or a dedicated panel already shows (a Capture's next is the CLI read in Contents). */
+function omitted(authored: boolean, capture: boolean): string[] {
+  return [
+    ...(authored ? ["authored"] : []),
+    ...(capture ? ["capture", "digest", "source", "observed_at", "size", "contract", "status", "erased", "next"] : []),
+  ];
+}
 
 /** A card without the fields a dedicated panel already shows. */
 function rest(card: Record<string, unknown>, omit: readonly string[]): Record<string, unknown> {

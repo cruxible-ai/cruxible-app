@@ -14,6 +14,7 @@ import {
   LANDING_TRIGGERS_QUERY,
   LEDGER_PAGE,
   ACTIVITY_PAGE,
+  captureReadBody,
   LINE_RUNS_PAGE,
   CLAIM_READ_BATCH_MAX,
   headQuery,
@@ -625,6 +626,28 @@ export function useCard(ref: string | null) {
       return batch.results[0]!;
     },
     ref !== null && ref !== "",
+  );
+}
+
+/**
+ * One Capture's retained body (captures/read) at the page coordinate, up to
+ * CAPTURE_READ_MAX_BYTES. Bodies never change under a digest, so it is read
+ * once; a token below governed_write is refused (the page says so).
+ */
+export function useCaptureRead(capture: string | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return usePinnedQuery(
+    "capture-read",
+    [capture],
+    async (coordinate): Promise<Schemas["CaptureRead"]> =>
+      unwrap(
+        await client.POST("/api/v1/{instance_id}/captures/read", {
+          params: { path: { instance_id: instanceId } },
+          body: captureReadBody(capture!, coordinate),
+        }),
+      ),
+    capture !== null && capture !== "",
   );
 }
 
