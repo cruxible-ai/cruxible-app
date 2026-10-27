@@ -193,8 +193,13 @@ describe("recorded reference world", () => {
     renderApp(`${I}/flow`, RECORDED);
     const flow = within(await screen.findByTestId("flow"));
     expect(flow.getByText("github.repo.snapshot")).toBeInTheDocument();
-    expect(flow.getByText("Retained by Line security.kev-daily")).toBeInTheDocument();
-    expect(flow.getByText("Retained by a direct security.sbom-acquire run")).toBeInTheDocument();
+    // a source says what it is and how it arrives: a fetch Line's host, else its Procedure's gist; who retains it is on hover
+    const kev = flow.getByText("cisa.kev.catalog").closest("[title]")!;
+    expect(within(kev as HTMLElement).getByText(/^From /)).toBeInTheDocument();
+    expect(kev).toHaveAttribute("title", expect.stringContaining("Retained by Line security.kev-daily"));
+    const sbom = within(flow.getByText("cyclonedx.sbom").closest("[title]") as HTMLElement);
+    expect(sbom.getByText("Read one CycloneDX JSON SBOM from the attached workspace")).toBeInTheDocument();
+    expect(sbom.getByText("Workspace file")).toBeInTheDocument();
     // the contract is a tag on the source, linked
     expect(flow.getAllByRole("link", { name: "security.fetched-v1" })[0]).toHaveAttribute("href", `${I}/contracts/security.fetched-v1`);
     // Lines in their own column, named without the shared kit namespace, linked
