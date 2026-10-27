@@ -119,6 +119,9 @@ export const GRAPH_PAGE = 500;
 /** Accepted generations per ledger page. */
 export const LEDGER_PAGE = 50;
 
+/** Activity rows per page (orient section=activity; Overview's feed). */
+export const ACTIVITY_PAGE = 30;
+
 /** Incoming links per page (get allows up to 200). */
 export const INCOMING_PAGE = 50;
 

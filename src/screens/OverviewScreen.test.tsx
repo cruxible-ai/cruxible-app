@@ -21,18 +21,38 @@ describe("Overview", () => {
     expect(strip.getByRole("link", { name: /^Waiting on you Unread inbox 3/ })).toBeInTheDocument();
 
     // coming up: each enabled Line, with what wakes it and what it is waiting on; a stopped one says so
-    const line = await main.findByRole("link", { name: "kev-triage" });
+    const coming = within((await main.findByRole("heading", { name: "Coming up" })).closest("section")!);
+    const line = await coming.findByRole("link", { name: "kev-triage" });
     expect(line).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
-    expect(await main.findByText("Daily at 06:00 UTC")).toBeInTheDocument();
-    expect(main.getByText(/1 scheduled/)).toBeInTheDocument();
-    expect(main.getByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
-    expect(main.getByText("Stopped")).toBeInTheDocument();
+    expect(await coming.findByText("Daily at 06:00 UTC")).toBeInTheDocument();
+    expect(coming.getByText(/1 scheduled/)).toBeInTheDocument();
+    expect(coming.getByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
+    expect(coming.getByText("Stopped")).toBeInTheDocument();
 
     // health folds into its tile until asked for
     expect(main.queryByText("Line dispatch")).not.toBeInTheDocument();
     fireEvent.click(await strip.findByRole("button", { name: /Health/ }));
     expect(await main.findByText("Line dispatch")).toBeInTheDocument();
     expect(await main.findByText("security.kev-catalog")).toBeInTheDocument();
+  });
+
+  it("shows what happened, newest first: a run's start folds into its finish, refusals are red, older pages load on request", async () => {
+    renderApp("/i/inst_fixture");
+    const feed = within(await screen.findByRole("feed", { name: "Activity" }));
+    expect(await feed.findByRole("link", { name: "Generation 42" })).toHaveAttribute("href", "/i/inst_fixture?at=42");
+    expect(feed.getByText(/accepted · 1 change · proposed by release-owner/)).toBeInTheDocument();
+    expect(feed.getByText("Vendor advisory says rel-1 never shipped the build.")).toBeInTheDocument();
+    // one row for the run that started and finished on this page
+    expect(feed.getAllByText("ran · succeeded")).toHaveLength(1);
+    expect(feed.queryByText("started a run")).toBeNull();
+    expect(feed.getByText("landed evidence from cisa.kev.catalog")).toBeInTheDocument();
+    expect(feed.getByText("posted to the inbox")).toBeInTheDocument();
+    const refused = feed.getByText("ran · refused").parentElement!;
+    expect(within(refused).getByRole("img", { name: "Wrong or blocked" })).toBeInTheDocument();
+    expect(feed.getByText("running → stopped")).toBeInTheDocument();
+    fireEvent.click(feed.getByRole("button", { name: "Show older activity" }));
+    expect(await feed.findByText("let due work lapse")).toBeInTheDocument();
+    expect(feed.queryByRole("button", { name: "Show older activity" })).toBeNull();
   });
 
   it("keeps a ?at= pin on every link and names it in the picker", async () => {

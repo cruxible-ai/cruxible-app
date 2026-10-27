@@ -13040,6 +13040,377 @@ export interface components {
             claim: string | components["schemas"]["ClaimVersionReference"];
         };
         /**
+         * OrientActivityCaptureErased
+         * @description A Capture's retained body was erased, by ``by``; ``ref`` is the Capture.
+         *
+         *     ``at`` is when the erasure was recorded. ``unavailable`` marks a lost
+         *     erasure payload: the erasure is listed without the Capture it names.
+         */
+        OrientActivityCaptureErased: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "capture_erased";
+            /** Ref */
+            ref?: string | null;
+            /** Capture */
+            capture?: string | null;
+            /** Contract */
+            contract?: string | null;
+            /** By */
+            by?: string | null;
+            /**
+             * Unavailable
+             * @default false
+             */
+            unavailable?: boolean;
+        };
+        /**
+         * OrientActivityCaptureLanded
+         * @description A run landed a Capture: ``capture`` is its handle, ``ref`` its ``Capture:<digest>``.
+         *
+         *     ``contract`` names the CaptureContract it was taken under and
+         *     ``logical_source`` the external source it read, when it read one. ``at``
+         *     is the landing run's evaluation instant, like its start and finish.
+         *     ``unavailable`` marks a lost payload or an unreadable Capture: the landing
+         *     is listed by its run alone.
+         */
+        OrientActivityCaptureLanded: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "capture_landed";
+            /** Ref */
+            ref?: string | null;
+            /** Capture */
+            capture?: string | null;
+            /** Contract */
+            contract?: string | null;
+            /** Logical Source */
+            logical_source?: string | null;
+            /** Run */
+            run: string;
+            /** Line */
+            line?: string | null;
+            /**
+             * Unavailable
+             * @default false
+             */
+            unavailable?: boolean;
+        };
+        /**
+         * OrientActivityGenerationAccepted
+         * @description The ledger accepted a generation; the fields are an ``OrientGeneration``'s.
+         *
+         *     ``ref`` (and ``proposal``) is the proposal whose admission accepted it, which
+         *     ``get`` reads; genesis has neither. ``because`` is cut at 500 characters
+         *     (``because_truncated``). ``at`` is its acceptance time (the accepted
+         *     candidate's timestamp, or genesis's commit time); a candidate's timestamp
+         *     need not follow sequence, so the row is placed no later than the
+         *     generation accepted after it.
+         */
+        OrientActivityGenerationAccepted: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "generation_accepted";
+            /** Ref */
+            ref?: string | null;
+            /** Sequence */
+            sequence: number;
+            /** Git Oid */
+            git_oid: string;
+            /** Proposal */
+            proposal?: string | null;
+            /** Proposer */
+            proposer?: string | null;
+            /**
+             * Approvals
+             * @default []
+             */
+            approvals?: string[];
+            /** Because */
+            because?: string | null;
+            /**
+             * Because Truncated
+             * @default false
+             */
+            because_truncated?: boolean;
+            /**
+             * Members
+             * @default 0
+             */
+            members?: number;
+        };
+        /**
+         * OrientActivityInboxDisposed
+         * @description An agent recorded a decision on an inbox item: acknowledged, dismissed or linked.
+         *
+         *     ``at`` is when the decision was recorded.
+         */
+        OrientActivityInboxDisposed: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "inbox_disposed";
+            /** Ref */
+            ref: string;
+            /** Line */
+            line: string;
+            /**
+             * Disposition
+             * @enum {string}
+             */
+            disposition: "acknowledged" | "dismissed" | "linked";
+        };
+        /**
+         * OrientActivityInboxPosted
+         * @description A Line's run posted a new inbox item; ``ref`` is its id, which ``inbox get`` reads.
+         *
+         *     Only a new item is listed: a run posting the same payload again counts a
+         *     sighting on the item and is not new work. ``at`` is when the posting was
+         *     recorded: a run posts at its own evaluation instant.
+         */
+        OrientActivityInboxPosted: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "inbox_posted";
+            /** Ref */
+            ref: string;
+            /** Line */
+            line: string;
+            /** Procedure */
+            procedure: string;
+            /** Run */
+            run: string;
+        };
+        /**
+         * OrientActivityLineStateChanged
+         * @description A Line's enablement moved from ``previous`` to ``state``; ``ref`` is the Line.
+         *
+         *     The states read as the ``lines`` section reads them: enabling makes a Line
+         *     ``running``; a stop makes it ``stopped`` (``reason`` says why), or
+         *     ``disabled`` when deliberately disabled or stopped with no reason (a
+         *     segment ending before its successor opens). ``previous`` is absent the
+         *     first time a Line is enabled. A daemon restart keeps a running Line
+         *     running and is not listed; ``stalled`` is read from due work, never
+         *     recorded, so it never appears here. ``at`` is when the enable or stop was
+         *     recorded.
+         */
+        OrientActivityLineStateChanged: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "line_state_changed";
+            /** Ref */
+            ref: string;
+            /** Line */
+            line: string;
+            /** Previous */
+            previous?: ("running" | "stalled" | "stopped" | "disabled") | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "running" | "stalled" | "stopped" | "disabled";
+            /** Reason */
+            reason?: ("disabled" | "line_changed" | "line_retired" | "trigger_changed" | "epoch_changed" | "credential_revoked" | "credential_unbound" | "principal_inactive" | "credential_scope_changed" | "permission_insufficient" | "authentication_changed") | null;
+            /** Detail */
+            detail?: string | null;
+        };
+        /**
+         * OrientActivityOccurrenceDue
+         * @description A Trigger made one occurrence of a Line pending work, eligible from ``eligible_at``.
+         *
+         *     ``trigger`` is the Trigger that derived it, absent for an explicit
+         *     evaluation that names none. ``ref`` is the Line. ``at`` is when the
+         *     evaluation that found it recorded it pending.
+         */
+        OrientActivityOccurrenceDue: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "occurrence_due";
+            /** Ref */
+            ref: string;
+            /** Line */
+            line: string;
+            /** Trigger */
+            trigger?: string | null;
+            /** Occurrence */
+            occurrence: string;
+            /**
+             * Eligible At
+             * Format: date-time
+             */
+            eligible_at: string;
+        };
+        /**
+         * OrientActivityOccurrenceLapsed
+         * @description A pending timed tick lapsed as a new enablement opened; a retry still runs it.
+         *
+         *     ``at`` is when the enablement that lapsed it was recorded.
+         */
+        OrientActivityOccurrenceLapsed: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "occurrence_lapsed";
+            /** Ref */
+            ref: string;
+            /** Line */
+            line: string;
+            /** Occurrence */
+            occurrence: string;
+        };
+        /**
+         * OrientActivityRecordUnavailable
+         * @description A Line dispatch or inbox record whose payload is lost: what it recorded is unknown.
+         *
+         *     ``at`` is the lost record's own instant. A lost inbox payload also stops
+         *     the inbox before the records after it (``cruxible.inbox.unavailable``),
+         *     so none of those are listed until it is restored.
+         */
+        OrientActivityRecordUnavailable: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "record_unavailable";
+            /**
+             * Journal
+             * @enum {string}
+             */
+            journal: "line_dispatch" | "line_inbox";
+        };
+        /**
+         * OrientActivityRunFinished
+         * @description A Procedure run finished with ``status``, in the runs section's vocabulary.
+         *
+         *     ``at`` is the run's evaluation instant, not the wall time it finished:
+         *     every record of a run carries that one instant (the executor's
+         *     deterministic clock), so a finish lists beside its start, above it.
+         *     ``unavailable`` marks a lost payload: a lost final payload reads as
+         *     ``operational_failed``, as the runs section shows it.
+         */
+        OrientActivityRunFinished: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "run_finished";
+            /** Ref */
+            ref: string;
+            /** Run */
+            run: string;
+            /** Procedure */
+            procedure?: string | null;
+            /** Line */
+            line?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "succeeded" | "admission_refused" | "node_refused" | "operational_failed" | "internal_failed" | "halted";
+            /**
+             * Unavailable
+             * @default false
+             */
+            unavailable?: boolean;
+        };
+        /**
+         * OrientActivityRunStarted
+         * @description A Procedure run was admitted; ``ref`` (``ProcedureRun:<run>``) reads it.
+         *
+         *     ``at`` is the run's evaluation instant, the ``started_at`` the runs
+         *     section shows. ``unavailable`` marks a run whose admission payload is
+         *     lost: the run is still listed, without its Procedure or Line.
+         */
+        OrientActivityRunStarted: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "run_started";
+            /** Ref */
+            ref: string;
+            /** Run */
+            run: string;
+            /** Procedure */
+            procedure?: string | null;
+            /** Line */
+            line?: string | null;
+            /**
+             * Unavailable
+             * @default false
+             */
+            unavailable?: boolean;
+        };
+        /**
          * OrientArtifactCounts
          * @description How many of each family exist; each operational family is its own section.
          *
@@ -13710,8 +14081,9 @@ export interface components {
          *       ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,
          *       ``predictions``, ``mandates``), the principal registry (``principals``),
          *       the governed policies in force (``policies``), the accepted generations
-         *       newest first (``generations``), the Subject graph (``graph``) or the
-         *       pins between live definitions (``pins``), paged.
+         *       newest first (``generations``), the Subject graph (``graph``), the
+         *       pins between live definitions (``pins``) or what just happened, newest
+         *       first (``activity``), paged.
          *       The default map counts the operational families under ``artifacts`` and
          *       never inlines their rows.
          *
@@ -13749,7 +14121,7 @@ export interface components {
             attention?: components["schemas"]["OrientAttention"] | null;
             kind_detail?: components["schemas"]["OrientKindDetail"] | null;
             /** Section */
-            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins") | null;
+            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity") | null;
             /** Documents */
             documents?: components["schemas"]["OrientDocument"][] | null;
             /** Procedures */
@@ -13783,6 +14155,8 @@ export interface components {
             graph?: components["schemas"]["OrientGraph"] | null;
             /** Pins */
             pins?: components["schemas"]["OrientPin"][] | null;
+            /** Activity */
+            activity?: (components["schemas"]["OrientActivityGenerationAccepted"] | components["schemas"]["OrientActivityOccurrenceDue"] | components["schemas"]["OrientActivityOccurrenceLapsed"] | components["schemas"]["OrientActivityRunStarted"] | components["schemas"]["OrientActivityRunFinished"] | components["schemas"]["OrientActivityCaptureLanded"] | components["schemas"]["OrientActivityInboxPosted"] | components["schemas"]["OrientActivityInboxDisposed"] | components["schemas"]["OrientActivityLineStateChanged"] | components["schemas"]["OrientActivityCaptureErased"] | components["schemas"]["OrientActivityRecordUnavailable"])[] | null;
             /**
              * Truncated
              * @default false
@@ -26302,7 +26676,7 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: string | null;
-                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins") | null;
+                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity") | null;
                 limit?: number;
                 cursor?: string | null;
                 /** @description An accepted generation's Git OID, or a unique prefix of at least 12 hex characters; the four coordinate fields also pin one. */

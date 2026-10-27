@@ -13,6 +13,7 @@ import {
   INCOMING_PAGE,
   LANDING_TRIGGERS_QUERY,
   LEDGER_PAGE,
+  ACTIVITY_PAGE,
   LINE_RUNS_PAGE,
   CLAIM_READ_BATCH_MAX,
   headQuery,
@@ -173,6 +174,24 @@ function useOrientFetch() {
         },
       }),
     );
+}
+
+/**
+ * One page of what happened, newest first (orient section=activity): accepted
+ * generations, runs, Captures landing, occurrences coming due, inbox posts,
+ * Line state changes. Operational state, read live at the latest head
+ * whatever the page is pinned to (like the generation box's list).
+ */
+export function useActivity(cursor?: string) {
+  const orient = useOrientFetch();
+  const instanceId = useInstanceId();
+  const coordinate = useHead(null).data?.coordinate;
+  return useQuery({
+    queryKey: ["activity", instanceId, coordinate?.git_oid ?? null, cursor ?? null],
+    enabled: coordinate !== undefined,
+    staleTime: 15_000,
+    queryFn: () => orient(coordinate!, { section: "activity", limit: ACTIVITY_PAGE, ...(cursor !== undefined ? { cursor } : {}) }),
+  });
 }
 
 /** The orient map's first page: kinds with counts, artifact counts, attention, floor, you. */

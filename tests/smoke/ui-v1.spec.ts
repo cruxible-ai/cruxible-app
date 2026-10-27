@@ -9,7 +9,10 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   const main = page.getByRole("main");
   // What needs you, then each enabled Line with what wakes it (prefix dropped); kinds stay in the sidebar.
   await expect(main.getByRole("region", { name: "Needs you" }).getByRole("link", { name: /Next \d/ })).toBeVisible();
-  await expect(main.getByRole("link", { name: "kev-triage", exact: true })).toBeVisible();
+  const comingUp = main.locator("section", { has: page.getByRole("heading", { name: "Coming up" }) });
+  await expect(comingUp.getByRole("link", { name: "kev-triage", exact: true })).toBeVisible();
+  // The activity feed: what happened, newest first.
+  await expect(main.getByRole("feed", { name: "Activity" }).getByRole("link", { name: "Generation 42" })).toBeVisible();
   await expect(main.getByText("Daily at 06:00 UTC")).toBeVisible();
   await expect(main.getByText("security.kev-catalog")).toBeVisible();
   await expect(page.locator("aside").getByText("Generation")).toBeVisible();

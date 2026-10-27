@@ -10,6 +10,7 @@ export type OrientKindSummary = Schemas["OrientKindSummary"];
 export type OrientPredicate = Schemas["OrientPredicate"];
 export type OrientSubjectKind = Schemas["OrientSubjectKind"];
 export type OrientSection = NonNullable<OrientResult["section"]>;
+export type OrientActivity = NonNullable<OrientResult["activity"]>[number];
 export type InstalledKit = Schemas["InstalledKit"];
 export type NextResult = Schemas["NextResult"];
 export type NextItem = Schemas["NextItem"];

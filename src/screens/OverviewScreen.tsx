@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useCards, useInstanceId, useKits, useLines, useNext, useOrient } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import type { NextHealth, NextResult, NextSeverity, OrientResult, Schemas } from "@/api/schemas";
+import { ActivityFeed } from "@/components/ActivityFeed";
 import { Chip, HealthChip, SignalDot } from "@/components/Chip";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
@@ -28,6 +29,9 @@ export function OverviewScreen() {
   const next = useNext({ limit: NEXT_PAGE });
   const lines = useLines();
   const [showHealth, setShowHealth] = useState(false);
+  // Line names without the namespace every Line shares, for the feed and Coming up alike.
+  const linePrefix = sharedPrefix((lines.data?.rows ?? []).map((row) => lineName(row.line)));
+  const lineLabel = useCallback((name: string) => (name.startsWith(linePrefix) ? name.slice(linePrefix.length) : name), [linePrefix]);
   usePageTitle("Overview");
 
   if (orient.isPending) return <LoadState />;
@@ -60,9 +64,10 @@ export function OverviewScreen() {
 
       <NeedsYou orient={o} next={next.data} onHealth={() => setShowHealth((v) => !v)} healthOpen={showHealth} />
 
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
-        <ComingUp rows={lines.data?.rows} pending={lines.isPending} error={lines.error} />
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
+        <ActivityFeed label={lineLabel} />
         <div className="space-y-5">
+          <ComingUp rows={lines.data?.rows} pending={lines.isPending} error={lines.error} />
           {(showHealth || unhealthy(next.data).length > 0) && <HealthPanel next={next.data} pending={next.isPending} error={next.error} />}
           <KitsPanel />
         </div>
@@ -331,29 +336,53 @@ function UpcomingRow({ u, label, now }: { u: Upcoming; label: string; now: Date 
   const lastTerm = last ? term("run", last.status) : null;
   const state = u.row.enablement && u.row.enablement !== "running" ? term("line", u.row.enablement) : null;
   return (
-    <div className="grid grid-cols-[minmax(0,13rem)_minmax(0,1fr)_max-content] items-baseline gap-x-4 py-1.5 text-[13px]">
-      <div className="min-w-0">
+    <div className="py-1.5 text-[13px]">
+      <div className="flex items-baseline gap-2">
         <Link
           to={link(`/i/${instanceId}/lines/${encodeURIComponent(u.name)}`)}
-          className="block truncate font-mono text-[12px] text-zinc-200 hover:underline"
+          className="min-w-0 truncate font-mono text-[12px] text-zinc-100 hover:underline"
           title={u.name}
         >
           {label}
         </Link>
         {state && (
-          <span className="inline-flex items-center gap-1 text-[12px] text-zinc-400">
+          <span className="inline-flex shrink-0 items-center gap-1 text-[12px] text-zinc-400">
             {state.signal && <SignalDot signal={state.signal} title={state.meaning} />}
             {state.word}
           </span>
         )}
+        <span className="ml-auto shrink-0 text-right text-[12px]">
+          {u.due ? (
+            <span className="inline-flex items-center gap-1 text-zinc-200">
+              <SignalDot signal="waiting" title={term("occurrence", "due").meaning} />
+              {u.row.due ?? 1} due now
+            </span>
+          ) : (u.row.waiting ?? 0) > 0 && u.soonest ? (
+            <span className="text-zinc-300" title={formatDateTime(u.soonest.toISOString())}>
+              {u.row.waiting} scheduled · {formatRelative(u.soonest, now)}
+            </span>
+          ) : last && lastTerm ? (
+            <Link
+              to={link(`/i/${instanceId}/runs/${encodeURIComponent(last.run.replace(/^ProcedureRun:/, ""))}`)}
+              className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200"
+              title={`${lastTerm.meaning} · ${formatDateTime(last.started_at)}`}
+            >
+              {lastTerm.signal && <SignalDot signal={lastTerm.signal} title={lastTerm.meaning} />}
+              Last run {formatRelative(last.started_at, now)}
+              {last.status !== "succeeded" && ` · ${lastTerm.word.toLowerCase()}`}
+            </Link>
+          ) : (
+            <span className="text-zinc-600">No runs</span>
+          )}
+        </span>
       </div>
-      <div className="min-w-0 text-zinc-300">
+      <div className="min-w-0 text-[12px] text-zinc-400">
         {u.card === undefined ? (
           <span className="text-zinc-600">…</span>
         ) : u.wakes.length === 0 ? (
           <span className="text-zinc-500">Runs when asked</span>
         ) : (
-          <ul className="space-y-0.5">
+          <ul>
             {u.wakes.map((w) => (
               <li key={w.words} className="truncate" title={w.words}>
                 {sentence(w.words)}
@@ -366,30 +395,6 @@ function UpcomingRow({ u, label, now }: { u: Upcoming; label: string; now: Date 
               </li>
             ))}
           </ul>
-        )}
-      </div>
-      <div className="text-right text-[12px]">
-        {u.due ? (
-          <span className="inline-flex items-center gap-1 text-zinc-200">
-            <SignalDot signal="waiting" title={term("occurrence", "due").meaning} />
-            {u.row.due ?? 1} due now
-          </span>
-        ) : (u.row.waiting ?? 0) > 0 && u.soonest ? (
-          <span className="text-zinc-300" title={formatDateTime(u.soonest.toISOString())}>
-            {u.row.waiting} scheduled · {formatRelative(u.soonest, now)}
-          </span>
-        ) : last && lastTerm ? (
-          <Link
-            to={link(`/i/${instanceId}/runs/${encodeURIComponent(last.run.replace(/^ProcedureRun:/, ""))}`)}
-            className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200"
-            title={`${lastTerm.meaning} · ${formatDateTime(last.started_at)}`}
-          >
-            {lastTerm.signal && <SignalDot signal={lastTerm.signal} title={lastTerm.meaning} />}
-            Last run {formatRelative(last.started_at, now)}
-            {last.status !== "succeeded" && ` · ${lastTerm.word.toLowerCase()}`}
-          </Link>
-        ) : (
-          <span className="text-zinc-600">No runs</span>
         )}
       </div>
     </div>
