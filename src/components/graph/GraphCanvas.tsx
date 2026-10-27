@@ -9,7 +9,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Maximize2, Minimize2, X } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, X } from "lucide-react";
 import { FloatingEdge } from "./FloatingEdge";
 import { RoutedEdge } from "./RoutedEdge";
 import { FocusChip } from "./FocusChip";
@@ -38,8 +38,8 @@ const PANEL_WIDTH = 320;
  * Shared graph shell: floating straight edges, one selection model (node →
  * 1-hop neighborhood stays lit, everything else dims; edge → edge + endpoints
  * stay lit), a floating context panel over the canvas, recenter-on-select
- * offset for the panel, and a fullscreen toggle. Esc clears selection, then
- * exits fullscreen. All graph screens render through this so the philosophy
+ * offset for the panel, and an expand toggle (a taller canvas in place). Esc clears selection, then
+ * collapses it. All graph screens render through this so the philosophy
  * stays identical everywhere.
  */
 export function GraphCanvas(props: {
@@ -261,11 +261,9 @@ function Canvas({
 
   return (
     <div
-      className={
-        fullscreen
-          ? "fixed inset-0 z-50 flex flex-col bg-zinc-950 p-3"
-          : `relative flex flex-col ${className}`
-      }
+      // Expanded = a taller canvas in place (the page scrolls), never full screen.
+      className={`relative flex flex-col ${className}`}
+      style={fullscreen ? { height: "85vh", minHeight: "85vh", flex: "none" } : undefined}
     >
       <div className="relative min-h-0 flex-1 overflow-hidden border border-zinc-800">
         <ReactFlow
@@ -304,10 +302,11 @@ function Canvas({
 
         <button
           onClick={() => setFullscreen((f) => !f)}
-          title={fullscreen ? "Exit full screen (Esc)" : "Full screen"}
+          title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
+          aria-label={fullscreen ? "Make the graph smaller" : "Make the graph taller"}
           className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
         >
-          {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          {fullscreen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
         </button>
 
         {panel && (

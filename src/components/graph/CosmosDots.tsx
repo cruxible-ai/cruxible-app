@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { Graph, type GraphConfigInterface } from "@cosmograph/cosmos";
-import { Maximize2, Minimize2, Minus, Plus, Scan, X } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, Minus, Plus, Scan, X } from "lucide-react";
 import type { GraphPanelApi, GraphSelection } from "./GraphCanvas";
 import type { LayoutUpdate } from "./layout.worker";
 import { FocusChip } from "./FocusChip";
@@ -640,11 +640,9 @@ export function CosmosDots({
 
   return (
     <div
-      className={
-        fullscreen
-          ? "fixed inset-0 z-50 flex flex-col bg-zinc-950 p-3"
-          : `relative flex flex-col ${className}`
-      }
+      // Expanded = a taller canvas in place (the page scrolls), never full screen.
+      className={`relative flex flex-col ${className}`}
+      style={fullscreen ? { height: "85vh", minHeight: "85vh", flex: "none" } : undefined}
     >
       <div className="relative min-h-0 flex-1 overflow-hidden border border-zinc-800">
         <div
@@ -742,10 +740,11 @@ export function CosmosDots({
 
         <button
           onClick={() => setFullscreen((f) => !f)}
-          title={fullscreen ? "Exit full screen (Esc)" : "Full screen"}
+          title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
+          aria-label={fullscreen ? "Make the graph smaller" : "Make the graph taller"}
           className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
         >
-          {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          {fullscreen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
         </button>
 
         {panel && (
