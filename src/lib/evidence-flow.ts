@@ -244,14 +244,22 @@ const SECTION_GAP = 14;
 
 const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : Number.POSITIVE_INFINITY);
 
-/** Stack nodes downward in order of their desired centre, never overlapping. */
-function pack<T extends { id: string; desired: number; kind: PlacedKind }>(items: T[], top: number): Map<string, number> {
+/**
+ * Stack nodes downward in order of their desired centre, never overlapping.
+ * `compact` keeps that order but starts at the top with no gaps, so a short
+ * column never leaves the top of the page empty beside a long one.
+ */
+function pack<T extends { id: string; desired: number; kind: PlacedKind }>(
+  items: T[],
+  top: number,
+  compact = false,
+): Map<string, number> {
   const out = new Map<string, number>();
   let bottom = top;
   const ordered = [...items].sort((a, b) => a.desired - b.desired || byText(a.id, b.id));
   for (const item of ordered) {
     const h = HEIGHT[item.kind];
-    const want = Number.isFinite(item.desired) ? item.desired - h / 2 : bottom;
+    const want = !compact && Number.isFinite(item.desired) ? item.desired - h / 2 : bottom;
     const y = Math.max(want, bottom);
     out.set(item.id, y);
     bottom = y + h + GAP[item.kind];
@@ -296,11 +304,13 @@ export function layoutFlow(model: FlowModel): FlowLayout {
       desired: mean((outgoing.get(c.id) ?? []).map((to) => rowY.get(to)).filter((y): y is number => y !== undefined)),
     })),
     top,
+    true,
   );
   const centre = (id: string, kind: PlacedKind) => (contractY.get(id) ?? 0) + HEIGHT[kind] / 2;
   const sourceY = pack(
     of("source").map((s) => ({ id: s.id, kind: "source" as const, desired: mean((outgoing.get(s.id) ?? []).map((to) => centre(to, "contract"))) })),
     top,
+    true,
   );
 
   const placed: Placed[] = [

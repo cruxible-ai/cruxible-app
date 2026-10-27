@@ -17,6 +17,7 @@ import {
   type Placed,
 } from "@/lib/evidence-flow";
 import { lineName } from "@/lib/lines";
+import { FLOW_COLOR } from "@/lib/palette";
 import { retainedByWords } from "@/lib/definitions";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -243,7 +244,7 @@ function FlowCell({
   if (node.kind === "source") {
     return (
       <div
-        style={style}
+        style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.source}` }}
         className={`${base} flex-col items-stretch justify-center gap-0 border border-zinc-800 bg-zinc-900/60 px-2 leading-4`}
         title={node.detail ? `${node.label}: ${node.detail}` : node.label}
         {...hover}
@@ -259,7 +260,7 @@ function FlowCell({
   if (node.kind === "contract") {
     const producers = node.producers ?? [];
     return (
-      <div style={style} className={`${base} flex-col items-stretch justify-center gap-0 border border-zinc-700 bg-zinc-900 px-2 leading-4`} {...hover}>
+      <div style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.contract}` }} className={`${base} flex-col items-stretch justify-center gap-0 border border-zinc-700 bg-zinc-900 px-2 leading-4`} {...hover}>
         <div className="flex items-center gap-1.5">
           <Link
             to={link(`/i/${instanceId}/contracts/${encodeURIComponent(node.label)}`)}
@@ -293,8 +294,8 @@ function FlowCell({
     const target = node.detail ?? "";
     return (
       <div
-        style={style}
-        className={`${base} flex-col items-stretch justify-center gap-0 border-l-2 border-zinc-600 pl-2 leading-4`}
+        style={{ ...style, borderLeftColor: FLOW_COLOR.trigger }}
+        className={`${base} flex-col items-stretch justify-center gap-0 border-l-2 pl-2 leading-4`}
         title={node.sources?.length ? `fires on landings from ${node.sources.join(", ")}` : "fires on any landing under its contract"}
         {...hover}
       >
@@ -321,7 +322,7 @@ function FlowCell({
   // claim_type
   const kind = node.group ?? "";
   return (
-    <div style={style} className={`${base} pl-3 text-[12px]`} title={node.detail} {...hover}>
+    <div style={{ ...style, borderLeft: `2px solid ${FLOW_COLOR.claimType}` }} className={`${base} pl-3 text-[12px]`} title={node.detail} {...hover}>
       <Link
         to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(node.detail ?? "")}`)}
         className="truncate font-mono text-zinc-300 hover:underline"

@@ -15,6 +15,7 @@ import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } fr
 import type { RunMarks, StepMark } from "@/lib/run-marks";
 import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
+import { ROLE_COLOR } from "@/lib/palette";
 
 /**
  * A Procedure as a left-to-right graph: one node per step, typed by its role
@@ -52,7 +53,7 @@ const ROLE_ICON: Record<StepRole, LucideIcon> = {
   terminal: Flag,
 };
 
-/** One border treatment per role; zinc only (color is for the two signals). */
+/** One border treatment per role; the role's color (palette.ts) is the accent on the left edge and icon. */
 const ROLE_BOX: Record<StepRole, string> = {
   input: "border-dashed border-zinc-700 bg-zinc-950",
   trigger: "border-dashed border-zinc-700 bg-zinc-950",
@@ -94,11 +95,15 @@ const MAX_WIDTH = 210;
 function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
   const Icon = ROLE_ICON[data.role];
   return (
-    <div className={`h-full w-full overflow-hidden border px-2 py-1.5 ${ROLE_BOX[data.role]}`} title={data.kindMeaning}>
+    <div
+      className={`h-full w-full overflow-hidden border px-2 py-1.5 ${ROLE_BOX[data.role]}`}
+      style={{ borderLeftColor: ROLE_COLOR[data.role].color, borderLeftWidth: 3 }}
+      title={data.kindMeaning}
+    >
       <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
       <div className="flex h-4 items-center gap-1.5 text-[11px] leading-4">
-        <Icon className="h-3 w-3 shrink-0 text-zinc-400" aria-hidden />
-        <span className="text-zinc-500">{data.kindWord}</span>
+        <Icon className="h-3 w-3 shrink-0" style={{ color: ROLE_COLOR[data.role].color }} aria-hidden />
+        <span style={{ color: ROLE_COLOR[data.role].color }}>{data.kindWord}</span>
         {data.name && <span className="truncate font-mono text-[12px] text-zinc-100">{data.name}</span>}
       </div>
       {data.lines.map((line, i) => (
@@ -428,7 +433,24 @@ export function ProcedureGraph({
         recenter={false}
         nodeName={nodeName}
         fitPadding={FIT_PADDING}
+        overlay={<RoleLegend roles={nodes.map((n) => n.data.role)} />}
       />
     </div>
+  );
+}
+
+/** The colors of the roles this graph uses, in reading order. */
+function RoleLegend({ roles }: { roles: StepRole[] }) {
+  const order: StepRole[] = ["trigger", "input", "source", "tap", "call", "invoke", "guard", "shape", "terminal"];
+  const present = order.filter((r) => roles.includes(r));
+  return (
+    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 border border-zinc-800 bg-zinc-950/90 px-2 py-0.5 text-[11px] text-zinc-400">
+      {present.map((r) => (
+        <span key={r} className="inline-flex items-center gap-1">
+          <span className="h-2 w-2 shrink-0" style={{ backgroundColor: ROLE_COLOR[r].color }} aria-hidden />
+          {ROLE_COLOR[r].legend}
+        </span>
+      ))}
+    </span>
   );
 }
