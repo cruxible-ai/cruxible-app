@@ -64,6 +64,8 @@ export function GraphCanvas(props: {
   nodeName?: (id: string) => string;
   /** Space fitView leaves around the graph, as a share of the canvas (default 0.12). */
   fitPadding?: number;
+  /** Offer the taller-canvas toggle (default true); a page that is already all graph leaves it off. */
+  expandable?: boolean;
 }) {
   return (
     <ReactFlowProvider>
@@ -86,6 +88,7 @@ function Canvas({
   recenter = true,
   nodeName,
   fitPadding = 0.12,
+  expandable = true,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
@@ -328,14 +331,16 @@ function Canvas({
           </div>
         )}
 
-        <button
-          onClick={toggleTall}
-          title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
-          aria-label={fullscreen ? "Make the graph smaller" : "Make the graph taller"}
-          className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-        >
-          {fullscreen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
-        </button>
+        {expandable && (
+          <button
+            onClick={toggleTall}
+            title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
+            aria-label={fullscreen ? "Make the graph smaller" : "Make the graph taller"}
+            className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+          >
+            {fullscreen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+          </button>
+        )}
 
         {panel && (
           <div

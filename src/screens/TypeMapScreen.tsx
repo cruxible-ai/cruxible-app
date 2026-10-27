@@ -285,6 +285,7 @@ export function TypeMapScreen() {
         selectRequest={selectRequest}
         className="min-h-0 flex-1"
         nodeName={labelOf}
+        expandable={false}
         overlay={
           <>
             <MapLegend kinds={graph.nodes.length} links={graph.edges.length} undeclared={graph.nodes.some((n) => n.referencedOnly)} />
