@@ -13118,8 +13118,8 @@ export interface components {
          *     ``get`` reads; genesis has neither. ``because`` is cut at 500 characters
          *     (``because_truncated``). ``at`` is its acceptance time (the accepted
          *     candidate's timestamp, or genesis's commit time); a candidate's timestamp
-         *     need not follow sequence, so the row is placed no later than the
-         *     generation accepted after it.
+         *     need not follow sequence, so the row is placed at the latest acceptance
+         *     time at or below it in sequence.
          */
         OrientActivityGenerationAccepted: {
             /**
