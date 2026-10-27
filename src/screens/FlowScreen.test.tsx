@@ -12,10 +12,10 @@ describe("Evidence flow", () => {
     const flow = within(await screen.findByTestId("flow", {}, { timeout: 8000 }));
     // sources, with who retains them and the contract they're captured under as a tag
     expect(flow.getByText("cisa.kev.catalog")).toBeInTheDocument();
-    expect(flow.getByText("retained by a direct security.kev-acquire run")).toBeInTheDocument();
+    expect(flow.getByText("Retained by a direct security.kev-acquire run")).toBeInTheDocument();
     // Lines in their own column, linked, with what starts them
     expect(flow.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/kev-triage`);
-    expect(flow.getByText("when cisa.kev.catalog lands")).toBeInTheDocument();
+    expect(flow.getByText("When cisa.kev.catalog lands")).toBeInTheDocument();
     // ClaimTypes under their kind
     expect(flow.getByRole("link", { name: "security.vulnerability" })).toHaveAttribute("href", `${I}/kinds/security.vulnerability`);
     expect(flow.getByRole("link", { name: "kev_listed" })).toBeInTheDocument();

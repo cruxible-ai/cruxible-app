@@ -12,6 +12,7 @@ import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
 import { retainedByWords, type Retention } from "@/lib/definitions";
 import { contractName, contractProducers, providerName, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
+import { sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { contractSentence, readContractTerms, termRows } from "@/lib/contract-terms";
 import { roleWord, term } from "@/lib/vocabulary";
@@ -52,7 +53,7 @@ export function ContractScreen() {
   // The terms are in the stored contract (the proof envelope); the card carries only grade and source kinds.
   const proof = useGet(`CaptureContract:${name}`, "proof");
   const terms = readContractTerms(proof.data?.proof);
-  const sentence = terms ? contractSentence(terms) : null;
+  const summaryLine = terms ? contractSentence(terms) : null;
   const claimTypes = useClaimTypes();
   const lines = useLines();
   const pins = usePins();
@@ -81,7 +82,7 @@ export function ContractScreen() {
         kind="Capture contract"
         title={name}
         mono
-        summary={sentence ?? undefined}
+        summary={summaryLine ?? undefined}
         facts={
           <>
             <Fact label="State">
@@ -90,14 +91,14 @@ export function ContractScreen() {
             <Fact label="Version">
               <span className="font-mono">v{contract.version}</span>
             </Fact>
-            {definition.grade && !terms?.grade && <Fact label="Grade">{definition.grade}</Fact>}
+            {definition.grade && !terms?.grade && <Fact label="Grade">{sentence(definition.grade)}</Fact>}
             <Fact label="Admitted by">{admitting.length} ClaimTypes</Fact>
             <Fact label="Required by">{required.length} ClaimTypes</Fact>
           </>
         }
       />
 
-      <FlowHeading step="Input" words="where Captures under it come from" />
+      <FlowHeading step="Input" words="Where Captures under it come from" />
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <Panel title="Logical sources" meta={<span title="A Capture is retained under a contract and a logical source: what was read. The steps that name it retain it; a landing Trigger selects it.">{sources.length}</span>}>
@@ -127,7 +128,7 @@ export function ContractScreen() {
               const group = unnamed.filter(test);
               return group.length > 0 ? (
                 <div key={words} className="text-zinc-500" title={title}>
-                  also retained by {retainedByWords(group)}, {words}
+                  Also retained by {retainedByWords(group)}, {words}
                 </div>
               ) : null;
             })}
@@ -177,7 +178,7 @@ export function ContractScreen() {
         </Panel>
       </div>
 
-      <FlowHeading step="Contract" words="what a Capture under it is" />
+      <FlowHeading step="Contract" words="What a Capture under it is" />
       <Panel title="Terms" meta={terms?.format ? <span className="font-mono">{terms.format}</span> : undefined}>
         {proof.isPending && <LoadState />}
         {!proof.isPending && !terms && (
@@ -199,7 +200,7 @@ export function ContractScreen() {
         )}
       </Panel>
 
-      <FlowHeading step="Output" words="what its landings start, and the ClaimTypes that admit it as evidence" />
+      <FlowHeading step="Output" words="What its landings start, and the ClaimTypes that admit it as evidence" />
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
       <Panel title="Triggers on its landings" meta={<span>{firing.length}</span>}>
         {model.isPending && <LoadState />}
@@ -275,7 +276,7 @@ function AdmittingTable({ admitting }: { admitting: Admitting[] }) {
       {
         id: "evidence",
         header: "Evidence",
-        title: "required: a Capture is required; admitted: the rule admits one",
+        title: "Required: a Capture is required; admitted: the rule admits one",
         sortValue: (a) => evidenceWord(a.row),
         filter: { kind: "enum", values: (a) => [evidenceWord(a.row)] },
         cell: ({ row }) => <span className={row?.evidence_requirement === "captured" ? "text-zinc-300" : "text-zinc-500"}>{evidenceWord(row)}</span>,
@@ -283,9 +284,9 @@ function AdmittingTable({ admitting }: { admitting: Admitting[] }) {
       {
         id: "role",
         header: "Role",
-        sortValue: (a) => (a.row?.default_role ? roleWord(a.row.default_role) : null),
-        filter: { kind: "enum", values: (a) => (a.row?.default_role ? [roleWord(a.row.default_role)] : []) },
-        cell: ({ row }) => <span className="text-zinc-400">{row?.default_role ? roleWord(row.default_role) : "—"}</span>,
+        sortValue: (a) => (a.row?.default_role ? sentence(roleWord(a.row.default_role)) : null),
+        filter: { kind: "enum", values: (a) => (a.row?.default_role ? [sentence(roleWord(a.row.default_role))] : []) },
+        cell: ({ row }) => <span className="text-zinc-400">{row?.default_role ? sentence(roleWord(row.default_role)) : "—"}</span>,
       },
       {
         id: "fresh",
@@ -297,9 +298,9 @@ function AdmittingTable({ admitting }: { admitting: Admitting[] }) {
       {
         id: "kit",
         header: "Kit",
-        sortValue: (a) => a.row?.kit ?? "here",
-        filter: { kind: "enum", values: (a) => [a.row?.kit ?? "here"] },
-        cell: ({ row }) => <span className="font-mono text-zinc-400">{row?.kit ?? "here"}</span>,
+        sortValue: (a) => a.row?.kit ?? "Here",
+        filter: { kind: "enum", values: (a) => [a.row?.kit ?? "Here"] },
+        cell: ({ row }) => <span className="font-mono text-zinc-400">{row?.kit ?? "Here"}</span>,
       },
     ],
     [instanceId, link],
@@ -317,7 +318,7 @@ function AdmittingTable({ admitting }: { admitting: Admitting[] }) {
 }
 
 function evidenceWord(row: Schemas["OrientPredicate"] | undefined): string {
-  return row?.evidence_requirement === "captured" ? "required" : "admitted";
+  return row?.evidence_requirement === "captured" ? "Required" : "Admitted";
 }
 
 /** A step of the page's Input → Contract → Output reading order. */
@@ -362,10 +363,11 @@ export function ContractsScreen() {
       {
         id: "grade",
         header: "Grade",
-        title: "observed, derived or predicted",
+        title: "Observed, derived or predicted",
         sortValue: (row) => row.grade,
         filter: { kind: "enum", values: (row) => [row.grade] },
-        cell: (row) => <span className="text-zinc-400">{row.grade}</span>,
+        optionLabel: sentence,
+        cell: (row) => <span className="text-zinc-400">{sentence(row.grade)}</span>,
       },
       {
         id: "admitted_by",

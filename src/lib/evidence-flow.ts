@@ -149,7 +149,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       id: OWN_WORD,
       kind: "source",
       label: "Your statements",
-      detail: "on their author's own word",
+      detail: "On their author's own word",
       contracts: selfContracts,
       ownWord: true,
     });
@@ -174,7 +174,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       id,
       kind: "line",
       label: line,
-      detail: `when ${what} lands`,
+      detail: `When ${what} lands`,
       triggers: triggersOf.get(line) ?? [],
       ...(authority ? { authority } : {}),
     });

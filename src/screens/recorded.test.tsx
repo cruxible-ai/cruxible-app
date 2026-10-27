@@ -160,13 +160,13 @@ describe("recorded reference world", () => {
     const workflow = within(m.getByText("workflow", { selector: "td > span" }).closest("tr")!);
     expect(workflow.getByRole("link", { name: "→ security.workflow" })).toHaveAttribute("href", `${I}/kinds/security.workflow`);
     expect(workflow.getByRole("link", { name: "security.fetched-v1" })).toHaveAttribute("href", `${I}/contracts/security.fetched-v1`);
-    expect(workflow.getByText("rivals conflict")).toBeInTheDocument();
+    expect(workflow.getByText("Rivals conflict")).toBeInTheDocument();
     expect(workflow.getByText("v7")).toBeInTheDocument();
     // 13 security.job Subjects; needs: 6 live Claims on 5 of them
     const needs = within(m.getByText("needs", { selector: "td > span" }).closest("tr")!);
     expect(await needs.findByText("38%")).toHaveAttribute("title", "5 of 13 live Subjects");
     expect(needs.getByText("6", { selector: "td" })).toBeInTheDocument();
-    expect(needs.getByText("all answer")).toBeInTheDocument();
+    expect(needs.getByText("All answer")).toBeInTheDocument();
   });
 
   it("contract page: security.fetched-v1 with its logical sources, landing Triggers, Lines and 42 admitting ClaimTypes", async () => {
@@ -193,13 +193,13 @@ describe("recorded reference world", () => {
     renderApp(`${I}/flow`, RECORDED);
     const flow = within(await screen.findByTestId("flow"));
     expect(flow.getByText("github.repo.snapshot")).toBeInTheDocument();
-    expect(flow.getByText("retained by Line security.kev-daily")).toBeInTheDocument();
-    expect(flow.getByText("retained by a direct security.sbom-acquire run")).toBeInTheDocument();
+    expect(flow.getByText("Retained by Line security.kev-daily")).toBeInTheDocument();
+    expect(flow.getByText("Retained by a direct security.sbom-acquire run")).toBeInTheDocument();
     // the contract is a tag on the source, linked
     expect(flow.getAllByRole("link", { name: "security.fetched-v1" })[0]).toHaveAttribute("href", `${I}/contracts/security.fetched-v1`);
     // Lines in their own column, named without the shared kit namespace, linked
     expect(flow.getAllByRole("link", { name: "repo-parse.cruxible-ci" })[0]).toHaveAttribute("href", `${I}/lines/security.repo-parse.cruxible-ci`);
-    expect(screen.getByText("names under", { exact: false })).toHaveTextContent("names under security.");
+    expect(screen.getByText("Names under", { exact: false })).toHaveTextContent("Names under security.");
     expect(flow.getByRole("link", { name: "needs" })).toHaveAttribute("href", `${I}/kinds/security.job?view=claim-types&claim_type=security.job.needs`);
     // own-word statements go straight to the ClaimTypes that accept them
     expect(flow.getByText("Your statements")).toBeInTheDocument();

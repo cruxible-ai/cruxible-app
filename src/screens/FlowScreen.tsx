@@ -60,7 +60,7 @@ export function FlowScreen() {
       sources: sources.data.sources.map((source) => ({
         id: source.id,
         contracts: source.contracts,
-        retainedBy: source.retainedBy.length ? `retained by ${retainedByWords(source.retainedBy)}` : "selected by a Trigger; no step names it",
+        retainedBy: source.retainedBy.length ? `Retained by ${retainedByWords(source.retainedBy)}` : "Selected by a Trigger; no step names it",
       })),
       claimTypes: claimTypes.data.rows,
       accepts,
@@ -120,7 +120,7 @@ export function FlowScreen() {
           </span>
           {prefix && (
             <span>
-              names under <span className="font-mono text-zinc-300">{prefix}</span>
+              Names under <span className="font-mono text-zinc-300">{prefix}</span>
             </span>
           )}
         </div>
@@ -258,7 +258,7 @@ function FlowCell({
       <div
         style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.source}` }}
         className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 ${node.ownWord ? "border-dashed bg-zinc-950" : "bg-zinc-900/60"} px-2 leading-4`}
-        title={[node.label, node.detail, tags.length ? `captured under ${tags.join(", ")}` : null].filter(Boolean).join("\n")}
+        title={[node.label, node.detail, tags.length ? `Captured under ${tags.join(", ")}` : null].filter(Boolean).join("\n")}
         {...hover}
       >
         <div className="flex items-center gap-1.5">
@@ -328,7 +328,7 @@ function FlowCell({
       </Link>
       {node.required && (
         <span className="shrink-0 text-[10px] text-zinc-500" title="A Capture is required">
-          captured
+          Captured
         </span>
       )}
       <FocusButton id={node.id} label={node.label} onFocus={onFocus} />

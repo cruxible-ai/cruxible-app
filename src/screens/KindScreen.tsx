@@ -113,10 +113,10 @@ export function KindScreen() {
             )}
             <Fact label="Identity">
               {rule?.rule === "minted" ? (
-                "minted ids"
+                "Minted ids"
               ) : rule ? (
                 <>
-                  keyed by{" "}
+                  Keyed by{" "}
                   {(rule.keys ?? []).map((key) => (
                     <span key={key} className="mr-1.5 font-mono text-zinc-100">
                       {key.startsWith(`${kind}.`) ? key.slice(kind.length + 1) : key}
@@ -125,10 +125,10 @@ export function KindScreen() {
                   {rule.uniqueness && <span className="text-zinc-500">({rule.uniqueness})</span>}
                 </>
               ) : (
-                "identity undeclared"
+                "Identity undeclared"
               )}
             </Fact>
-            <Fact label="Kit">{rule?.kit ? <span className="font-mono">{rule.kit}</span> : "authored in this instance"}</Fact>
+            <Fact label="Kit">{rule?.kit ? <span className="font-mono">{rule.kit}</span> : "Authored in this instance"}</Fact>
             <Fact label="ClaimTypes">
               <span className="font-mono">{rows.length}</span>
             </Fact>
@@ -154,7 +154,7 @@ export function KindScreen() {
       </div>
 
       {view === "subjects" ? (
-        <Panel title="Subjects" meta={<span>one row per Subject, one column per field</span>}>
+        <Panel title="Subjects" meta={<span>One row per Subject, one column per field</span>}>
           <KindTable kind={kind} predicates={predicates} keys={rule?.keys ?? EMPTY} />
         </Panel>
       ) : (
@@ -162,7 +162,7 @@ export function KindScreen() {
           title={`ClaimTypes (${rows.length})`}
           meta={
             <span title="Contested and stale counts per ClaimType wait on a post-v1 core read">
-              {detail.error ? <span className="text-red-400/80">live counts: {detail.error.message}</span> : "contested and stale: post-v1"}
+              {detail.error ? <span className="text-red-400/80">Live counts: {detail.error.message}</span> : "Contested and stale: post-v1"}
             </span>
           }
         >

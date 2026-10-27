@@ -4,6 +4,7 @@ import { useGet, useInstanceId, usePins } from "@/api/hooks";
 import { RefLink } from "@/components/RefLink";
 import { cardOf, type OrientPredicate } from "@/api/schemas";
 import { useAtLink } from "@/lib/at";
+import { sentence } from "@/lib/text";
 import { contractName, evidenceMode, pinnersOf, refKind, targetKinds, type Settler } from "@/lib/ontology";
 
 /**
@@ -35,7 +36,7 @@ export function ClaimTypeDetail({
       <div className="break-all font-mono text-[11px] text-zinc-500">{descriptor.predicate}</div>
       {descriptor.description && <div className="text-zinc-300">{descriptor.description}</div>}
       <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
-        <dt className="text-zinc-600">value</dt>
+        <dt className="text-zinc-600">Value</dt>
         <dd className="break-words">
           {targets.length > 0
             ? targets.map((target) => (
@@ -44,13 +45,13 @@ export function ClaimTypeDetail({
                 </Link>
               ))
             : descriptor.type === "subject"
-              ? "any Subject kind"
+              ? "Any Subject kind"
               : descriptor.type}
           {descriptor.members && ` (${descriptor.members.map(String).join(", ")})`}
         </dd>
         {(descriptor.member_descriptions?.length ?? 0) > 0 && (
           <>
-            <dt className="text-zinc-600">members</dt>
+            <dt className="text-zinc-600">Members</dt>
             <dd>
               {descriptor.member_descriptions!.map((m) => (
                 <div key={String(m.member)}>
@@ -60,13 +61,13 @@ export function ClaimTypeDetail({
             </dd>
           </>
         )}
-        <dt className="text-zinc-600">evidence</dt>
+        <dt className="text-zinc-600">Evidence</dt>
         <dd>
           {evidenceMode(descriptor) === "captured"
-            ? "a Capture under one of these contracts is required"
+            ? "A Capture under one of these contracts is required"
             : evidenceMode(descriptor) === "none"
-              ? "takes no evidence"
-              : "the author's own words may stand; Captures add support"}
+              ? "Takes no evidence"
+              : "The author's own words may stand; Captures add support"}
           {(descriptor.evidence?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-x-2">
               {descriptor.evidence!.map((contract) => (
@@ -79,28 +80,28 @@ export function ClaimTypeDetail({
         </dd>
         {descriptor.stale_after && (
           <>
-            <dt className="text-zinc-600">stale after</dt>
+            <dt className="text-zinc-600">Stale after</dt>
             <dd className="font-mono">{descriptor.stale_after}</dd>
           </>
         )}
         {descriptor.revision_evidence && (
           <>
-            <dt className="text-zinc-600">on revision</dt>
+            <dt className="text-zinc-600">On revision</dt>
             <dd>{descriptor.revision_evidence} evidence</dd>
           </>
         )}
         {(descriptor.roles?.length ?? 0) > 0 && (
           <>
-            <dt className="text-zinc-600">roles</dt>
+            <dt className="text-zinc-600">Roles</dt>
             <dd>
-              {descriptor.roles!.map(roleWord).join(", ")}
+              {sentence(descriptor.roles!.map(roleWord).join(", "))}
               {descriptor.default_role && ` (default ${roleWord(descriptor.default_role)})`}
             </dd>
           </>
         )}
         {otherKinds.length > 0 && (
           <>
-            <dt className="text-zinc-600">also on</dt>
+            <dt className="text-zinc-600">Also on</dt>
             <dd>
               {otherKinds.map((k) => (
                 <Link key={k} to={link(`/i/${instanceId}/kinds/${encodeURIComponent(k)}?claim_type=${encodeURIComponent(descriptor.predicate)}`)} className="mr-1.5 font-mono text-zinc-300 hover:underline">
@@ -110,12 +111,12 @@ export function ClaimTypeDetail({
             </dd>
           </>
         )}
-        <dt className="text-zinc-600">settled by</dt>
+        <dt className="text-zinc-600">Settled by</dt>
         <dd>
           {settlers === null
             ? "…"
             : settlers.length === 0
-              ? "review: no live settle Mandate scopes it"
+              ? "Review: no live settle Mandate scopes it"
               : settlers.map((s) => (
                   <div key={`${s.line}\n${s.mandate}`}>
                     <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(s.line)}`)} className="font-mono text-zinc-300 hover:underline">
@@ -127,12 +128,12 @@ export function ClaimTypeDetail({
                   </div>
                 ))}
         </dd>
-        <dt className="text-zinc-600">pinned by</dt>
+        <dt className="text-zinc-600">Pinned by</dt>
         <dd>
           {pinners === null ? (
             pins.error ? <span className="text-red-400/80">{pins.error.message}</span> : "…"
           ) : pinners.length === 0 ? (
-            "no live definition pins it"
+            "No live definition pins it"
           ) : (
             pinnerKinds.map((k) => {
               const of = [...new Set(pinners.filter((p) => refKind(p.source) === k).map((p) => p.source))].sort();
