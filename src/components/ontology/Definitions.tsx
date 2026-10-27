@@ -20,6 +20,7 @@ import {
 import { providerName } from "@/lib/ontology";
 import { term } from "@/lib/vocabulary";
 import { cronWords } from "@/lib/procedure-graph";
+import { sentence } from "@/lib/text";
 import { ProcedureGraph } from "@/components/graph/ProcedureGraph";
 
 /**
@@ -105,7 +106,7 @@ export function ProcedureDefinition({
     <Panel title="Definition" meta={<span>{steps.length} steps · {slots.length} slots</span>}>
       {inputs.length > 0 && (
         <div className="mb-3 text-[12px]">
-          <span className="text-zinc-500">input </span>
+          <span className="text-zinc-500">Input </span>
           {inputs.map(([name, field], i) => (
             <span key={name}>
               {i > 0 && ", "}
@@ -148,19 +149,19 @@ export function ProcedureDefinition({
                       </span>
                     ) : installed.length === 1 ? (
                       <span title="No explicit binding: the slot binds by fit to the one installed build of its interface">
-                        by fit:{" "}
+                        By fit:{" "}
                         <RefLink value={installed[0]!.startsWith("Provider:") ? installed[0]! : `Provider:${installed[0]}`}>
                           <span className="font-mono text-[12px]" title={installed[0]}>{providerName(installed[0]!)}</span>
                         </RefLink>
                       </span>
                     ) : installed.length > 1 ? (
-                      <span title={installed.join("\n")}>by fit: one of {installed.length} installed builds</span>
+                      <span title={installed.join("\n")}>By fit: one of {installed.length} installed builds</span>
                     ) : interfaces.isPending ? (
                       "…"
                     ) : (
                       <span className="inline-flex items-baseline gap-1.5">
                         <SignalDot signal="wrong" title="No installed build fits this slot: install a Provider for its interface" />
-                        no installed build
+                        No installed build
                       </span>
                     )}
                   </Td>
@@ -235,7 +236,7 @@ export function LineDefinitionPanel({
       <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-[13px]">
         <dt className="text-zinc-500">Parameters</dt>
         <dd className="min-w-0 break-words text-zinc-300">
-          {parameters.length === 0 && <span className="text-zinc-600">none</span>}
+          {parameters.length === 0 && <span className="text-zinc-600">None</span>}
           {parameters.map(([key, value]) => (
             <div key={key}>
               <span className="font-mono text-zinc-400">{key}</span> ={" "}
@@ -249,7 +250,7 @@ export function LineDefinitionPanel({
         <dd className="text-zinc-300">
           {line.triggerInput ? (
             <span>
-              step <span className="font-mono">{line.triggerInput}</span>
+              Step <span className="font-mono">{line.triggerInput}</span>
               {line.triggerContract && (
                 <span>
                   {" "}
@@ -258,13 +259,13 @@ export function LineDefinitionPanel({
               )}
             </span>
           ) : (
-            <span className="text-zinc-600">none</span>
+            <span className="text-zinc-600">None</span>
           )}
         </dd>
         <dt className="text-zinc-500">Bindings</dt>
         <dd className="text-zinc-300">
           {bindings.length === 0 ? (
-            <span className="text-zinc-500">none: every slot binds by fit</span>
+            <span className="text-zinc-500">None: every slot binds by fit</span>
           ) : (
             bindings.map(([slot, provider]) => (
               <div key={slot}>
@@ -284,10 +285,10 @@ export function LineDefinitionPanel({
         )}
         <dt className="text-zinc-500">Retains</dt>
         <dd className="text-zinc-300">
-          {retains.length === 0 && <span className="text-zinc-600">nothing</span>}
+          {retains.length === 0 && <span className="text-zinc-600">Nothing</span>}
           {retains.map((r, i) => (
             <div key={i}>
-              {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : <span className="text-zinc-500">{r.emitted ? "its output" : "a source its Provider names"}</span>}{" "}
+              {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : <span className="text-zinc-500">{r.emitted ? "Its output" : "A source its Provider names"}</span>}{" "}
               <span className="text-zinc-500">under</span> <NamedRef kind="contract" name={r.contract} />
             </div>
           ))}
@@ -331,7 +332,7 @@ export function TriggerDefinition({ schedule, target }: { schedule: Record<strin
     <Panel title="Definition">
       <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-[13px]">
         <dt className="text-zinc-500">Fires</dt>
-        <dd className="text-zinc-300">{typeof s.kind === "string" ? s.kind.replaceAll("_", " ") : "—"}</dd>
+        <dd className="text-zinc-300">{typeof s.kind === "string" ? sentence(s.kind.replaceAll("_", " ")) : "—"}</dd>
         {contract && (
           <>
             <dt className="text-zinc-500">On a landing under</dt>
@@ -341,14 +342,14 @@ export function TriggerDefinition({ schedule, target }: { schedule: Record<strin
             <dt className="text-zinc-500" title="The logical sources whose landings fire it; none: any landing under the contract">
               Logical sources
             </dt>
-            <dd className="font-mono text-zinc-200">{sources.length ? sources.join(", ") : <span className="font-sans text-zinc-500">any</span>}</dd>
+            <dd className="font-mono text-zinc-200">{sources.length ? sources.join(", ") : <span className="font-sans text-zinc-500">Any</span>}</dd>
           </>
         )}
         {cron !== null && (
           <>
             <dt className="text-zinc-500">Schedule</dt>
             <dd className="text-zinc-300">
-              {cronWords(cron)} <span className="font-mono text-zinc-500">({cron})</span>
+              {sentence(cronWords(cron))} <span className="font-mono text-zinc-500">({cron})</span>
             </dd>
           </>
         )}
@@ -375,7 +376,7 @@ export function ProcedureWithGraph({ spec }: { spec: ProcedureSpec }) {
   const [selected, setSelected] = useState<string | null>(null);
   return (
     <>
-      <Panel title="Steps" meta={<span>arrows: what each step reads · dashed: where a guard goes otherwise · click a step to follow it</span>}>
+      <Panel title="Steps" meta={<span>Arrows: what each step reads · dashed: where a guard goes otherwise · click a step to follow it</span>}>
         <ProcedureGraph spec={spec} onSelectStep={setSelected} />
       </Panel>
       <ProcedureDefinition spec={spec} selectedStep={selected} />

@@ -122,11 +122,11 @@ describe("recorded reference world", () => {
     cleanup();
     renderApp(`${I}/lines/security.kev-triage`, RECORDED);
     m = await main();
-    expect(await m.findByText("page 1 · 2 in all")).toBeInTheDocument();
+    expect(await m.findByText("Page 1 · 2 in all")).toBeInTheDocument();
     expect(await m.findByText(/Read the KEV catalog Capture that triggered the Line/)).toBeInTheDocument();
     const line = within((await m.findByText("Line definition")).closest("section")!);
     expect(await line.findByText("catalog")).toBeInTheDocument();
-    expect(line.getByText("none: every slot binds by fit")).toBeInTheDocument();
+    expect(line.getByText("None: every slot binds by fit")).toBeInTheDocument();
     expect(line.getByText("from cisa.kev.catalog")).toBeInTheDocument();
     const definition = within((await m.findByText("Definition")).closest("section")!);
     expect(definition.getByText("security.kev-catalog@2")).toBeInTheDocument();
