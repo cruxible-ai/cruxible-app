@@ -288,7 +288,7 @@ export function LineDefinitionPanel({
           {retains.length === 0 && <span className="text-zinc-600">Nothing</span>}
           {retains.map((r, i) => (
             <div key={i}>
-              {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : <span className="text-zinc-500">{r.emitted ? "Its output" : "A source its Provider names"}</span>}{" "}
+              {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : <span className="text-zinc-500">{r.emitted ? "Its output" : "A source named at run time"}</span>}{" "}
               <span className="text-zinc-500">under</span> <NamedRef kind="contract" name={r.contract} />
             </div>
           ))}

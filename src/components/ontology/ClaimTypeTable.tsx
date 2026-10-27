@@ -136,13 +136,13 @@ export function ClaimTypeTable({
       },
       {
         id: "card",
-        header: "Card.",
+        header: "Values",
         title: "One or many values per Subject",
         sortValue: (row) => (row.cardinality === "many" ? "many" : "one"),
         filter: { kind: "enum", values: (row) => [row.cardinality === "many" ? "many" : "one"] },
         options: ["one", "many"],
-        className: "font-mono text-zinc-400",
-        cell: (row) => (row.cardinality === "many" ? "many" : "one"),
+        className: "text-zinc-400",
+        cell: (row) => (row.cardinality === "many" ? "Many" : "One"),
       },
       {
         id: "role",

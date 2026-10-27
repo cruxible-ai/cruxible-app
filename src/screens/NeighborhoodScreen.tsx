@@ -60,7 +60,7 @@ function SubjectNode({ data }: NodeProps<Node<SubjectNodeData>>) {
         {node.error && (
           <span className="inline-flex items-center gap-1 text-zinc-400">
             <SignalDot signal="wrong" title={`Could not read this Subject: ${node.error}`} />
-            Unread
+            Couldn't read
           </span>
         )}
       </div>

@@ -160,11 +160,7 @@ export function KindScreen() {
       ) : (
         <Panel
           title={`ClaimTypes (${rows.length})`}
-          meta={
-            <span title="Contested and stale counts per ClaimType wait on a post-v1 core read">
-              {detail.error ? <span className="text-red-400/80">Live counts: {detail.error.message}</span> : "Contested and stale: post-v1"}
-            </span>
-          }
+          meta={detail.error ? <span className="text-red-400/80">Live counts: {detail.error.message}</span> : undefined}
         >
           {rows.length === 0 ? (
             <EmptyState>No ClaimTypes on this kind.</EmptyState>

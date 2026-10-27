@@ -178,7 +178,7 @@ describe("recorded reference world", () => {
     expect(await m.findByText("cisa.kev.catalog")).toBeInTheDocument();
     expect(m.getByText(/retained by Line security.kev-daily · selected by security.kev-landed, security.kev-landed-attention/)).toBeInTheDocument();
     expect(m.getByText("github.repo.snapshot")).toBeInTheDocument();
-    expect(m.getByText(/security.repo-pull.cruxible-ci, under a logical source its Provider names/)).toBeInTheDocument();
+    expect(m.getByText(/security.repo-pull.cruxible-ci, under a source named at run time/)).toBeInTheDocument();
     expect(await m.findByText("security.harden-on-snapshot")).toBeInTheDocument();
     expect(m.getAllByRole("link", { name: "security.harden" })[0]).toHaveAttribute("href", `${I}/lines/security.harden`);
     // producers from the pins section: the acquiring Procedure retains, the parser its landings start reads

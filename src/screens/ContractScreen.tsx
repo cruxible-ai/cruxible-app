@@ -21,7 +21,7 @@ import { roleWord, term } from "@/lib/vocabulary";
 const UNNAMED: { test: (r: Retention) => boolean; words: string; title: string }[] = [
   {
     test: (r) => !r.emitted && r.given === null,
-    words: "under a logical source its Provider names",
+    words: "under a source named at run time",
     title: "The source step's request names no logical source: the Provider names it at run time, and the daemon does not serve which",
   },
   {

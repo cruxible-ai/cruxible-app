@@ -255,7 +255,7 @@ export function ProcedureGraph({
               : { text: `from $input.${v.logicalSource.input}`, title: "Logical source given at run", tone: "dim" },
           );
         } else {
-          lines.push({ text: "Source its Provider names", title: "No logical_source in the request: the Provider names the logical source", tone: "plain" });
+          lines.push({ text: "Source named at run time", title: "The request names no logical source; the Provider picks it when it runs", tone: "plain" });
         }
         lines.push(...bindingLine(v.slot, node.id, mark));
       } else if (v && node.kind === "tap") {
