@@ -23,7 +23,8 @@ export function ActivityFeed({ label }: { label: (line: string) => string }) {
     [],
   );
   return (
-    <Panel title="Activity" meta={<FamilyLegend seen={families} />}>
+    <Panel title="Activity">
+      <FamilyLegend seen={families} />
       <div aria-label="Activity" role="feed">
         {cursors.map((cursor, i) => (
           <ActivityPage
@@ -189,13 +190,13 @@ function FamilyLegend({ seen }: { seen: Set<ActivityFamily> }) {
   const shown = order.filter((f) => seen.has(f));
   if (shown.length === 0) return null;
   return (
-    <span className="flex flex-wrap items-center justify-end gap-x-2.5 gap-y-0.5">
+    <div className="-mt-1 mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
       {shown.map((f) => (
-        <span key={f} className="inline-flex items-center gap-1">
+        <span key={f} className="inline-flex items-center gap-1 whitespace-nowrap">
           <span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: FAMILY[f].color }} aria-hidden />
           {FAMILY[f].legend}
         </span>
       ))}
-    </span>
+    </div>
   );
 }
