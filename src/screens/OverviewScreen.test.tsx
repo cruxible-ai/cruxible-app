@@ -23,7 +23,7 @@ describe("Overview", () => {
     // coming up: each enabled Line, with what wakes it and what it is waiting on; a stopped one says so
     const line = await main.findByRole("link", { name: "kev-triage" });
     expect(line).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
-    expect(await main.findByText("daily at 06:00 UTC")).toBeInTheDocument();
+    expect(await main.findByText("Daily at 06:00 UTC")).toBeInTheDocument();
     expect(main.getByText(/1 scheduled/)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
     expect(main.getByText("Stopped")).toBeInTheDocument();

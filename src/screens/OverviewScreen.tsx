@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 import { useCards, useInstanceId, useKits, useLines, useNext, useOrient } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import type { NextHealth, NextResult, NextSeverity, OrientResult, Schemas } from "@/api/schemas";
-import { Chip, HealthChip, HealthDot, SignalDot } from "@/components/Chip";
+import { Chip, HealthChip, SignalDot } from "@/components/Chip";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
 import { useAtLink } from "@/lib/at";
 import { sharedPrefix } from "@/lib/evidence-flow";
 import { lineName, nextRowsByLine, unreadOf } from "@/lib/lines";
 import { wakeOf, type Wake } from "@/lib/schedule";
-import { formatDateTime, formatRelative, humanize } from "@/lib/text";
+import { formatDateTime, formatRelative, humanize, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { healthTone, term, type Signal } from "@/lib/vocabulary";
 
@@ -159,21 +159,21 @@ function NeedsYou({
         label="Waiting for review"
         count={proposals}
         signal={proposals ? "waiting" : undefined}
-        detail={proposals ? "approve or reject on the CLI or MCP" : "no open proposals"}
+        detail={proposals ? "Approve or reject on the CLI or MCP" : "No open proposals"}
         to={link(`/i/${instanceId}/proposals?status=open`)}
       />
       <Tile
         label="Unread inbox"
         count={next ? unread : null}
         signal={unread ? "waiting" : undefined}
-        detail={unread ? "items Lines posted for you" : "nothing posted"}
+        detail={unread ? "Items Lines posted for you" : "Nothing posted"}
         to={link(`/i/${instanceId}/lines`)}
       />
       <Tile
         label="Next"
         count={next ? next.total_items : null}
         signal={nextSignal}
-        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : "nothing needs attention") : undefined}
+        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : "Nothing needs attention") : undefined}
         to={link(`/i/${instanceId}/next`)}
       />
       <Tile
@@ -181,17 +181,17 @@ function NeedsYou({
         count={enablements ? enablements.running ?? 0 : null}
         countWord="running"
         signal={stalled ? "wrong" : stopped ? "waiting" : undefined}
-        detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : "none stalled or stopped"}
+        detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : "None stalled or stopped"}
         to={link(`/i/${instanceId}/lines`)}
       />
       <Tile
         label="Health"
         count={next ? sick.length : null}
-        countWord={sick.length ? "need a look" : "all healthy"}
-        hideZero
+        countWord={sick.length ? "need a look" : undefined}
+        headline={next && sick.length === 0 ? "Healthy" : undefined}
         signal={sick.some((row) => healthTone(next!.status[row].state) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
         healthy={next !== undefined && sick.length === 0}
-        detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks · ${healthOpen ? "hide" : "show"}`}
+        detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks · ${healthOpen ? "Hide" : "Show"}`}
         onClick={onHealth}
         pressed={healthOpen}
       />
@@ -203,41 +203,41 @@ function Tile({
   label,
   count,
   countWord,
-  hideZero = false,
   signal,
   detail,
   to,
   onClick,
   pressed,
   healthy = false,
+  headline,
 }: {
   label: string;
   count: number | null;
-  countWord?: string;
-  hideZero?: boolean;
+  countWord?: string | undefined;
   signal: Signal | undefined;
   detail: ReactNode;
   to?: string;
   onClick?: () => void;
   pressed?: boolean;
   healthy?: boolean;
+  /** A status word in place of the count (Health's "Healthy"), in its tone's color. */
+  headline?: string | undefined;
 }) {
   const ring = signal === "wrong" ? "border-red-500/50" : signal === "waiting" ? "border-amber-400/50" : "border-zinc-800";
   const body = (
     <>
       <div className="flex items-center gap-1.5 text-[12px] text-zinc-400">
         {signal && <SignalDot signal={signal} title={signal === "wrong" ? "Wrong or blocked" : "Waiting on you"} />}
-        {!signal && healthy && <HealthDot tone="ok" title="Every check is working" />}
         {label}
       </div>
       <div className="mt-1 flex items-baseline gap-1.5">
-        {count === null ? (
+        {headline ? (
+          <span className={`text-[18px] font-medium leading-none ${healthy ? "text-emerald-400" : "text-zinc-100"}`}>{headline}</span>
+        ) : count === null ? (
           <span className="text-zinc-600">…</span>
         ) : (
           <>
-            {!(hideZero && count === 0) && (
-              <span className={`font-mono text-[22px] leading-none ${count || signal ? "text-zinc-100" : "text-zinc-500"}`}>{count}</span>
-            )}
+            <span className={`font-mono text-[22px] leading-none ${count || signal ? "text-zinc-100" : "text-zinc-500"}`}>{count}</span>
             {countWord && <span className="text-[13px] text-zinc-400">{countWord}</span>}
           </>
         )}
@@ -351,12 +351,12 @@ function UpcomingRow({ u, label, now }: { u: Upcoming; label: string; now: Date 
         {u.card === undefined ? (
           <span className="text-zinc-600">…</span>
         ) : u.wakes.length === 0 ? (
-          <span className="text-zinc-500">runs when asked</span>
+          <span className="text-zinc-500">Runs when asked</span>
         ) : (
           <ul className="space-y-0.5">
             {u.wakes.map((w) => (
               <li key={w.words} className="truncate" title={w.words}>
-                {w.words}
+                {sentence(w.words)}
                 {w.next && (
                   <span className="text-zinc-500" title={formatDateTime(w.next.toISOString())}>
                     {" "}
@@ -385,11 +385,11 @@ function UpcomingRow({ u, label, now }: { u: Upcoming; label: string; now: Date 
             title={`${lastTerm.meaning} · ${formatDateTime(last.started_at)}`}
           >
             {lastTerm.signal && <SignalDot signal={lastTerm.signal} title={lastTerm.meaning} />}
-            last run {formatRelative(last.started_at, now)}
+            Last run {formatRelative(last.started_at, now)}
             {last.status !== "succeeded" && ` · ${lastTerm.word.toLowerCase()}`}
           </Link>
         ) : (
-          <span className="text-zinc-600">no runs</span>
+          <span className="text-zinc-600">No runs</span>
         )}
       </div>
     </div>

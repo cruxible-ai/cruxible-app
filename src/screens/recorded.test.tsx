@@ -49,7 +49,7 @@ describe("recorded reference world", () => {
     const strip = within(await m.findByRole("region", { name: "Needs you" }));
     expect(await strip.findByRole("link", { name: /Next \d/ })).toBeInTheDocument();
     expect(await m.findByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/security.kev-triage`);
-    expect((await m.findAllByText("when cisa.kev.catalog lands")).length).toBeGreaterThan(0);
+    expect((await m.findAllByText("When cisa.kev.catalog lands")).length).toBeGreaterThan(0);
     expect(await m.findByText("security", { selector: "span.font-mono" })).toBeInTheDocument();
   });
 

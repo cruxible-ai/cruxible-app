@@ -74,3 +74,8 @@ export function formatRelative(when: string | Date, now: Date = new Date()): str
   const text = days > 0 ? `${days}d${hours ? ` ${hours}h` : ""}` : hours > 0 ? `${hours}h${mins ? ` ${mins}m` : ""}` : `${mins}m`;
   return minutes > 0 ? `in ${text}` : `${text} ago`;
 }
+
+/** A standalone line starts with a capital: "daily at 06:00" -> "Daily at 06:00". */
+export function sentence(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
