@@ -285,7 +285,7 @@ function FlowCell({
           {node.arrives && <span className="ml-auto shrink-0 text-[10.5px] text-zinc-500">{node.arrives}</span>}
           <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
         </div>
-        <div className="truncate text-[11px] text-zinc-400">{node.about ?? node.detail}</div>
+        <div className="line-clamp-3 text-[11px] leading-4 text-zinc-400">{node.about ?? node.detail}</div>
         {!node.ownWord && tags.length > 0 && (
           <div className="truncate text-[10.5px] text-zinc-600">
             {tags.map((t, i) => (
@@ -320,7 +320,7 @@ function FlowCell({
           )}
           <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
         </div>
-        <div className="truncate text-[11px] text-zinc-400">{node.about ?? node.detail}</div>
+        <div className="line-clamp-3 text-[11px] leading-4 text-zinc-400">{node.about ?? node.detail}</div>
         {node.about && <div className="truncate text-[10.5px] text-zinc-600">{node.detail}</div>}
       </div>
     );

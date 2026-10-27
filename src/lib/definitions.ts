@@ -344,7 +344,8 @@ export function slotBinding(
 
 // -- what a thing is, in a line ---------------------------------------------------
 
-const GIST_MAX = 110;
+/** Long enough for three lines on a flow node, which clamps what is left. */
+const GIST_MAX = 220;
 
 /** A description's first clause, without parentheticals or run-on detail, capitalized and capped. */
 export function gist(description: string | null | undefined): string | null {

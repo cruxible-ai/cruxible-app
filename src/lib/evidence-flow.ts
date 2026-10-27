@@ -327,14 +327,14 @@ export interface FlowLayout {
 
 /** Column boxes: sources, Lines, ClaimTypes; wide gutters carry the fan-outs. */
 export const COLUMNS = [
-  { x: 0, w: 250 },
-  { x: 330, w: 290 },
-  { x: 720, w: 330 },
+  { x: 0, w: 290 },
+  { x: 370, w: 320 },
+  { x: 770, w: 330 },
 ] as const;
 
 const HEIGHT: Record<PlacedKind, number> = {
-  source: 58,
-  line: 58,
+  source: 92,
+  line: 92,
   claim_type: 18,
   kind: 20,
   heading: 22,

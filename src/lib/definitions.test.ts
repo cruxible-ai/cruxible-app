@@ -153,7 +153,7 @@ describe("gists", () => {
       "Ask the six hardening questions about every gated target and answer each in three states",
     );
     expect(gist(null)).toBeNull();
-    expect(gist("x".repeat(200))!.endsWith("…")).toBe(true);
+    expect(gist("word ".repeat(80))!.endsWith("…")).toBe(true);
   });
 
   it("start a Line's gist at what it does, past what triggered it", () => {
