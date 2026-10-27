@@ -14,6 +14,8 @@ import { useLayerColoring, type TypeOwner } from "@/lib/kit-layer";
 import {
   buildTypeGraph,
   edgeForPredicate,
+  isSubjectValued,
+  objectKinds,
   type TypeGraphEdge,
 } from "@/lib/type-graph";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -21,9 +23,12 @@ import { layoutTypeGraph, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { contractName } from "@/lib/ontology";
+import { sharedPrefix } from "@/lib/evidence-flow";
 
 type TypeNodeData = {
   kind: string;
+  /** The name shown: the kind with the namespace every kind shares dropped. */
+  label: string;
   subjects: number;
   referencedOnly: boolean;
   /** Layer accent color; null when layer coloring is off. */
@@ -35,12 +40,13 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
   const empty = data.subjects === 0;
   return (
     <div
+      title={data.kind}
       className={`border px-2.5 py-1.5 text-center ${
         data.referencedOnly
-          ? "border-dashed border-zinc-800 bg-zinc-950"
+          ? "border-dashed border-zinc-700 bg-zinc-950"
           : empty
-            ? "border-dashed border-zinc-700 bg-zinc-950"
-            : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
+            ? "border-zinc-700 bg-zinc-950 hover:border-zinc-500"
+            : "border-zinc-500 bg-zinc-900 hover:border-zinc-300"
       }`}
       style={data.color && !data.referencedOnly ? { borderColor: data.color } : undefined}
     >
@@ -52,12 +58,12 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
             style={{ backgroundColor: data.color }}
           />
         )}
-        <span className={`font-mono text-[12px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-200"}`}>
-          {data.kind}
+        <span className={`font-mono text-[13px] leading-4 ${data.referencedOnly ? "text-zinc-500" : empty ? "text-zinc-300" : "text-zinc-50"}`}>
+          {data.label}
         </span>
       </div>
-      <div className={`font-mono text-[11px] ${empty ? "text-zinc-700" : "text-zinc-500"}`}>
-        {data.referencedOnly ? "not declared" : data.subjects}
+      <div className={`text-[11px] leading-4 ${empty ? "text-zinc-600" : "text-zinc-400"}`}>
+        {data.referencedOnly ? "Not declared" : data.subjects === 1 ? "1 Subject" : `${data.subjects} Subjects`}
       </div>
       <Handle type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
@@ -66,17 +72,28 @@ function TypeNode({ data }: NodeProps<Node<TypeNodeData>>) {
 
 const nodeTypes = { typeNode: TypeNode };
 
-/** Node box: the kind name in 12px mono plus padding, two lines tall. */
-const NODE_HEIGHT = 40;
-const nodeWidth = (kind: string) => monoWidth(kind) + 26;
+/** Node box: the kind name in 13px mono plus padding (at least the count line's width), two lines tall. */
+const NODE_HEIGHT = 42;
+const nodeWidth = (label: string) => Math.max(monoWidth(label, 13), 72) + 26;
 
-/** An edge's label: its ClaimTypes' field names with cardinality ("component *"). */
+/** A ClaimType's field name: the last segment of its name ("security.work.owner" -> "owner"). */
+const fieldName = (p: OrientPredicate) => p.name.split(".").at(-1) ?? p.name;
+
+/**
+ * An edge's label: the field names that say something the arrow does not.
+ * A field named after the kind it points at ("credential" -> credential) is
+ * the arrow itself, so only its many mark stays; "owner" -> team keeps its
+ * name. Empty when every field just repeats the target.
+ */
 function edgeLabel(edge: TypeGraphEdge): string {
-  return edge.predicates.map((p) => `${p.name}${p.cardinality === "many" ? " *" : ""}`).join(" · ");
-}
-
-function cardinalityMark(cardinality: string): string {
-  return cardinality === "many" ? "*" : "1";
+  const target = edge.target.split(".").at(-1) ?? edge.target;
+  const parts = edge.predicates.flatMap((p) => {
+    const name = fieldName(p);
+    const many = p.cardinality === "many";
+    if (name === target || name === `${target}s`) return many ? ["*"] : [];
+    return [`${name}${many ? " *" : ""}`];
+  });
+  return [...new Set(parts)].join(" · ");
 }
 
 /**
@@ -120,6 +137,9 @@ export function TypeMapScreen() {
   const clearFocus = useCallback(() => setParam("focus", null), [setParam]);
   useClearOnEscape(focus !== null, clearFocus);
   const coloring = useLayerColoring(graph.nodes.map((n) => n.kind));
+  // Every kind shares a namespace ("security."): drop it from the boxes, keep it in the title and the panel.
+  const prefix = useMemo(() => sharedPrefix(fullGraph.nodes.map((n) => n.kind)), [fullGraph]);
+  const labelOf = useCallback((kind: string) => kind.slice(prefix.length), [prefix]);
   const rulesByKind = useMemo(
     () => new Map((subjectKinds.data?.rows ?? []).map((row) => [row.kind, row])),
     [subjectKinds.data],
@@ -128,10 +148,10 @@ export function TypeMapScreen() {
   // Layered left-to-right layout (ELK, loaded on first use); recomputed only when the graph changes.
   const layoutInput = useMemo(
     () => ({
-      nodes: graph.nodes.map((n) => ({ id: n.kind, width: nodeWidth(n.kind), height: NODE_HEIGHT })),
+      nodes: graph.nodes.map((n) => ({ id: n.kind, width: nodeWidth(labelOf(n.kind)), height: NODE_HEIGHT })),
       edges: graph.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: edgeLabel(e) })),
     }),
-    [graph],
+    [graph, labelOf],
   );
   // The ontology read can hand back a new object on every render; key the layout by content.
   const layoutKey = useMemo(() => JSON.stringify(layoutInput), [layoutInput]);
@@ -158,9 +178,10 @@ export function TypeMapScreen() {
       id: n.kind,
       type: "typeNode",
       position: at(n.kind, i),
-      style: { width: nodeWidth(n.kind) },
+      style: { width: nodeWidth(labelOf(n.kind)) },
       data: {
         kind: n.kind,
+        label: labelOf(n.kind),
         subjects: byKind.get(n.kind)!.subjects,
         referencedOnly: n.referencedOnly,
         color: coloring.enabled ? coloring.colorOf(coloring.ownerOfKind(n.kind).layer) : null,
@@ -168,7 +189,7 @@ export function TypeMapScreen() {
     }));
     const positions = new Map(nodes.map((n) => [n.id, n.position]));
     const edges: Edge[] = graph.edges.map((e) => {
-      const stroke = "#726f63";
+      const stroke = "#8a8678";
       const route = laidOut.result?.routes.get(e.id);
       const base = {
         id: e.id,
@@ -196,7 +217,7 @@ export function TypeMapScreen() {
           };
     });
     return { nodes, edges };
-  }, [graph, coloring, laidOut]);
+  }, [graph, coloring, laidOut, labelOf]);
 
   const kindParam = params.get("kind");
   const claimTypeParam = params.get("claim_type");
@@ -231,22 +252,22 @@ export function TypeMapScreen() {
           edges={graph.edges}
           api={api}
           onFocus={focus === selection.id ? undefined : () => setParam("focus", selection.id)}
+          label={labelOf}
         />
       );
     }
     const edge = graph.edges.find((e) => e.id === selection.id);
-    return edge ? <EdgePanel edge={edge} api={api} /> : null;
+    return edge ? <EdgePanel edge={edge} api={api} label={labelOf} /> : null;
   }
 
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
-      <header className="mb-3 flex flex-wrap items-baseline gap-3">
+      <header className="mb-3">
         <h1 className="t-title">Type map</h1>
-        <span className="t-meta">
-          {graph.nodes.length} Subject kinds · {graph.edges.length} kind links · arrows point from a kind to the kind
-          its field names (* = many) · unlinked kinds in the left column · dashed = no Subjects · click anything for
-          its ClaimTypes
-        </span>
+        <p className="t-lede measure mt-1">
+          The kinds of Subject this instance knows about, and how they point at each other: an arrow means a field on one
+          kind names a Subject of another. Click a kind or an arrow for its ClaimTypes.
+        </p>
       </header>
       {focus && (
         <div className="mb-2">
@@ -263,10 +284,45 @@ export function TypeMapScreen() {
         renderPanel={renderPanel}
         selectRequest={selectRequest}
         className="min-h-0 flex-1"
-        overlay={coloring.enabled ? <LayerLegend layers={coloring.layers} /> : undefined}
+        nodeName={labelOf}
+        overlay={
+          <>
+            <MapLegend kinds={graph.nodes.length} links={graph.edges.length} undeclared={graph.nodes.some((n) => n.referencedOnly)} />
+            {coloring.enabled && <LayerLegend layers={coloring.layers} />}
+          </>
+        }
       />
       )}
     </div>
+  );
+}
+
+/** What the map's marks mean, inside the canvas: boxes, the dashed box, arrows and the many mark. */
+function MapLegend({ kinds, links, undeclared }: { kinds: number; links: number; undeclared: boolean }) {
+  return (
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border border-zinc-800 bg-zinc-950/90 px-2 py-0.5 text-[11px] text-zinc-400">
+      <span className="text-zinc-300">
+        {kinds} kinds · {links} links
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-block h-2.5 w-3.5 border border-zinc-500 bg-zinc-900" aria-hidden />
+        Kind (with its Subject count)
+      </span>
+      {undeclared && (
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block h-2.5 w-3.5 border border-dashed border-zinc-600" aria-hidden />
+          Named but not declared
+        </span>
+      )}
+      <span className="inline-flex items-center gap-1">
+        <svg width="22" height="8" aria-hidden>
+          <line x1="0" y1="4" x2="16" y2="4" stroke="#8a8678" strokeWidth="1.25" />
+          <path d="M16 1 L21 4 L16 7 Z" fill="#8a8678" />
+        </svg>
+        A field names the other kind (* = many)
+      </span>
+      <span>Unlinked kinds sit in the left column</span>
+    </span>
   );
 }
 
@@ -280,8 +336,10 @@ function KindPanel({
   edges,
   api,
   onFocus,
+  label,
 }: {
   onFocus?: (() => void) | undefined;
+  label: (kind: string) => string;
   kind: string;
   subjects: number;
   predicates: OrientPredicate[];
@@ -344,7 +402,7 @@ function KindPanel({
         </PanelSection>
       )}
       <PanelSection title={`ClaimTypes (${predicates.length})`}>
-        <ClaimTypeLinks predicates={predicates} kind={kind} />
+        <ClaimTypeLinks predicates={predicates} kind={kind} label={label} />
       </PanelSection>
       {incoming.length > 0 && (
         <PanelSection title="Pointed at by">
@@ -354,8 +412,8 @@ function KindPanel({
               onClick={() => api.select(edge.source)}
               className="block w-full px-1 py-0.5 text-left text-[12px] hover:bg-zinc-900"
             >
-              <span className="font-mono text-zinc-300">{edge.source}</span>{" "}
-              <span className="text-zinc-500">{edge.predicates.map((p) => p.name).join(", ")}</span>
+              <span className="font-mono text-zinc-300">{label(edge.source)}</span>{" "}
+              <span className="text-zinc-500">{[...new Set(edge.predicates.map(fieldName))].join(", ")}</span>
             </button>
           ))}
         </PanelSection>
@@ -364,28 +422,28 @@ function KindPanel({
   );
 }
 
-function EdgePanel({ edge, api }: { edge: TypeGraphEdge; api: GraphPanelApi }) {
+function EdgePanel({ edge, api, label }: { edge: TypeGraphEdge; api: GraphPanelApi; label: (kind: string) => string }) {
   return (
     <div>
       <PanelHeading kicker="Kind link" title={`${edge.predicates.length} ClaimType${edge.predicates.length === 1 ? "" : "s"}`} />
       <div className="flex flex-wrap items-baseline gap-1.5 text-[12px]">
         <button onClick={() => api.select(edge.source)} className="font-mono text-zinc-300 hover:underline">
-          {edge.source}
+          {label(edge.source)}
         </button>
         <span className="text-zinc-600">→</span>
         <button onClick={() => api.select(edge.target)} className="font-mono text-zinc-300 hover:underline">
-          {edge.target}
+          {label(edge.target)}
         </button>
       </div>
       <PanelSection title="ClaimTypes">
-        <ClaimTypeLinks predicates={edge.predicates} kind={edge.source} />
+        <ClaimTypeLinks predicates={edge.predicates} kind={edge.source} label={label} />
       </PanelSection>
     </div>
   );
 }
 
 /** ClaimType names linking to their rows on the kind page (the ontology view). */
-function ClaimTypeLinks({ predicates, kind }: { predicates: OrientPredicate[]; kind: string }) {
+function ClaimTypeLinks({ predicates, kind, label }: { predicates: OrientPredicate[]; kind: string; label: (kind: string) => string }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   if (predicates.length === 0) return <div className="text-[12px] text-zinc-600">None.</div>;
@@ -398,9 +456,13 @@ function ClaimTypeLinks({ predicates, kind }: { predicates: OrientPredicate[]; k
           className="flex items-baseline gap-1.5 px-1 py-0.5 text-[12px] hover:bg-zinc-900"
           title={p.predicate}
         >
-          <span className="font-mono text-zinc-200">{p.name}</span>
-          <span className="font-mono text-zinc-500">{cardinalityMark(p.cardinality)}</span>
-          <span className="min-w-0 truncate text-zinc-500">{p.type}</span>
+          <span className="font-mono text-zinc-200">{fieldName(p)}</span>
+          <span className="min-w-0 truncate text-zinc-500">
+            {isSubjectValued(p.type)
+              ? `→ ${objectKinds(p.type).map(label).join(", ") || "any kind"}`
+              : p.type}
+            {p.cardinality === "many" && " · many"}
+          </span>
         </Link>
       ))}
     </div>

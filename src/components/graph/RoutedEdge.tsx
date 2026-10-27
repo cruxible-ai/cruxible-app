@@ -31,26 +31,33 @@ function splinePath(points: Point[]): string {
   return d;
 }
 
-/** The point halfway along a spline's middle segment, or a polyline's longest one. */
+/** The point halfway along the drawn path, by length (a spline is sampled, a polyline walked). */
 function midpoint(points: Point[], curve: boolean): Point {
+  const samples: Point[] = [];
   if (curve) {
-    const segments = (points.length - 1) / 3;
-    const i = Math.floor((segments - 1) / 2) * 3;
-    const [p0, p1, p2, p3] = [points[i]!, points[i + 1]!, points[i + 2]!, points[i + 3]!];
-    const at = (k: "x" | "y") => (p0[k] + 3 * p1[k] + 3 * p2[k] + p3[k]) / 8;
-    return segments % 2 === 1 ? { x: at("x"), y: at("y") } : p0;
-  }
-  let best = 0;
-  let mid = points[0]!;
-  for (let i = 1; i < points.length; i++) {
-    const [a, b] = [points[i - 1]!, points[i]!];
-    const length = Math.hypot(b.x - a.x, b.y - a.y);
-    if (length > best) {
-      best = length;
-      mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    for (let i = 0; i + 3 < points.length; i += 3) {
+      const [p0, p1, p2, p3] = [points[i]!, points[i + 1]!, points[i + 2]!, points[i + 3]!];
+      for (let step = i === 0 ? 0 : 1; step <= 16; step++) {
+        const t = step / 16;
+        const u = 1 - t;
+        const at = (k: "x" | "y") => u * u * u * p0[k] + 3 * u * u * t * p1[k] + 3 * u * t * t * p2[k] + t * t * t * p3[k];
+        samples.push({ x: at("x"), y: at("y") });
+      }
     }
+  } else {
+    samples.push(...points);
   }
-  return mid;
+  if (samples.length < 2) return points[0]!;
+  const lengths = [0];
+  for (let i = 1; i < samples.length; i++) {
+    lengths.push(lengths[i - 1]! + Math.hypot(samples[i]!.x - samples[i - 1]!.x, samples[i]!.y - samples[i - 1]!.y));
+  }
+  const half = lengths[lengths.length - 1]! / 2;
+  const i = Math.max(1, lengths.findIndex((l) => l >= half));
+  const [a, b] = [samples[i - 1]!, samples[i]!];
+  const span = lengths[i]! - lengths[i - 1]! || 1;
+  const k = (half - lengths[i - 1]!) / span;
+  return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
 }
 
 /** An orthogonal polyline with rounded corners (radius capped by the segment lengths). */

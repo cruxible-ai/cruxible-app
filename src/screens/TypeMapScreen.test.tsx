@@ -27,12 +27,12 @@ describe("Type map", () => {
     );
     expect(panel.getByRole("link", { name: "security.kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
     expect(panel.getByText("security", { selector: "span.font-mono" })).toBeInTheDocument(); // owning kit
-    expect(panel.getByText("security.assessment")).toBeInTheDocument(); // pointed at by
+    expect(panel.getByText("assessment")).toBeInTheDocument(); // pointed at by (namespace dropped)
   });
 
   it("names the focus in a chip at the top of the graph; the chip and Esc clear it", async () => {
     renderApp("/i/inst_fixture/map?kind=security.vulnerability");
-    const chip = await screen.findByRole("button", { name: "Clear: Focused on security.vulnerability" });
+    const chip = await screen.findByRole("button", { name: "Clear: Focused on vulnerability" });
     expect(await screen.findByText("Subject kind")).toBeInTheDocument();
     fireEvent.click(chip);
     expect(screen.queryByText("Subject kind")).toBeNull();
@@ -47,7 +47,7 @@ describe("Type map", () => {
   it("opens a Subject-valued ClaimType on its kind link", async () => {
     renderApp("/i/inst_fixture/map?claim_type=security.release.product");
     expect(await screen.findByText("Kind link")).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: "security.product" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "product" })[0]!);
     expect(await screen.findByText("Subject kind")).toBeInTheDocument();
   });
 });
