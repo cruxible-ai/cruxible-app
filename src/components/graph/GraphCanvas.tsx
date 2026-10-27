@@ -89,7 +89,18 @@ function Canvas({
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
-  const [fullscreen, setFullscreen] = useState(false);
+  // Expanded = a taller canvas in place: at least 1.6x its height on the page,
+  // and at least the viewport, so the toggle always shows a difference.
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [tall, setTall] = useState<number | null>(null);
+  const fullscreen = tall != null;
+  const toggleTall = useCallback(() => {
+    setTall((t) => {
+      if (t != null) return null;
+      const now = boxRef.current?.getBoundingClientRect().height ?? 0;
+      return Math.round(Math.max(now * 1.6, window.innerHeight - 16));
+    });
+  }, []);
   // Panning must not clear the selection: only a true click on the pane
   // (pointer down → up with no viewport move in between) deselects, so you
   // can drag around a lit neighborhood without losing it.
@@ -100,13 +111,29 @@ function Canvas({
       if (e.key !== "Escape") return;
       setSelection((sel) => {
         if (sel) return null;
-        setFullscreen(false);
+        setTall(null);
         return sel;
       });
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // After the canvas resizes, fit the graph to it again (and bring a taller canvas into view).
+  const resized = useRef(false);
+  useEffect(() => {
+    if (!resized.current) {
+      resized.current = true;
+      return;
+    }
+    const frame = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (tall != null) boxRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+        void rf.fitView({ maxZoom: 1.15, padding: fitPadding, duration: 250 });
+      }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [tall, rf, fitPadding]);
 
   const centerOn = useCallback(
     (nodeId: string) => {
@@ -261,9 +288,10 @@ function Canvas({
 
   return (
     <div
+      ref={boxRef}
       // Expanded = a taller canvas in place (the page scrolls), never full screen.
       className={`relative flex flex-col ${className}`}
-      style={fullscreen ? { height: "85vh", minHeight: "85vh", flex: "none" } : undefined}
+      style={tall != null ? { height: tall, minHeight: tall, flex: "none" } : undefined}
     >
       <div className="relative min-h-0 flex-1 overflow-hidden border border-zinc-800">
         <ReactFlow
@@ -301,7 +329,7 @@ function Canvas({
         )}
 
         <button
-          onClick={() => setFullscreen((f) => !f)}
+          onClick={toggleTall}
           title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
           aria-label={fullscreen ? "Make the graph smaller" : "Make the graph taller"}
           className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
