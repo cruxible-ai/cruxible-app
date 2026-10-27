@@ -7,9 +7,10 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   const main = page.getByRole("main");
-  await expect(main.getByText("Subjects by kind")).toBeVisible();
-  await expect(main.getByRole("link", { name: "security.vulnerability", exact: true })).toBeVisible();
-  await expect(main.getByText("Claims conflict")).toBeVisible();
+  // What needs you, then each enabled Line with what wakes it (prefix dropped); kinds stay in the sidebar.
+  await expect(main.getByRole("region", { name: "Needs you" }).getByRole("link", { name: /Next \d/ })).toBeVisible();
+  await expect(main.getByRole("link", { name: "kev-triage", exact: true })).toBeVisible();
+  await expect(main.getByText("daily at 06:00 UTC")).toBeVisible();
   await expect(main.getByText("security.kev-catalog")).toBeVisible();
   await expect(page.locator("aside").getByText("Generation")).toBeVisible();
 

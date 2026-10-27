@@ -43,12 +43,13 @@ const REVIEWED = "sha256:0ed594993b3e4bcabbb9609c5f2bf7dbe4ca3d2a44da6cc0007b5a5
 const main = async () => within(await screen.findByRole("main"));
 
 describe("recorded reference world", () => {
-  it("overview: kinds, next, health and kits", async () => {
+  it("overview: what needs you, enabled Lines with what wakes them, and kits", async () => {
     renderApp(I, RECORDED);
     const m = await main();
-    expect(await m.findByText("security.assessment")).toBeInTheDocument();
-    expect(m.getByText("23 kinds")).toBeInTheDocument();
-    expect(await m.findByText("Claims conflict")).toBeInTheDocument();
+    const strip = within(await m.findByRole("region", { name: "Needs you" }));
+    expect(await strip.findByRole("link", { name: /Next \d/ })).toBeInTheDocument();
+    expect(await m.findByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/security.kev-triage`);
+    expect((await m.findAllByText("when cisa.kev.catalog lands")).length).toBeGreaterThan(0);
     expect(await m.findByText("security", { selector: "span.font-mono" })).toBeInTheDocument();
   });
 

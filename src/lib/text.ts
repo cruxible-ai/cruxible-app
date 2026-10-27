@@ -57,3 +57,20 @@ export function formatWhen(iso: string, now: Date = new Date()): string {
   if (d.getFullYear() !== now.getFullYear()) return formatDateTime(iso);
   return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
 }
+
+/**
+ * Distance from now in words: "in 3h 20m", "in 5m", "2h ago", "just now",
+ * "in 3d". The exact time belongs in the title.
+ */
+export function formatRelative(when: string | Date, now: Date = new Date()): string {
+  const d = typeof when === "string" ? new Date(when) : when;
+  if (Number.isNaN(d.getTime())) return String(when);
+  const minutes = Math.round((d.getTime() - now.getTime()) / 60_000);
+  const span = Math.abs(minutes);
+  if (span < 1) return "just now";
+  const days = Math.floor(span / 1440);
+  const hours = Math.floor((span % 1440) / 60);
+  const mins = span % 60;
+  const text = days > 0 ? `${days}d${hours ? ` ${hours}h` : ""}` : hours > 0 ? `${hours}h${mins ? ` ${mins}m` : ""}` : `${mins}m`;
+  return minutes > 0 ? `in ${text}` : `${text} ago`;
+}

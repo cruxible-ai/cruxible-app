@@ -1,29 +1,33 @@
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useInstanceId, useKits, useNext, useOrient } from "@/api/hooks";
+import { useCards, useInstanceId, useKits, useLines, useNext, useOrient } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
-import type { NextHealth, NextResult, OrientResult } from "@/api/schemas";
+import type { NextHealth, NextResult, NextSeverity, OrientResult, Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { Fact, Page, PageHeader } from "@/components/Page";
-import { ShortId } from "@/components/ShortId";
-import { EmptyState, LoadState, Panel } from "@/components/Panel";
-import { RefLink } from "@/components/RefLink";
+import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
 import { useAtLink } from "@/lib/at";
-import { formatDateTime, humanize } from "@/lib/text";
-import { summaryFieldCount } from "@/lib/type-graph";
-import { reasonMeta } from "@/lib/next-reasons";
+import { sharedPrefix } from "@/lib/evidence-flow";
+import { lineName, nextRowsByLine, unreadOf } from "@/lib/lines";
+import { wakeOf, type Wake } from "@/lib/schedule";
+import { formatDateTime, formatRelative, humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { term } from "@/lib/vocabulary";
+import { term, type Signal } from "@/lib/vocabulary";
 
-const NEXT_PREVIEW = 8;
+type OrientLine = Schemas["OrientLine"];
+type LineCard = Schemas["GetLineCard"];
 
 /**
- * Orientation point at the pinned generation: what kinds of Subjects exist
- * and how many, how many Claims stand or conflict, what the instance's
- * artifacts are, and what `next` says needs attention now.
+ * Orientation point at the pinned generation, built around what changes: what
+ * needs you now (proposals, inbox, next items, Lines, health), and what each
+ * running Line is waiting for and when it next wakes. The state's size is one
+ * line in the header; kinds live in the sidebar.
  */
 export function OverviewScreen() {
   const orient = useOrient();
   const next = useNext({ limit: NEXT_PAGE });
+  const lines = useLines();
+  const [showHealth, setShowHealth] = useState(false);
   usePageTitle("Overview");
 
   if (orient.isPending) return <LoadState />;
@@ -34,16 +38,14 @@ export function OverviewScreen() {
     <Page>
       <PageHeader
         title="Overview"
+        summary={<StateLine orient={o} />}
         facts={
           <>
             <Fact label="Generation">
               <span className="font-mono">{o.generation}</span>
             </Fact>
-            <Fact label="Commit">
-              <ShortId value={o.coordinate.git_oid} className="text-zinc-200" />
-            </Fact>
             <Fact label="Accepted" title={o.accepted_at}>
-              {formatDateTime(o.accepted_at)}
+              {formatDateTime(o.accepted_at)} <span className="text-zinc-500">({formatRelative(o.accepted_at)})</span>
             </Fact>
             {o.floor && (
               <Fact label="Floor">
@@ -56,160 +58,47 @@ export function OverviewScreen() {
         }
       />
 
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2 min-[1800px]:grid-cols-3">
-        <KindsPanel orient={o} />
-        <AttentionPanel orient={o} />
-        <NextPanel next={next.data} pending={next.isPending} error={next.error} />
-        <HealthPanel next={next.data} pending={next.isPending} />
-        <CountsPanel orient={o} />
-        <KitsPanel />
+      <NeedsYou orient={o} next={next.data} onHealth={() => setShowHealth((v) => !v)} healthOpen={showHealth} />
+
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
+        <ComingUp rows={lines.data?.rows} pending={lines.isPending} error={lines.error} />
+        <div className="space-y-5">
+          {(showHealth || unhealthy(next.data).length > 0) && <HealthPanel next={next.data} pending={next.isPending} error={next.error} />}
+          <KitsPanel />
+        </div>
       </div>
     </Page>
   );
 }
 
-function KindsPanel({ orient }: { orient: OrientResult }) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
-  const kinds = [...(orient.kinds ?? [])].sort((a, b) => b.subjects - a.subjects);
-  const max = Math.max(1, ...kinds.map((k) => k.subjects));
+/** The state's size in one line: Claims (conflicts flagged) and what defines it. */
+function StateLine({ orient }: { orient: OrientResult }) {
+  const a = orient.artifacts;
+  const claims = a?.claims;
+  const kinds = orient.kinds ?? [];
+  const n = (value: number | undefined) => <span className="font-mono text-zinc-100">{value ?? 0}</span>;
+  const plural = (value: number | undefined, word: string) => (value === 1 ? word : `${word}s`);
   return (
-    <Panel
-      title="Subjects by kind"
-      meta={orient.next_cursor ? <span>first {kinds.length} kinds</span> : <span>{kinds.length} kinds</span>}
-    >
-      {kinds.length === 0 && <EmptyState>No Subject kinds yet.</EmptyState>}
-      <div className="space-y-1.5">
-        {kinds.map((kind) => (
-          <div key={kind.kind} className="flex items-center gap-3 text-[13px]">
-            <Link
-              to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind.kind)}`)}
-              className="w-56 shrink-0 truncate font-mono text-[12px] text-zinc-300 hover:underline"
-              title={kind.kind}
-            >
-              {kind.kind}
-            </Link>
-            <div className="flex-1">
-              <div
-                className="h-2 rounded-full bg-zinc-500"
-                style={{ width: `${Math.max((kind.subjects / max) * 100, kind.subjects ? 2 : 0)}%` }}
-              />
-            </div>
-            <span className="w-12 shrink-0 text-right font-mono text-zinc-400">{kind.subjects}</span>
-            <span className="w-24 shrink-0 text-right text-[12px] text-zinc-600">
-              {summaryFieldCount(kind)} ClaimTypes
-            </span>
-          </div>
-        ))}
-      </div>
-    </Panel>
+    <span>
+      {n(claims?.accepted)} accepted {plural(claims?.accepted, "Claim")}
+      {(claims?.conflicted ?? 0) > 0 && (
+        <>
+          {" "}
+          (<SignalDot signal="wrong" title={term("claim", "conflicted").meaning} /> {n(claims!.conflicted)} conflicted)
+        </>
+      )}{" "}
+      on {n(kinds.filter((k) => k.subjects > 0).length)} of {kinds.length} Subject kinds · {n(a?.claim_types)} ClaimTypes ·{" "}
+      {n(a?.lines)} {plural(a?.lines, "Line")} · {n(a?.procedures)} {plural(a?.procedures, "Procedure")} · {n(a?.captures)}{" "}
+      {plural(a?.captures, "Capture")}
+    </span>
   );
 }
 
-function AttentionPanel({ orient }: { orient: OrientResult }) {
-  const attention = orient.attention;
-  if (!attention) return null;
-  const enablements = attention.enablements;
-  return (
-    <Panel title="Attention">
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-        <dt className="text-zinc-500">Next items</dt>
-        <dd className="font-mono text-zinc-200">{attention.next_items}</dd>
-        <dt className="text-zinc-500">{term("proposal", "open").word}</dt>
-        <dd className="font-mono text-zinc-200">{attention.open_proposals}</dd>
-        {enablements && (
-          <>
-            <dt className="text-zinc-500">Lines</dt>
-            <dd className="text-zinc-300">
-              {enablements.running ?? 0} running · {enablements.stalled ?? 0} stalled ·{" "}
-              {enablements.stopped ?? 0} stopped
-            </dd>
-          </>
-        )}
-      </dl>
-      {(enablements?.needs_attention?.length ?? 0) > 0 && (
-        <div className="mt-3">
-          <div className="text-[12px] font-semibold text-zinc-300">Needs attention</div>
-          <ul className="mt-0.5 space-y-0.5 text-[12px] text-zinc-300">
-            {enablements!.needs_attention!.map((entry) => (
-              <li key={entry}>{entry}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {(attention.top?.length ?? 0) > 0 && (
-        <ul className="mt-2 space-y-0.5 text-[12px] text-zinc-400">
-          {attention.top!.map((line) => (
-            <li key={line} className="font-mono">
-              {line}
-            </li>
-          ))}
-        </ul>
-      )}
-      {(attention.notes?.length ?? 0) > 0 && (
-        <ul className="mt-2 space-y-0.5 text-[12px] text-zinc-500">
-          {attention.notes!.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
-}
+// -- needs you ----------------------------------------------------------------
 
-function NextPanel({
-  next,
-  pending,
-  error,
-}: {
-  next: NextResult | undefined;
-  pending: boolean;
-  error: Error | null;
-}) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
-  return (
-    <Panel
-      title="Next"
-      meta={
-        next ? (
-          <span>
-            {Math.min(next.items.length, NEXT_PREVIEW)} of <span className="font-mono">{next.total_items}</span>
-          </span>
-        ) : undefined
-      }
-    >
-      {pending && <LoadState />}
-      {error && <LoadState error={error} />}
-      {next && next.items.length === 0 && <EmptyState>Nothing needs attention.</EmptyState>}
-      {next && (
-        <div className="divide-y divide-zinc-800/60">
-          {next.items.slice(0, NEXT_PREVIEW).map((item) => (
-            <div key={item.item_id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1 text-[13px]">
-              <Chip concept="severity" value={item.severity} />
-              <span className="text-zinc-300">{reasonMeta(item.reason).label}</span>
-              <RefLink value={item.subject_identity} className="ml-auto" short />
-              {item.repair && (
-                <div className="w-full text-[12px] text-zinc-500">{item.repair.required_change}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      {next && next.total_items > 0 && (
-        <Link to={link(`/i/${instanceId}/next`)} className="mt-2 inline-block text-[12px] text-zinc-400 hover:text-zinc-200">
-          All next items →
-        </Link>
-      )}
-      {next && next.unobserved_domains.length > 0 && (
-        <div className="t-meta mt-2">
-          Not observed from here: {next.unobserved_domains.map(humanize).join(", ")}
-        </div>
-      )}
-    </Panel>
-  );
-}
+const SEVERITIES: NextSeverity[] = ["blocking", "repair", "warning"];
 
+/** Health rows next reports, in reading order. */
 const HEALTH_ROWS = [
   "instance",
   "floor",
@@ -222,89 +111,350 @@ const HEALTH_ROWS = [
   "triggers",
 ] as const;
 
-function HealthPanel({ next, pending }: { next: NextResult | undefined; pending: boolean }) {
+function unhealthy(next: NextResult | undefined) {
   const status = next?.status;
+  if (!status) return [];
+  return HEALTH_ROWS.filter((row) => term("health", status[row].state).signal);
+}
+
+/**
+ * One strip of tiles, each a count and where to act on it. A tile is amber or
+ * red only while its count says something needs doing; at zero it is quiet.
+ */
+function NeedsYou({
+  orient,
+  next,
+  onHealth,
+  healthOpen,
+}: {
+  orient: OrientResult;
+  next: NextResult | undefined;
+  onHealth: () => void;
+  healthOpen: boolean;
+}) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const attention = orient.attention;
+  const proposals = attention?.open_proposals ?? 0;
+  const items = next?.items ?? [];
+  const bySeverity = new Map(SEVERITIES.map((s) => [s, items.filter((item) => item.severity === s).length]));
+  const unread = [...nextRowsByLine(items).values()].reduce((sum, rows) => sum + (unreadOf(rows) ?? 0), 0);
+  const enablements = attention?.enablements;
+  const stalled = enablements?.stalled ?? 0;
+  const stopped = enablements?.stopped ?? 0;
+  const sick = unhealthy(next);
+  const nextSignal: Signal | undefined = bySeverity.get("blocking") ? "wrong" : bySeverity.get("repair") ? "waiting" : undefined;
+  const severityWords = SEVERITIES.flatMap((s) => {
+    const n = bySeverity.get(s) ?? 0;
+    return n ? [`${n} ${term("severity", s).word.toLowerCase()}${n === 1 || s === "blocking" ? "" : "s"}`] : [];
+  });
+  const partial = next && next.total_items > items.length;
+
+  return (
+    <section aria-label="Needs you" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <Tile
+        label="Waiting for review"
+        count={proposals}
+        signal={proposals ? "waiting" : undefined}
+        detail={proposals ? "approve or reject on the CLI or MCP" : "no open proposals"}
+        to={link(`/i/${instanceId}/proposals?status=open`)}
+      />
+      <Tile
+        label="Unread inbox"
+        count={next ? unread : null}
+        signal={unread ? "waiting" : undefined}
+        detail={unread ? "items Lines posted for you" : "nothing posted"}
+        to={link(`/i/${instanceId}/lines`)}
+      />
+      <Tile
+        label="Next"
+        count={next ? next.total_items : null}
+        signal={nextSignal}
+        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : "nothing needs attention") : undefined}
+        to={link(`/i/${instanceId}/next`)}
+      />
+      <Tile
+        label="Lines"
+        count={enablements ? enablements.running ?? 0 : null}
+        countWord="running"
+        signal={stalled ? "wrong" : stopped ? "waiting" : undefined}
+        detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : "none stalled or stopped"}
+        to={link(`/i/${instanceId}/lines`)}
+      />
+      <Tile
+        label="Health"
+        count={next ? sick.length : null}
+        countWord={sick.length ? "need a look" : "all healthy"}
+        hideZero
+        signal={sick.some((row) => term("health", next!.status[row].state).signal === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
+        detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks · ${healthOpen ? "hide" : "show"}`}
+        onClick={onHealth}
+        pressed={healthOpen}
+      />
+    </section>
+  );
+}
+
+function Tile({
+  label,
+  count,
+  countWord,
+  hideZero = false,
+  signal,
+  detail,
+  to,
+  onClick,
+  pressed,
+}: {
+  label: string;
+  count: number | null;
+  countWord?: string;
+  hideZero?: boolean;
+  signal: Signal | undefined;
+  detail: ReactNode;
+  to?: string;
+  onClick?: () => void;
+  pressed?: boolean;
+}) {
+  const ring = signal === "wrong" ? "border-red-500/50" : signal === "waiting" ? "border-amber-400/50" : "border-zinc-800";
+  const body = (
+    <>
+      <div className="flex items-center gap-1.5 text-[12px] text-zinc-400">
+        {signal && <SignalDot signal={signal} title={signal === "wrong" ? "Wrong or blocked" : "Waiting on you"} />}
+        {label}
+      </div>
+      <div className="mt-1 flex items-baseline gap-1.5">
+        {count === null ? (
+          <span className="text-zinc-600">…</span>
+        ) : (
+          <>
+            {!(hideZero && count === 0) && (
+              <span className={`font-mono text-[22px] leading-none ${count || signal ? "text-zinc-100" : "text-zinc-500"}`}>{count}</span>
+            )}
+            {countWord && <span className="text-[13px] text-zinc-400">{countWord}</span>}
+          </>
+        )}
+      </div>
+      {detail && <div className="mt-1 truncate text-[12px] text-zinc-500">{detail}</div>}
+    </>
+  );
+  const className = `block border ${ring} bg-zinc-900/25 px-3.5 py-2.5 hover:bg-zinc-900/60`;
+  return to === undefined ? (
+    <button type="button" onClick={onClick} aria-pressed={pressed} className={`${className} w-full text-left`}>
+      {body}
+    </button>
+  ) : (
+    <Link to={to} className={className}>
+      {body}
+    </Link>
+  );
+}
+
+// -- coming up ----------------------------------------------------------------
+
+interface Upcoming {
+  name: string;
+  row: OrientLine;
+  card: LineCard | undefined;
+  wakes: Wake[];
+  /** Soonest time something is due: a due occurrence (now), a scheduled one, or the next cron fire. */
+  soonest: Date | null;
+  due: boolean;
+}
+
+const enabled = (row: OrientLine) => row.enablement != null && row.enablement !== "disabled";
+
+/**
+ * Each enabled Line: what wakes it, when it next does, and how its last run
+ * went; due work first, then soonest. Lines not enabled fold into one line.
+ */
+function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pending: boolean; error: Error | null }) {
+  const live = (rows ?? []).filter((row) => row.lifecycle === "live");
+  const on = live.filter(enabled);
+  const off = live.filter((row) => !enabled(row));
+  const cards = useCards(on.map((row) => `Line:${lineName(row.line)}`));
+  const prefix = sharedPrefix(live.map((row) => lineName(row.line)));
+  const now = new Date();
+
+  const upcoming: Upcoming[] = on.map((row, i) => {
+    const card = (cards[i]?.card ?? undefined) as LineCard | undefined;
+    const wakes = (card?.triggers ?? []).map((t) => wakeOf(t.fires, now));
+    const scheduled = (card?.occurrences ?? []).map((o) => new Date(o.eligible_at));
+    const due = (row.due ?? 0) > 0 || (card?.occurrences ?? []).some((o) => o.state === "due");
+    const times = [...scheduled, ...wakes.flatMap((w) => (w.next ? [w.next] : []))].sort((a, b) => a.getTime() - b.getTime());
+    return { name: lineName(row.line), row, card, wakes, soonest: due ? now : (times[0] ?? null), due };
+  });
+  upcoming.sort((a, b) => {
+    if (a.due !== b.due) return a.due ? -1 : 1;
+    const at = a.soonest?.getTime() ?? Infinity;
+    const bt = b.soonest?.getTime() ?? Infinity;
+    return at !== bt ? at - bt : a.name.localeCompare(b.name);
+  });
+
   return (
     <Panel
-      title="Health"
-      meta={status?.blocking ? <Chip concept="severity" value="blocking" /> : undefined}
+      title="Coming up"
+      meta={rows ? <span>{on.length} of {live.length} Lines enabled</span> : undefined}
     >
       {pending && <LoadState />}
-      {status && (
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-          {HEALTH_ROWS.map((row) => {
-            const health: NextHealth = status[row];
-            return (
-              <div key={row} className="contents">
-                <dt className="text-zinc-500">{humanize(row)}</dt>
-                <dd className="flex flex-wrap items-baseline gap-2">
-                  <Chip concept="health" value={health.state} />
-                  {health.repair && (
-                    <span className="text-[12px] text-zinc-500">{health.repair.required_change}</span>
-                  )}
-                </dd>
-              </div>
-            );
-          })}
-          {(status.held ?? 0) > 0 && (
-            <>
-              <dt className="text-zinc-500">Held</dt>
-              <dd className="font-mono text-zinc-300">{status.held}</dd>
-            </>
-          )}
-        </dl>
-      )}
-    </Panel>
-  );
-}
-
-function CountsPanel({ orient }: { orient: OrientResult }) {
-  const a = orient.artifacts;
-  if (!a) return null;
-  const claims = a.claims;
-  const artifacts: [string, number | undefined][] = [
-    ["ClaimTypes", a.claim_types],
-    ["Procedures", a.procedures],
-    ["Lines", a.lines],
-    ["Runs", a.runs],
-    ["Running", a.running],
-    ["Mandates", a.mandates],
-    ["Captures", a.captures],
-    ["Capture contracts", a.capture_contracts],
-    ["Documents", a.documents],
-    ["Queries", a.queries],
-    ["Interfaces", a.interfaces],
-  ];
-  return (
-    <Panel title="State">
-      {claims && (
-        <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
-          <Count label="accepted Claims" value={claims.accepted} />
-          <Count label="conflicted" value={claims.conflicted} signal={claims.conflicted ? "wrong" : undefined} />
-          <Count label="overturned" value={claims.overturned} />
-          <Count label="ineligible" value={claims.ineligible} />
-          <Count label="retired" value={claims.retired} />
+      {error && <LoadState error={error} />}
+      {rows && on.length === 0 && <EmptyState>No Line is enabled, so nothing runs on its own.</EmptyState>}
+      {upcoming.length > 0 && (
+        <div className="divide-y divide-zinc-800/60">
+          {upcoming.map((u) => (
+            <UpcomingRow key={u.name} u={u} label={u.name.slice(prefix.length)} now={now} />
+          ))}
         </div>
       )}
-      <dl className="grid grid-cols-[max-content_max-content_max-content_max-content] gap-x-4 gap-y-0.5 text-[13px]">
-        {artifacts.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="text-zinc-500">{label}</dt>
-            <dd className="font-mono text-zinc-300">{value ?? 0}</dd>
-          </div>
-        ))}
-      </dl>
+      {off.length > 0 && (
+        <div className="mt-2">
+          <Disclosure label={`${off.length} ${off.length === 1 ? "Line is" : "Lines are"} not enabled`}>
+            <LineLinks names={off.map((row) => lineName(row.line))} prefix={prefix} />
+          </Disclosure>
+        </div>
+      )}
     </Panel>
   );
 }
 
-function Count({ label, value, signal }: { label: string; value: number | undefined; signal?: "wrong" | undefined }) {
+function UpcomingRow({ u, label, now }: { u: Upcoming; label: string; now: Date }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const last = u.card?.recent_runs?.[0];
+  const lastTerm = last ? term("run", last.status) : null;
+  const state = u.row.enablement && u.row.enablement !== "running" ? term("line", u.row.enablement) : null;
   return (
-    <span className="inline-flex items-baseline gap-1.5">
-      {signal && <SignalDot signal={signal} title={term("claim", "conflicted").meaning} />}
-      <span className="font-mono text-zinc-200">{value ?? 0}</span>
-      <span className="text-zinc-500">{label}</span>
-    </span>
+    <div className="grid grid-cols-[minmax(0,13rem)_minmax(0,1fr)_max-content] items-baseline gap-x-4 py-1.5 text-[13px]">
+      <div className="min-w-0">
+        <Link
+          to={link(`/i/${instanceId}/lines/${encodeURIComponent(u.name)}`)}
+          className="block truncate font-mono text-[12px] text-zinc-200 hover:underline"
+          title={u.name}
+        >
+          {label}
+        </Link>
+        {state && (
+          <span className="inline-flex items-center gap-1 text-[12px] text-zinc-400">
+            {state.signal && <SignalDot signal={state.signal} title={state.meaning} />}
+            {state.word}
+          </span>
+        )}
+      </div>
+      <div className="min-w-0 text-zinc-300">
+        {u.card === undefined ? (
+          <span className="text-zinc-600">…</span>
+        ) : u.wakes.length === 0 ? (
+          <span className="text-zinc-500">runs when asked</span>
+        ) : (
+          <ul className="space-y-0.5">
+            {u.wakes.map((w) => (
+              <li key={w.words} className="truncate" title={w.words}>
+                {w.words}
+                {w.next && (
+                  <span className="text-zinc-500" title={formatDateTime(w.next.toISOString())}>
+                    {" "}
+                    · next {formatRelative(w.next, now)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="text-right text-[12px]">
+        {u.due ? (
+          <span className="inline-flex items-center gap-1 text-zinc-200">
+            <SignalDot signal="waiting" title={term("occurrence", "due").meaning} />
+            {u.row.due ?? 1} due now
+          </span>
+        ) : (u.row.waiting ?? 0) > 0 && u.soonest ? (
+          <span className="text-zinc-300" title={formatDateTime(u.soonest.toISOString())}>
+            {u.row.waiting} scheduled · {formatRelative(u.soonest, now)}
+          </span>
+        ) : last && lastTerm ? (
+          <Link
+            to={link(`/i/${instanceId}/runs/${encodeURIComponent(last.run.replace(/^ProcedureRun:/, ""))}`)}
+            className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200"
+            title={`${lastTerm.meaning} · ${formatDateTime(last.started_at)}`}
+          >
+            {lastTerm.signal && <SignalDot signal={lastTerm.signal} title={lastTerm.meaning} />}
+            last run {formatRelative(last.started_at, now)}
+            {last.status !== "succeeded" && ` · ${lastTerm.word.toLowerCase()}`}
+          </Link>
+        ) : (
+          <span className="text-zinc-600">no runs</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LineLinks({ names, prefix }: { names: string[]; prefix: string }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px]">
+      {[...names].sort().map((name) => (
+        <Link
+          key={name}
+          to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)}
+          className="font-mono text-zinc-400 hover:text-zinc-200 hover:underline"
+          title={name}
+        >
+          {name.slice(prefix.length)}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+// -- health and kits ------------------------------------------------------------
+
+/** The environment's checks, folded to one line while all are healthy. */
+function HealthPanel({ next, pending, error }: { next: NextResult | undefined; pending: boolean; error: Error | null }) {
+  const status = next?.status;
+  const sick = unhealthy(next);
+  return (
+    <div id="health">
+      <Panel
+        title="Health"
+        meta={
+          status?.blocking ? (
+            <Chip concept="severity" value="blocking" />
+          ) : status ? (
+            <span>{sick.length ? `${sick.length} of ${HEALTH_ROWS.length} need a look` : `all ${HEALTH_ROWS.length} healthy`}</span>
+          ) : undefined
+        }
+      >
+        {pending && <LoadState />}
+        {error && <LoadState error={error} />}
+        {status && (
+          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
+            {HEALTH_ROWS.map((row) => {
+              const health: NextHealth = status[row];
+              return (
+                <div key={row} className="contents">
+                  <dt className="text-zinc-500">{humanize(row)}</dt>
+                  <dd className="flex flex-wrap items-baseline gap-2">
+                    <Chip concept="health" value={health.state} />
+                    {health.repair && <span className="text-[12px] text-zinc-500">{health.repair.required_change}</span>}
+                  </dd>
+                </div>
+              );
+            })}
+            {(status.held ?? 0) > 0 && (
+              <>
+                <dt className="text-zinc-500">Held</dt>
+                <dd className="font-mono text-zinc-300">{status.held}</dd>
+              </>
+            )}
+          </dl>
+        )}
+        {next && next.unobserved_domains.length > 0 && (
+          <div className="t-meta mt-2">Not observed from here: {next.unobserved_domains.map(humanize).join(", ")}</div>
+        )}
+      </Panel>
+    </div>
   );
 }
 
@@ -322,9 +472,7 @@ function KitsPanel() {
             <div className="flex flex-wrap items-baseline gap-x-3">
               <span className="font-mono text-zinc-200">{kit.kit_id}</span>
               <span className="font-mono text-zinc-500">{kit.version}</span>
-              {(kit.drifted?.length ?? 0) > 0 && (
-                <span className="text-zinc-400">{kit.drifted!.length} drifted</span>
-              )}
+              {(kit.drifted?.length ?? 0) > 0 && <span className="text-zinc-400">{kit.drifted!.length} drifted</span>}
               {kit.latest_available && kit.latest_available !== kit.version && (
                 <span className="text-zinc-500">latest {kit.latest_available}</span>
               )}

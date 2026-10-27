@@ -5,24 +5,33 @@ import { renderApp } from "@/test/render";
 afterEach(cleanup);
 
 describe("Overview", () => {
-  it("orients at the head: kinds with counts, Claims, next items and health", async () => {
+  it("leads with what needs you, then what each enabled Line waits for", async () => {
     renderApp("/i/inst_fixture");
 
     expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
     expect(await main.findByText("Generation")).toBeInTheDocument();
 
-    const kind = main.getByRole("link", { name: "security.vulnerability" });
-    expect(kind).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability");
+    // the needs-you strip: each tile links to where it is acted on
+    const strip = within(main.getByRole("region", { name: "Needs you" }));
+    expect(strip.getByRole("link", { name: /Waiting for review/ })).toHaveAttribute("href", "/i/inst_fixture/proposals?status=open");
+    expect(await strip.findByRole("link", { name: /Next \d/ })).toHaveAttribute("href", "/i/inst_fixture/next");
+    // a stopped Line and unread inbox items are waiting on you (amber)
+    expect(strip.getByRole("link", { name: /^Waiting on you Lines 1 running 0 stalled · 1 stopped/ })).toHaveAttribute("href", "/i/inst_fixture/lines");
+    expect(strip.getByRole("link", { name: /^Waiting on you Unread inbox 3/ })).toBeInTheDocument();
 
-    // next: the conflicted assessment links to its Subject card.
-    const subject = await main.findByRole("link", { name: "security.assessment/rel-1-cve-2024-3094" });
-    expect(subject).toHaveAttribute(
-      "href",
-      "/i/inst_fixture/s/security.assessment%2Frel-1-cve-2024-3094",
-    );
-    expect(main.getByText("Claims conflict")).toBeInTheDocument();
-    expect(main.getByText("Line dispatch")).toBeInTheDocument();
+    // coming up: each enabled Line, with what wakes it and what it is waiting on; a stopped one says so
+    const line = await main.findByRole("link", { name: "kev-triage" });
+    expect(line).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+    expect(await main.findByText("daily at 06:00 UTC")).toBeInTheDocument();
+    expect(main.getByText(/1 scheduled/)).toBeInTheDocument();
+    expect(main.getByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
+    expect(main.getByText("Stopped")).toBeInTheDocument();
+
+    // health folds into its tile until asked for
+    expect(main.queryByText("Line dispatch")).not.toBeInTheDocument();
+    fireEvent.click(await strip.findByRole("button", { name: /Health/ }));
+    expect(await main.findByText("Line dispatch")).toBeInTheDocument();
     expect(await main.findByText("security.kev-catalog")).toBeInTheDocument();
   });
 
@@ -30,8 +39,8 @@ describe("Overview", () => {
     renderApp("/i/inst_fixture?at=42");
 
     const main = within(await screen.findByRole("main"));
-    const kind = await main.findByRole("link", { name: "security.vulnerability" });
-    expect(kind).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability?at=42");
+    const line = await main.findByRole("link", { name: "kev-triage" });
+    expect(line.getAttribute("href")).toMatch(/^\/i\/inst_fixture\/lines\/[^?]*kev-triage\?at=42$/);
     // the picker names the pin and the head it is not following
     expect(await screen.findByRole("button", { name: /Generation 42 · pinned/ })).toBeInTheDocument();
     expect(screen.getByText("Head is 42")).toBeInTheDocument();
