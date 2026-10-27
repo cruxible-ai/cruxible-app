@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { OrientPredicate } from "@/api/schemas";
-import { buildFlow, COLUMNS, focusFlow, layoutFlow, nodeId, related, type FlowInputs } from "./evidence-flow";
+import {
+  buildFlow,
+  COLUMNS,
+  focusFlow,
+  layoutFlow,
+  nodeId,
+  OWN_WORD,
+  readClaimTypeAccepts,
+  related,
+  sharedPrefix,
+  type FlowInputs,
+} from "./evidence-flow";
 
 const ct = (predicate: string, evidence: string[], captured = false): OrientPredicate => ({
   name: predicate.split(".").at(-1)!,
@@ -12,106 +23,123 @@ const ct = (predicate: string, evidence: string[], captured = false): OrientPred
   subject_kinds: [predicate.split(".").slice(0, 2).join(".")],
 });
 
+const SELF = "playbill.coordinator-self-source-v1";
+
 const INPUTS: FlowInputs = {
-  contracts: [
-    { name: "kev-v1", grade: "observed" },
-    { name: "repo-v1", grade: "observed" },
-    { name: "lonely-v1", grade: "observed" },
-  ],
-  // Logical sources, from the steps that retain them and the Triggers that select them.
   sources: [
-    { id: "cisa.kev", contracts: ["kev-v1"], retainedBy: "retained by Line kev-daily" },
-    { id: "github.repo", contracts: ["repo-v1"] },
-    { id: "github.api", contracts: ["repo-v1"] },
-    { id: "doc", contracts: ["lonely-v1"] },
+    { id: "cisa.kev", contracts: ["fetched-v1"], retainedBy: "retained by Line kev-daily" },
+    { id: "first.epss", contracts: ["fetched-v1"] },
+    { id: "github.repo", contracts: ["fetched-v1"] },
+    { id: "evidence.file", contracts: ["file-v1"], retainedBy: "retained by a direct evidence-acquire run" },
   ],
   claimTypes: [
-    ct("sec.vuln.kev_listed", ["kev-v1"], true),
-    ct("sec.vuln.title", ["kev-v1", "repo-v1"]),
-    ct("sec.job.uses", ["repo-v1"], true),
+    ct("sec.vuln.kev_listed", ["fetched-v1"], true),
+    ct("sec.vuln.epss", ["fetched-v1"], true),
+    ct("sec.job.uses", ["fetched-v1"], true),
+    ct("sec.assess.status", ["file-v1", SELF]),
+    ct("sec.service.criticality", [SELF]),
     ct("sec.job.name", []),
-    ct("sec.job.ghost", ["unlisted-v1"]),
   ],
+  accepts: new Map([
+    ["sec.vuln.kev_listed", [{ contract: "fetched-v1", sources: ["cisa.kev"] }]],
+    ["sec.vuln.epss", [{ contract: "fetched-v1", sources: ["first.epss"] }]],
+    ["sec.job.uses", [{ contract: "fetched-v1", sources: ["github.repo"] }]],
+    ["sec.assess.status", [{ contract: "file-v1", sources: [] }, { contract: SELF, sources: [] }]],
+    ["sec.service.criticality", [{ contract: SELF, sources: [] }]],
+  ]),
   triggers: [
-    { name: "kev-landed", contract: "CaptureContract:kev-v1", target: "Line:kev-triage", logicalSources: ["cisa.kev"] },
-    { name: "repo-landed", contract: "CaptureContract:repo-v1", target: "Line:repo-parse" },
-    { name: "api-landed", contract: "CaptureContract:repo-v1", target: "Line:api-parse", logicalSources: ["github.api"] },
+    { name: "kev-landed", contract: "CaptureContract:fetched-v1", target: "Line:kev-triage", logicalSources: ["cisa.kev"] },
+    { name: "epss-landed", contract: "CaptureContract:fetched-v1", target: "Line:epss-triage", logicalSources: ["first.epss"] },
+    { name: "repo-landed", contract: "CaptureContract:fetched-v1", target: "Line:repo-parse", logicalSources: ["github.repo"] },
   ],
   lineAuthority: new Map([["kev-triage", "settle"]]),
-  producers: new Map([["kev-v1", ["Procedure:kev-acquire"]]]),
 };
 
-describe("evidence flow model", () => {
+describe("evidence flow model: sources -> Lines -> ClaimTypes", () => {
   const model = buildFlow(INPUTS);
+  const edge = (from: string, to: string) => model.edges.find((e) => e.from === from && e.to === to);
 
-  it("draws sources -> contracts -> Triggers and evidence-taking ClaimTypes", () => {
-    const ids = model.nodes.map((n) => n.id);
-    expect(ids).toContain(nodeId.source("github.api"));
-    expect(ids).toContain(nodeId.trigger("kev-landed"));
-    expect(ids).not.toContain(nodeId.claimType("sec.job.name")); // takes no Captures
-    // a contract a ClaimType names but the section omits still appears, without a grade
-    const ghost = model.nodes.find((n) => n.id === nodeId.contract("unlisted-v1"))!;
-    expect(ghost.detail).toBeUndefined();
-    expect(model.edges).toContainEqual({ from: nodeId.contract("kev-v1"), to: nodeId.claimType("sec.vuln.kev_listed"), required: true });
-    expect(model.edges).toContainEqual({ from: nodeId.contract("repo-v1"), to: nodeId.claimType("sec.vuln.title") });
-    expect(model.nodes.find((n) => n.id === nodeId.trigger("kev-landed"))).toMatchObject({ detail: "Line:kev-triage", authority: "settle" });
-    expect(model.nodes.find((n) => n.id === nodeId.contract("kev-v1"))?.producers).toEqual(["Procedure:kev-acquire"]);
+  it("links a source to the Lines whose Triggers select it, and nothing else", () => {
+    expect(edge(nodeId.source("cisa.kev"), nodeId.line("kev-triage"))).toBeDefined();
+    expect(edge(nodeId.source("cisa.kev"), nodeId.line("epss-triage"))).toBeUndefined();
+    expect(model.nodes.find((n) => n.id === nodeId.line("kev-triage"))).toMatchObject({
+      authority: "settle",
+      detail: "when cisa.kev lands",
+      triggers: ["kev-landed"],
+    });
   });
 
-  it("draws a source node per logical source, with who retains it, and Trigger edges carrying their selection", () => {
-    expect(model.nodes.find((n) => n.id === nodeId.source("cisa.kev"))).toMatchObject({ kind: "source", detail: "retained by Line kev-daily" });
-    expect(model.edges).toContainEqual({ from: nodeId.source("github.api"), to: nodeId.contract("repo-v1") });
-    expect(model.edges).toContainEqual({ from: nodeId.contract("repo-v1"), to: nodeId.trigger("api-landed"), sources: ["github.api"] });
-    expect(model.edges).toContainEqual({ from: nodeId.contract("repo-v1"), to: nodeId.trigger("repo-landed") });
-    expect(model.nodes.find((n) => n.id === nodeId.trigger("api-landed"))?.sources).toEqual(["github.api"]);
+  it("links a Line only to the ClaimTypes that accept a source it reads", () => {
+    expect(edge(nodeId.line("kev-triage"), nodeId.claimType("sec.vuln.kev_listed"))).toMatchObject({ sources: ["cisa.kev"], required: true });
+    // same contract, different source: no edge
+    expect(edge(nodeId.line("kev-triage"), nodeId.claimType("sec.vuln.epss"))).toBeUndefined();
+    expect(edge(nodeId.line("repo-parse"), nodeId.claimType("sec.job.uses"))).toBeDefined();
   });
 
-  it("traces a source only into the Triggers that select it, and a selecting Trigger only back to its sources", () => {
-    const repo = related(model, nodeId.source("github.repo"));
-    expect(repo.has(nodeId.trigger("repo-landed"))).toBe(true); // selects any landing
-    expect(repo.has(nodeId.trigger("api-landed"))).toBe(false); // selects github.api only
-    expect(repo.has(nodeId.claimType("sec.job.uses"))).toBe(true);
-    const api = related(model, nodeId.trigger("api-landed"));
-    expect(api.has(nodeId.source("github.api"))).toBe(true);
-    expect(api.has(nodeId.source("github.repo"))).toBe(false);
-    // a contract still traces to every source and Trigger it carries
-    const contract = related(model, nodeId.contract("repo-v1"));
-    for (const id of [nodeId.source("github.repo"), nodeId.source("github.api"), nodeId.trigger("api-landed"), nodeId.trigger("repo-landed")]) {
-      expect(contract.has(id)).toBe(true);
+  it("sends a source no Line reads, and own-word statements, straight to the ClaimTypes that accept them", () => {
+    expect(edge(nodeId.source("evidence.file"), nodeId.claimType("sec.assess.status"))).toMatchObject({ direct: true });
+    expect(edge(OWN_WORD, nodeId.claimType("sec.service.criticality"))).toMatchObject({ direct: true });
+    expect(edge(OWN_WORD, nodeId.claimType("sec.assess.status"))).toMatchObject({ direct: true });
+    // a source a Line reads does not also skip the Line
+    expect(edge(nodeId.source("cisa.kev"), nodeId.claimType("sec.vuln.kev_listed"))).toBeUndefined();
+    // a ClaimType that takes no evidence stays off the flow
+    expect(model.nodes.some((n) => n.id === nodeId.claimType("sec.job.name"))).toBe(false);
+  });
+
+  it("draws no ClaimType edges from a Line capped at observe", () => {
+    const capped = buildFlow({ ...INPUTS, lineAuthority: new Map([["kev-triage", "observe"]]) });
+    expect(capped.edges.some((e) => e.from === nodeId.line("kev-triage") && e.to.startsWith("claim_type:"))).toBe(false);
+    expect(capped.edges.some((e) => e.to === nodeId.line("kev-triage"))).toBe(true);
+  });
+
+  it("falls back to any source under a ClaimType's contracts when its rules weren't read", () => {
+    const loose = buildFlow({ ...INPUTS, accepts: new Map() });
+    expect(loose.edges.find((e) => e.from === nodeId.line("kev-triage") && e.to === nodeId.claimType("sec.vuln.epss"))).toBeDefined();
+  });
+
+  it("focus from a source keeps only its own path; focus on a ClaimType keeps its upstream", () => {
+    const kept = related(model, nodeId.source("cisa.kev"));
+    expect(kept.has(nodeId.claimType("sec.vuln.kev_listed"))).toBe(true);
+    expect(kept.has(nodeId.claimType("sec.vuln.epss"))).toBe(false);
+    const sub = focusFlow(model, nodeId.claimType("sec.service.criticality"));
+    expect(sub.nodes.map((n) => n.id).sort()).toEqual([OWN_WORD, nodeId.claimType("sec.service.criticality")].sort());
+  });
+});
+
+describe("evidence flow layout", () => {
+  const layout = layoutFlow(buildFlow(INPUTS));
+  it("puts sources, Lines and ClaimTypes in three columns, each packed from the top, without overlap", () => {
+    const at = (kind: string) => layout.placed.filter((p) => p.kind === kind);
+    expect(new Set(at("source").map((p) => p.x))).toEqual(new Set([COLUMNS[0].x]));
+    expect(new Set(at("line").map((p) => p.x))).toEqual(new Set([COLUMNS[1].x]));
+    expect(new Set(at("claim_type").map((p) => p.x))).toEqual(new Set([COLUMNS[2].x]));
+    const top = Math.min(...at("source").map((p) => p.y));
+    expect(Math.min(...at("line").map((p) => p.y))).toBe(top);
+    for (const column of [at("source"), at("line"), [...at("claim_type"), ...at("kind")]]) {
+      const sorted = [...column].sort((a, b) => a.y - b.y);
+      for (let i = 1; i < sorted.length; i += 1) expect(sorted[i]!.y).toBeGreaterThanOrEqual(sorted[i - 1]!.y + sorted[i - 1]!.h);
     }
+    // own-word statements sit last in the source column
+    const sources = [...at("source")].sort((a, b) => a.y - b.y);
+    expect(sources.at(-1)?.id).toBe(OWN_WORD);
   });
+});
 
-  it("a focus keeps upstream and downstream, never siblings", () => {
-    const keep = related(model, nodeId.claimType("sec.job.uses"));
-    expect([...keep].sort()).toEqual(
-      [nodeId.claimType("sec.job.uses"), nodeId.contract("repo-v1"), nodeId.source("github.repo"), nodeId.source("github.api")].sort(),
-    );
-    const kind = focusFlow(model, nodeId.kind("sec.vuln"));
-    expect(kind.nodes.map((n) => n.id)).not.toContain(nodeId.claimType("sec.job.uses"));
-    expect(kind.nodes.map((n) => n.id)).toContain(nodeId.source("cisa.kev"));
-    expect(kind.nodes.map((n) => n.id)).not.toContain(nodeId.trigger("kev-landed"));
-    expect(focusFlow(model, "contract:nothing")).toBe(model);
+describe("helpers", () => {
+  it("drops a shared namespace only when every name has it", () => {
+    expect(sharedPrefix(["security.kev-triage", "security.release"])).toBe("security.");
+    expect(sharedPrefix(["security.kev-triage", "caselaw.decision"])).toBe("");
   });
-
-  it("lays out deterministically: columns left to right, rows never overlapping", () => {
-    const a = layoutFlow(model);
-    const b = layoutFlow(buildFlow(INPUTS));
-    expect(a.placed).toEqual(b.placed);
-    for (const edge of a.edges) {
-      const from = a.byId.get(edge.from)!;
-      const to = a.byId.get(edge.to)!;
-      expect(from.x + from.w).toBeLessThan(to.x);
-    }
-    for (const column of COLUMNS) {
-      const rows = a.placed.filter((p) => p.x === column.x).sort((p, q) => p.y - q.y);
-      for (let i = 1; i < rows.length; i += 1) expect(rows[i]!.y).toBeGreaterThanOrEqual(rows[i - 1]!.y + rows[i - 1]!.h);
-    }
-    // Triggers first, then ClaimTypes under their kind's row
-    const right = a.placed.filter((p) => p.x === COLUMNS[2].x).map((p) => p.id);
-    expect(right.indexOf(nodeId.trigger("repo-landed"))).toBeLessThan(right.indexOf("heading:beliefs"));
-    expect(right.indexOf(nodeId.kind("sec.job"))).toBeLessThan(right.indexOf(nodeId.claimType("sec.job.uses")));
-    // the contract that feeds nothing sits below the others
-    const lonely = a.byId.get(nodeId.contract("lonely-v1"))!;
-    for (const c of a.placed.filter((p) => p.kind === "contract" && p.id !== lonely.id)) expect(lonely.y).toBeGreaterThan(c.y);
+  it("reads what a ClaimType accepts from its proof", () => {
+    const proof = {
+      envelope: {
+        identity: { kind: "ClaimType", name: "sec.vuln.kev_listed" },
+        evidence_admission_policy: {
+          rules: [{ capture_contracts: [{ target: { kind: "CaptureContract", name: "fetched-v1" }, logical_sources: ["cisa.kev"] }] }],
+        },
+      },
+    };
+    expect(readClaimTypeAccepts(proof)).toEqual({ predicate: "sec.vuln.kev_listed", accepts: [{ contract: "fetched-v1", sources: ["cisa.kev"] }] });
+    expect(readClaimTypeAccepts({})).toBeNull();
   });
 });

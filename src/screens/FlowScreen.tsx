@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair } from "lucide-react";
-import { useCaptureContracts, useClaimTypes, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
+import { useClaimTypes, useGetBatch, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { RefLink } from "@/components/RefLink";
@@ -11,8 +11,10 @@ import {
   edgePath,
   focusFlow,
   layoutFlow,
-  nodeId,
+  readClaimTypeAccepts,
   related,
+  sharedPrefix,
+  type AcceptedEvidence,
   type FlowModel,
   type Placed,
 } from "@/lib/evidence-flow";
@@ -23,16 +25,13 @@ import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 /**
- * Evidence flow: logical sources -> the contracts Captures land under -> the
- * Triggers those landings fire (and the Lines they start) and the ClaimTypes
- * that admit those Captures as evidence. Columns, every node a link to its
- * page; hovering a node lights its upstream and downstream, `?focus=` keeps
- * only that path. A logical source comes from the definitions (contracts no
- * longer list sources): the source steps that retain it and the landing
- * Triggers that select it (useSourceModel). Reads are ontology-sized: the
- * capture_contracts, claim_types, lines and procedures sections, the
- * Procedure cards and Line envelopes (get-batch, 64 a call) and the
- * capture-landing Trigger listing.
+ * Evidence flow: sources -> the Lines that read their landings -> the
+ * ClaimTypes those Lines may write; a source no Line reads, and statements on
+ * their author's own word, go straight to the ClaimTypes that accept them.
+ * The contract a source is captured under is a tag on the source. Reads are
+ * ontology-sized: the claim_types and lines sections, the source model
+ * (Procedure cards, Line envelopes, landing Triggers) and one get-batch of
+ * ClaimType proofs for what each ClaimType's evidence rules accept.
  */
 export function FlowScreen() {
   const instanceId = useInstanceId();
@@ -42,33 +41,33 @@ export function FlowScreen() {
   const focus = params.get("focus");
   const [hover, setHover] = useState<string | null>(null);
 
-  const contracts = useCaptureContracts();
   const claimTypes = useClaimTypes();
   const lines = useLines();
   const sources = useSourceModel();
+  const proofs = useGetBatch(
+    (claimTypes.data?.rows ?? []).filter((row) => (row.evidence ?? []).length > 0).map((row) => `ClaimType:${row.predicate}`),
+    "proof",
+  );
 
   const model = useMemo<FlowModel | null>(() => {
-    if (!contracts.data || !claimTypes.data || !lines.data || !sources.data) return null;
-    // The Procedures that retain Captures under each contract (a step that reads a landing does not).
-    const producers = new Map<string, string[]>();
-    for (const retention of sources.data.retentions) {
-      const list = producers.get(retention.contract) ?? [];
-      const ref = `Procedure:${retention.procedure}`;
-      if (!list.includes(ref)) producers.set(retention.contract, [...list, ref].sort());
+    if (!claimTypes.data || !lines.data || !sources.data || proofs.isPending) return null;
+    const accepts = new Map<string, AcceptedEvidence[]>();
+    for (const result of proofs.results) {
+      const read = readClaimTypeAccepts((result as { proof?: unknown }).proof);
+      if (read) accepts.set(read.predicate, read.accepts);
     }
     return buildFlow({
-      contracts: contracts.data.rows.map((row) => ({ name: contractName(row.contract), grade: row.grade })),
       sources: sources.data.sources.map((source) => ({
         id: source.id,
         contracts: source.contracts,
         retainedBy: source.retainedBy.length ? `retained by ${retainedByWords(source.retainedBy)}` : "selected by a Trigger; no step names it",
       })),
       claimTypes: claimTypes.data.rows,
+      accepts,
       triggers: sources.data.triggers,
       lineAuthority: new Map(lines.data.rows.map((row) => [lineName(row.line), row.authority] as const)),
-      producers,
     });
-  }, [contracts.data, claimTypes.data, lines.data, sources.data]);
+  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results]);
 
   const clearFocus = useCallback(() => {
     const next = new URLSearchParams(params);
@@ -80,8 +79,12 @@ export function FlowScreen() {
   const shown = useMemo(() => (model ? focusFlow(model, focus) : null), [model, focus]);
   const layout = useMemo(() => (shown ? layoutFlow(shown) : null), [shown]);
   const lit = useMemo(() => (shown && hover ? related(shown, hover) : null), [shown, hover]);
+  // Names share the kit namespace ("security."): say it once, drop it from labels.
+  // (Line and Trigger names only: Subject kinds can come from other namespaces, such as core's semantic.*.)
+  const prefix = useMemo(() => sharedPrefix((model?.nodes ?? []).filter((n) => n.kind === "line").map((n) => n.label)), [model]);
 
-  const error = contracts.error ?? claimTypes.error ?? lines.error ?? sources.error;
+  // ClaimType proofs only sharpen the Line → ClaimType edges: without them, fall back to contracts (and say so).
+  const error = claimTypes.error ?? lines.error ?? sources.error;
   if (error) return <LoadState error={error} />;
   if (!model || !layout || !shown) return <LoadState />;
 
@@ -93,37 +96,40 @@ export function FlowScreen() {
     setHover(null);
   };
   const count = (kind: string) => shown.nodes.filter((n) => n.kind === kind).length;
-  const admissions = shown.edges.filter((e) => e.to.startsWith("claim_type:"));
   const focused = focus ? layout.byId.get(focus) ?? null : null;
-  const capped = sources.data?.truncated || contracts.data?.truncated || claimTypes.data?.truncated;
+  const capped = sources.data?.truncated || claimTypes.data?.truncated;
 
   return (
     <div className="space-y-3">
       <header>
         <h1 className="t-title">Evidence flow</h1>
         <p className="mt-1 max-w-3xl text-[13px] text-zinc-400">
-          Where evidence comes from, the contracts its Captures land under, and what each contract feeds: the Triggers its
-          landings fire and the ClaimTypes that admit it. Hover a node to trace it; focus keeps only its path.
+          How evidence moves: each source, the Lines that read it when it lands, and the ClaimTypes those Lines may write.
+          A source no Line reads, and statements on their author's own word, go straight to the ClaimTypes that accept them.
+          Hover to trace; focus keeps only a path.
         </p>
         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
           <span>
             <span className="font-mono text-zinc-200">{count("source")}</span> {count("source") === 1 ? "source" : "sources"}
           </span>
           <span>
-            <span className="font-mono text-zinc-200">{count("contract")}</span> {count("contract") === 1 ? "contract" : "contracts"}
+            <span className="font-mono text-zinc-200">{count("line")}</span> {count("line") === 1 ? "Line" : "Lines"}
           </span>
           <span>
-            <span className="font-mono text-zinc-200">{count("trigger")}</span> {count("trigger") === 1 ? "landing Trigger" : "landing Triggers"}
+            <span className="font-mono text-zinc-200">{count("claim_type")}</span> {count("claim_type") === 1 ? "ClaimType" : "ClaimTypes"}
           </span>
-          <span>
-            <span className="font-mono text-zinc-200">{count("claim_type")}</span> {count("claim_type") === 1 ? "ClaimType taking Captures" : "ClaimTypes taking Captures"}
-          </span>
-          <span>
-            <span className="font-mono text-zinc-200">{admissions.length}</span> {admissions.length === 1 ? "admission" : "admissions"},{" "}
-            <span>{admissions.filter((e) => e.required).length} required</span>
-          </span>
+          {prefix && (
+            <span>
+              names under <span className="font-mono text-zinc-300">{prefix}</span>
+            </span>
+          )}
         </div>
         {capped && <div className="mt-1 text-[12px] text-zinc-500">A listing stopped at its page cap: the flow may be incomplete.</div>}
+        {proofs.error && (
+          <div className="mt-1 text-[12px] text-zinc-500">
+            The ClaimTypes' evidence rules couldn't be read, so a Line links to every ClaimType that accepts its contract, whatever the source.
+          </div>
+        )}
       </header>
 
       {focus && (
@@ -134,7 +140,7 @@ export function FlowScreen() {
       )}
 
       {shown.nodes.length === 0 ? (
-        <EmptyState>No capture contracts at this generation.</EmptyState>
+        <EmptyState>No evidence flows at this generation.</EmptyState>
       ) : (
         <div className="overflow-x-auto">
           <div
@@ -155,10 +161,10 @@ export function FlowScreen() {
                     key={`${edge.from}\n${edge.to}`}
                     d={edgePath(from, to)}
                     fill="none"
-                    // Required admissions draw brighter, not in a color: color is for waiting and wrong only.
-                    stroke={edge.required ? "rgb(222 219 208)" : "rgb(163 160 148)"}
+                    stroke={edge.direct ? FLOW_COLOR.source : edge.required ? "rgb(222 219 208)" : "rgb(163 160 148)"}
+                    strokeDasharray={edge.direct ? "4 3" : undefined}
                     strokeWidth={on ? 1.5 : 1}
-                    strokeOpacity={on === null ? (edge.required ? 0.4 : 0.2) : on ? 0.9 : 0.05}
+                    strokeOpacity={on === null ? (edge.required ? 0.4 : 0.22) : on ? 0.9 : 0.05}
                   />
                 );
               })}
@@ -167,6 +173,7 @@ export function FlowScreen() {
               <FlowCell
                 key={p.id}
                 placed={p}
+                prefix={prefix}
                 dim={lit !== null && p.kind !== "heading" && !(p.kind === "kind" ? kindLit(shown, p.label ?? "", lit) : lit.has(p.id))}
                 onHover={setHover}
                 onFocus={setFocus}
@@ -198,8 +205,11 @@ function FocusButton({ id, label, onFocus }: { id: string; label: string; onFocu
   );
 }
 
+const strip = (name: string, prefix: string) => (prefix && name.startsWith(prefix) ? name.slice(prefix.length) : name);
+
 function FlowCell({
   placed,
+  prefix,
   dim,
   onHover,
   onFocus,
@@ -207,6 +217,7 @@ function FlowCell({
   link,
 }: {
   placed: Placed;
+  prefix: string;
   dim: boolean;
   onHover: (id: string | null) => void;
   onFocus: (id: string) => void;
@@ -216,7 +227,7 @@ function FlowCell({
   const style = { left: placed.x, top: placed.y, width: placed.w, height: placed.h };
   const base = `group absolute flex items-center gap-1.5 overflow-hidden transition-opacity ${dim ? "opacity-25" : ""}`;
   const hover = {
-    onMouseEnter: () => onHover(placed.kind === "kind" ? nodeId.kind(placed.label ?? "") : placed.id),
+    onMouseEnter: () => onHover(placed.kind === "kind" ? `kind:${placed.label ?? ""}` : placed.id),
     onMouseLeave: () => onHover(null),
   };
   const node = placed.node;
@@ -232,90 +243,76 @@ function FlowCell({
     const kind = placed.label ?? "";
     return (
       <div style={style} className={`${base} border-b border-zinc-800 text-[12px]`} {...hover}>
-        <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`)} className="truncate font-mono font-medium text-zinc-300 hover:underline">
+        <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`)} className="truncate font-mono font-medium text-zinc-200 hover:underline" title={kind}>
           {kind}
         </Link>
-        <FocusButton id={nodeId.kind(kind)} label={kind} onFocus={onFocus} />
+        <FocusButton id={`kind:${kind}`} label={kind} onFocus={onFocus} />
       </div>
     );
   }
   if (!node) return null;
 
   if (node.kind === "source") {
+    const tags = (node.contracts ?? []).map(contractName);
     return (
       <div
         style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.source}` }}
-        className={`${base} flex-col items-stretch justify-center gap-0 border border-zinc-800 bg-zinc-900/60 px-2 leading-4`}
-        title={node.detail ? `${node.label}: ${node.detail}` : node.label}
+        className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 ${node.ownWord ? "border-dashed bg-zinc-950" : "bg-zinc-900/60"} px-2 leading-4`}
+        title={[node.label, node.detail, tags.length ? `captured under ${tags.join(", ")}` : null].filter(Boolean).join("\n")}
         {...hover}
       >
         <div className="flex items-center gap-1.5">
-          <span className="truncate font-mono text-[12px] text-zinc-300">{node.label}</span>
+          <span className={`truncate text-[12px] ${node.ownWord ? "font-sans text-zinc-200" : "font-mono text-zinc-100"}`}>{node.label}</span>
           <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
         </div>
-        {node.detail && <div className="truncate text-[11px] text-zinc-500">{node.detail}</div>}
+        <div className="truncate text-[11px] text-zinc-500">{node.detail}</div>
+        {!node.ownWord && tags.length > 0 && (
+          <div className="truncate text-[10.5px] text-zinc-600">
+            {tags.map((t, i) => (
+              <span key={t}>
+                {i > 0 && ", "}
+                <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(t)}`)} className="hover:text-zinc-300 hover:underline">
+                  {t}
+                </Link>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
-  if (node.kind === "contract") {
-    const producers = node.producers ?? [];
-    return (
-      <div style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.contract}` }} className={`${base} flex-col items-stretch justify-center gap-0 border border-zinc-700 bg-zinc-900 px-2 leading-4`} {...hover}>
-        <div className="flex items-center gap-1.5">
-          <Link
-            to={link(`/i/${instanceId}/contracts/${encodeURIComponent(node.label)}`)}
-            className="truncate font-mono text-[12px] font-medium text-zinc-100 hover:underline"
-            title={node.label}
-          >
-            {node.label}
-          </Link>
-          <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
-        </div>
-        <div className="truncate text-[11px] text-zinc-500" title={producers.length ? `retained by ${producers.join(", ")}` : undefined}>
-          {node.detail ?? "not in the contracts section"}
-          {producers.length > 0 && (
-            <>
-              {" · by "}
-              {producers.map((p, i) => (
-                <span key={p}>
-                  {i > 0 && ", "}
-                  <RefLink value={p} className="text-zinc-400">
-                    <span className="font-mono text-[11px]">{p.replace(/^[A-Za-z]+:/, "")}</span>
-                  </RefLink>
-                </span>
-              ))}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-  if (node.kind === "trigger") {
-    const target = node.detail ?? "";
+  if (node.kind === "line") {
     return (
       <div
-        style={{ ...style, borderLeftColor: FLOW_COLOR.trigger }}
-        className={`${base} flex-col items-stretch justify-center gap-0 border-l-2 pl-2 leading-4`}
-        title={node.sources?.length ? `fires on landings from ${node.sources.join(", ")}` : "fires on any landing under its contract"}
+        style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.line}` }}
+        className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 bg-zinc-900 px-2 leading-4`}
+        title={[node.label, node.detail, node.triggers?.length ? `Triggers: ${node.triggers.join(", ")}` : null].filter(Boolean).join("\n")}
         {...hover}
       >
         <div className="flex items-center gap-1.5">
-          <RefLink value={`Trigger:${node.label}`} className="truncate">
-            <span className="font-mono text-[12px]">{node.label}</span>
-          </RefLink>
+          <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.label)}`)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
+            {strip(node.label, prefix)}
+          </Link>
+          {node.authority && (
+            <span className="shrink-0 text-[10.5px] text-zinc-500" title={node.authority === "observe" ? "Capped at observe: it retains evidence and posts inbox items, but writes no Claims" : undefined}>
+              {node.authority === "observe" ? "observe · writes no Claims" : `at most ${node.authority}`}
+            </span>
+          )}
           <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
         </div>
-        <div className="truncate text-[11px] text-zinc-500">
-          starts{" "}
-          {target.startsWith("Line:") ? (
-            <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(target))}`)} className="font-mono text-zinc-300 hover:underline">
-              {lineName(target)}
-            </Link>
-          ) : (
-            <span className="font-mono">{target || "—"}</span>
-          )}
-          {node.authority && <span> · at most {node.authority}</span>}
-        </div>
+        <div className="truncate text-[11px] text-zinc-500">{node.detail}</div>
+        {node.triggers && node.triggers.length > 0 && (
+          <div className="truncate text-[10.5px] text-zinc-600">
+            {node.triggers.map((t, i) => (
+              <span key={t}>
+                {i > 0 && ", "}
+                <RefLink value={`Trigger:${t}`} className="hover:text-zinc-300">
+                  <span className="font-mono">{strip(t, prefix)}</span>
+                </RefLink>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -324,13 +321,13 @@ function FlowCell({
   return (
     <div style={{ ...style, borderLeft: `2px solid ${FLOW_COLOR.claimType}` }} className={`${base} pl-3 text-[12px]`} title={node.detail} {...hover}>
       <Link
-        to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(node.detail ?? "")}`)}
+        to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?view=claim-types&claim_type=${encodeURIComponent(node.detail ?? "")}`)}
         className="truncate font-mono text-zinc-300 hover:underline"
       >
         {node.label}
       </Link>
       {node.required && (
-        <span className="shrink-0 text-[10px] text-zinc-400" title="A Capture under one of its contracts is required">
+        <span className="shrink-0 text-[10px] text-zinc-500" title="A Capture is required">
           captured
         </span>
       )}

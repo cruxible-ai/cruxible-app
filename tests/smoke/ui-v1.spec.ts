@@ -46,15 +46,15 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   // Evidence flow: hover lights a path, focus keeps it, clear restores.
   await page.locator("aside").getByRole("link", { name: "Evidence flow" }).click();
   const flow = page.getByTestId("flow");
-  await expect(flow.getByText("osv.query")).toBeVisible();
-  await flow.getByText("cisa.kev.catalog").hover();
-  await flow.getByRole("button", { name: "Focus security.kev-http-v1" }).click();
-  await expect(page).toHaveURL(/focus=contract%3Asecurity\.kev-http-v1/);
-  await expect(flow.getByText("osv.query")).toHaveCount(0);
+  await expect(flow.getByText("osv.query", { exact: true })).toBeVisible();
+  await flow.getByText("cisa.kev.catalog", { exact: true }).hover();
+  await flow.getByRole("button", { name: "Focus cisa.kev.catalog" }).click();
+  await expect(page).toHaveURL(/focus=source%3Acisa\.kev\.catalog/);
+  await expect(flow.getByText("osv.query", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: /^Clear: Focused on/ }).click();
-  await expect(flow.getByText("osv.query")).toBeVisible();
+  await expect(flow.getByText("osv.query", { exact: true })).toBeVisible();
   await flow.getByRole("link", { name: "status" }).click();
-  await expect(page).toHaveURL(/\/kinds\/security\.assessment\?claim_type=security\.assessment\.status$/);
+  await expect(page).toHaveURL(/\/kinds\/security\.assessment\?view=claim-types&claim_type=security\.assessment\.status$/);
   await page.locator("aside").getByRole("link", { name: "Type map" }).click();
   await expect(page.locator(".react-flow__node")).toHaveCount(5);
 

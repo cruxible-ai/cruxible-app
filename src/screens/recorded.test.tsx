@@ -188,19 +188,20 @@ describe("recorded reference world", () => {
     expect(within(parse.parentElement!).getByText("reads its landings")).toBeInTheDocument();
   });
 
-  it("evidence flow: the reference world's 6 contracts, their logical sources, landing Triggers and the ClaimTypes they feed", async () => {
+  it("evidence flow: the reference world's sources, the Lines that read them and the ClaimTypes they may write", async () => {
     renderApp(`${I}/flow`, RECORDED);
     const flow = within(await screen.findByTestId("flow"));
-    expect(screen.getByText("ClaimTypes taking Captures", { exact: false }).parentElement).toHaveTextContent("69 ClaimTypes taking Captures");
-    expect(screen.getByText("admissions,", { exact: false })).toHaveTextContent("107 admissions, 56 required");
-    expect(screen.getByText("12", { selector: "header span.font-mono" }).parentElement).toHaveTextContent("12 sources");
     expect(flow.getByText("github.repo.snapshot")).toBeInTheDocument();
     expect(flow.getByText("retained by Line security.kev-daily")).toBeInTheDocument();
     expect(flow.getByText("retained by a direct security.sbom-acquire run")).toBeInTheDocument();
-    expect(flow.getByRole("link", { name: "security.fetched-v1" })).toHaveAttribute("href", `${I}/contracts/security.fetched-v1`);
-    expect(flow.getByRole("link", { name: "security.harden-on-snapshot" })).toBeInTheDocument();
-    expect(flow.getAllByRole("link", { name: "security.repo-parse.cruxible-ci" })[0]).toHaveAttribute("href", `${I}/lines/security.repo-parse.cruxible-ci`);
-    expect(flow.getByRole("link", { name: "needs" })).toHaveAttribute("href", `${I}/kinds/security.job?claim_type=security.job.needs`);
+    // the contract is a tag on the source, linked
+    expect(flow.getAllByRole("link", { name: "security.fetched-v1" })[0]).toHaveAttribute("href", `${I}/contracts/security.fetched-v1`);
+    // Lines in their own column, named without the shared kit namespace, linked
+    expect(flow.getAllByRole("link", { name: "repo-parse.cruxible-ci" })[0]).toHaveAttribute("href", `${I}/lines/security.repo-parse.cruxible-ci`);
+    expect(screen.getByText("names under", { exact: false })).toHaveTextContent("names under security.");
+    expect(flow.getByRole("link", { name: "needs" })).toHaveAttribute("href", `${I}/kinds/security.job?view=claim-types&claim_type=security.job.needs`);
+    // own-word statements go straight to the ClaimTypes that accept them
+    expect(flow.getByText("Your statements")).toBeInTheDocument();
   });
 
   it("proposals and a review", async () => {
