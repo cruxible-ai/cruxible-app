@@ -7,7 +7,7 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { activityRows, FAMILY, type ActivityFamily, type ActivityLink, type ActivityRow } from "@/lib/activity";
 import { useAtLink, withAt } from "@/lib/at";
-import { formatDateTime, formatRelative } from "@/lib/text";
+import { formatDateTime, formatRelative, sentence } from "@/lib/text";
 
 /**
  * What happened, newest first: one page of the daemon's activity feed at a
@@ -124,7 +124,7 @@ function Row({ row, now }: { row: ActivityRow; now: Date }) {
               {row.who.text}
             </Target>
           )}
-          <span className="text-zinc-300">{row.what}</span>
+          <span className="text-zinc-300">{row.who ? row.what : sentence(row.what)}</span>
           {row.object && (
             <Target link={row.object.link} className="font-mono text-[12px] text-zinc-400">
               {row.object.text}

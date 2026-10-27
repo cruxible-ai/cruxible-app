@@ -13,14 +13,14 @@ import { term, type Signal } from "./vocabulary.ts";
 export type ActivityFamily = "generation" | "run" | "capture" | "inbox" | "occurrence" | "line" | "erasure" | "gap";
 
 export const FAMILY: Record<ActivityFamily, { color: string; legend: string }> = {
-  generation: { color: PALETTE.emerald, legend: "Accepted into state" },
+  generation: { color: PALETTE.fuchsia, legend: "Accepted into state" },
   run: { color: PALETTE.sky, legend: "Runs" },
   capture: { color: PALETTE.teal, legend: "Evidence landed" },
-  inbox: { color: PALETTE.fuchsia, legend: "Inbox" },
+  inbox: { color: PALETTE.violet, legend: "Inbox" },
   occurrence: { color: PALETTE.indigo, legend: "Work coming due" },
-  line: { color: PALETTE.blue, legend: "Line state" },
+  line: { color: PALETTE.slate, legend: "Line state" },
   erasure: { color: PALETTE.stone, legend: "Erased" },
-  gap: { color: PALETTE.slate, legend: "Records unavailable" },
+  gap: { color: PALETTE.stone, legend: "Records unavailable" },
 };
 
 /** Where a row's names link: a Line, a run, a proposal, any other ref. */
@@ -58,11 +58,26 @@ export function shortRun(run: string): string {
 /** Rows for one page: newest first as served, a run's start dropped when its finish is on the page. */
 export function activityRows(events: readonly OrientActivity[], label: (line: string) => string): ActivityRow[] {
   const finished = new Set(events.flatMap((e) => (e.event === "run_finished" ? [e.run] : [])));
-  return events.flatMap((e, i) => {
-    if (e.event === "run_started" && finished.has(e.run)) return [];
+  const rows: ActivityRow[] = [];
+  let enabled: { names: string[]; row: ActivityRow } | null = null;
+  events.forEach((e, i) => {
+    if (e.event === "run_started" && finished.has(e.run)) return;
+    // Lines enabled one after another (a kit's Lines turned on together) read as one row.
+    const firstEnable = e.event === "line_state_changed" && !e.previous && e.state === "running";
+    if (firstEnable && enabled) {
+      enabled.names.push(label(bare(e.line, "Line")));
+      enabled.row.who = null;
+      enabled.row.what = `${enabled.names.length} Lines enabled`;
+      enabled.row.detail = enabled.names.join(", ");
+      return;
+    }
     const row = describe(e, label);
-    return row ? [{ ...row, key: `${i}:${e.event}:${e.at}` }] : [];
+    if (!row) return;
+    const full = { ...row, key: `${i}:${e.event}:${e.at}` };
+    rows.push(full);
+    enabled = firstEnable ? { names: [label(bare((e as { line: string }).line, "Line"))], row: full } : null;
   });
+  return rows;
 }
 
 const lineWho = (line: string | null | undefined, label: (line: string) => string) =>
@@ -146,7 +161,11 @@ function describe(e: OrientActivity, label: (line: string) => string): Omit<Acti
         ...base,
         family: "line",
         who: lineWho(e.line, label),
-        what: e.previous ? `${term("line", e.previous).word.toLowerCase()} → ${state.word.toLowerCase()}` : `is ${state.word.toLowerCase()}`,
+        what: e.previous
+          ? `${term("line", e.previous).word.toLowerCase()} → ${state.word.toLowerCase()}`
+          : e.state === "running"
+            ? "enabled"
+            : `is ${state.word.toLowerCase()}`,
         detail: [e.reason ? `Because ${e.reason.replace(/_/g, " ")}` : null, e.detail].filter(Boolean).join(" · ") || null,
         object: null,
         ...(state.signal ? { signal: state.signal } : {}),
