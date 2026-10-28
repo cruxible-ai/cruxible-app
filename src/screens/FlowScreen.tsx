@@ -361,7 +361,7 @@ function FlowCell({
         facts={[
           node.runs === "line"
             ? triggerFact(triggerWords.get(node.label), node.when ?? "")
-            : ["Runs", (node.when ?? "").replace(/^\w/, (c) => c.toLowerCase())],
+            : ["Trigger", "none"],
         ]}
       />
     );
@@ -507,7 +507,7 @@ function AuthorityLegend() {
 /** A Line's Triggers as one fact: the first in words, and how many more ("cisa.kev.catalog lands +1"). */
 function triggerFact(words: readonly string[] | null | undefined, fallback: string): Fact {
   if (!words) return ["Trigger", fallback];
-  if (words.length === 0) return ["Trigger", "none: runs when started"];
+  if (words.length === 0) return ["Trigger", "none"];
   return [words.length === 1 ? "Trigger" : "Triggers", `${words[0]}${words.length > 1 ? ` +${words.length - 1}` : ""}`];
 }
 

@@ -199,7 +199,7 @@ describe("recorded reference world", () => {
     expect(kevDaily.getByText("Trigger")).toBeInTheDocument();
     const sbomAcquire = within(flow.getByRole("link", { name: "sbom-acquire" }).closest("[title]") as HTMLElement);
     expect(sbomAcquire.getByText("Read one CycloneDX JSON SBOM from the attached workspace")).toBeInTheDocument();
-    expect(sbomAcquire.getByText("when an agent runs it")).toBeInTheDocument();
+    expect(sbomAcquire.getByText("none")).toBeInTheDocument();
     // a source says how it arrives; who retains it is on hover
     const sbom = flow.getByText("cyclonedx.sbom").closest("[title]") as HTMLElement;
     expect(within(sbom).getByText("Workspace file")).toBeInTheDocument();
