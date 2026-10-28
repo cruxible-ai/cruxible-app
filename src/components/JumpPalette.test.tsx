@@ -32,4 +32,12 @@ describe("Jump palette", () => {
     fireEvent.change(input, { target: { value: "security.vulnerability/cve-1999-0001" } });
     expect(await screen.findByText(/No accepted Subject security.vulnerability\/cve-1999-0001/)).toBeInTheDocument();
   });
+
+  it("finds Lines, Procedures and ClaimTypes by plain text", async () => {
+    const input = await openPalette();
+    fireEvent.change(input, { target: { value: "kev" } });
+    expect(await screen.findByRole("button", { name: /kev-triage.*Line/ }, { timeout: 8000 })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /security\.kev-triage.*Procedure/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /kev_listed.*ClaimType/ })).toBeInTheDocument();
+  });
 });

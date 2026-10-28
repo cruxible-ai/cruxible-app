@@ -2,12 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import {
+  useCaptureContracts,
   useCard,
   useClaimTypes,
+  useDocuments,
   useInstanceId,
   useLines,
   useOrientKind,
   useOrientKinds,
+  useProcedures,
+  useSourceLandings,
 } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
 import { useAtLink } from "@/lib/at";
@@ -88,8 +92,14 @@ export function JumpPalette() {
   const prefix = open ? kindPrefix(query) : null;
   const knownKind = prefix && (kinds.data?.kinds ?? []).some((k) => k.kind === prefix.kind) ? prefix.kind : null;
   const kindDetail = useOrientKind(knownKind);
-  const claimTypes = useClaimTypes(open && query.startsWith("ClaimType:"));
-  const lines = useLines(open && query.startsWith("Line:"));
+  // Plain text searches every named thing the console lists; the lists load when the palette opens.
+  const bare = open && query.length >= 2 && !query.includes("/") && !query.includes(":");
+  const claimTypes = useClaimTypes(open && (bare || query.startsWith("ClaimType:")));
+  const lines = useLines(open && (bare || query.startsWith("Line:")));
+  const procedures = useProcedures(bare);
+  const contracts = useCaptureContracts(bare);
+  const documents = useDocuments(bare);
+  const sources = useSourceLandings(bare);
 
   const candidates = useMemo((): Candidate[] => {
     if (!query) return [];
@@ -105,6 +115,43 @@ export function JumpPalette() {
           hint: "Kind page",
         });
       }
+    }
+    if (bare) {
+      // A few of each, so one long list doesn't crowd the rest out.
+      const each = 4;
+      const hit = (name: string) => name.toLowerCase().includes(lower);
+      const take = <T,>(rows: readonly T[], name: (row: T) => string, make: (row: T) => Candidate) =>
+        out.push(...rows.filter((row) => hit(name(row))).slice(0, each).map(make));
+      take(lines.data?.rows ?? [], (r) => r.line, (r) => ({
+        action: { route: `/i/${instanceId}/lines/${encodeURIComponent(r.line.replace(/^Line:/, ""))}` },
+        label: r.line.replace(/^Line:/, ""),
+        hint: `Line · ${r.authority}`,
+      }));
+      take(procedures.data?.rows ?? [], (r) => r.name, (r) => ({
+        action: { route: `/i/${instanceId}/ref/${encodeURIComponent(`Procedure:${r.name.replace(/^Procedure:/, "")}`)}` },
+        label: r.name.replace(/^Procedure:/, ""),
+        hint: "Procedure",
+      }));
+      take(claimTypes.data?.rows ?? [], (r) => r.predicate, (r) => ({
+        action: { route: `/i/${instanceId}/claim-types/${encodeURIComponent(r.predicate)}` },
+        label: r.predicate,
+        hint: `ClaimType · ${r.cardinality} · ${r.type}`,
+      }));
+      take(sources.data?.rows ?? [], (r) => r.logical_source, (r) => ({
+        action: { route: `/i/${instanceId}/flow?focus=${encodeURIComponent(`source:${r.logical_source}`)}` },
+        label: r.logical_source,
+        hint: `Source · ${r.landings} ${r.landings === 1 ? "landing" : "landings"}`,
+      }));
+      take(contracts.data?.rows ?? [], (r) => r.contract, (r) => ({
+        action: { route: `/i/${instanceId}/contracts/${encodeURIComponent(r.contract.replace(/^CaptureContract:/, ""))}` },
+        label: r.contract.replace(/^CaptureContract:/, ""),
+        hint: "Capture contract",
+      }));
+      take(documents.data?.rows ?? [], (r) => `${r.name} ${r.title ?? ""}`, (r) => ({
+        action: { route: `/i/${instanceId}/docs?doc=${encodeURIComponent(r.name)}` },
+        label: r.title || r.name,
+        hint: `Document · ${r.document_kind}`,
+      }));
     }
     if (knownKind && prefix) {
       for (const id of kindDetail.data?.kind_detail?.sample_subject_ids ?? []) {
@@ -133,7 +180,7 @@ export function JumpPalette() {
       }
     }
     return out.slice(0, MAX_RESULTS);
-  }, [query, kinds.data, knownKind, prefix, kindDetail.data, claimTypes.data, lines.data, instanceId]);
+  }, [query, kinds.data, knownKind, prefix, kindDetail.data, claimTypes.data, lines.data, instanceId, bare, procedures.data, contracts.data, documents.data, sources.data]);
 
   const exact = parsed && settled === query ? parsed : null;
   const exactRoute = exact ? refRoute(instanceId, exact) : null;
@@ -199,7 +246,7 @@ export function JumpPalette() {
                 choose(item);
               }
             }}
-            placeholder="kind/id, CLM-…, CAP-…, Line:…, ClaimType:…"
+            placeholder="Search by name, or a ref: kind/id, CLM-…, CAP-…"
             className="w-full bg-transparent font-mono text-[14px] text-zinc-100 placeholder-zinc-600 outline-none"
           />
           <kbd className="border border-zinc-700 px-1 text-[10px] text-zinc-500">Esc</kbd>
