@@ -22,7 +22,8 @@ describe("Evidence flow", () => {
     expect(flow.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/kev-triage`);
     // its card's facts: the authority it may write with, and what starts it
     const card = flow.getByRole("link", { name: "kev-triage" }).closest("[title]") as HTMLElement;
-    expect(within(card).getByText("cisa.kev.catalog landing")).toBeInTheDocument();
+    expect(within(card).getByText("Trigger")).toBeInTheDocument();
+    expect(card).toHaveAttribute("title", expect.stringMatching(/cisa\.kev\.catalog/));
     // its authority is the card's color, and named in the tooltip
     expect(card).toHaveAttribute("title", expect.stringContaining("At most settle"));
     // ClaimTypes under their kind

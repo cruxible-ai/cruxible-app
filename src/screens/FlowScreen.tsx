@@ -50,12 +50,19 @@ export function FlowScreen() {
   const claimTypes = useClaimTypes();
   const lines = useLines();
   const sources = useSourceModel();
-  // The Lines that retain a named source (they fetch it), for when they run.
-  const fetchingLines = useMemo(
-    () => [...new Set((sources.data?.retentions ?? []).filter((r) => r.line && r.source && !r.emitted).map((r) => r.line!))].sort(),
-    [sources.data],
+  // Every Line's card, for its Triggers in words (a Line may have several: a schedule and landings).
+  const lineNames = useMemo(() => (lines.data?.rows ?? []).map((row) => lineName(row.line)), [lines.data]);
+  const lineCards = useCards(lineNames.map((line) => `Line:${line}`));
+  const triggerWords = useMemo(
+    () =>
+      new Map(
+        lineNames.map((line, i) => {
+          const card = cardOf(lineCards[i], "line");
+          return [line, card ? (card.triggers ?? []).map((t) => wakeOf(t.fires).words.replace(/^when /, "")) : null] as const;
+        }),
+      ),
+    [lineNames, lineCards],
   );
-  const lineCards = useCards(fetchingLines.map((line) => `Line:${line}`));
   const proofs = useGetBatch(
     (claimTypes.data?.rows ?? []).filter((row) => (row.evidence ?? []).length > 0).map((row) => `ClaimType:${row.predicate}`),
     "proof",
@@ -83,11 +90,7 @@ export function FlowScreen() {
     };
     // Where sources come from: a Line that fetches them, or a direct run of the Procedure that retains them.
     const whenOf = new Map(
-      fetchingLines.map((line, i) => {
-        const card = cardOf(lineCards[i], "line");
-        const words = (card?.triggers ?? []).map((t) => wakeOf(t.fires).words);
-        return [line, words.length ? sentence(words.join("; ")) : "When it is run"] as const;
-      }),
+      [...triggerWords].map(([line, words]) => [line, words?.length ? sentence(words.join("; ")) : "When it is run"] as const),
     );
     const acquirers = new Map<string, AcquirerInput & { sources: string[] }>();
     for (const r of allRetentions) {
@@ -133,7 +136,7 @@ export function FlowScreen() {
         lineDefinitions.filter((line) => specs.get(line.procedure)?.steps.some((step) => stepKind(step) === "inbox")).map((line) => line.line),
       ),
     });
-  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, fetchingLines, lineCards]);
+  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords]);
 
   const clearFocus = useCallback(() => {
     const next = new URLSearchParams(params);
@@ -256,6 +259,7 @@ export function FlowScreen() {
                 instanceId={instanceId}
                 link={link}
                 unread={unread.data ? { count: unread.data.entries.length, more: unread.data.truncated === true } : null}
+                triggerWords={triggerWords}
               />
             ))}
           </div>
@@ -294,8 +298,11 @@ function FlowCell({
   instanceId,
   link,
   unread,
+  triggerWords,
 }: {
   unread: { count: number; more: boolean } | null;
+  /** Each Line's Triggers in words (null while its card loads). */
+  triggerWords: ReadonlyMap<string, readonly string[] | null>;
   placed: Placed;
   prefix: string;
   dim: boolean;
@@ -351,7 +358,11 @@ function FlowCell({
         state={node.runs === "line" ? <LineState enablement={node.enablement} /> : null}
         focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         about={node.about ?? null}
-        facts={[["Runs", (node.when ?? "").replace(/^\w/, (c) => c.toLowerCase())]]}
+        facts={[
+          node.runs === "line"
+            ? triggerFact(triggerWords.get(node.label), node.when ?? "")
+            : ["Runs", (node.when ?? "").replace(/^\w/, (c) => c.toLowerCase())],
+        ]}
       />
     );
   }
@@ -427,7 +438,7 @@ function FlowCell({
           node.authority ? `At most ${node.authority}: ${term("authority", node.authority).meaning}` : null,
           node.about,
           node.detail,
-          node.triggers?.length ? `Triggers: ${node.triggers.join(", ")}` : null,
+          triggerWords.get(node.label)?.length ? `Triggers: ${triggerWords.get(node.label)!.join("; ")}` : null,
         ]
           .filter(Boolean)
           .join("\n")}
@@ -440,7 +451,7 @@ function FlowCell({
         focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         about={node.about ?? null}
         // Its authority is the card's color (and the tooltip's first line after the name).
-        facts={[["On", (node.detail ?? "").replace(/^When /, "").replace(/ lands$/, " landing")]]}
+        facts={[triggerFact(triggerWords.get(node.label), (node.detail ?? "").replace(/^When /, ""))]}
       />
     );
   }
@@ -491,6 +502,13 @@ function AuthorityLegend() {
       </span>
     </div>
   );
+}
+
+/** A Line's Triggers as one fact: the first in words, and how many more ("cisa.kev.catalog lands +1"). */
+function triggerFact(words: readonly string[] | null | undefined, fallback: string): Fact {
+  if (!words) return ["Trigger", fallback];
+  if (words.length === 0) return ["Trigger", "none: runs when started"];
+  return [words.length === 1 ? "Trigger" : "Triggers", `${words[0]}${words.length > 1 ? ` +${words.length - 1}` : ""}`];
 }
 
 /** The color a traced path takes: the hovered Line's or ClaimType's authority; a bright neutral otherwise. */

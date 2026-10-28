@@ -196,7 +196,7 @@ describe("recorded reference world", () => {
     // where each source comes from: the Line that fetches it (its host and schedule) or a direct run (its Procedure's gist)
     const kevDaily = within(flow.getByRole("link", { name: "kev-daily" }).closest("[title]") as HTMLElement);
     expect(kevDaily.getByText(/^From /)).toBeInTheDocument();
-    expect(kevDaily.getByText("Runs")).toBeInTheDocument();
+    expect(kevDaily.getByText("Trigger")).toBeInTheDocument();
     const sbomAcquire = within(flow.getByRole("link", { name: "sbom-acquire" }).closest("[title]") as HTMLElement);
     expect(sbomAcquire.getByText("Read one CycloneDX JSON SBOM from the attached workspace")).toBeInTheDocument();
     expect(sbomAcquire.getByText("when an agent runs it")).toBeInTheDocument();
