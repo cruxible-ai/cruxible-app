@@ -176,7 +176,7 @@ export function FlowScreen() {
             <span className="font-mono text-zinc-200">{count("source")}</span> {count("source") === 1 ? "source" : "sources"}
           </span>
           <span>
-            <span className="font-mono text-zinc-200">{fetching}</span> fetched by a Line
+            <span className="font-mono text-zinc-200">{fetching}</span> fetching {fetching === 1 ? "Line" : "Lines"}
           </span>
           <span>
             <span className="font-mono text-zinc-200">{count("line")}</span> {count("line") === 1 ? "Line" : "Lines"}
