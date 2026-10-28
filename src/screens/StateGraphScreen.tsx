@@ -9,6 +9,7 @@ import { PanelHeading } from "@/components/graph/PanelBits";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
 import { buildTypeColors } from "@/lib/type-colors";
+import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 /** Subjects above which the console declines to draw the whole graph. */
@@ -96,34 +97,37 @@ export function StateGraphScreen() {
 
   return (
     <div className="flex h-full min-h-[85vh] flex-col">
-      <header className="mb-2 flex flex-wrap items-baseline gap-3">
+      <header className="mb-2">
         <h1 className="t-title">State graph</h1>
+        <p className="t-lede measure mt-1">
+          Every Subject and the Claims that link them; a dot's color is its kind. Click a dot to open it, hover a line for
+          its ClaimType.
+        </p>
         {graph.data && (
-          <span className="text-[12px] text-zinc-500">
-            {graph.data.nodes.length} Subjects · {graph.data.edges.length} Subject-valued Claims · {graph.data.pages}{" "}
-            {graph.data.pages === 1 ? "page" : "pages"} in{" "}
-            {graph.data.elapsedMs < 1000
-              ? `${Math.round(graph.data.elapsedMs)} ms`
-              : `${(graph.data.elapsedMs / 1000).toFixed(1)} s`}
-            {graph.data.edgesCapped && (
-              <span> · stopped at {GRAPH_EDGE_CAP.toLocaleString()} edges</span>
-            )}
-          </span>
+          <StatsRow
+            search={
+              <SearchBox
+                value={search}
+                onChange={setSearch}
+                onEnter={() => {
+                  const hit = matched ? [...matched][0] : undefined;
+                  if (hit) setJump({ id: hit, nonce: Date.now() });
+                }}
+                placeholder="Find a Subject…"
+                label="Search Subjects by id"
+                matches={matched ? matched.size : null}
+              />
+            }
+          >
+            <Stat n={graph.data.nodes.length} label={graph.data.nodes.length === 1 ? "Subject" : "Subjects"} />
+            <Stat n={graph.data.edges.length} label={graph.data.edges.length === 1 ? "Subject-valued Claim" : "Subject-valued Claims"} />
+            <span>
+              read in {graph.data.pages} {graph.data.pages === 1 ? "page" : "pages"},{" "}
+              {graph.data.elapsedMs < 1000 ? `${Math.round(graph.data.elapsedMs)} ms` : `${(graph.data.elapsedMs / 1000).toFixed(1)} s`}
+              {graph.data.edgesCapped && <> · stopped at {GRAPH_EDGE_CAP.toLocaleString()} edges</>}
+            </span>
+          </StatsRow>
         )}
-        {graph.data && (
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              const hit = matched ? [...matched][0] : undefined;
-              if (e.key === "Enter" && hit) setJump({ id: hit, nonce: Date.now() });
-            }}
-            placeholder="Search by id…"
-            aria-label="Search Subjects by id"
-            className="ml-auto w-64 border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-          />
-        )}
-        {matched && <span className="text-[12px] text-zinc-500">{matched.size} match{matched.size === 1 ? "" : "es"}</span>}
       </header>
 
       {first.isPending && <LoadState />}
@@ -166,7 +170,7 @@ export function StateGraphScreen() {
 
       {graph.data && (
         <>
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <div className="mb-2 mt-1 flex flex-wrap items-center gap-1.5">
             {hiddenKinds.size > 0 && (
               <FocusChip
                 prefix="Hiding"
@@ -194,6 +198,7 @@ export function StateGraphScreen() {
             matchedIds={matched}
             selectRequest={jump}
             className="min-h-[70vh] flex-1"
+            expandable={false}
             onNodeClick={(subject) => navigate(link(`/i/${instanceId}/s/${encodeURIComponent(subject)}`))}
             renderPanel={(selection) => {
               if (selection.kind !== "edge") return null;

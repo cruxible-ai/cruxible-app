@@ -25,6 +25,7 @@ import { useAtLink } from "@/lib/at";
 import { contractName } from "@/lib/ontology";
 import { shortNames } from "@/lib/evidence-flow";
 import { placeLabels } from "@/lib/route";
+import { LegendRow, SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 
 type TypeNodeData = {
   kind: string;
@@ -233,7 +234,16 @@ export function TypeMapScreen() {
   const kindParam = params.get("kind");
   const claimTypeParam = params.get("claim_type");
   const [nonce] = useState(() => Date.now());
+  // Find a kind: Enter selects (and centers on) the first match.
+  const [query, setQuery] = useState("");
+  const [found, setFound] = useState<{ id: string; nonce: number } | null>(null);
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return null;
+    return graph.nodes.filter((n) => n.kind.toLowerCase().includes(q)).map((n) => n.kind);
+  }, [query, graph]);
   const selectRequest = useMemo(() => {
+    if (found) return found;
     if (claimTypeParam) {
       const edge = edgeForPredicate(graph.edges, claimTypeParam);
       if (edge) return { id: edge.id, kind: "edge" as const, nonce };
@@ -244,7 +254,7 @@ export function TypeMapScreen() {
     }
     if (kindParam && graph.nodes.some((n) => n.kind === kindParam)) return { id: kindParam, nonce };
     return null;
-  }, [kindParam, claimTypeParam, graph, kinds.data, nonce]);
+  }, [kindParam, claimTypeParam, graph, kinds.data, nonce, found]);
 
   if (kinds.isPending) return <LoadState />;
   if (kinds.error) return <LoadState error={kinds.error} />;
@@ -279,6 +289,27 @@ export function TypeMapScreen() {
           The kinds of Subject this instance knows about, and how they point at each other: an arrow means a field on one
           kind names a Subject of another. Click a kind or an arrow for its ClaimTypes.
         </p>
+        <StatsRow
+          search={
+            <SearchBox
+              value={query}
+              onChange={setQuery}
+              onEnter={() => matches?.[0] && setFound({ id: matches[0], nonce: Date.now() })}
+              placeholder="Find a kind…"
+              label="Find a kind on the type map"
+              matches={matches ? matches.length : null}
+            />
+          }
+        >
+          <Stat n={graph.nodes.length} label={graph.nodes.length === 1 ? "kind" : "kinds"} />
+          <Stat n={graph.edges.length} label={graph.edges.length === 1 ? "link" : "links"} />
+          {names.prefix && (
+            <span>
+              Names under <span className="font-mono text-zinc-300">{names.prefix}</span>
+            </span>
+          )}
+        </StatsRow>
+        <MapLegend undeclared={graph.nodes.some((n) => n.referencedOnly)} />
       </header>
       {focus && (
         <div className="mb-2">
@@ -299,12 +330,7 @@ export function TypeMapScreen() {
         expandable={false}
         // A focus keeps a kind and its neighbors: few enough to label every link.
         revealAll={focus !== null}
-        overlay={
-          <>
-            <MapLegend kinds={graph.nodes.length} links={graph.edges.length} undeclared={graph.nodes.some((n) => n.referencedOnly)} prefix={names.prefix} />
-            {coloring.enabled && <LayerLegend layers={coloring.layers} />}
-          </>
-        }
+        overlay={coloring.enabled ? <LayerLegend layers={coloring.layers} /> : undefined}
       />
       )}
     </div>
@@ -312,28 +338,20 @@ export function TypeMapScreen() {
 }
 
 /** What the map's marks mean, inside the canvas: boxes, the dashed box, arrows and the many mark. */
-function MapLegend({ kinds, links, undeclared, prefix }: { kinds: number; links: number; undeclared: boolean; prefix: string }) {
+function MapLegend({ undeclared }: { undeclared: boolean }) {
   return (
-    <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border border-zinc-800 bg-zinc-950/90 px-2 py-0.5 text-[11px] text-zinc-400">
-      <span className="text-zinc-300">
-        {kinds} kinds · {links} links
-      </span>
-      {prefix && (
-        <span>
-          Names under <span className="font-mono text-zinc-300">{prefix}</span>
-        </span>
-      )}
-      <span className="inline-flex items-center gap-1">
+    <LegendRow>
+      <span className="inline-flex items-center gap-1.5">
         <span className="inline-block h-2.5 w-3.5 border border-zinc-500 bg-zinc-900" aria-hidden />
         Kind
       </span>
       {undeclared && (
-        <span className="inline-flex items-center gap-1">
+        <span className="inline-flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-3.5 border border-dashed border-zinc-600" aria-hidden />
           Not declared
         </span>
       )}
-      <span className="inline-flex items-center gap-1">
+      <span className="inline-flex items-center gap-1.5">
         <svg width="22" height="8" aria-hidden>
           <line x1="0" y1="4" x2="16" y2="4" stroke="#8a8678" strokeWidth="1.25" />
           <path d="M16 1 L21 4 L16 7 Z" fill="#8a8678" />
@@ -341,7 +359,7 @@ function MapLegend({ kinds, links, undeclared, prefix }: { kinds: number; links:
         Field link (* many)
       </span>
       <span>Unlinked at left</span>
-    </span>
+    </LegendRow>
   );
 }
 

@@ -84,6 +84,7 @@ export function CosmosDots({
   renderPanel,
   overlay,
   className = "min-h-0 flex-1",
+  expandable = true,
   selectRequest,
   matchedIds,
   onNodeClick,
@@ -98,6 +99,8 @@ export function CosmosDots({
   /** Extra controls rendered top-left inside the canvas (e.g. legends). */
   overlay?: ReactNode;
   className?: string;
+  /** Offer the taller-canvas toggle (default true); a page that is all graph leaves it off. */
+  expandable?: boolean;
   /** External select-and-center request (e.g. a search hit); re-fires on nonce change. */
   selectRequest?: { id: string; nonce: number } | null;
   /** Node ids matching the current search — drawn as overlay rings. */
@@ -729,15 +732,18 @@ export function CosmosDots({
           >
             <Minus className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={() => graphRef.current?.fitView(300)}
-            title="Fit view"
-            className="border-t border-zinc-800 p-1.5 text-zinc-400 hover:text-zinc-200"
-          >
-            <Scan className="h-3.5 w-3.5" />
-          </button>
         </div>
 
+        {/* Center: fit every drawn dot back into view (a pan or zoom can lose them all). */}
+        <button
+          onClick={() => graphRef.current?.fitView(300)}
+          title="Fit every Subject into view"
+          className="absolute left-2 top-2 z-10 inline-flex items-center gap-1.5 border border-zinc-800 bg-zinc-950/90 px-2 py-1 text-[12px] text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
+        >
+          <Scan className="h-3.5 w-3.5" /> Center
+        </button>
+
+        {expandable && (
         <button
           onClick={() => setFullscreen((f) => !f)}
           title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
@@ -746,6 +752,7 @@ export function CosmosDots({
         >
           {fullscreen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
         </button>
+        )}
 
         {panel && (
           <div

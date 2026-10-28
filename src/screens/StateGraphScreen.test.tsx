@@ -36,7 +36,9 @@ describe("State graph", () => {
     renderApp("/i/inst_fixture/graph");
     const pages = countGraphPages();
     expect(await screen.findByTestId("dots")).toHaveTextContent("640 dots · 733 lines");
-    expect(screen.getByText(/640 Subjects · 733 Subject-valued Claims · 3 pages/)).toBeInTheDocument();
+    // the counts row: each count with its label, then how it was read
+    const stats = screen.getByText("Subject-valued Claims").parentElement!;
+    expect(stats).toHaveTextContent(/640 Subjects\s*733 Subject-valued Claims\s*read in 3 pages/);
     expect(pages.count).toBe(3);
   });
 

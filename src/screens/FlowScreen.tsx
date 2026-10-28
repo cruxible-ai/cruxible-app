@@ -27,6 +27,7 @@ import { term } from "@/lib/vocabulary";
 import { arrivalWords, gist, lineGist, retainedByWords, stepKind, urlWords, type Retention } from "@/lib/definitions";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { LegendRow, SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { wakeOf } from "@/lib/schedule";
 import { sentence } from "@/lib/text";
 
@@ -147,7 +148,18 @@ export function FlowScreen() {
 
   const shown = useMemo(() => (model ? focusFlow(model, focus) : null), [model, focus]);
   const layout = useMemo(() => (shown ? layoutFlow(shown) : null), [shown]);
-  const lit = useMemo(() => (shown && hover ? related(shown, hover) : null), [shown, hover]);
+  // Find: the cards whose name or description holds the query stay lit; a hover traces over it.
+  const [query, setQuery] = useState("");
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!shown || q.length < 2) return null;
+    return new Set(
+      shown.nodes
+        .filter((n) => [n.label, n.about, n.detail].some((text) => text?.toLowerCase().includes(q)))
+        .map((n) => n.id),
+    );
+  }, [shown, query]);
+  const lit = useMemo(() => (shown && hover ? related(shown, hover) : matches), [shown, hover, matches]);
   const unread = useInbox(undefined, "unread", 200);
   // Names share the kit namespace ("security."): say it once, drop it from labels.
   // (Line, Procedure and Trigger names only: Subject kinds can come from other namespaces, such as core's semantic.*.)
@@ -181,25 +193,28 @@ export function FlowScreen() {
           Where your evidence comes from and what it turns into. Each source is fetched on a schedule or added by an agent;
           Lines read what arrives and propose facts or post items for review. Hover a card to trace its path.
         </p>
-        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
-          <span>
-            <span className="font-mono text-zinc-200">{count("source")}</span> {count("source") === 1 ? "source" : "sources"}
-          </span>
-          <span>
-            <span className="font-mono text-zinc-200">{fetching}</span> fetching {fetching === 1 ? "Line" : "Lines"}
-          </span>
-          <span>
-            <span className="font-mono text-zinc-200">{count("line")}</span> {count("line") === 1 ? "Line" : "Lines"}
-          </span>
-          <span>
-            <span className="font-mono text-zinc-200">{count("claim_type")}</span> {count("claim_type") === 1 ? "ClaimType" : "ClaimTypes"}
-          </span>
+        <StatsRow
+          search={
+            <SearchBox
+              value={query}
+              onChange={setQuery}
+              onEnter={() => matches && matches.size > 0 && setFocus([...matches][0]!)}
+              placeholder="Find a card…"
+              label="Find on the evidence flow"
+              matches={matches ? matches.size : null}
+            />
+          }
+        >
+          <Stat n={count("source")} label={count("source") === 1 ? "source" : "sources"} />
+          <Stat n={fetching} label={`fetching ${fetching === 1 ? "Line" : "Lines"}`} />
+          <Stat n={count("line")} label={count("line") === 1 ? "Line" : "Lines"} />
+          <Stat n={count("claim_type")} label={count("claim_type") === 1 ? "ClaimType" : "ClaimTypes"} />
           {prefix && (
             <span>
               Names under <span className="font-mono text-zinc-300">{prefix}</span>
             </span>
           )}
-        </div>
+        </StatsRow>
         <AuthorityLegend />
         {capped && <div className="mt-1 text-[12px] text-zinc-500">A listing stopped at its page cap: the flow may be incomplete.</div>}
         {proofs.error && (
@@ -489,7 +504,7 @@ function AuthorityLegend() {
     </span>
   );
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-400">
+    <LegendRow>
       {swatch(AUTHORITY_COLOR.settle, "May settle", term("authority", "settle").meaning)}
       {swatch(AUTHORITY_COLOR.propose, "Proposes for review", term("authority", "propose").meaning)}
       {swatch(AUTHORITY_COLOR.observe, "Observes only", "Observe: writes no Claims; posts to its inbox")}
@@ -500,7 +515,7 @@ function AuthorityLegend() {
       <span className="inline-flex items-center gap-1.5">
         <HealthDot tone="off" title="Not enabled" /> Not enabled
       </span>
-    </div>
+    </LegendRow>
   );
 }
 

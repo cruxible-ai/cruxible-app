@@ -146,7 +146,8 @@ describe("recorded reference world", () => {
   it("state graph: every live Subject and Subject-valued Claim in one page", async () => {
     renderApp(`${I}/graph`, RECORDED);
     expect(await screen.findByTestId("dots")).toHaveTextContent("68 dots · 86 lines");
-    expect(screen.getByText(/68 Subjects · 86 Subject-valued Claims · 1 page /)).toBeInTheDocument();
+    const stats = screen.getByText("Subject-valued Claims").parentElement!;
+    expect(stats).toHaveTextContent(/68 Subjects\s*86 Subject-valued Claims\s*read in 1 page,/);
     expect(screen.getByRole("button", { name: /security\.job/ })).toBeInTheDocument();
   });
 
