@@ -158,6 +158,8 @@ function boxOf(name: string | null, kindWord: string, lines: NodeLine[], mark: S
 const TRIGGER_PREFIX = "trigger:";
 const FIT_PADDING = 0.05;
 const FIT_MAX_ZOOM = 1.15;
+/** Below this the step text is too small to read: a wider graph pans sideways instead. */
+const FIT_MIN_ZOOM = 0.8;
 
 export function ProcedureGraph({
   spec,
@@ -418,17 +420,22 @@ export function ProcedureGraph({
   );
 
   if (!laidOut) return <LoadState />;
-  // As tall as the graph is at the zoom the canvas width allows, within the page.
-  const zoom = canvasWidth > 0 && width > 0 ? Math.min(FIT_MAX_ZOOM, canvasWidth / (width * (1 + 2 * FIT_PADDING))) : 1;
-  const canvasHeight = Math.min(640, Math.max(180, Math.ceil(height * zoom * (1 + 2 * FIT_PADDING)) + 64));
+  // As tall as the graph is at the zoom it will be shown at (the width's fit, but never below a readable zoom),
+  // up to most of the window. The canvas owns its height, so expanding it pushes the page down.
+  const fitZoom = canvasWidth > 0 && width > 0 ? Math.min(FIT_MAX_ZOOM, canvasWidth / (width * (1 + 2 * FIT_PADDING))) : 1;
+  const zoom = Math.max(FIT_MIN_ZOOM, fitZoom);
+  const most = typeof window !== "undefined" ? Math.round(window.innerHeight * 0.8) : 800;
+  const canvasHeight = Math.min(most, Math.max(220, Math.ceil(height * zoom * (1 + 2 * FIT_PADDING)) + 64));
   return (
-    <div ref={measure} style={{ height: canvasHeight }} data-testid="procedure-graph">
+    <div ref={measure} data-testid="procedure-graph">
       <GraphCanvas
         nodes={nodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
         renderPanel={() => null}
-        className="h-full"
+        className=""
+        height={canvasHeight}
+        fitMinZoom={FIT_MIN_ZOOM}
         neighborhood={neighborhood}
         onSelectionChange={onSelectionChange}
         recenter={false}

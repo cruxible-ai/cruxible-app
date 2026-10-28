@@ -64,6 +64,10 @@ export function GraphCanvas(props: {
   nodeName?: (id: string) => string;
   /** Space fitView leaves around the graph, as a share of the canvas (default 0.12). */
   fitPadding?: number;
+  /** A fixed canvas height (px) instead of the className's; expanding still grows past it. */
+  height?: number;
+  /** The smallest zoom fitView may pick: a wide graph stays readable and pans sideways instead of shrinking. */
+  fitMinZoom?: number;
   /** Offer the taller-canvas toggle (default true); a page that is already all graph leaves it off. */
   expandable?: boolean;
   /** Show every edge label while nothing is selected (a graph already cut down to a few nodes, like a focus). */
@@ -90,8 +94,10 @@ function Canvas({
   recenter = true,
   nodeName,
   fitPadding = 0.12,
+  fitMinZoom,
   expandable = true,
   revealAll = false,
+  height,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
@@ -135,11 +141,11 @@ function Canvas({
     const frame = requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         if (tall != null) boxRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-        void rf.fitView({ maxZoom: 1.15, padding: fitPadding, duration: 250 });
+        void rf.fitView({ maxZoom: 1.15, padding: fitPadding, duration: 250, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) });
       }),
     );
     return () => cancelAnimationFrame(frame);
-  }, [tall, rf, fitPadding]);
+  }, [tall, rf, fitPadding, fitMinZoom]);
 
   const centerOn = useCallback(
     (nodeId: string) => {
@@ -297,7 +303,9 @@ function Canvas({
       ref={boxRef}
       // Expanded = a taller canvas in place (the page scrolls), never full screen.
       className={`relative flex flex-col ${className}`}
-      style={tall != null ? { height: tall, minHeight: tall, flex: "none" } : undefined}
+      style={
+        tall != null ? { height: tall, minHeight: tall, flex: "none" } : height !== undefined ? { height, minHeight: height, flex: "none" } : undefined
+      }
     >
       <div className="relative min-h-0 flex-1 overflow-hidden border border-zinc-800">
         <ReactFlow
@@ -306,7 +314,7 @@ function Canvas({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
-          fitViewOptions={{ maxZoom: 1.15, padding: fitPadding }}
+          fitViewOptions={{ maxZoom: 1.15, padding: fitPadding, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) }}
           colorMode="dark"
           nodesDraggable
           nodesConnectable={false}
