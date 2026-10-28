@@ -11,6 +11,8 @@ export const PALETTE = {
   sky: "#38bdf8",
   indigo: "#818cf8",
   teal: "#2dd4bf",
+  /** Cruxible teal (the brand mark's color). */
+  brand: "#00A595",
   violet: "#a78bfa",
   blue: "#60a5fa",
   fuchsia: "#e879f9",
@@ -52,7 +54,7 @@ export const ROLE_COLOR: Record<StepRoleColor, { color: string; legend: string }
  */
 export const AUTHORITY_COLOR = {
   settle: PALETTE.fuchsia,
-  propose: PALETTE.blue,
+  propose: PALETTE.brand,
   observe: PALETTE.slate,
   none: "#52525b",
 } as const;
