@@ -27,11 +27,6 @@ export interface Term {
 }
 
 /** The legend Settings shows. */
-export const SIGNAL_LEGEND: Record<Signal, string> = {
-  waiting: "Amber dot: waiting on you or someone.",
-  wrong: "Red dot: wrong or blocked.",
-};
-export const NO_SIGNAL_LEGEND = "No dot: everything else.";
 
 const t = (word: string, meaning: string, signal?: Signal): Term => (signal ? { word, meaning, signal } : { word, meaning });
 
@@ -216,7 +211,6 @@ export function healthTone(state: string): HealthTone | undefined {
   return undefined;
 }
 
-export const HEALTH_LEGEND = "On Health only, a green dot is working and a hollow one is not observed from here or not set up.";
 
 /** A mandate's state. */
 const MANDATE: Record<string, Term> = {

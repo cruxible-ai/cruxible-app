@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Settings } from "lucide-react";
 import { useSettings } from "@/lib/settings";
-import { HEALTH_LEGEND, NO_SIGNAL_LEGEND, SIGNAL_LEGEND } from "@/lib/vocabulary";
 
 /**
  * Sidebar settings: client-side display preferences only. Anything that
@@ -26,12 +25,21 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
     <div ref={ref} className="relative">
       {open && (
         <div className="absolute bottom-8 left-0 w-64 border border-zinc-700 bg-zinc-900 p-3 shadow-lg">
-          <p className="mb-3 border-b border-zinc-800 pb-2 text-[12px] leading-snug text-zinc-400">
-            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400 align-middle" aria-hidden />
-            {SIGNAL_LEGEND.waiting}{" "}
-            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-red-500 align-middle" aria-hidden />
-            {SIGNAL_LEGEND.wrong} {NO_SIGNAL_LEGEND} {HEALTH_LEGEND} Hover a dot for what to do.
-          </p>
+          {/* The dots, in four words each; a dot's hover says what to do. */}
+          <ul className="mb-3 grid grid-cols-2 gap-x-3 gap-y-1 border-b border-zinc-800 pb-2 text-[12px] text-zinc-400">
+            <li className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden /> Waiting
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden /> Wrong
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden /> Running
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full border border-zinc-500" aria-hidden /> Off
+            </li>
+          </ul>
           <div className="pb-2 text-[12px] font-medium text-zinc-500">
             Display settings
           </div>
