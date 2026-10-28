@@ -417,3 +417,21 @@ export function urlWords(parameters: Record<string, unknown> | undefined): strin
     return null;
   }
 }
+
+// -- what an interface's step produces ---------------------------------------------
+
+export type OperationContract = Schemas["ProviderOperationContract"];
+
+/**
+ * The fields a step through this interface produces: a source step's captured
+ * material, or a call step's typed output. Null when neither is declared (an
+ * external read whose output is only the shared capture format).
+ */
+export function producedFields(op: OperationContract | null | undefined): { name: string; type: string }[] | null {
+  const schema = op?.material ?? (op && typeof op.output === "object" ? op.output : null);
+  if (!schema?.fields) return null;
+  return Object.entries(schema.fields).map(([name, field]) => ({
+    name: field.optional ? `${name}?` : name,
+    type: field.type ?? "string",
+  }));
+}

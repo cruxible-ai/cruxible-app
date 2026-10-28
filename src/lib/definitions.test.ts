@@ -6,6 +6,7 @@ import {
   lineGist,
   logicalSources,
   procedureSlots,
+  producedFields,
   readLineEnvelope,
   urlWords,
   retainedByWords,
@@ -225,5 +226,19 @@ describe("Procedures that run only as Lines", () => {
     const step = { procedure: "log-import", alias: "log", contract: "file-v1", interface: "workspace.file", logicalSource: { literal: "log-read" }, emitted: false };
     expect(retentions([step], [], () => [], (procedure) => procedure !== "log-import")).toEqual([]);
     expect(retentions([step], [], () => [], () => true)).toHaveLength(1);
+  });
+});
+
+describe("what an interface's step produces", () => {
+  it("reads a source step's material, or a call step's typed output, and nothing for the shared capture format", () => {
+    const field = (type: string, optional = false) => ({ type, optional }) as never;
+    expect(
+      producedFields({ input: { fields: {} }, output: "playbill-provider-result-to-external-capture-v1", material: { fields: { project: field("string"), versions: field("json", true) } } } as never),
+    ).toEqual([
+      { name: "project", type: "string" },
+      { name: "versions?", type: "json" },
+    ]);
+    expect(producedFields({ input: { fields: {} }, output: { fields: { rows: field("list") } }, material: null } as never)).toEqual([{ name: "rows", type: "list" }]);
+    expect(producedFields({ input: { fields: {} }, output: "playbill-provider-result-to-external-capture-v1", material: null } as never)).toBeNull();
   });
 });

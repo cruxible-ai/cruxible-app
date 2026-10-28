@@ -10,6 +10,7 @@ import {
   interfaceBase,
   procedureSlots,
   slotInterfaceRef,
+  producedFields,
   stepView,
   type LandingTrigger,
   type LineDefinition,
@@ -99,6 +100,7 @@ export function ProcedureDefinition({
     rows.current.get(selectedStep)?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }, [selectedStep]);
   const builds = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, (row.providers ?? []).map((p) => p.provider)] as const));
+  const contracts = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, row.operation_contract ?? null] as const));
   const slots = procedureSlots(spec);
   const steps = spec.steps.map(stepView);
   const inputs = Object.entries(spec.input ?? {});
@@ -212,6 +214,7 @@ export function ProcedureDefinition({
             {step.claimType && <NamedRef kind="claim_type" name={step.claimType} />}
             {step.procedure && <NamedRef kind="procedure" name={step.procedure} />}
             {step.detail && <span className="font-mono text-zinc-400">{step.detail}</span>}
+            {step.interface && <Produces fields={producedFields(contracts.get(interfaceBase(step.interface)))} />}
           </li>
         ))}
       </ol>
@@ -381,5 +384,22 @@ export function ProcedureWithGraph({ spec }: { spec: ProcedureSpec }) {
       </Panel>
       <ProcedureDefinition spec={spec} selectedStep={selected} />
     </>
+  );
+}
+
+/** What a step through an interface produces (its material or typed output), on its own line under the step. */
+function Produces({ fields }: { fields: { name: string; type: string }[] | null }) {
+  if (!fields?.length) return null;
+  return (
+    <div className="basis-full pl-[8.5rem] text-[11.5px] text-zinc-500">
+      produces{" "}
+      {fields.map((f, i) => (
+        <span key={f.name}>
+          {i > 0 && " · "}
+          <span className="font-mono text-zinc-300">{f.name}</span>
+          <span className="text-zinc-600">: {f.type}</span>
+        </span>
+      ))}
+    </div>
   );
 }

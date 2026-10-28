@@ -5,6 +5,7 @@ import {
   useGet,
   useGetBatch,
   useInbox,
+  useInterfaces,
   useInboxItem,
   useInstanceId,
   useLineRuns,
@@ -27,7 +28,7 @@ import { ShownValue } from "@/components/ShownValue";
 import { NextTable } from "@/components/next/NextTable";
 import { LineDefinitionPanel, ProcedureDefinition } from "@/components/ontology/Definitions";
 import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
-import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
+import { interfaceBase, readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
 import { buildProcedureGraph, cronWords, INPUT_NODE } from "@/lib/procedure-graph";
 import { runMarks } from "@/lib/run-marks";
 import { useAtLink } from "@/lib/at";
@@ -159,7 +160,13 @@ function DefinitionPanels({ line, card, procedure }: { line: string; card: LineC
     const utc = t.fires.includes("UTC") ? " UTC" : "";
     return { name, words: cron ? `${cronWords(cron)}${utc}` : t.fires, landing: false };
   });
-  const retains = definition && spec ? retentions(sourceSteps(procedure, spec), [definition]).filter((r) => r.line === line) : [];
+  const interfaces = useInterfaces();
+  // A step whose Provider names its source takes the names its interface declares it produces.
+  const produced = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, row.produces ?? []] as const));
+  const retains =
+    definition && spec
+      ? retentions(sourceSteps(procedure, spec), [definition], (iface) => produced.get(interfaceBase(iface)) ?? []).filter((r) => r.line === line)
+      : [];
   if (!definition && !spec) return proof.error ? <LoadState error={proof.error} /> : null;
   return (
     <>
