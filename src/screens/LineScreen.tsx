@@ -337,7 +337,7 @@ export function DueCount({ due, scheduled }: { due: number; scheduled: number })
 }
 
 /** A Line's enablement as the health dot: running green, stalled amber, stopped red, never enabled hollow. */
-function LineStateDot({ state }: { state: string | null }) {
+export function LineStateDot({ state }: { state: string | null }) {
   const tone = state === "running" ? "ok" : state ? (term("line", state).signal ?? "off") : "off";
   return <HealthDot tone={tone} title={state ? term("line", state).word : "Not enabled"} />;
 }

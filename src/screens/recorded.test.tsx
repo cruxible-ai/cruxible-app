@@ -116,9 +116,9 @@ describe("recorded reference world", () => {
   it("Lines index and a Line page with paged runs, its definition and its slotted Procedure", async () => {
     renderApp(`${I}/lines`, RECORDED);
     let m = await main();
-    expect(await m.findByText(/^19 Lines/)).toBeInTheDocument();
-    // the Line link (the Procedure of the same name links to its card)
-    expect(m.getAllByRole("link", { name: "security.harden" })[0]).toHaveAttribute("href", `${I}/lines/security.harden`);
+    expect((await m.findByText("19")).parentElement).toHaveTextContent("19 Lines");
+    // the Line link, named under the shared security. prefix
+    expect(m.getByRole("link", { name: "harden" })).toHaveAttribute("href", `${I}/lines/security.harden`);
     cleanup();
     renderApp(`${I}/lines/security.kev-triage`, RECORDED);
     m = await main();

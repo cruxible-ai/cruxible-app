@@ -1,35 +1,29 @@
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair } from "lucide-react";
-import { useCards, useClaimTypes, useGetBatch, useInbox, useInstanceId, useLines, useSourceLandings, useSourceModel } from "@/api/hooks";
-import { cardOf } from "@/api/schemas";
+import { useInbox, useInstanceId, useSourceLandings } from "@/api/hooks";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
 import {
-  buildFlow,
-  type AcquirerInput,
   edgePath,
   focusFlow,
   layoutFlow,
-  readClaimTypeAccepts,
   related,
   shortNames,
-  type AcceptedEvidence,
   type FlowModel,
   type FlowNode,
   type Placed,
 } from "@/lib/evidence-flow";
-import { lineName } from "@/lib/lines";
 import { AUTHORITY_COLOR } from "@/lib/palette";
 import { HealthDot } from "@/components/Chip";
 import { term } from "@/lib/vocabulary";
-import { arrivalWords, gist, lineGist, retainedByWords, stepKind, urlWords, type Retention } from "@/lib/definitions";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { LegendRow, SearchBox, Stat, StatsRow } from "@/components/StatsRow";
-import { wakeOf } from "@/lib/schedule";
-import { formatRelative, sentence } from "@/lib/text";
+import { useFlowModel } from "@/lib/useFlowModel";
+import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
+import { AuthorityLegend } from "@/components/AuthorityLegend";
+import { formatRelative } from "@/lib/text";
 
 /**
  * Evidence flow: sources -> the Lines that read their landings -> the
@@ -48,96 +42,7 @@ export function FlowScreen() {
   const focus = params.get("focus");
   const [hover, setHover] = useState<string | null>(null);
 
-  const claimTypes = useClaimTypes();
-  const lines = useLines();
-  const sources = useSourceModel();
-  // Every Line's card, for its Triggers in words (a Line may have several: a schedule and landings).
-  const lineNames = useMemo(() => (lines.data?.rows ?? []).map((row) => lineName(row.line)), [lines.data]);
-  const lineCards = useCards(lineNames.map((line) => `Line:${line}`));
-  const triggerWords = useMemo(
-    () =>
-      new Map(
-        lineNames.map((line, i) => {
-          const card = cardOf(lineCards[i], "line");
-          return [line, card ? (card.triggers ?? []).map((t) => wakeOf(t.fires).words.replace(/^when /, "")) : null] as const;
-        }),
-      ),
-    [lineNames, lineCards],
-  );
-  const proofs = useGetBatch(
-    (claimTypes.data?.rows ?? []).filter((row) => (row.evidence ?? []).length > 0).map((row) => `ClaimType:${row.predicate}`),
-    "proof",
-  );
-
-  const model = useMemo<FlowModel | null>(() => {
-    if (!claimTypes.data || !lines.data || !sources.data || proofs.isPending) return null;
-    const accepts = new Map<string, AcceptedEvidence[]>();
-    for (const result of proofs.results) {
-      const read = readClaimTypeAccepts((result as { proof?: unknown }).proof);
-      if (read) accepts.set(read.predicate, read.accepts);
-    }
-    const { specs, lines: lineDefinitions, retentions: allRetentions } = sources.data;
-    const lineOf = new Map(lineDefinitions.map((line) => [line.line, line] as const));
-    // What a source is: a fetch Line's URL, else its retaining Procedure's description; how it arrives: that step's interface.
-    const describeSource = (retainedBy: readonly Retention[]) => {
-      const retention = retainedBy.find((r) => urlWords(r.line ? lineOf.get(r.line)?.parameters : undefined)) ?? retainedBy[0];
-      if (!retention) return { about: null, arrives: null };
-      const spec = specs.get(retention.procedure);
-      return {
-        about: urlWords(retention.line ? lineOf.get(retention.line)?.parameters : undefined) ?? gist(spec?.description),
-        // the step that retains this source (a Procedure may fetch several under one contract)
-        arrives: arrivalWords({ interface: retention.interface, emitted: retention.emitted }),
-      };
-    };
-    // Where sources come from: a Line that fetches them, or a direct run of the Procedure that retains them.
-    const whenOf = new Map(
-      [...triggerWords].map(([line, words]) => [line, words?.length ? sentence(words.join("; ")) : "When it is run"] as const),
-    );
-    const acquirers = new Map<string, AcquirerInput & { sources: string[] }>();
-    for (const r of allRetentions) {
-      if (r.source === null || r.emitted) continue;
-      const runs = r.line ? ("line" as const) : ("direct" as const);
-      const name = r.line ?? r.procedure;
-      const key = `${runs}:${name}`;
-      let entry = acquirers.get(key);
-      if (!entry) {
-        const description = specs.get(r.procedure)?.description;
-        entry = {
-          name,
-          runs,
-          about: (r.line ? urlWords(lineOf.get(r.line)?.parameters) : null) ?? gist(description),
-          when: r.line ? (whenOf.get(r.line) ?? null) : "When an agent runs it",
-          sources: [],
-        };
-        acquirers.set(key, entry);
-      }
-      if (!entry.sources.includes(r.source)) entry.sources.push(r.source);
-    }
-    return buildFlow({
-      acquirers: [...acquirers.values()],
-      sources: sources.data.sources.map((source) => ({
-        id: source.id,
-        contracts: source.contracts,
-        retainedBy: source.retainedBy.length ? `Retained by ${retainedByWords(source.retainedBy)}` : "Named by whoever runs the fetch",
-        ...describeSource(source.retainedBy),
-      })),
-      lineAbout: new Map(
-        lineDefinitions.flatMap((line) => {
-          const about = lineGist(specs.get(line.procedure)?.description);
-          return about ? [[line.line, about] as const] : [];
-        }),
-      ),
-      claimTypes: claimTypes.data.rows,
-      accepts,
-      triggers: sources.data.triggers,
-      lineAuthority: new Map(lines.data.rows.map((row) => [lineName(row.line), row.authority] as const)),
-      lineEnablement: new Map(lines.data.rows.map((row) => [lineName(row.line), row.enablement ?? null] as const)),
-      // A Line posts to the inbox when its Procedure has an inbox step.
-      postsInbox: new Set(
-        lineDefinitions.filter((line) => specs.get(line.procedure)?.steps.some((step) => stepKind(step) === "inbox")).map((line) => line.line),
-      ),
-    });
-  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords]);
+  const { model, triggerWords, proofs, error, capped } = useFlowModel();
 
   const clearFocus = useCallback(() => {
     const next = new URLSearchParams(params);
@@ -172,7 +77,6 @@ export function FlowScreen() {
   );
 
   // ClaimType proofs only sharpen the Line → ClaimType edges: without them, fall back to contracts (and say so).
-  const error = claimTypes.error ?? lines.error ?? sources.error;
   if (error) return <LoadState error={error} />;
   if (!model || !layout || !shown) return <LoadState />;
 
@@ -186,7 +90,6 @@ export function FlowScreen() {
   const count = (kind: string) => shown.nodes.filter((n) => n.kind === kind).length;
   const fetching = shown.nodes.filter((n) => n.kind === "acquirer" && n.runs === "line").length;
   const focused = focus ? layout.byId.get(focus) ?? null : null;
-  const capped = sources.data?.truncated || claimTypes.data?.truncated;
 
   return (
     <div className="space-y-3">
@@ -504,29 +407,6 @@ function FlowCell({
 }
 
 /** What the colors mean: a Line's max authority (and the ClaimTypes its edges reach); the dot, whether it runs. */
-function AuthorityLegend() {
-  const swatch = (color: string, label: string, help: string) => (
-    <span className="inline-flex items-center gap-1.5" title={help}>
-      <span className="inline-block h-2.5 w-[3px]" style={{ background: color }} />
-      {label}
-    </span>
-  );
-  return (
-    <LegendRow>
-      {swatch(AUTHORITY_COLOR.settle, "May settle", term("authority", "settle").meaning)}
-      {swatch(AUTHORITY_COLOR.propose, "Proposes for review", term("authority", "propose").meaning)}
-      {swatch(AUTHORITY_COLOR.observe, "Observes only", "Observe: writes no Claims; posts to its inbox")}
-      {swatch(AUTHORITY_COLOR.none, "By hand", "No Line writes it: written by an agent or a person")}
-      <span className="inline-flex items-center gap-1.5">
-        <HealthDot tone="ok" title="Running" /> Running
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <HealthDot tone="off" title="Not enabled" /> Not enabled
-      </span>
-    </LegendRow>
-  );
-}
-
 /** A Line's Triggers as one fact: the first in words, and how many more ("cisa.kev.catalog lands +1"). */
 function triggerFact(words: readonly string[] | null | undefined, fallback: string): Fact {
   if (!words) return ["Trigger", fallback];

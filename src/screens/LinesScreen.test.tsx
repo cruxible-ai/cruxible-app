@@ -5,34 +5,35 @@ import { renderApp } from "@/test/render";
 afterEach(cleanup);
 
 describe("Lines", () => {
-  it("indexes Lines with procedure, trigger, authority, mandate, enablement, last run, inbox and next", async () => {
+  it("reads each Line from what starts it to what it ends in, grouped by state, with its last run and what needs you", async () => {
     renderApp("/i/inst_fixture/lines");
     const main = within(await screen.findByRole("main"));
     const kev = await main.findByRole("link", { name: "kev-triage" });
     expect(kev).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
     const row = within(kev.closest("tr")!);
-    expect(row.getByText("security.kev-settle")).toBeInTheDocument();
-    expect(row.getByText("Settle")).toBeInTheDocument();
-    expect(row.getByText("cadence")).toBeInTheDocument();
     expect(await row.findByText("Succeeded")).toBeInTheDocument();
-    expect(await row.findByText("3 unread")).toBeInTheDocument();
-    expect(row.getByText("Line inbox unread")).toBeInTheDocument();
+    expect(await row.findByText("Inbox: 3 unread")).toBeInTheDocument();
+    // what it ends in comes from the evidence flow, after the Line's authority
+    expect(await row.findByText(/^(settles|proposes|posts to|lands)$/)).toBeInTheDocument();
     const cve = within(main.getByRole("link", { name: "cve-applicability" }).closest("tr")!);
-    // no mandate and no run for the capture-landing Line
-    expect(await cve.findAllByText("None")).toHaveLength(2);
+    expect(await cve.findByText("Never run")).toBeInTheDocument();
+    // grouped by state: a group line per state, with its count
+    expect(main.getByText("Running", { selector: "span.font-semibold" })).toBeInTheDocument();
+    // Procedure, mandates, authority and due work are columns to switch on
+    expect(main.queryByRole("columnheader", { name: /Mandate/ })).toBeNull();
+    expect(main.getByRole("button", { name: /Columns \(\d+ of \d+\)/ })).toBeInTheDocument();
   });
 });
 
 describe("Lines table", () => {
   it("filters by a picked enablement word and sorts by a header, both kept in the URL", async () => {
-    renderApp("/i/inst_fixture/lines?f.enabled=stopped");
+    renderApp("/i/inst_fixture/lines?f.state=stopped");
     const main = within(await screen.findByRole("main"));
     expect(await main.findByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
     expect(main.queryByRole("link", { name: "kev-triage" })).toBeNull();
     expect(main.getByText("1 of 2")).toBeInTheDocument();
-    // the picker names the glossary word and offers the others
-    fireEvent.click(main.getByRole("button", { name: "Filter Enabled: Stopped" }));
-    fireEvent.click(within(main.getByRole("group", { name: "Enabled values" })).getByRole("checkbox", { name: /Running/ }));
+    // the State column is one to switch on; its filter still applies from the URL, and Clear lifts it
+    fireEvent.click(main.getByRole("button", { name: /Clear/ }));
     expect(await main.findByRole("link", { name: "kev-triage" })).toBeInTheDocument();
     cleanup();
     renderApp("/i/inst_fixture/lines?sort=-line");
