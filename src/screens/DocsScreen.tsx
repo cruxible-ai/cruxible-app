@@ -6,7 +6,7 @@ import { ApiError } from "@/api/data-source";
 import { DOCUMENT_READ_MAX_BYTES } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { BodyView } from "@/components/BodyView";
-import { LoadState, Panel } from "@/components/Panel";
+import { Disclosure, LoadState, Panel } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
 import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { bodyFormat, extensionFor } from "@/lib/body-format";
@@ -81,6 +81,11 @@ export function DocsScreen() {
             <Stat n={kinds} label={kinds === 1 ? "kind" : "kinds"} />
             {documents.data.truncated && <span>the first {rows.length} the daemon listed</span>}
           </StatsRow>
+        )}
+        {documents.data && (
+          <Disclosure label="How to add a document" defaultOpen={rows.length === 0} className="mt-3">
+            <AddDocumentHint />
+          </Disclosure>
         )}
       </header>
       {documents.isPending && <LoadState />}
@@ -201,6 +206,42 @@ function Note({ children, cli }: { children: ReactNode; cli: string }) {
         <code className="font-mono text-[12px] text-zinc-300">{cli}</code>
         <CopyButton value={cli} label="Copy" />
       </div>
+    </div>
+  );
+}
+
+/**
+ * How a file becomes a Document here: name it in the file catalog as a
+ * Document, then propose it. Said in plain words, as the two commands, and as
+ * the sentence to give an agent.
+ */
+function AddDocumentHint() {
+  const commands = [
+    'cruxible files add report docs/report.md --document-id report --document-kind report --title "Q3 report"',
+    "cruxible files propose --file report --name report-v1",
+  ];
+  const ask = 'Add docs/report.md to Cruxible as a Document titled "Q3 report", and propose it.';
+  return (
+    <div className="measure space-y-2 text-[13px] text-zinc-400">
+      <p>
+        A Document is a file whose exact wording is kept in state: every revision is reviewed and accepted like any change, and
+        Next flags the file when it is edited until the new revision is proposed. Put the file in the workspace, then:
+      </p>
+      <div className="space-y-1">
+        {commands.map((command) => (
+          <div key={command} className="flex items-start gap-2">
+            <code className="min-w-0 break-all font-mono text-[12px] text-zinc-300">{command}</code>
+            <CopyButton value={command} label="Copy" />
+          </div>
+        ))}
+      </div>
+      <p className="flex items-start gap-2">
+        <span>
+          Or tell your agent: <span className="text-zinc-200">“{ask}”</span>
+        </span>
+        <CopyButton value={ask} label="Copy" />
+      </p>
+      <p className="text-[12px] text-zinc-500">It shows here once the proposal is accepted under your approval policy.</p>
     </div>
   );
 }
