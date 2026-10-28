@@ -171,6 +171,7 @@ const SEVERITY: Record<string, Term> = {
   blocking: t("Blocking", "Blocking: something is wrong and stops work; run the repair", "wrong"),
   repair: t("Repair", "Repair: waiting for you to run the repair shown", "waiting"),
   warning: t("Warning", "Warning: worth a look; nothing is blocked"),
+  setup: t("Setup", "Setup: a choice that is yours to make, such as enabling a Line; nothing is wrong"),
 };
 
 /** The environment facets of the `next` status header. */

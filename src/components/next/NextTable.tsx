@@ -5,16 +5,19 @@ import { CountsMark } from "@/components/CountsMark";
 import { DataTable, useTableState, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { FAMILY_LABEL, captureHandle, detailRecord, familyOf, reasonMeta, splitDetail, type FieldSpec } from "@/lib/next-reasons";
+import { formatDateTime, formatRelative } from "@/lib/text";
 import { term } from "@/lib/vocabulary";
 import { FieldValue, RepairText, repairKey } from "./NextFields";
 
-const SEVERITY_RANK: Record<NextSeverity, number> = { blocking: 0, repair: 1, warning: 2 };
+const SEVERITY_RANK: Record<NextSeverity, number> = { blocking: 0, repair: 1, warning: 2, setup: 3 };
 
 interface ReasonShare {
   /** Every row of the reason has the same repair: the group line shows it once. */
   sharedRepair: boolean;
   /** Detail fields with one value across the reason's rows: the group line shows them. */
   common: { spec: FieldSpec; value: unknown }[];
+  /** Every row of the reason began at the same time: the group line says since when. */
+  sharedSince: boolean;
 }
 
 /** Per reason, what its rows share (over every row in hand, so filtering never moves it). */
@@ -34,7 +37,8 @@ export function reasonShares(items: readonly NextItem[]): Map<string, ReasonShar
             }),
           )
         : [];
-    out.set(reason, { sharedRepair, common });
+    const sharedSince = rows.every((row) => (row.since ?? null) === (rows[0]!.since ?? null));
+    out.set(reason, { sharedRepair, common, sharedSince });
   }
   return out;
 }
@@ -110,6 +114,7 @@ function GroupLine({ rows, share }: { rows: NextItem[]; share: ReasonShare | und
           </span>
         </span>
       ))}
+      {share?.sharedSince && first.since && <Since iso={first.since} />}
       {share?.sharedRepair && <RepairText item={first} />}
     </div>
   );
@@ -135,6 +140,7 @@ function nextColumns({
   const anyRelated = items.some((item) => (item.related_identities?.length ?? 0) > 0);
   const anyFindings = items.some((item) => (item.findings?.length ?? 0) > 0);
   const anyDetail = items.some((item) => hasOwnDetail(item, grouped ? shares.get(item.reason) : undefined));
+  const anySince = items.some((item) => item.since && !(grouped && shares.get(item.reason)?.sharedSince));
   const anyRepair = items.some((item) => (item.repair || item.repair_requires) && !(grouped && shares.get(item.reason)?.sharedRepair));
   const columns: (Column<NextItem> | null)[] = [
     {
@@ -142,7 +148,7 @@ function nextColumns({
       header: "Severity",
       sortValue: (item) => SEVERITY_RANK[item.severity],
       filter: { kind: "enum", values: (item) => [item.severity] },
-      options: ["blocking", "repair", "warning"],
+      options: ["blocking", "repair", "warning", "setup"],
       optionLabel: (value) => term("severity", value).word,
       className: "whitespace-nowrap",
       // grouped: the group line says it
@@ -219,6 +225,16 @@ function nextColumns({
           cell: (item) => <FindingsCell item={item} />,
         }
       : null,
+    anySince
+      ? {
+          id: "since",
+          header: "Since",
+          title: "When the row's condition began, from the state that records it",
+          className: "whitespace-nowrap text-[12px]",
+          sortValue: (item) => item.since ?? "",
+          cell: (item) => (item.since && !(grouped && shares.get(item.reason)?.sharedSince) ? <Since iso={item.since} /> : null),
+        }
+      : null,
     {
       id: "item",
       header: "Item id",
@@ -257,6 +273,15 @@ function ownDetail(item: NextItem, shared: ReasonShare | undefined) {
 function hasOwnDetail(item: NextItem, shared: ReasonShare | undefined): boolean {
   const own = ownDetail(item, shared);
   return own.fields.length > 0 || own.counts !== null || own.rest !== null;
+}
+
+/** Since when a condition holds: relative, the exact time on hover. */
+function Since({ iso }: { iso: string }) {
+  return (
+    <span className="text-[12px] text-zinc-500" title={`Since ${formatDateTime(iso)}`}>
+      since {formatRelative(iso)}
+    </span>
+  );
 }
 
 /** Other conditions next found on the row: a count, opening to their reasons. */

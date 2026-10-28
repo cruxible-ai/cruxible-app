@@ -12779,7 +12779,7 @@ export interface components {
              * Severity
              * @enum {string}
              */
-            severity: "blocking" | "repair" | "warning";
+            severity: "blocking" | "repair" | "warning" | "setup";
             /**
              * Reason
              * @enum {string}
@@ -12831,7 +12831,7 @@ export interface components {
              * Severity
              * @enum {string}
              */
-            severity: "blocking" | "repair" | "warning";
+            severity: "blocking" | "repair" | "warning" | "setup";
             /**
              * Reason
              * @enum {string}
@@ -12847,6 +12847,8 @@ export interface components {
             /** Findings */
             findings?: components["schemas"]["NextFinding"][];
             repair_requires?: components["schemas"]["NextRepairRequirement"] | null;
+            /** Since */
+            since?: string | null;
         };
         /**
          * NextRebuildResult
@@ -13513,6 +13515,10 @@ export interface components {
         /**
          * OrientAttention
          * @description What the ``next`` queue holds, and anything else the instance needs.
+         *
+         *     ``next_items`` counts the queue's problems and ``top`` names the first of
+         *     them; ``setup_items`` counts its setup rows apart (choices the operator
+         *     owns, such as a Line accepted but not yet enabled), absent when none.
          */
         OrientAttention: {
             /** Next Items */
@@ -13524,6 +13530,11 @@ export interface components {
              * @default []
              */
             top?: string[];
+            /**
+             * Setup Items
+             * @default 0
+             */
+            setup_items?: number;
             /**
              * Notes
              * @default []

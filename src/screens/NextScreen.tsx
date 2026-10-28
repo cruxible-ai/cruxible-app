@@ -4,12 +4,13 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { NextTable } from "@/components/next/NextTable";
 import { Page, PageHeader } from "@/components/Page";
 import { PageNav } from "@/components/next/PageNav";
+import { Stat, StatsRow } from "@/components/StatsRow";
 import { useNextPage } from "@/components/next/useNextPage";
 import { humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
 
-const SEVERITIES: NextSeverity[] = ["blocking", "repair", "warning"];
+const SEVERITIES: NextSeverity[] = ["blocking", "repair", "warning", "setup"];
 
 /**
  * The `next` queue at the pinned generation, evaluated now: one page at a
@@ -36,20 +37,15 @@ export function NextScreen() {
               "Nothing needs attention."
             ) : (
               <>
-                <span className="font-mono text-zinc-100">{page.data.total_items}</span> {page.data.total_items === 1 ? "item needs" : "items need"} attention
-                {counts.length > 0 && (
-                  <>
-                    {" "}
-                    on this page:{" "}
-                    {counts.map(([severity, n], i) => (
-                      <span key={severity}>
-                        {i > 0 && ", "}
-                        <SeverityCount severity={severity} count={n} />
-                      </span>
-                    ))}
-                  </>
-                )}
-                . Repairs are shown as text; run them from the CLI or MCP.
+                What needs a person, worst first: problems with the repair to run, then setup choices that are yours to make.
+                Repairs are shown as text; run them from the CLI or MCP.
+                <StatsRow>
+                  <Stat n={page.data.total_items} label={page.data.total_items === 1 ? "item" : "items"} />
+                  {counts.map(([severity, n]) => (
+                    <SeverityCount key={severity} severity={severity} count={n} />
+                  ))}
+                  {more && <span>counts for this page</span>}
+                </StatsRow>
               </>
             )
           ) : undefined
@@ -78,14 +74,13 @@ export function NextScreen() {
   );
 }
 
-/** A severity's count in the summary, with its signal dot (blocking: red, repair: amber). */
+/** A severity's count in the counts row, with its signal dot (blocking: red, repair: amber). */
 function SeverityCount({ severity, count }: { severity: NextSeverity; count: number }) {
   const t = term("severity", severity);
   return (
-    <span className="inline-flex items-baseline gap-1.5">
+    <span className="inline-flex items-baseline gap-1.5" title={t.meaning}>
       {t.signal && <SignalDot signal={t.signal} title={t.meaning} />}
-      {count} {t.word.toLowerCase()}
-      {count === 1 || severity === "blocking" ? "" : "s"}
+      <Stat n={count} label={`${t.word.toLowerCase()}${count === 1 || severity === "blocking" || severity === "setup" ? "" : "s"}`} />
     </span>
   );
 }
