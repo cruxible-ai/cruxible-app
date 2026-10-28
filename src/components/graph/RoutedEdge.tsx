@@ -1,6 +1,7 @@
 import { BaseEdge, EdgeLabelRenderer, useInternalNode, type EdgeProps } from "@xyflow/react";
 import type { Point } from "@/lib/type-layout";
 import { FloatingEdge } from "./FloatingEdge";
+import { pointAlong } from "@/lib/route";
 
 export interface RoutedEdgeData {
   /** The polyline the layout routed, in canvas coordinates. */
@@ -29,35 +30,6 @@ function splinePath(points: Point[]): string {
     d += ` C ${a.x} ${a.y}, ${b.x} ${b.y}, ${c.x} ${c.y}`;
   }
   return d;
-}
-
-/** The point halfway along the drawn path, by length (a spline is sampled, a polyline walked). */
-function midpoint(points: Point[], curve: boolean): Point {
-  const samples: Point[] = [];
-  if (curve) {
-    for (let i = 0; i + 3 < points.length; i += 3) {
-      const [p0, p1, p2, p3] = [points[i]!, points[i + 1]!, points[i + 2]!, points[i + 3]!];
-      for (let step = i === 0 ? 0 : 1; step <= 16; step++) {
-        const t = step / 16;
-        const u = 1 - t;
-        const at = (k: "x" | "y") => u * u * u * p0[k] + 3 * u * u * t * p1[k] + 3 * u * t * t * p2[k] + t * t * t * p3[k];
-        samples.push({ x: at("x"), y: at("y") });
-      }
-    }
-  } else {
-    samples.push(...points);
-  }
-  if (samples.length < 2) return points[0]!;
-  const lengths = [0];
-  for (let i = 1; i < samples.length; i++) {
-    lengths.push(lengths[i - 1]! + Math.hypot(samples[i]!.x - samples[i - 1]!.x, samples[i]!.y - samples[i - 1]!.y));
-  }
-  const half = lengths[lengths.length - 1]! / 2;
-  const i = Math.max(1, lengths.findIndex((l) => l >= half));
-  const [a, b] = [samples[i - 1]!, samples[i]!];
-  const span = lengths[i]! - lengths[i - 1]! || 1;
-  const k = (half - lengths[i - 1]!) / span;
-  return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
 }
 
 /** An orthogonal polyline with rounded corners (radius capped by the segment lengths). */
@@ -100,7 +72,7 @@ export function RoutedEdge(props: EdgeProps) {
     return <FloatingEdge {...props} data={{ ...props.data, revealLabel: data?.text, labelClass: "text-zinc-300" }} />;
   }
   const curve = data.curve === true && (data.points.length - 1) % 3 === 0;
-  const label = data.labelAt ?? midpoint(data.points, curve);
+  const label = data.labelAt ?? pointAlong(data.points, curve, 0.5);
   return (
     <>
       <BaseEdge id={id} path={curve ? splinePath(data.points) : roundedPath(data.points)} style={style} {...(markerEnd ? { markerEnd } : {})} />

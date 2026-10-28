@@ -14,7 +14,7 @@ import {
   layoutFlow,
   readClaimTypeAccepts,
   related,
-  sharedPrefix,
+  shortNames,
   type AcceptedEvidence,
   type FlowModel,
   type FlowNode,
@@ -152,7 +152,7 @@ export function FlowScreen() {
   // Names share the kit namespace ("security."): say it once, drop it from labels.
   // (Line, Procedure and Trigger names only: Subject kinds can come from other namespaces, such as core's semantic.*.)
   const prefix = useMemo(
-    () => sharedPrefix((model?.nodes ?? []).filter((n) => n.kind === "line" || n.kind === "acquirer").map((n) => n.label)),
+    () => shortNames((model?.nodes ?? []).filter((n) => n.kind === "line" || n.kind === "acquirer").map((n) => n.label)).prefix,
     [model],
   );
 

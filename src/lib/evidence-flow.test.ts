@@ -190,3 +190,18 @@ describe("the inbox", () => {
     expect(buildFlow(INPUTS).nodes.some((n) => n.kind === "inbox")).toBe(false);
   });
 });
+
+describe("short names", () => {
+  it("drop the namespace most names share, and keep the full name outside it or where it would clash", async () => {
+    const { shortNames } = await import("./evidence-flow");
+    const names = ["security.release", "security.job", "security.asset", "semantic.subject", "job"];
+    const { prefix, label } = shortNames(names);
+    expect(prefix).toBe("security.");
+    expect(label("security.release")).toBe("release");
+    expect(label("semantic.subject")).toBe("semantic.subject");
+    // "security.job" would read as the unprefixed "job": both keep their full names
+    expect(label("security.job")).toBe("security.job");
+    expect(label("job")).toBe("job");
+    expect(shortNames(["a.x", "b.y"]).prefix).toBe("");
+  });
+});

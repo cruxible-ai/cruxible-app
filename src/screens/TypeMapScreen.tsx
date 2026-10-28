@@ -23,7 +23,8 @@ import { layoutTypeGraph, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { contractName } from "@/lib/ontology";
-import { sharedPrefix } from "@/lib/evidence-flow";
+import { shortNames } from "@/lib/evidence-flow";
+import { placeLabels } from "@/lib/route";
 
 type TypeNodeData = {
   kind: string;
@@ -137,9 +138,10 @@ export function TypeMapScreen() {
   const clearFocus = useCallback(() => setParam("focus", null), [setParam]);
   useClearOnEscape(focus !== null, clearFocus);
   const coloring = useLayerColoring(graph.nodes.map((n) => n.kind));
-  // Every kind shares a namespace ("security."): drop it from the boxes, keep it in the title and the panel.
-  const prefix = useMemo(() => sharedPrefix(fullGraph.nodes.map((n) => n.kind)), [fullGraph]);
-  const labelOf = useCallback((kind: string) => kind.slice(prefix.length), [prefix]);
+  // The namespace most kinds share ("security.") is said once and dropped from the boxes; a kind outside it,
+  // or one whose short name would clash, keeps its full name. The full name stays in the title and the panel.
+  const names = useMemo(() => shortNames(fullGraph.nodes.map((n) => n.kind)), [fullGraph]);
+  const labelOf = names.label;
   const rulesByKind = useMemo(
     () => new Map((subjectKinds.data?.rows ?? []).map((row) => [row.kind, row])),
     [subjectKinds.data],
@@ -188,6 +190,15 @@ export function TypeMapScreen() {
       },
     }));
     const positions = new Map(nodes.map((n) => [n.id, n.position]));
+    // Each label on its own edge, sliding off the middle where it would cover another label or a kind.
+    const labelAt = placeLabels(
+      graph.edges.flatMap((e) => {
+        const route = laidOut.result?.routes.get(e.id);
+        const text = edgeLabel(e);
+        return route && text ? [{ id: e.id, points: route.points, curve: true, width: text.length * 6.7 + 10, height: 16 }] : [];
+      }),
+      nodes.map((n) => ({ x: n.position.x, y: n.position.y, width: nodeWidth(labelOf(n.id)), height: NODE_HEIGHT })),
+    );
     const edges: Edge[] = graph.edges.map((e) => {
       const stroke = "#8a8678";
       const route = laidOut.result?.routes.get(e.id);
@@ -204,7 +215,7 @@ export function TypeMapScreen() {
             type: "routed",
             data: {
               points: route.points,
-              labelAt: route.label,
+              labelAt: labelAt.get(e.id) ?? route.label,
               text: edgeLabel(e),
               curve: true,
               sourceAt: positions.get(e.source)!,
@@ -290,7 +301,7 @@ export function TypeMapScreen() {
         revealAll={focus !== null}
         overlay={
           <>
-            <MapLegend kinds={graph.nodes.length} links={graph.edges.length} undeclared={graph.nodes.some((n) => n.referencedOnly)} />
+            <MapLegend kinds={graph.nodes.length} links={graph.edges.length} undeclared={graph.nodes.some((n) => n.referencedOnly)} prefix={names.prefix} />
             {coloring.enabled && <LayerLegend layers={coloring.layers} />}
           </>
         }
@@ -301,20 +312,25 @@ export function TypeMapScreen() {
 }
 
 /** What the map's marks mean, inside the canvas: boxes, the dashed box, arrows and the many mark. */
-function MapLegend({ kinds, links, undeclared }: { kinds: number; links: number; undeclared: boolean }) {
+function MapLegend({ kinds, links, undeclared, prefix }: { kinds: number; links: number; undeclared: boolean; prefix: string }) {
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border border-zinc-800 bg-zinc-950/90 px-2 py-0.5 text-[11px] text-zinc-400">
       <span className="text-zinc-300">
         {kinds} kinds · {links} links
       </span>
+      {prefix && (
+        <span>
+          Names under <span className="font-mono text-zinc-300">{prefix}</span>
+        </span>
+      )}
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-2.5 w-3.5 border border-zinc-500 bg-zinc-900" aria-hidden />
-        Kind (with its Subject count)
+        Kind
       </span>
       {undeclared && (
         <span className="inline-flex items-center gap-1">
           <span className="inline-block h-2.5 w-3.5 border border-dashed border-zinc-600" aria-hidden />
-          Named but not declared
+          Not declared
         </span>
       )}
       <span className="inline-flex items-center gap-1">
@@ -322,9 +338,9 @@ function MapLegend({ kinds, links, undeclared }: { kinds: number; links: number;
           <line x1="0" y1="4" x2="16" y2="4" stroke="#8a8678" strokeWidth="1.25" />
           <path d="M16 1 L21 4 L16 7 Z" fill="#8a8678" />
         </svg>
-        A field names the other kind (* = many)
+        Field link (* many)
       </span>
-      <span>Unlinked kinds sit in the left column</span>
+      <span>Unlinked at left</span>
     </span>
   );
 }

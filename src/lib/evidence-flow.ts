@@ -584,3 +584,24 @@ export function readClaimTypeAccepts(proof: unknown): { predicate: string; accep
   }
   return { predicate, accepts };
 }
+
+/**
+ * Short names for a set of dotted names: the namespace most of them share
+ * ("security.") is said once and dropped from the labels; a name outside it
+ * keeps its full spelling, and so does any name whose short form would read
+ * the same as another label.
+ */
+export function shortNames(names: readonly string[]): { prefix: string; label: (name: string) => string } {
+  const counts = new Map<string, number>();
+  for (const name of names) {
+    const dot = name.indexOf(".");
+    if (dot > 0) counts.set(name.slice(0, dot + 1), (counts.get(name.slice(0, dot + 1)) ?? 0) + 1);
+  }
+  const ranked = [...counts].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+  const top = ranked[0];
+  const prefix = top && top[1] >= 2 && top[1] > (ranked[1]?.[1] ?? 0) ? top[0] : "";
+  const short = (name: string) => (prefix && name.startsWith(prefix) && name.length > prefix.length ? name.slice(prefix.length) : name);
+  const seen = new Map<string, number>();
+  for (const name of new Set(names)) seen.set(short(name), (seen.get(short(name)) ?? 0) + 1);
+  return { prefix, label: (name) => ((seen.get(short(name)) ?? 0) > 1 ? name : short(name)) };
+}
