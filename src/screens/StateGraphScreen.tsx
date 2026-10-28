@@ -10,6 +10,7 @@ import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
 import { buildTypeColors } from "@/lib/type-colors";
 import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
+import { shortNames } from "@/lib/evidence-flow";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 /** Subjects above which the console declines to draw the whole graph. */
@@ -51,6 +52,8 @@ export function StateGraphScreen() {
     return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [graph.data]);
   const colorOf = useMemo(() => buildTypeColors(kinds.map(([kind]) => kind)), [kinds]);
+  // The namespace most kinds share is said once; a kind outside it (or one that would clash) keeps its full name.
+  const names = useMemo(() => shortNames(kinds.map(([kind]) => kind)), [kinds]);
 
   const drawn = useMemo(() => {
     const nodes: GlDotNode[] = [];
@@ -126,6 +129,11 @@ export function StateGraphScreen() {
               {graph.data.elapsedMs < 1000 ? `${Math.round(graph.data.elapsedMs)} ms` : `${(graph.data.elapsedMs / 1000).toFixed(1)} s`}
               {graph.data.edgesCapped && <> · stopped at {GRAPH_EDGE_CAP.toLocaleString()} edges</>}
             </span>
+            {names.prefix && (
+              <span>
+                Names under <span className="font-mono text-zinc-300">{names.prefix}</span>
+              </span>
+            )}
           </StatsRow>
         )}
       </header>
@@ -184,9 +192,10 @@ export function StateGraphScreen() {
                 onClick={() => toggleKind(kind)}
                 className={`${toggleChipClass(!hiddenKinds.has(kind))} inline-flex items-center gap-1.5`}
                 title={hiddenKinds.has(kind) ? "Show this kind" : "Hide this kind"}
+                aria-label={`${kind}: ${count} ${count === 1 ? "Subject" : "Subjects"}${hiddenKinds.has(kind) ? " (hidden)" : ""}`}
               >
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: colorOf(kind), opacity: hiddenKinds.has(kind) ? 0.3 : 1 }} />
-                <span className="font-mono">{kind}</span>
+                <span className="font-mono" title={kind}>{names.label(kind)}</span>
                 <span className="text-zinc-600">{count}</span>
               </button>
             ))}

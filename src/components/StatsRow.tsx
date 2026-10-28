@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 
 /**
- * The graph pages' header rows, one format across them: counts as white mono
- * numbers with grey labels, a search box at the row's right end, and a legend
- * row under it.
+ * The graph pages' header rows, one format across them: a find box, then
+ * counts as white mono numbers with grey labels, and a legend row under it.
  */
 
 export function Stat({ n, label }: { n: number | string; label: ReactNode }) {
@@ -16,9 +15,10 @@ export function Stat({ n, label }: { n: number | string; label: ReactNode }) {
 
 export function StatsRow({ children, search }: { children: ReactNode; search?: ReactNode }) {
   return (
-    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
+    <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-[13px] text-zinc-500">
+      {/* Left-aligned like everything else on the page: the find box leads the row. */}
+      {search && <span className="flex items-baseline gap-2">{search}</span>}
       {children}
-      {search && <span className="ml-auto flex items-baseline gap-2">{search}</span>}
     </div>
   );
 }
@@ -46,11 +46,6 @@ export function SearchBox({
 }) {
   return (
     <>
-      {matches !== null && (
-        <span className="text-[12px] text-zinc-500">
-          {matches} match{matches === 1 ? "" : "es"}
-        </span>
-      )}
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -62,6 +57,11 @@ export function SearchBox({
         aria-label={label}
         className="w-56 border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
       />
+      {matches !== null && (
+        <span className="text-[12px] text-zinc-500">
+          {matches} match{matches === 1 ? "" : "es"}
+        </span>
+      )}
     </>
   );
 }

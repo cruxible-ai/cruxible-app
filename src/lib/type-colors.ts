@@ -1,25 +1,21 @@
 /**
  * Categorical per-entity-type palette for graph surfaces. Assignment is
  * alphabetical over the instance's full type vocabulary so a type keeps its
- * color across filters, hide-cold, and focus views. Hues are picked to read
- * on the dark canvas and to stay distinct from the governance edge strokes
- * (emerald/amber/red carry review state — dots are shapes, not lines, so the
- * unavoidable overlaps stay legible).
+ * color across filters, hide-cold, and focus views. Hues read on the dark
+ * canvas and stay clear of the colors that already mean something in the
+ * console: amber/orange (waiting), red/rose (wrong), green (healthy), teal
+ * (Cruxible, proposes) and fuchsia (settles).
  */
 
 export const TYPE_PALETTE = [
   "#00a9ff", // sky
-  "#ffc400", // amber
-  "#00e28c", // spring green
-  "#ff5c77", // rose
   "#a06bff", // violet
-  "#ff8b26", // orange
-  "#00d6c4", // teal
-  "#ee55f5", // fuchsia
+  "#48e5ff", // cyan
+  "#ff66c4", // pink
   "#bce327", // lime
   "#7c89ff", // indigo
-  "#ff66c4", // pink
-  "#48e5ff", // cyan
+  "#d6b98c", // sand
+  "#9fb3c8", // steel
 ] as const;
 
 const FALLBACK = "#a1a1aa"; // zinc-400 — types outside the known vocabulary
