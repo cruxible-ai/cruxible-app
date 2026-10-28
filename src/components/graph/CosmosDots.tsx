@@ -77,6 +77,26 @@ const toSpace = (v: number) => SPACE_SIZE / 2 + v * LAYOUT_SCALE;
  * Layout runs in a Web Worker (deterministic d3-force, streamed), so first
  * paint shows the seeded spiral immediately and organizes live.
  */
+/**
+ * Camera moves from the positions this component holds, never from the GPU:
+ * cosmos's fitView and zoomToPointByIndex read point positions back from a
+ * float texture (readPixels), which Firefox does not reliably support, so the
+ * camera framed empty space there. We set every position ourselves, so we
+ * already have them.
+ */
+type CosmosGraph = InstanceType<typeof Graph>;
+function fitTo(graph: CosmosGraph, positions: ArrayLike<number> | null | undefined, duration: number) {
+  if (positions && positions.length >= 2) graph.fitViewByPointPositions(Array.from(positions), duration);
+}
+function centerOn(graph: CosmosGraph, x: number, y: number, duration: number) {
+  // The point's transform at the current zoom (cosmos's own method for this, by position; private in its typings).
+  (graph as unknown as { setZoomTransformByPointPositions: (p: number[], d: number, scale?: number) => void }).setZoomTransformByPointPositions(
+    [x, y],
+    duration,
+    graph.getZoomLevel(),
+  );
+}
+
 export function CosmosDots({
   nodes,
   edges,
@@ -288,7 +308,10 @@ export function CosmosDots({
       if (g && idx !== undefined) {
         // Center at the current zoom — selection is navigation, not zoom.
         cameraOwnedRef.current = true;
-        g.zoomToPointByIndex(idx, 350, g.getZoomLevel(), true);
+        const p = positionsRef.current;
+        const x = p?.[2 * idx];
+        const y = p?.[2 * idx + 1];
+        if (x !== undefined && y !== undefined) centerOn(g, x, y, 350);
       }
     },
     [data, setSelection],
@@ -402,7 +425,7 @@ export function CosmosDots({
     graph.setLinks(data.linkIndices);
     graph.setLinkColors(data.linkColors);
     graph.render();
-    graph.fitView(0);
+    fitTo(graph, data.seedPositions, 0);
     graphRef.current = graph;
     positionsRef.current = data.seedPositions;
 
@@ -414,7 +437,7 @@ export function CosmosDots({
       if (cameraOwnedRef.current || resizeFrame) return;
       resizeFrame = requestAnimationFrame(() => {
         resizeFrame = 0;
-        if (!cameraOwnedRef.current) graph.fitView(0);
+        if (!cameraOwnedRef.current) fitTo(graph, positionsRef.current, 0);
       });
     });
     resizeObserver.observe(container);
@@ -465,7 +488,7 @@ export function CosmosDots({
         graph.render();
         // Frame the settled picture: the fit at stream end measured the
         // eased positions, still near the seed spiral, not where they landed.
-        if (!cameraOwnedRef.current) graph.fitView(300);
+        if (!cameraOwnedRef.current) fitTo(graph, current, 300);
         return;
       }
       animFrame = requestAnimationFrame(tick);
@@ -486,7 +509,7 @@ export function CosmosDots({
       // Keep the forming picture framed, but never yank a camera the user
       // has already taken over.
       if ((firstUpdate || e.data.done) && !cameraOwnedRef.current) {
-        graph.fitView(e.data.done ? 400 : 0);
+        fitTo(graph, e.data.done ? positions : positionsRef.current, e.data.done ? 400 : 0);
       }
       firstUpdate = false;
     };
@@ -736,7 +759,10 @@ export function CosmosDots({
 
         {/* Center: fit every drawn dot back into view (a pan or zoom can lose them all). */}
         <button
-          onClick={() => graphRef.current?.fitView(300)}
+          onClick={() => {
+            const g = graphRef.current;
+            if (g) fitTo(g, positionsRef.current, 300);
+          }}
           title="Fit every Subject into view"
           className="absolute left-2 top-2 z-10 inline-flex items-center gap-1.5 border border-zinc-800 bg-zinc-950/90 px-2 py-1 text-[12px] text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
         >
