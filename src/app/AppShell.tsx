@@ -1,16 +1,58 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
-import { CircleAlert, GitPullRequest, History, LayoutDashboard, Network, Route, Scale, Search, Waypoints, Workflow } from "lucide-react";
-import { useHead, useInstanceId, useOrient, useOrientKinds } from "@/api/hooks";
+import { useState, type ComponentType } from "react";
+import { NavLink, Outlet } from "react-router-dom";
+import {
+  CircleAlert,
+  GitPullRequest,
+  History,
+  LayoutDashboard,
+  Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Route,
+  Scale,
+  Search,
+  Waypoints,
+  Workflow,
+} from "lucide-react";
+import { useHead, useInstanceId, useOrient, usePin } from "@/api/hooks";
 import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
-import { useAtLink } from "@/lib/at";
-import { useLayerColoring } from "@/lib/kit-layer";
+import { useAtLink, useRawAtParam } from "@/lib/at";
 import { SignalDot } from "@/components/Chip";
 import { term } from "@/lib/vocabulary";
 import { AtPicker } from "./AtPicker";
 
-/** A nav count of things waiting on you: an amber dot and the number. */
-function WaitingCount({ count, title }: { count: number; title: string }) {
+const COLLAPSED_KEY = "cruxible.sidebar.collapsed";
+
+/** Whether the sidebar is folded to its icons, remembered per browser (a convenience: storage may be unavailable). */
+function useCollapsed(): [boolean, (value: boolean) => void] {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem(COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const set = (value: boolean) => {
+    setCollapsed(value);
+    try {
+      window.localStorage.setItem(COLLAPSED_KEY, value ? "1" : "0");
+    } catch {
+      // not remembered; the toggle still works for this visit
+    }
+  };
+  return [collapsed, set];
+}
+
+/** A nav count of things waiting on you: an amber dot and the number (the dot alone when folded). */
+function WaitingCount({ count, title, compact }: { count: number; title: string; compact: boolean }) {
+  if (compact) {
+    return (
+      <span className="absolute right-1.5 top-1">
+        <SignalDot signal="waiting" title={`${count}: ${title}`} />
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1.5 font-mono text-[12px] text-zinc-300" title={title}>
       <SignalDot signal="waiting" title={title} />
@@ -19,148 +61,129 @@ function WaitingCount({ count, title }: { count: number; title: string }) {
   );
 }
 
-function navClass({ isActive }: { isActive: boolean }) {
-  return `block px-2 py-1 text-[14px] ${
-    isActive ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
-  }`;
+interface Tab {
+  path: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  end?: boolean;
+  waiting?: { count: number; title: string } | null;
 }
 
 /**
- * Two-pane inspection console: generation picker and nav on the left
- * (Subject kinds with counts from orient), content on the right. Every link
- * keeps the page's ?at= pin.
+ * Two-pane inspection console: generation picker and nav on the left,
+ * content on the right. The nav folds to its icons (each named on hover).
+ * Every link keeps the page's ?at= pin.
  */
 export function AppShell() {
   const instanceId = useInstanceId();
   const link = useAtLink();
   const head = useHead(null);
-  const kinds = useOrientKinds();
   const attention = useOrient().data?.attention;
-  const kindRows = [...(kinds.data?.kinds ?? [])].sort((a, b) => a.kind.localeCompare(b.kind));
-  const coloring = useLayerColoring(kindRows.map((k) => k.kind));
+  const [collapsed, setCollapsed] = useCollapsed();
+  const pin = usePin();
+  const pinned = useRawAtParam() !== null;
+  const generation = pin.head.data?.generation;
+
+  const tabs: Tab[] = [
+    { path: "", label: "Overview", icon: LayoutDashboard, end: true },
+    { path: "/map", label: "Type map", icon: Network },
+    { path: "/flow", label: "Evidence flow", icon: Route },
+    { path: "/graph", label: "State graph", icon: Waypoints },
+    {
+      path: "/next",
+      label: "Next",
+      icon: CircleAlert,
+      waiting: (attention?.next_items ?? 0) > 0 ? { count: attention!.next_items, title: "Items waiting on you: open Next for the repairs" } : null,
+    },
+    { path: "/beliefs", label: "Beliefs", icon: Scale },
+    {
+      path: "/proposals",
+      label: "Proposals",
+      icon: GitPullRequest,
+      waiting: (attention?.open_proposals ?? 0) > 0 ? { count: attention!.open_proposals, title: term("proposal", "open").meaning } : null,
+    },
+    { path: "/lines", label: "Lines", icon: Workflow },
+    { path: "/ledger", label: "Ledger", icon: History },
+  ];
+
+  const item = (active: boolean) =>
+    `relative flex items-center gap-2 py-1 text-[14px] ${collapsed ? "justify-center px-0" : "justify-between px-2"} ${
+      active ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+    }`;
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-zinc-800 px-3 pt-4">
-        <div className="mb-3 px-2">
-          <img src="/brand/cruxible-wordmark-white.svg" alt="Cruxible" className="h-[22px] w-auto" />
-          <div className="mt-1.5 truncate font-mono text-[12px] text-zinc-500" title={instanceId}>
-            {head.data?.instance ?? instanceId}
+      <aside
+        className={`sticky top-0 flex h-screen shrink-0 flex-col border-r border-zinc-800 pt-4 transition-[width] duration-150 ${
+          collapsed ? "w-14 px-2" : "w-60 px-3"
+        }`}
+      >
+        {collapsed ? (
+          <div className="mb-3 flex flex-col items-center gap-2">
+            <img src="/favicon.svg" alt="Cruxible" title={`Cruxible · ${head.data?.instance ?? instanceId}`} className="h-[22px] w-[22px]" />
+            {/* The generation the console reads; expand the sidebar to change it. */}
+            <button
+              onClick={() => setCollapsed(false)}
+              title={`Reading generation ${generation ?? "…"}${pinned ? " (pinned)" : " · head"}: expand to change`}
+              className={`border px-1 font-mono text-[11px] ${pinned ? "border-zinc-500 text-zinc-100" : "border-zinc-800 text-zinc-400"} hover:text-zinc-100`}
+            >
+              G{generation ?? "…"}
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="mb-3 px-2">
+            <img src="/brand/cruxible-wordmark-white.svg" alt="Cruxible" className="h-[22px] w-auto" />
+            <div className="mt-1.5 truncate font-mono text-[12px] text-zinc-500" title={instanceId}>
+              {head.data?.instance ?? instanceId}
+            </div>
+          </div>
+        )}
 
-        <AtPicker />
+        {!collapsed && <AtPicker />}
 
         <div className="min-h-0 flex-1 overflow-y-auto pb-4">
           <nav className="space-y-0.5">
-            <NavLink to={link(`/i/${instanceId}`)} end className={navClass}>
-              <span className="inline-flex items-center gap-2">
-                <LayoutDashboard className="h-3.5 w-3.5" />
-                Overview
-              </span>
-            </NavLink>
-            <NavLink to={link(`/i/${instanceId}/map`)} className={navClass}>
-              <span className="inline-flex items-center gap-2">
-                <Network className="h-3.5 w-3.5" />
-                Type map
-              </span>
-            </NavLink>
-            <NavLink to={link(`/i/${instanceId}/flow`)} className={navClass}>
-              <span className="inline-flex items-center gap-2">
-                <Route className="h-3.5 w-3.5" />
-                Evidence flow
-              </span>
-            </NavLink>
-            <NavLink to={link(`/i/${instanceId}/graph`)} className={navClass}>
-              <span className="inline-flex items-center gap-2">
-                <Waypoints className="h-3.5 w-3.5" />
-                State graph
-              </span>
-            </NavLink>
-            <NavLink to={link(`/i/${instanceId}/next`)} className={(s) => `${navClass(s)} flex items-center justify-between`}>
-              <span className="inline-flex items-center gap-2">
-                <CircleAlert className="h-3.5 w-3.5" />
-                Next
-              </span>
-              {(attention?.next_items ?? 0) > 0 && (
-                <WaitingCount count={attention!.next_items} title="Items waiting on you: open Next for the repairs" />
-              )}
-            </NavLink>
-            <NavLink to={link(`/i/${instanceId}/beliefs`)} className={navClass}>
-              <span className="inline-flex items-center gap-2">
-                <Scale className="h-3.5 w-3.5" />
-                Beliefs
-              </span>
-            </NavLink>
-            <NavLink to={link(`/i/${instanceId}/proposals`)} className={(s) => `${navClass(s)} flex items-center justify-between`}>
-              <span className="inline-flex items-center gap-2">
-                <GitPullRequest className="h-3.5 w-3.5" />
-                Proposals
-              </span>
-              {(attention?.open_proposals ?? 0) > 0 && (
-                <WaitingCount count={attention!.open_proposals} title={term("proposal", "open").meaning} />
-              )}
-            </NavLink>
-            <NavLink to={link(`/i/${instanceId}/lines`)} className={navClass}>
-              <span className="inline-flex items-center gap-2">
-                <Workflow className="h-3.5 w-3.5" />
-                Lines
-              </span>
-            </NavLink>
-            <NavLink to={link(`/i/${instanceId}/ledger`)} className={navClass}>
-              <span className="inline-flex items-center gap-2">
-                <History className="h-3.5 w-3.5" />
-                Ledger
-              </span>
-            </NavLink>
+            {tabs.map((tab) => (
+              <NavLink
+                key={tab.label}
+                to={link(`/i/${instanceId}${tab.path}`)}
+                end={tab.end ?? false}
+                className={({ isActive }) => item(isActive)}
+                {...(collapsed ? { title: tab.label, "aria-label": tab.label } : {})}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <tab.icon className={collapsed ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                  {!collapsed && tab.label}
+                </span>
+                {tab.waiting && <WaitingCount count={tab.waiting.count} title={tab.waiting.title} compact={collapsed} />}
+              </NavLink>
+            ))}
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("cruxible:jump"))}
-              className="flex w-full items-center gap-2 px-2 py-1 text-[14px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+              className={item(false) + " w-full"}
+              {...(collapsed ? { title: "Jump to ref (⌘K)", "aria-label": "Jump to ref" } : {})}
             >
-              <Search className="h-3.5 w-3.5" />
-              Jump to ref
-              <kbd className="ml-auto border border-zinc-800 px-1 text-[10px] text-zinc-600">⌘K</kbd>
+              <span className="inline-flex items-center gap-2">
+                <Search className={collapsed ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                {!collapsed && "Jump to ref"}
+              </span>
+              {!collapsed && <kbd className="border border-zinc-800 px-1 text-[10px] text-zinc-600">⌘K</kbd>}
             </button>
           </nav>
-
-          <div className="mt-4">
-            <div className="px-2 pb-1 text-[12px] font-medium text-zinc-500">
-              Subject kinds
-            </div>
-            {kinds.error && (
-              <div className="px-2 text-[12px] text-red-400/80">{kinds.error.message}</div>
-            )}
-            <nav className="space-y-0.5">
-              {kindRows.map((row) => {
-                const owner = coloring.ownerOfKind(row.kind);
-                return (
-                  <Link
-                    key={row.kind}
-                    to={link(`/i/${instanceId}/kinds/${encodeURIComponent(row.kind)}`)}
-                    className="flex items-center justify-between gap-2 px-2 py-1 text-[13px] text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
-                  >
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      {coloring.enabled && (
-                        <span
-                          title={owner.source === "kit" ? `Kit ${owner.layer}` : "Authored in this instance"}
-                          className="h-1.5 w-1.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: coloring.colorOf(owner.layer) }}
-                        />
-                      )}
-                      <span className="truncate font-mono text-[12px]" title={row.kind}>
-                        {row.kind}
-                      </span>
-                    </span>
-                    <span className="font-mono text-[12px] text-zinc-600">{row.subjects}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
         </div>
 
-        <div className="shrink-0 border-t border-zinc-800/60 py-2">
-          <SettingsMenu />
+        <div className={`flex shrink-0 border-t border-zinc-800/60 py-2 ${collapsed ? "flex-col items-stretch gap-1" : "items-center justify-between"}`}>
+          <div className={collapsed ? "" : "min-w-0 flex-1"}>
+            <SettingsMenu compact={collapsed} />
+          </div>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            title={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+            aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+            className="flex items-center justify-center px-2 py-1 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+          >
+            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+          </button>
         </div>
       </aside>
 

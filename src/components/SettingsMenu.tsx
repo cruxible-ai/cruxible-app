@@ -8,7 +8,7 @@ import { HEALTH_LEGEND, NO_SIGNAL_LEGEND, SIGNAL_LEGEND } from "@/lib/vocabulary
  * changes what data exists (as opposed to what is shown) does not belong
  * here — that is config/governance surface, not a UI toggle.
  */
-export function SettingsMenu() {
+export function SettingsMenu({ compact = false }: { compact?: boolean }) {
   const { settings, update } = useSettings();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -70,12 +70,13 @@ export function SettingsMenu() {
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center gap-2 px-2 py-1 text-[14px] ${
+        {...(compact ? { title: "Settings", "aria-label": "Settings" } : {})}
+        className={`flex w-full items-center gap-2 px-2 py-1 text-[14px] ${compact ? "justify-center" : ""} ${
           open ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
         }`}
       >
         <Settings className="h-3.5 w-3.5" />
-        Settings
+        {!compact && "Settings"}
       </button>
     </div>
   );
