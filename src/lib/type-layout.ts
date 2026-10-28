@@ -40,6 +40,8 @@ export interface LayeredOptions {
   modelOrder: boolean;
   /** Space between layers (default 80). */
   layerGap?: number;
+  /** Which way the layers run (default RIGHT: left to right). */
+  direction?: "RIGHT" | "DOWN";
 }
 
 const TYPE_MAP: LayeredOptions = { looseColumn: true, edgeLabels: false, modelOrder: false };
@@ -98,7 +100,7 @@ export async function layoutLayered(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[]
       id: "root",
       layoutOptions: {
         "elk.algorithm": "layered",
-        "elk.direction": "RIGHT",
+        "elk.direction": options.direction ?? "RIGHT",
         "elk.edgeRouting": "SPLINES",
         "elk.layered.spacing.nodeNodeBetweenLayers": String(options.layerGap ?? 80),
         "elk.layered.spacing.edgeNodeBetweenLayers": "18",

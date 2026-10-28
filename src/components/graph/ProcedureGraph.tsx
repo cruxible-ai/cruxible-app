@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { Clock, Cpu, CornerDownRight, Database, Download, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { ArrowRightLeft, ArrowUpDown, Clock, Cpu, CornerDownRight, Database, Download, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useInstanceId, useInterfaces } from "@/api/hooks";
 import { SignalDot } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
@@ -85,7 +85,7 @@ interface NodeDisplay {
   mark: StepMark | null;
 }
 
-type StepNodeData = NodeDisplay & { [key: string]: unknown };
+type StepNodeData = NodeDisplay & { vertical?: boolean; [key: string]: unknown };
 
 const LINE_HEIGHT = 15;
 const HEAD_HEIGHT = 20;
@@ -101,7 +101,7 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
       style={{ borderLeftColor: ROLE_COLOR[data.role].color, borderLeftWidth: 3 }}
       title={data.kindMeaning}
     >
-      <Handle type="target" position={Position.Left} className="!pointer-events-none !opacity-0" />
+      <Handle type="target" position={data.vertical ? Position.Top : Position.Left} className="!pointer-events-none !opacity-0" />
       <div className="flex h-4 items-center gap-1.5 text-[11px] leading-4">
         <Icon className="h-3 w-3 shrink-0" style={{ color: ROLE_COLOR[data.role].color }} aria-hidden />
         <span style={{ color: ROLE_COLOR[data.role].color }}>{data.kindWord}</span>
@@ -111,7 +111,7 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
         <NodeText key={i} line={line} />
       ))}
       {data.mark && <MarkLine mark={data.mark} />}
-      <Handle type="source" position={Position.Right} className="!pointer-events-none !opacity-0" />
+      <Handle type="source" position={data.vertical ? Position.Bottom : Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
   );
 }
@@ -346,12 +346,30 @@ export function ProcedureGraph({
       edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
     };
   }, [model, display, edges, line]);
-  const layoutKey = useMemo(() => JSON.stringify(layoutInput), [layoutInput]);
+  // Which way the steps run: left to right (default) or top to bottom, a wide Procedure's better fit; remembered per browser.
+  const [vertical, setVertical] = useState(() => {
+    try {
+      return window.localStorage.getItem("cruxible.steps.vertical") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleVertical = useCallback(() => {
+    setVertical((v) => {
+      try {
+        window.localStorage.setItem("cruxible.steps.vertical", v ? "0" : "1");
+      } catch {
+        // not remembered; the toggle still works on this page
+      }
+      return !v;
+    });
+  }, []);
+  const layoutKey = useMemo(() => JSON.stringify({ ...layoutInput, vertical }), [layoutInput, vertical]);
   const [layout, setLayout] = useState<{ key: string; result: TypeLayout | null } | null>(null);
   useEffect(() => {
     let live = true;
     const { nodes, edges } = JSON.parse(layoutKey) as typeof layoutInput;
-    layoutLayered(nodes, edges, { looseColumn: false, edgeLabels: true, modelOrder: true, layerGap: 28 })
+    layoutLayered(nodes, edges, { looseColumn: false, edgeLabels: true, modelOrder: true, layerGap: 28, direction: vertical ? "DOWN" : "RIGHT" })
       .then((result) => live && setLayout({ key: layoutKey, result }))
       .catch(() => live && setLayout({ key: layoutKey, result: null }));
     return () => {
@@ -382,7 +400,7 @@ export function ProcedureGraph({
       type: "step",
       position: at(n.id, i),
       style: { width: n.width, height: n.height },
-      data: { ...display.get(n.id)! },
+      data: { ...display.get(n.id)!, vertical },
     }));
     const positions = new Map(nodes.map((n) => [n.id, n.position]));
     const flowEdges: Edge[] = edges.map((e) => {
@@ -406,7 +424,7 @@ export function ProcedureGraph({
     const bottom = Math.max(0, ...nodes.map((n) => n.position.y + (sizes.get(n.id)?.height ?? 0)));
     const right = Math.max(0, ...nodes.map((n) => n.position.x + (sizes.get(n.id)?.width ?? 0)));
     return { nodes, flowEdges, width: right, height: bottom };
-  }, [laidOut, layoutInput, display, edges]);
+  }, [laidOut, layoutInput, display, edges, vertical]);
 
   const neighborhood = useCallback((nodeId: string, all: Edge[]) => lineage(nodeId, all), []);
   const stepIds = useMemo(() => new Set(model.nodes.filter((n) => n.index !== null).map((n) => n.id)), [model]);
@@ -441,7 +459,19 @@ export function ProcedureGraph({
         recenter={false}
         nodeName={nodeName}
         fitPadding={FIT_PADDING}
-        overlay={<RoleLegend roles={nodes.map((n) => n.data.role)} />}
+        overlay={
+          <>
+            <RoleLegend roles={nodes.map((n) => n.data.role)} />
+            <button
+              onClick={toggleVertical}
+              title={vertical ? "Lay the steps out left to right" : "Lay the steps out top to bottom"}
+              className="inline-flex items-center gap-1 border border-zinc-800 bg-zinc-950/90 px-1.5 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
+            >
+              {vertical ? <ArrowRightLeft className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
+              {vertical ? "Left to right" : "Top to bottom"}
+            </button>
+          </>
+        }
       />
     </div>
   );
