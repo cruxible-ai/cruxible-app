@@ -19,6 +19,7 @@ export function BodyView({
   json,
   size,
   title,
+  centered = false,
 }: {
   format: BodyFormat;
   text: string | null;
@@ -26,6 +27,8 @@ export function BodyView({
   size: number;
   /** Names the HTML frame for assistive tech. */
   title: string;
+  /** Centre rendered markdown at its reading width (a wide reader). */
+  centered?: boolean;
 }) {
   const [raw, setRaw] = useState(false);
   if (format === "binary" || text === null) {
@@ -47,7 +50,9 @@ export function BodyView({
       )}
       {rendered && !raw ? (
         format === "markdown" ? (
-          <Cut text={text}>{(cut) => <Prose text={cut} />}</Cut>
+          <div className={centered ? "mx-auto max-w-3xl" : undefined}>
+            <Cut text={text}>{(cut) => <Prose text={cut} />}</Cut>
+          </div>
         ) : (
           <HtmlFrame html={text} title={title} />
         )

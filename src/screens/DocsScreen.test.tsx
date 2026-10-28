@@ -83,6 +83,22 @@ describe("Docs", () => {
     expect(main.getByText(`cruxible get Document:${PRIVATE_DOC} --detail body`)).toBeInTheDocument();
   });
 
+  it("hides the list for a wider reader, and steps between Documents while hidden", async () => {
+    // jsdom here has no working localStorage: the toggle must work without it.
+    renderApp(docs());
+    const main = within(await screen.findByRole("main"));
+    await main.findByRole("list", { name: "Documents" });
+    fireEvent.click(main.getByRole("button", { name: "Hide the Document list" }));
+    expect(main.queryByRole("list", { name: "Documents" })).toBeNull();
+    expect(main.getByText(`1 of ${DOCS.length}`)).toBeInTheDocument();
+    expect(main.getByRole("button", { name: "Previous Document" })).toBeDisabled();
+    fireEvent.click(main.getByRole("button", { name: "Next Document" }));
+    expect(await main.findByText(`2 of ${DOCS.length}`)).toBeInTheDocument();
+    fireEvent.click(main.getByRole("button", { name: "Show the Document list" }));
+    expect(main.getByRole("list", { name: "Documents" })).toBeInTheDocument();
+    expect(main.queryByRole("button", { name: "Next Document" })).toBeNull();
+  });
+
   it("says when the named Document is not at this generation", async () => {
     renderApp(docs("gone"));
     expect(await screen.findByText(/No Document named/)).toHaveTextContent("No Document named gone at this generation.");

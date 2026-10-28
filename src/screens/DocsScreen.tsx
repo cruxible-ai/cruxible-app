@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useDocumentBody, useDocuments, useGetBatch, type DocumentBody } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
 import { DOCUMENT_READ_MAX_BYTES } from "@/api/requests";
@@ -28,6 +28,7 @@ export function DocsScreen() {
   const documents = useDocuments();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState("");
+  const [listHidden, setListHidden] = useListHidden();
   usePageTitle("Docs");
   const rows = useMemo(() => documents.data?.rows ?? [], [documents.data]);
   const cards = useGetBatch(rows.map((row) => `Document:${row.name}`));
@@ -61,8 +62,8 @@ export function DocsScreen() {
       <header className="mb-4">
         <h1 className="t-title">Docs</h1>
         <p className="t-lede measure mt-1">
-          The Documents this instance holds: design notes, runbooks and references accepted into state, each at its
-          revision at this generation. Pick one to read it.
+          The Documents this instance holds: design notes, runbooks and references accepted into state, each at its revision at this
+          generation. Pick one to read it.
         </p>
         {documents.data && (
           <StatsRow
@@ -94,19 +95,40 @@ export function DocsScreen() {
         (rows.length === 0 ? (
           <p className="text-[14px] text-zinc-400">No Documents at this generation.</p>
         ) : (
-          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
-            <Panel title="Documents">
-              <ul aria-label="Documents" className="-mx-2 space-y-px">
-                {shown.map((row) => (
-                  <li key={row.name}>
-                    <DocumentItem row={row} card={cardByName.get(row.name)} active={row.name === open?.name} onSelect={() => select(row.name)} />
-                  </li>
-                ))}
-              </ul>
-              {shown.length === 0 && <p className="text-[13px] text-zinc-500">No Document matches.</p>}
-            </Panel>
+          <div className={`grid grid-cols-1 items-start gap-5 ${listHidden ? "" : "lg:grid-cols-[20rem_minmax(0,1fr)]"}`}>
+            {!listHidden && (
+              <Panel title="Documents">
+                <ul aria-label="Documents" className="-mx-2 space-y-px">
+                  {shown.map((row) => (
+                    <li key={row.name}>
+                      <DocumentItem
+                        row={row}
+                        card={cardByName.get(row.name)}
+                        active={row.name === open?.name}
+                        onSelect={() => select(row.name)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                {shown.length === 0 && <p className="text-[13px] text-zinc-500">No Document matches.</p>}
+              </Panel>
+            )}
             {open ? (
-              <DocumentReader key={open.name} row={open} card={cardByName.get(open.name)} />
+              <DocumentReader
+                key={open.name}
+                row={open}
+                card={cardByName.get(open.name)}
+                wide={listHidden}
+                nav={
+                  <ReaderNav
+                    listHidden={listHidden}
+                    onToggle={() => setListHidden(!listHidden)}
+                    rows={shown.length > 0 ? shown : rows}
+                    open={open.name}
+                    onSelect={select}
+                  />
+                }
+              />
             ) : (
               <p className="text-[14px] text-zinc-400">
                 No Document named <span className="font-mono text-zinc-300">{asked}</span> at this generation.
@@ -118,7 +140,17 @@ export function DocsScreen() {
   );
 }
 
-function DocumentItem({ row, card, active, onSelect }: { row: DocumentRow; card: DocumentCard | undefined; active: boolean; onSelect: () => void }) {
+function DocumentItem({
+  row,
+  card,
+  active,
+  onSelect,
+}: {
+  row: DocumentRow;
+  card: DocumentCard | undefined;
+  active: boolean;
+  onSelect: () => void;
+}) {
   return (
     <button
       type="button"
@@ -139,7 +171,101 @@ function DocumentItem({ row, card, active, onSelect }: { row: DocumentRow; card:
 
 const cliRead = (name: string) => `cruxible get Document:${name} --detail body`;
 
-function DocumentReader({ row, card }: { row: DocumentRow; card: DocumentCard | undefined }) {
+const LIST_HIDDEN_KEY = "cruxible.docs.listHidden";
+
+/** Whether the Document list is hidden for a wider reader, remembered per browser. */
+function useListHidden(): [boolean, (hidden: boolean) => void] {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return window.localStorage.getItem(LIST_HIDDEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const set = (next: boolean) => {
+    setHidden(next);
+    try {
+      window.localStorage.setItem(LIST_HIDDEN_KEY, next ? "1" : "0");
+    } catch {
+      // Remembering is a convenience; the toggle works without it.
+    }
+  };
+  return [hidden, set];
+}
+
+const NAV_BUTTON =
+  "inline-flex h-6 w-6 items-center justify-center text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-30 disabled:hover:bg-transparent";
+
+/**
+ * The reader's own controls: hide or show the list and, while it is hidden,
+ * step to the previous or next Document (of those the find box matches) so
+ * the list is not needed to move on.
+ */
+function ReaderNav({
+  listHidden,
+  onToggle,
+  rows,
+  open,
+  onSelect,
+}: {
+  listHidden: boolean;
+  onToggle: () => void;
+  rows: DocumentRow[];
+  open: string;
+  onSelect: (name: string) => void;
+}) {
+  const at = rows.findIndex((row) => row.name === open);
+  const step = (by: number) => {
+    const next = rows[at + by];
+    if (next) onSelect(next.name);
+  };
+  return (
+    <span className="relative top-[3px] mr-2 inline-flex items-center gap-0.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={listHidden}
+        title={listHidden ? "Show the Document list" : "Hide the Document list to read wider"}
+        aria-label={listHidden ? "Show the Document list" : "Hide the Document list"}
+        className={NAV_BUTTON}
+      >
+        {listHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+      </button>
+      {listHidden && rows.length > 1 && (
+        <>
+          <button type="button" onClick={() => step(-1)} disabled={at <= 0} aria-label="Previous Document" className={NAV_BUTTON}>
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="px-0.5 text-[12px] font-normal tabular-nums text-zinc-500">
+            {at + 1} of {rows.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => step(1)}
+            disabled={at < 0 || at >= rows.length - 1}
+            aria-label="Next Document"
+            className={NAV_BUTTON}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </>
+      )}
+    </span>
+  );
+}
+
+function DocumentReader({
+  row,
+  card,
+  nav,
+  wide,
+}: {
+  row: DocumentRow;
+  card: DocumentCard | undefined;
+  nav: ReactNode;
+  /** The list is hidden: rendered markdown centres at its reading width. */
+  wide: boolean;
+}) {
   const read = useDocumentBody(row.name);
   const body = readOf(read.data);
   const decoded = useMemo(() => (body ? decodeText(body.bytes) : null), [body]);
@@ -150,17 +276,29 @@ function DocumentReader({ row, card }: { row: DocumentRow; card: DocumentCard | 
       <span className="font-mono">{row.media_type}</span>
       {card && <span>Revision {card.revision}</span>}
       {(body?.bytes.length ?? card?.size) != null && <span>{formatSize(body?.bytes.length ?? card!.size!)}</span>}
-      {body && format && <DownloadLink bytes={body.bytes} type={row.media_type} name={fileName(row.name, extensionFor(format, row.media_type))} />}
+      {body && format && (
+        <DownloadLink bytes={body.bytes} type={row.media_type} name={fileName(row.name, extensionFor(format, row.media_type))} />
+      )}
     </span>
   );
   return (
-    <Panel title={row.title} meta={meta}>
+    <Panel
+      title={
+        <span className="inline-flex items-baseline">
+          {nav}
+          {row.title}
+        </span>
+      }
+      meta={meta}
+    >
       <div className="t-meta -mt-1 mb-3 font-mono">Document:{row.name}</div>
       {read.isPending ? (
         <LoadState />
       ) : read.error ? (
         read.error instanceof ApiError && read.error.status === 403 ? (
-          <Note cli={cliRead(row.name)}>This console's token can't read Document bodies: that takes governed_write. Read it from a terminal:</Note>
+          <Note cli={cliRead(row.name)}>
+            This console's token can't read Document bodies: that takes governed_write. Read it from a terminal:
+          </Note>
         ) : (
           <LoadState error={read.error} />
         )
@@ -169,7 +307,14 @@ function DocumentReader({ row, card }: { row: DocumentRow; card: DocumentCard | 
           {formatSize(read.data.size)}: larger than the {formatSize(DOCUMENT_READ_MAX_BYTES)} the page reads. Save it from a terminal:
         </Note>
       ) : body && decoded && format ? (
-        <BodyView format={format} text={decoded.text} json={decoded.json} size={body.bytes.length} title={`Body of ${row.title}`} />
+        <BodyView
+          format={format}
+          text={decoded.text}
+          json={decoded.json}
+          size={body.bytes.length}
+          title={`Body of ${row.title}`}
+          centered={wide}
+        />
       ) : null}
     </Panel>
   );
@@ -217,15 +362,15 @@ function Note({ children, cli }: { children: ReactNode; cli: string }) {
  */
 function AddDocumentHint() {
   const commands = [
-    'cruxible files add report docs/report.md --document-id report --document-kind report --title "Q3 report"',
+    'cruxible files add report docs/report.md --document-id report --document-kind report --title "Q3 report" --scope legal',
     "cruxible files propose --file report --name report-v1",
   ];
   const ask = 'Add docs/report.md to Cruxible as a Document titled "Q3 report", and propose it.';
   return (
     <div className="measure space-y-2 text-[13px] text-zinc-400">
       <p>
-        A Document is a file whose exact wording is kept in state: every revision is reviewed and accepted like any change, and
-        Next flags the file when it is edited until the new revision is proposed. Put the file in the workspace, then:
+        A Document is a file whose exact wording is kept in state: every revision is reviewed and accepted like any change, and Next flags
+        the file when it is edited until the new revision is proposed. Put the file in the workspace, then:
       </p>
       <div className="space-y-1">
         {commands.map((command) => (
