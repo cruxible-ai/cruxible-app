@@ -32,7 +32,7 @@ import type { OrientPredicate } from "../api/schemas.ts";
  * down the page. Pure and deterministic: same inputs, same pixels.
  */
 
-export type FlowNodeKind = "acquirer" | "source" | "line" | "claim_type";
+export type FlowNodeKind = "acquirer" | "source" | "line" | "inbox" | "claim_type";
 
 export interface FlowNode {
   id: string;
@@ -86,6 +86,8 @@ export interface FlowEdge {
   required?: boolean;
   /** source → claim_type directly (no Line reads the source). */
   direct?: boolean;
+  /** line → inbox: the Line posts items for someone to judge. */
+  inbox?: boolean;
 }
 
 export interface FlowModel {
@@ -122,6 +124,8 @@ export interface FlowInputs {
   lineAbout?: ReadonlyMap<string, string>;
   /** Each Line's enablement per bare Line name (null: never enabled). */
   lineEnablement?: ReadonlyMap<string, string | null>;
+  /** The Lines whose Procedure posts inbox items (has an inbox step), by bare name. */
+  postsInbox?: ReadonlySet<string>;
   /** Where sources come from: the Lines and direct runs that retain them. */
   acquirers?: readonly AcquirerInput[];
 }
@@ -145,6 +149,7 @@ export const OWN_WORD = "source:own-word";
 
 export const nodeId = {
   acquirer: (runs: "line" | "direct", name: string) => `acquirer:${runs}:${name}`,
+  inbox: "inbox",
   source: (source: string) => `source:${source}`,
   line: (name: string) => `line:${name}`,
   claimType: (predicate: string) => `claim_type:${predicate}`,
@@ -267,8 +272,15 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     }
   }
 
+  // The inbox: what Lines post for an agent or a person to judge, instead of (or beside) Claims.
+  const posting = [...reads.keys()].filter((line) => inputs.postsInbox?.has(line)).sort(byText);
+  if (posting.length) {
+    nodes.set(nodeId.inbox, { id: nodeId.inbox, kind: "inbox", label: "Inbox" });
+    for (const line of posting) addEdge({ from: nodeId.line(line), to: nodeId.inbox, inbox: true });
+  }
+
   // ClaimTypes, and the edges into them.
-  const readSources = new Set(edges.map((e) => e.from));
+  const readSources = new Set(edges.filter((e) => !e.inbox).map((e) => e.from));
   for (const row of [...inputs.claimTypes].sort((a, b) => byText(a.predicate, b.predicate))) {
     const accepted = accepts.get(row.predicate);
     if (!accepted) continue;
@@ -407,13 +419,14 @@ export const COLUMNS = [
 
 const HEIGHT: Record<PlacedKind, number> = {
   acquirer: 84,
+  inbox: 44,
   source: 64,
   line: 84,
   claim_type: 18,
   kind: 20,
   heading: 22,
 };
-const GAP: Record<PlacedKind, number> = { acquirer: 6, source: 6, line: 6, claim_type: 2, kind: 2, heading: 4 };
+const GAP: Record<PlacedKind, number> = { acquirer: 6, inbox: 14, source: 6, line: 6, claim_type: 2, kind: 2, heading: 4 };
 const KIND_GAP = 8;
 
 const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : Number.POSITIVE_INFINITY);
@@ -444,6 +457,11 @@ export function layoutFlow(model: FlowModel): FlowLayout {
   const x = COLUMNS[3].x;
   const w = COLUMNS[3].w;
   let y = top;
+  // The inbox heads the last column, above the ClaimTypes.
+  for (const node of of("inbox")) {
+    rows.push({ id: node.id, kind: "inbox", node, x, y, w, h: HEIGHT.inbox });
+    y += HEIGHT.inbox + GAP.inbox;
+  }
   const groups = new Map<string, FlowNode[]>();
   for (const node of of("claim_type")) groups.set(node.group ?? "", [...(groups.get(node.group ?? "") ?? []), node]);
   const feeders = [...of("line"), ...of("source")].sort((a, b) => byText(a.label, b.label));
@@ -502,7 +520,7 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     { id: "heading:acquirers", kind: "heading", label: "Where it comes from", x: COLUMNS[0].x, y: 0, w: COLUMNS[0].w, h: HEIGHT.heading },
     { id: "heading:sources", kind: "heading", label: "Sources", x: COLUMNS[1].x, y: 0, w: COLUMNS[1].w, h: HEIGHT.heading },
     { id: "heading:lines", kind: "heading", label: "Lines that read them", x: COLUMNS[2].x, y: 0, w: COLUMNS[2].w, h: HEIGHT.heading },
-    { id: "heading:claims", kind: "heading", label: "ClaimTypes they may write", x: COLUMNS[3].x, y: 0, w: COLUMNS[3].w, h: HEIGHT.heading },
+    { id: "heading:claims", kind: "heading", label: "What they produce", x: COLUMNS[3].x, y: 0, w: COLUMNS[3].w, h: HEIGHT.heading },
     ...of("acquirer").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[0].x, y: acquirerY.get(node.id)!, w: COLUMNS[0].w, h: HEIGHT.acquirer })),
     ...of("source").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[1].x, y: sourceY.get(node.id)!, w: COLUMNS[1].w, h: HEIGHT.source })),
     ...of("line").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[2].x, y: lineY.get(node.id)!, w: COLUMNS[2].w, h: HEIGHT.line })),

@@ -174,3 +174,19 @@ describe("where sources come from", () => {
     expect(related(model, nodeId.claimType("sec.vuln.epss")).has(nodeId.acquirer("line", "kev-daily"))).toBe(false);
   });
 });
+
+describe("the inbox", () => {
+  it("heads the last column, and the Lines whose Procedure posts items link to it", () => {
+    const model = buildFlow({ ...INPUTS, postsInbox: new Set(["kev-triage", "not-on-the-flow"]) });
+    expect(model.nodes.find((n) => n.id === nodeId.inbox)).toMatchObject({ kind: "inbox", label: "Inbox" });
+    expect(model.edges.filter((e) => e.to === nodeId.inbox)).toEqual([{ from: nodeId.line("kev-triage"), to: nodeId.inbox, inbox: true }]);
+    const layout = layoutFlow(model);
+    const inbox = layout.byId.get(nodeId.inbox)!;
+    expect(inbox.x).toBe(COLUMNS[3].x);
+    expect(Math.min(...layout.placed.filter((p) => p.kind === "kind").map((p) => p.y))).toBeGreaterThan(inbox.y);
+  });
+
+  it("is left off when no Line posts", () => {
+    expect(buildFlow(INPUTS).nodes.some((n) => n.kind === "inbox")).toBe(false);
+  });
+});

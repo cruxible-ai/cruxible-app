@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair } from "lucide-react";
-import { useCards, useClaimTypes, useGetBatch, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
+import { useCards, useClaimTypes, useGetBatch, useInbox, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
@@ -17,13 +17,14 @@ import {
   sharedPrefix,
   type AcceptedEvidence,
   type FlowModel,
+  type FlowNode,
   type Placed,
 } from "@/lib/evidence-flow";
 import { lineName } from "@/lib/lines";
 import { AUTHORITY_COLOR } from "@/lib/palette";
 import { HealthDot } from "@/components/Chip";
 import { term } from "@/lib/vocabulary";
-import { arrivalWords, gist, lineGist, retainedByWords, urlWords, type Retention } from "@/lib/definitions";
+import { arrivalWords, gist, lineGist, retainedByWords, stepKind, urlWords, type Retention } from "@/lib/definitions";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { wakeOf } from "@/lib/schedule";
@@ -127,6 +128,10 @@ export function FlowScreen() {
       triggers: sources.data.triggers,
       lineAuthority: new Map(lines.data.rows.map((row) => [lineName(row.line), row.authority] as const)),
       lineEnablement: new Map(lines.data.rows.map((row) => [lineName(row.line), row.enablement ?? null] as const)),
+      // A Line posts to the inbox when its Procedure has an inbox step.
+      postsInbox: new Set(
+        lineDefinitions.filter((line) => specs.get(line.procedure)?.steps.some((step) => stepKind(step) === "inbox")).map((line) => line.line),
+      ),
     });
   }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, fetchingLines, lineCards]);
 
@@ -140,6 +145,7 @@ export function FlowScreen() {
   const shown = useMemo(() => (model ? focusFlow(model, focus) : null), [model, focus]);
   const layout = useMemo(() => (shown ? layoutFlow(shown) : null), [shown]);
   const lit = useMemo(() => (shown && hover ? related(shown, hover) : null), [shown, hover]);
+  const unread = useInbox(undefined, "unread", 200);
   // Names share the kit namespace ("security."): say it once, drop it from labels.
   // (Line, Procedure and Trigger names only: Subject kinds can come from other namespaces, such as core's semantic.*.)
   const prefix = useMemo(
@@ -226,16 +232,17 @@ export function FlowScreen() {
                 const to = layout.byId.get(edge.to);
                 if (!from || !to) return null;
                 const on = lit ? lit.has(edge.from) && lit.has(edge.to) : null;
+                // Edges stay neutral; a traced path lights up in the hovered node's color.
+                const traced = on ? traceColor(layout.byId.get(hover ?? "")?.node) : null;
                 return (
                   <path
                     key={`${edge.from}\n${edge.to}`}
                     d={edgePath(from, to)}
                     fill="none"
-                    // An edge leaving a Line takes its authority's color; the rest stay neutral.
-                    stroke={edge.authority ? AUTHORITY_COLOR[edge.authority] : edge.required ? "rgb(222 219 208)" : "rgb(163 160 148)"}
-                    strokeDasharray={edge.direct ? "4 3" : undefined}
+                    stroke={traced ?? "rgb(163 160 148)"}
+                    strokeDasharray={edge.direct || edge.inbox ? "4 3" : undefined}
                     strokeWidth={on ? 1.5 : 1}
-                    strokeOpacity={on === null ? (edge.authority ? 0.45 : edge.required ? 0.4 : 0.22) : on ? 0.9 : 0.05}
+                    strokeOpacity={on === null ? 0.22 : on ? 0.95 : 0.05}
                   />
                 );
               })}
@@ -250,6 +257,7 @@ export function FlowScreen() {
                 onFocus={setFocus}
                 instanceId={instanceId}
                 link={link}
+                unread={unread.data ? { count: unread.data.entries.length, more: unread.data.truncated === true } : null}
               />
             ))}
           </div>
@@ -286,7 +294,9 @@ function FlowCell({
   onFocus,
   instanceId,
   link,
+  unread,
 }: {
+  unread: { count: number; more: boolean } | null;
   placed: Placed;
   prefix: string;
   dim: boolean;
@@ -332,7 +342,7 @@ function FlowCell({
         style={style}
         dim={dim}
         hover={hover}
-        accent={node.runs === "line" ? authorityColor(node.authority) : AUTHORITY_COLOR.none}
+        accent={AUTHORITY_COLOR.none}
         title={[node.label, node.about, node.when].filter(Boolean).join("\n")}
         name={
           <Link to={link(href)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
@@ -343,6 +353,27 @@ function FlowCell({
         focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
         about={node.about ?? null}
         facts={[["Runs", (node.when ?? "").replace(/^\w/, (c) => c.toLowerCase())]]}
+      />
+    );
+  }
+  if (node.kind === "inbox") {
+    return (
+      <FlowCard
+        style={style}
+        dim={dim}
+        hover={hover}
+        accent={AUTHORITY_COLOR.observe}
+        dashed
+        title="Items Lines post for an agent or a person to judge: not accepted state"
+        name={
+          <Link to={link(`/i/${instanceId}/lines`)} className="truncate text-[12px] font-medium text-zinc-100 hover:underline">
+            Inbox
+          </Link>
+        }
+        state={null}
+        focus={<FocusButton id={node.id} label="Inbox" onFocus={onFocus} />}
+        about={null}
+        facts={[["Unread", unread ? `${unread.count}${unread.more ? "+" : ""}` : "…"], ["For", "an agent or a person to judge"]]}
       />
     );
   }
@@ -455,6 +486,12 @@ function AuthorityLegend() {
       </span>
     </div>
   );
+}
+
+/** The color a traced path takes: the hovered Line's or ClaimType's authority; a bright neutral otherwise. */
+function traceColor(node: FlowNode | undefined): string {
+  if (node && (node.kind === "line" || node.kind === "claim_type") && node.authority) return AUTHORITY_COLOR[node.authority];
+  return "rgb(222 219 208)";
 }
 
 const authorityColor = (authority: string | undefined) =>
