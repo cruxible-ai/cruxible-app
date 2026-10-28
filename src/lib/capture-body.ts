@@ -5,6 +5,7 @@
  * url, status and headers) and workspace.file keeps the file under `content`
  * (text, or base64 bytes). Any other body is shown as it is.
  */
+import { bodyFormat, extensionFor, type BodyFormat } from "./body-format";
 
 export interface CaptureBody {
   /** What was captured: the response or file bytes, unwrapped. */
@@ -19,6 +20,8 @@ export interface CaptureBody {
   url: string | null;
   status: number | null;
   contentType: string | null;
+  /** A name the wrapper gives the bytes (the fetched URL, the file's logical source): a format hint. */
+  name: string | null;
 }
 
 export function decodeBase64(value: string): Uint8Array {
@@ -56,9 +59,14 @@ function header(headers: unknown, name: string): string | null {
   return hit && typeof hit[1] === "string" ? hit[1] : null;
 }
 
-function inner(bytes: Uint8Array, format: CaptureBody["format"], extra: Partial<CaptureBody> = {}): CaptureBody {
+/** Bytes as UTF-8 text when they decode cleanly, and that text as JSON when it parses. */
+export function decodeText(bytes: Uint8Array): { text: string | null; json: unknown } {
   const text = utf8(bytes);
-  return { bytes, text, json: parseJson(text), format, url: null, status: null, contentType: null, ...extra };
+  return { text, json: parseJson(text) };
+}
+
+function inner(bytes: Uint8Array, format: CaptureBody["format"], extra: Partial<CaptureBody> = {}): CaptureBody {
+  return { bytes, ...decodeText(bytes), format, url: null, status: null, contentType: null, name: null, ...extra };
 }
 
 export function unwrapCaptureBody(base64: string): CaptureBody {
@@ -68,44 +76,38 @@ export function unwrapCaptureBody(base64: string): CaptureBody {
   if (isRecord(wrapper)) {
     const retrieved = wrapper.retrieved;
     if (isRecord(retrieved) && typeof retrieved.body_base64 === "string") {
+      const url = typeof retrieved.final_url === "string" ? retrieved.final_url : typeof retrieved.url === "string" ? retrieved.url : null;
       return inner(decodeBase64(retrieved.body_base64), "web-fetch", {
-        url: typeof retrieved.final_url === "string" ? retrieved.final_url : typeof retrieved.url === "string" ? retrieved.url : null,
+        url,
         status: typeof retrieved.status_code === "number" ? retrieved.status_code : null,
         contentType: header(retrieved.headers, "content-type"),
+        name: url,
       });
     }
     const content = wrapper.content;
+    const source = isRecord(wrapper.source) && typeof wrapper.source.logical_source === "string" ? wrapper.source.logical_source : null;
     if (isRecord(content) && content.kind === "text" && typeof content.text === "string") {
-      return inner(new TextEncoder().encode(content.text), "workspace-file");
+      return inner(new TextEncoder().encode(content.text), "workspace-file", { name: source });
     }
     if (isRecord(content) && content.kind === "bytes" && typeof content.bytes === "string") {
-      return inner(decodeBase64(content.bytes), "workspace-file");
+      return inner(decodeBase64(content.bytes), "workspace-file", { name: source });
     }
   }
   return outer;
 }
 
+/** What the body is (markdown, HTML, JSON, text, binary), by its type, its name, the Capture's source, then a sniff. */
+export function captureFormat(body: CaptureBody, source: string | null): BodyFormat {
+  return bodyFormat(body, { contentType: body.contentType, name: body.name ?? source });
+}
+
 /** A file name for the download: the source's name and an extension from what the bytes are. */
 export function downloadName(body: CaptureBody, source: string | null, capture: string): string {
   const base = (source ?? capture).replace(/[^A-Za-z0-9._-]+/g, "-");
-  const type = body.contentType?.split(";")[0]?.trim().toLowerCase() ?? "";
-  const ext =
-    body.json !== undefined || type.endsWith("json")
-      ? "json"
-      : type === "text/html"
-        ? "html"
-        : type.endsWith("xml") || body.text?.trimStart().startsWith("<?xml")
-          ? "xml"
-          : body.text !== null
-            ? "txt"
-            : "bin";
-  return `${base}.${ext}`;
-}
-
-/** The text the panel shows: JSON pretty-printed, other text as it is; null for binary. */
-export function previewText(body: CaptureBody): string | null {
-  if (body.json !== undefined) return JSON.stringify(body.json, null, 2);
-  return body.text;
+  const format = captureFormat(body, source);
+  const xml = format === "text" && body.text?.trimStart().startsWith("<?xml");
+  const ext = xml ? "xml" : extensionFor(format, body.contentType);
+  return base.toLowerCase().endsWith(`.${ext}`) ? base : `${base}.${ext}`;
 }
 
 /** A byte count, short: "840 bytes", "12.4 KB", "2.3 MB". */

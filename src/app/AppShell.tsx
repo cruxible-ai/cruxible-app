@@ -2,6 +2,7 @@ import { useState, type ComponentType } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   CircleAlert,
+  FileText,
   GitPullRequest,
   History,
   LayoutDashboard,
@@ -103,6 +104,7 @@ export function AppShell() {
       waiting: (attention?.open_proposals ?? 0) > 0 ? { count: attention!.open_proposals, title: term("proposal", "open").meaning } : null,
     },
     { path: "/lines", label: "Lines", icon: Workflow },
+    { path: "/docs", label: "Docs", icon: FileText },
     { path: "/ledger", label: "Ledger", icon: History },
   ];
 

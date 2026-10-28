@@ -201,6 +201,7 @@ export function refRoute(instanceId: string, ref: ParsedRef): string | null {
   if (ref.kind === "proposal") return `${base}/p/${encodeURIComponent(ref.id)}`;
   if (ref.kind === "line") return `${base}/lines/${encodeURIComponent(ref.name)}`;
   if (ref.kind === "procedure_run") return `${base}/runs/${encodeURIComponent(ref.id)}`;
+  if (ref.kind === "document") return `${base}/docs?doc=${encodeURIComponent(ref.name)}`;
   const getRef = getRefOf(ref);
   return getRef === null ? null : `${base}/ref/${encodeURIComponent(getRef)}`;
 }

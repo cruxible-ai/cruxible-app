@@ -6,18 +6,17 @@ import type { Schemas } from "@/api/schemas";
 import { Panel, LoadState } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
 import { CAPTURE_READ_MAX_BYTES } from "@/api/requests";
-import { downloadName, formatSize, previewText, unwrapCaptureBody, type CaptureBody } from "@/lib/capture-body";
+import { BodyView } from "@/components/BodyView";
+import { captureFormat, downloadName, formatSize, unwrapCaptureBody, type CaptureBody } from "@/lib/capture-body";
 import { formatDateTime } from "@/lib/text";
-
-/** The most of a body the page renders inline; the download has the rest. */
-const PREVIEW_CHARS = 200_000;
 
 /**
  * What a Capture holds: its retained body read through captures/read,
- * unwrapped from core's fetch and file formats, shown inline (JSON
- * pretty-printed, the first 200k characters) with a download of the whole
- * thing. An erased body, one past the read cap, or a token that may not read
- * bodies each say so, with the CLI read to run instead.
+ * unwrapped from core's fetch and file formats, shown inline (markdown and
+ * HTML rendered, with a Raw toggle; JSON pretty-printed; the first 200k
+ * characters) with a download of the whole thing. An erased body, one past
+ * the read cap, or a token that may not read bodies each say so, with the CLI
+ * read to run instead.
  */
 export function CaptureContents({ card }: { card: Schemas["GetCaptureCard"] }) {
   const erased = card.erased ?? null;
@@ -50,7 +49,13 @@ export function CaptureContents({ card }: { card: Schemas["GetCaptureCard"] }) {
           Larger than the {formatSize(CAPTURE_READ_MAX_BYTES)} the page reads. Read it from a terminal:
         </Note>
       ) : body ? (
-        <Preview body={body} />
+        <BodyView
+          format={captureFormat(body, card.source ?? null)}
+          text={body.text}
+          json={body.json}
+          size={body.bytes.length}
+          title={`Contents of ${card.capture}`}
+        />
       ) : (
         <Note cli={cli}>The daemon returned no body for this Capture{material ? ` (${material.status.replace(/_/g, " ")})` : ""}.</Note>
       )}
@@ -81,26 +86,6 @@ function ContentsMeta({ body, source, capture }: { body: CaptureBody; source: st
         <Download className="h-3 w-3" /> Download
       </a>
     </span>
-  );
-}
-
-function Preview({ body }: { body: CaptureBody }) {
-  const text = useMemo(() => previewText(body), [body]);
-  if (text === null) {
-    return <Note>Binary ({formatSize(body.bytes.length)}): download it to open.</Note>;
-  }
-  const cut = text.length > PREVIEW_CHARS;
-  return (
-    <div>
-      <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-all bg-zinc-950 p-3 font-mono text-[12px] leading-5 text-zinc-300">
-        {cut ? text.slice(0, PREVIEW_CHARS) : text}
-      </pre>
-      {cut && (
-        <div className="mt-2 text-[12px] text-zinc-500">
-          Showing the first {PREVIEW_CHARS.toLocaleString()} of {text.length.toLocaleString()} characters; download it for the whole body.
-        </div>
-      )}
-    </div>
   );
 }
 

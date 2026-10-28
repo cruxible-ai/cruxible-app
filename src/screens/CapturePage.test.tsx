@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
-import { FETCHED, PRIVATE } from "@/fixtures/authored/captures";
+import { ADVISORY, FETCHED, PRIVATE, RUNBOOK } from "@/fixtures/authored/captures";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -32,5 +32,35 @@ describe("Capture page", () => {
     const main = within(await screen.findByRole("main"));
     expect(await main.findByText(/can't read Capture contents: that takes governed_write/)).toBeInTheDocument();
     expect(main.getByText(`cruxible capture read CAP-${PRIVATE.slice(7, 19)}`)).toBeInTheDocument();
+  });
+
+  it("renders a markdown file as prose, with a Raw toggle back to the text and the download kept", async () => {
+    renderApp(page(RUNBOOK));
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByRole("heading", { name: "Triage runbook" })).toBeInTheDocument();
+    expect(main.getByText("vendor advisory").tagName).toBe("STRONG");
+    expect(main.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true");
+    expect(main.getByRole("link", { name: /Download/ })).toHaveAttribute("download", "repo.docs.triage-runbook.md");
+    fireEvent.click(main.getByRole("button", { name: "Raw" }));
+    expect(main.getByText(/# Triage runbook/)).toBeInTheDocument();
+    expect(main.queryByRole("heading", { name: "Triage runbook" })).toBeNull();
+  });
+
+  it("renders fetched HTML only inside a sandboxed frame that runs nothing", async () => {
+    renderApp(page(ADVISORY));
+    const main = within(await screen.findByRole("main"));
+    const frame = (await main.findByTitle(`Contents of CAP-${ADVISORY.slice(7, 19)}`)) as HTMLIFrameElement;
+    expect(frame.tagName).toBe("IFRAME");
+    expect(frame.getAttribute("sandbox")).toBe("");
+    const srcDoc = frame.getAttribute("srcdoc")!;
+    expect(srcDoc).toContain("Fixed in 2.4.1.");
+    expect(srcDoc).toContain("Content-Security-Policy");
+    expect(srcDoc).not.toContain("<script");
+    // never in the page's own DOM
+    expect(main.queryByRole("heading", { name: "VSA-1" })).toBeNull();
+    expect(main.getByRole("link", { name: /Download/ })).toHaveAttribute("download", "vendor.advisories.html");
+    fireEvent.click(main.getByRole("button", { name: "Raw" }));
+    expect(main.queryByTitle(`Contents of CAP-${ADVISORY.slice(7, 19)}`)).toBeNull();
+    expect(main.getByText(/<h1>VSA-1<\/h1>/)).toBeInTheDocument();
   });
 });

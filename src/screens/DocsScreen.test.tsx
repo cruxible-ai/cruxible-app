@@ -1,0 +1,90 @@
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { renderApp } from "@/test/render";
+import { DOCS, PRIVATE_DOC } from "@/fixtures/authored/documents";
+
+afterEach(cleanup);
+beforeAll(() => {
+  // jsdom has no object URLs; the download link only needs a string.
+  URL.createObjectURL ??= () => "blob:document";
+  URL.revokeObjectURL ??= () => undefined;
+});
+
+const docs = (doc?: string) => `/i/inst_fixture/docs${doc ? `?doc=${doc}` : ""}`;
+
+describe("Docs", () => {
+  it("is a sidebar tab, leads with the counts row and the find box, and lists every Document with kind, type and revision", async () => {
+    renderApp(docs());
+    expect(await screen.findByRole("link", { name: "Docs" })).toHaveAttribute("href", "/i/inst_fixture/docs");
+    const main = within(screen.getByRole("main"));
+    expect(await main.findByRole("heading", { name: "Docs" })).toBeInTheDocument();
+    await main.findByRole("list", { name: "Documents" });
+    expect(main.getByText(String(DOCS.length)).parentElement).toHaveTextContent(`${DOCS.length} Documents`);
+    const list = within(main.getByRole("list", { name: "Documents" }));
+    expect(list.getAllByRole("button")).toHaveLength(DOCS.length);
+    const architecture = within(list.getByRole("button", { name: /Triage architecture/ }));
+    expect(architecture.getByText("design")).toBeInTheDocument();
+    expect(architecture.getByText("text/markdown")).toBeInTheDocument();
+    expect(await architecture.findByText("rev 3")).toBeInTheDocument();
+
+    // the find box filters by name, title, kind or media type
+    fireEvent.change(main.getByRole("textbox", { name: /Find a Document/ }), { target: { value: "html" } });
+    expect(list.getAllByRole("button").map((b) => b.querySelector("div")!.textContent)).toEqual(["Vendor advisory VSA-1"]);
+    expect(main.getByText("1 match")).toBeInTheDocument();
+  });
+
+  it("opens the first Document and renders markdown as prose, with cruxible refs as chips and a Raw toggle", async () => {
+    renderApp(docs());
+    const main = within(await screen.findByRole("main"));
+    // the cards (revision, size) and the body arrive apart; read once both have
+    expect(await main.findByText("Revision 3")).toBeInTheDocument();
+    expect(await main.findByRole("link", { name: /Download/ })).toHaveAttribute("download", "architecture.md");
+    expect(main.getByRole("heading", { name: "Triage architecture", level: 3 })).toBeInTheDocument();
+    expect(main.getByText("Captures").tagName).toBe("STRONG");
+    expect(main.getByRole("table")).toBeInTheDocument();
+    // a cruxible:// ref in the body is a chip linking into the console
+    expect(main.getByRole("link", { name: /kev-triage/ })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+    fireEvent.click(main.getByRole("button", { name: "Raw" }));
+    expect(main.getByText(/^# Triage architecture/)).toBeInTheDocument();
+  });
+
+  it("renders HTML only in a sandboxed frame, JSON pretty-printed, binary as a download", async () => {
+    renderApp(docs("vendor-advisory"));
+    const main = within(await screen.findByRole("main"));
+    const frame = await main.findByTitle("Body of Vendor advisory VSA-1");
+    expect(frame.tagName).toBe("IFRAME");
+    expect(frame.getAttribute("sandbox")).toBe("");
+    expect(frame.getAttribute("srcdoc")).toContain("Fixed in 2.4.1.");
+    expect(frame.getAttribute("srcdoc")).not.toMatch(/<script|onload=/);
+    expect(main.queryByRole("heading", { name: "Advisory VSA-1" })).toBeNull();
+    cleanup();
+
+    renderApp(docs("kev-thresholds"));
+    expect(await screen.findByText(/"max_age_days": 30/)).toBeInTheDocument();
+    cleanup();
+
+    renderApp(docs("network-diagram"));
+    const binary = within(await screen.findByRole("main"));
+    expect(await binary.findByText("Binary (10 bytes): download it to open.")).toBeInTheDocument();
+    expect(binary.getByRole("link", { name: /Download/ })).toHaveAttribute("download", "network-diagram.bin");
+  });
+
+  it("reads a body larger than one range in ranges and joins them, though each range alone is not UTF-8", async () => {
+    renderApp(docs("release-log"));
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText(/^Showing the first 200,000 of 262,149 characters/)).toBeInTheDocument();
+    expect(main.getByText("256 KB")).toBeInTheDocument();
+  });
+
+  it("says when the token can't read Document bodies, with the CLI read", async () => {
+    renderApp(docs(PRIVATE_DOC));
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText(/can't read Document bodies: that takes governed_write/)).toBeInTheDocument();
+    expect(main.getByText(`cruxible get Document:${PRIVATE_DOC} --detail body`)).toBeInTheDocument();
+  });
+
+  it("says when the named Document is not at this generation", async () => {
+    renderApp(docs("gone"));
+    expect(await screen.findByText(/No Document named/)).toHaveTextContent("No Document named gone at this generation.");
+  });
+});
