@@ -131,6 +131,18 @@ function Canvas({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // A graph held at fitMinZoom can be wider than the canvas; centering it would cut off both ends,
+  // so start it at the left edge (where a left-to-right graph begins) and let the reader pan right.
+  const startAtLeft = useCallback(() => {
+    if (fitMinZoom === undefined) return;
+    const box = boxRef.current?.querySelector(".react-flow")?.getBoundingClientRect();
+    const bounds = rf.getNodesBounds(rf.getNodes());
+    const { zoom, y } = rf.getViewport();
+    if (!box || bounds.width * zoom <= box.width) return;
+    const pad = box.width * fitPadding * 0.5;
+    void rf.setViewport({ x: pad - bounds.x * zoom, y, zoom });
+  }, [rf, fitMinZoom, fitPadding]);
+
   // After the canvas resizes, fit the graph to it again (and bring a taller canvas into view).
   const resized = useRef(false);
   useEffect(() => {
@@ -141,11 +153,13 @@ function Canvas({
     const frame = requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         if (tall != null) boxRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-        void rf.fitView({ maxZoom: 1.15, padding: fitPadding, duration: 250, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) });
+        void rf
+          .fitView({ maxZoom: 1.15, padding: fitPadding, duration: 250, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) })
+          .then(() => window.setTimeout(startAtLeft, 260));
       }),
     );
     return () => cancelAnimationFrame(frame);
-  }, [tall, rf, fitPadding, fitMinZoom]);
+  }, [tall, rf, fitPadding, fitMinZoom, startAtLeft]);
 
   const centerOn = useCallback(
     (nodeId: string) => {
@@ -309,6 +323,7 @@ function Canvas({
     >
       <div className="relative min-h-0 flex-1 overflow-hidden border border-zinc-800">
         <ReactFlow
+          onInit={() => window.requestAnimationFrame(startAtLeft)}
           nodes={styledNodes}
           edges={styledEdges}
           nodeTypes={nodeTypes}

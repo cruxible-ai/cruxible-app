@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   useCard,
@@ -16,11 +16,11 @@ import {
 } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { Chip, SignalDot } from "@/components/Chip";
+import { Chip, HealthDot, SignalDot } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { LongText } from "@/components/LongText";
-import { ShortId } from "@/components/ShortId";
+import { CopyButton, ShortId } from "@/components/ShortId";
 import { Table, Td, Th, trClass } from "@/components/Table";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
@@ -35,6 +35,7 @@ import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime, formatWhen, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { wakeOf } from "@/lib/schedule";
 import { term } from "@/lib/vocabulary";
 
 const READINGS_PAGE = 50;
@@ -72,9 +73,12 @@ export function LineScreen() {
         facts={
           <>
             <Fact label="State">
-              <span className="inline-flex gap-3">
+              <span className="inline-flex items-center gap-3">
                 {lineCard.lifecycle !== "live" && <Chip concept="line" value={lineCard.lifecycle} />}
-                <Chip concept="line" value={enablement ? enablement.state : "not_enabled"} />
+                <span className="inline-flex items-center gap-1.5">
+                  <LineStateDot state={enablement?.state ?? null} />
+                  <Chip concept="line" value={enablement ? enablement.state : "not_enabled"} />
+                </span>
               </span>
             </Fact>
             <Fact label="Max authority">
@@ -85,9 +89,10 @@ export function LineScreen() {
                 <span className="font-mono text-[13px]">{procedure}</span>
               </RefLink>
             </Fact>
-            <Fact label="Trigger">
-              {lineCard.trigger}
-              {lineCard.triggers_inactive && <span className="text-zinc-500"> ({lineCard.triggers_inactive})</span>}
+            <Fact label={(lineCard.triggers_total ?? lineCard.triggers?.length ?? 0) === 1 ? "Trigger" : "Triggers"}>
+              <a href="#triggers" className="font-mono hover:underline">
+                {lineCard.triggers_total ?? lineCard.triggers?.length ?? 0}
+              </a>
             </Fact>
             <Fact label="Runs">
               <span className="font-mono">{lineCard.runs_total ?? 0}</span>
@@ -102,17 +107,18 @@ export function LineScreen() {
         }
       />
 
+      {!enablement && <NotEnabledBanner line={line} />}
+      {/* What it is (steps, definition) and what it has posted come first; how it runs and what it ran follow. */}
+      <DefinitionPanels line={line} card={lineCard} procedure={procedure} aside={<InboxPanel line={line} />} />
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-        <OperationsPanel card={lineCard} />
+        <TriggersPanel card={lineCard} />
         <RunsPanel line={line} total={lineCard.runs_total ?? 0} />
       </div>
       <LineNextPanel line={line} />
-      <DefinitionPanels line={line} card={lineCard} procedure={procedure} />
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <MandatesPanel procedure={procedure} />
         <ProcedurePanel procedure={procedure} />
       </div>
-      <InboxPanel line={line} />
     </Page>
   );
 }
@@ -123,7 +129,7 @@ export function LineScreen() {
  * bindings), the Procedure's authored form, and its Triggers' cards for the
  * logical sources a landing Trigger selects.
  */
-function DefinitionPanels({ line, card, procedure }: { line: string; card: LineCard; procedure: string }) {
+function DefinitionPanels({ line, card, procedure, aside }: { line: string; card: LineCard; procedure: string; aside: ReactNode }) {
   const triggers = (card.triggers ?? []).map((t) => t.trigger);
   const proof = useGet(`Line:${line}`, "proof");
   const procedureRead = useCard(`Procedure:${procedure}`);
@@ -180,8 +186,11 @@ function DefinitionPanels({ line, card, procedure }: { line: string; card: LineC
         />
       )}
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-        {definition ? <LineDefinitionPanel line={definition} retains={retains} triggers={landing} /> : <Panel title="Line definition">{proof.isPending ? <LoadState /> : proof.error ? <LoadState error={proof.error} /> : null}</Panel>}
-        {spec && <ProcedureDefinition spec={spec} line={definition} selectedStep={selected} />}
+        <div className="space-y-5">
+          {definition ? <LineDefinitionPanel line={definition} retains={retains} triggers={landing} /> : <Panel title="Line definition">{proof.isPending ? <LoadState /> : proof.error ? <LoadState error={proof.error} /> : null}</Panel>}
+          {spec && <ProcedureDefinition spec={spec} line={definition} selectedStep={selected} />}
+        </div>
+        {aside}
       </div>
     </>
   );
@@ -303,68 +312,132 @@ export function DueCount({ due, scheduled }: { due: number; scheduled: number })
   );
 }
 
-function OperationsPanel({ card }: { card: LineCard }) {
+/** A Line's enablement as the health dot: running green, stalled amber, stopped red, never enabled hollow. */
+function LineStateDot({ state }: { state: string | null }) {
+  const tone = state === "running" ? "ok" : state ? (term("line", state).signal ?? "off") : "off";
+  return <HealthDot tone={tone} title={state ? term("line", state).word : "Not enabled"} />;
+}
+
+/** Shown while a Line was never enabled: it runs on nothing until someone enables it. */
+function NotEnabledBanner({ line }: { line: string }) {
+  const command = `cruxible line enable ${line}`;
   return (
-    <Panel title="Triggers and enablement" meta={<span>{card.due ?? 0} due · {card.waiting ?? 0} scheduled</span>}>
-      <div className="space-y-0.5 text-[13px]">
-        {(card.triggers ?? []).map((trigger) => (
-          <div key={trigger.trigger} className="flex flex-wrap gap-x-3">
-            <RefLink value={trigger.trigger} />
-            <span className="text-zinc-500">v{trigger.version}</span>
-            <span className="text-zinc-400">{sentence(trigger.fires)}</span>
-          </div>
-        ))}
-        {(card.triggers ?? []).length === 0 && <div className="text-zinc-600">No triggers aimed at this Line.</div>}
-      </div>
-      <div className="mt-2 space-y-1 text-[12px]">
-        {(card.enablements ?? []).map((arm) => (
-          <div key={arm.enablement} className="border-t border-zinc-800/70 pt-1.5">
-            <div className="flex flex-wrap items-baseline gap-x-3">
-              <Chip concept="line" value={arm.state} />
-              <span className="text-zinc-400">
-                by{" "}
-                {arm.enabled_by_withheld ? (
-                  <span className="text-zinc-600" title="Withheld from this credential">withheld</span>
-                ) : (
-                  <span className="font-mono">{arm.enabled_by ?? arm.principal_kind}</span>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[13px] text-zinc-300">
+      <HealthDot tone="off" title="Not enabled" />
+      <span>Not enabled: none of its Triggers start runs until it is.</span>
+      <code className="font-mono text-[12px] text-zinc-400">{command}</code>
+      <CopyButton value={command} label="Copy" />
+    </div>
+  );
+}
+
+/**
+ * The Triggers aimed at the Line, one row each: when it fires, whether the
+ * current enablement armed it (the enablement lists the Triggers it armed),
+ * and the next scheduled fire; the enablement history under the table.
+ */
+function TriggersPanel({ card }: { card: LineCard }) {
+  const current = (card.enablements ?? [])[0];
+  const armed = new Set((current?.triggers ?? []).map((t) => t.trigger.replace(/^Trigger:/, "")));
+  const now = new Date();
+  return (
+    <div id="triggers">
+      <Panel title="Triggers" meta={<span>{card.due ?? 0} due · {card.waiting ?? 0} scheduled</span>}>
+        {(card.triggers ?? []).length === 0 ? (
+          <div className="text-[13px] text-zinc-600">No Triggers aimed at this Line: it runs only when started by hand.</div>
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <Th>Trigger</Th>
+                <Th>Fires</Th>
+                <Th title="Whether the Line's current enablement armed this Trigger">Armed</Th>
+                <Th>Next fire</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {(card.triggers ?? []).map((trigger) => {
+                const name = trigger.trigger.replace(/^Trigger:/, "");
+                const wake = wakeOf(trigger.fires, now);
+                const on = current?.state === "running" && armed.has(name);
+                const state = !current ? "not enabled" : on ? "armed" : current.state === "running" ? "not armed by this enablement" : term("line", current.state).word.toLowerCase();
+                return (
+                  <tr key={trigger.trigger} className={trClass}>
+                    <Td>
+                      <RefLink value={trigger.trigger}>
+                        <span className="font-mono text-[12px]">{name}</span>
+                      </RefLink>
+                      <span className="ml-1.5 text-[11px] text-zinc-600">v{trigger.version}</span>
+                    </Td>
+                    <Td className="text-[12px] text-zinc-300">{sentence(wake.words)}</Td>
+                    <Td className="text-[12px]">
+                      <span className="inline-flex items-center gap-1.5 text-zinc-300">
+                        <HealthDot tone={on ? "ok" : "off"} title={state} />
+                        {sentence(state)}
+                      </span>
+                    </Td>
+                    <Td className="text-[12px] text-zinc-400">
+                      {wake.landing ? "On landing" : wake.next ? <span title={wake.next.toISOString()}>{formatWhen(wake.next.toISOString())}</span> : "–"}
+                      {!on && !wake.landing && wake.next && <span className="text-zinc-600"> (if armed)</span>}
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        )}
+        {(card.enablements ?? []).length > 0 && (
+          <div className="mt-3 space-y-1 text-[12px]">
+            <div className="t-meta">Enablements</div>
+            {(card.enablements ?? []).map((arm) => (
+              <div key={arm.enablement} className="border-t border-zinc-800/70 pt-1.5">
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  <Chip concept="line" value={arm.state} />
+                  <span className="text-zinc-400">
+                    by{" "}
+                    {arm.enabled_by_withheld ? (
+                      <span className="text-zinc-600" title="Withheld from this credential">withheld</span>
+                    ) : (
+                      <span className="font-mono">{arm.enabled_by ?? arm.principal_kind}</span>
+                    )}
+                  </span>
+                  <span className="text-zinc-500" title={arm.enabled_at}>
+                    since {formatWhen(arm.enabled_at)}
+                  </span>
+                  <span className="text-zinc-500" title={arm.evaluated_until}>
+                    evaluated until {formatWhen(arm.evaluated_until)}
+                  </span>
+                  {(arm.pending_automatic ?? 0) + (arm.pending_explicit ?? 0) > 0 && (
+                    <span className="text-zinc-500">
+                      pending {arm.pending_automatic ?? 0} automatic · {arm.pending_explicit ?? 0} explicit
+                    </span>
+                  )}
+                </div>
+                {(arm.stop_reason || arm.detail) && (
+                  <div className="text-zinc-300">
+                    <span className="text-zinc-500">{arm.stop_reason ? "stopped because " : ""}</span>
+                    {arm.stop_reason ?? arm.detail}
+                  </div>
                 )}
-              </span>
-              <span className="text-zinc-500" title={arm.enabled_at}>
-                since {formatWhen(arm.enabled_at)}
-              </span>
-              <span className="text-zinc-500" title={arm.evaluated_until}>
-                evaluated until {formatWhen(arm.evaluated_until)}
-              </span>
-              {(arm.pending_automatic ?? 0) + (arm.pending_explicit ?? 0) > 0 && (
-                <span className="text-zinc-500">
-                  pending {arm.pending_automatic ?? 0} automatic · {arm.pending_explicit ?? 0} explicit
-                </span>
-              )}
-            </div>
-            {(arm.stop_reason || arm.detail) && (
-              <div className="text-zinc-300">
-                <span className="text-zinc-500">{arm.stop_reason ? "stopped because " : ""}</span>
-                {arm.stop_reason ?? arm.detail}
               </div>
-            )}
+            ))}
           </div>
-        ))}
-        {(card.enablements ?? []).length === 0 && <div className="text-zinc-500">{term("line", "not_enabled").meaning}.</div>}
-      </div>
-      {(card.occurrences ?? []).length > 0 && (
-        <div className="mt-2 space-y-0.5 text-[12px]">
-          {card.occurrences!.map((occurrence) => (
-            <div key={occurrence.occurrence} className="flex flex-wrap items-baseline gap-x-3">
-              <Chip concept="occurrence" value={occurrence.state} />
-              <ShortId value={occurrence.occurrence} />
-              <span className="text-zinc-500" title={occurrence.eligible_at}>
-                eligible {formatWhen(occurrence.eligible_at)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </Panel>
+        )}
+        {(card.occurrences ?? []).length > 0 && (
+          <div className="mt-2 space-y-0.5 text-[12px]">
+            {card.occurrences!.map((occurrence) => (
+              <div key={occurrence.occurrence} className="flex flex-wrap items-baseline gap-x-3">
+                <Chip concept="occurrence" value={occurrence.state} />
+                <ShortId value={occurrence.occurrence} />
+                <span className="text-zinc-500" title={occurrence.eligible_at}>
+                  eligible {formatWhen(occurrence.eligible_at)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
+    </div>
   );
 }
 
@@ -454,7 +527,8 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
 
 function LineNextPanel({ line }: { line: string }) {
   const next = useNext({ limit: NEXT_PAGE });
-  const rows = nextRowsByLine(next.data?.items ?? []).get(line) ?? [];
+  // "Not enabled" is the banner under the header; the panel is for anything else.
+  const rows = (nextRowsByLine(next.data?.items ?? []).get(line) ?? []).filter((item) => item.reason !== "line_not_enabled");
   if (!next.data || rows.length === 0) return null;
   return (
     <Panel title="Next" meta={<span>{rows.length} on the first page</span>}>
