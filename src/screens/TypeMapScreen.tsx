@@ -286,6 +286,8 @@ export function TypeMapScreen() {
         className="min-h-0 flex-1"
         nodeName={labelOf}
         expandable={false}
+        // A focus keeps a kind and its neighbors: few enough to label every link.
+        revealAll={focus !== null}
         overlay={
           <>
             <MapLegend kinds={graph.nodes.length} links={graph.edges.length} undeclared={graph.nodes.some((n) => n.referencedOnly)} />

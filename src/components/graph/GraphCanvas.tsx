@@ -66,6 +66,8 @@ export function GraphCanvas(props: {
   fitPadding?: number;
   /** Offer the taller-canvas toggle (default true); a page that is already all graph leaves it off. */
   expandable?: boolean;
+  /** Show every edge label while nothing is selected (a graph already cut down to a few nodes, like a focus). */
+  revealAll?: boolean;
 }) {
   return (
     <ReactFlowProvider>
@@ -89,6 +91,7 @@ function Canvas({
   nodeName,
   fitPadding = 0.12,
   expandable = true,
+  revealAll = false,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
@@ -261,7 +264,7 @@ function Canvas({
     >();
     const out = edges.map((e) => {
       const lit = !litEdges || litEdges.has(e.id);
-      const reveal = revealDetail && litEdges !== null && lit;
+      const reveal = (revealDetail && litEdges !== null && lit) || (revealAll && litEdges === null);
       const selected = selection?.kind === "edge" && selection.id === e.id;
       const hit = prev.get(e.id);
       if (hit && hit.src === e && hit.lit === lit && hit.reveal === reveal && hit.selected === selected) {
@@ -285,7 +288,7 @@ function Canvas({
     });
     edgeCache.current = next;
     return out;
-  }, [edges, litEdges, selection, revealDetail]);
+  }, [edges, litEdges, selection, revealDetail, revealAll]);
 
   const panel = selection ? renderPanel(selection, { select }) : null;
 
