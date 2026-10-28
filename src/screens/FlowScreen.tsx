@@ -271,13 +271,14 @@ function kindLit(model: FlowModel, kind: string, lit: Set<string>): boolean {
   return model.nodes.some((n) => n.kind === "claim_type" && n.group === kind && lit.has(n.id));
 }
 
-function FocusButton({ id, label, onFocus }: { id: string; label: string; onFocus: (id: string) => void }) {
+/** Keep only a node's path. Always shown on a card; on a ClaimType or kind row, on hover (the rows are many). */
+function FocusButton({ id, label, onFocus, always = false }: { id: string; label: string; onFocus: (id: string) => void; always?: boolean }) {
   return (
     <button
       onClick={() => onFocus(id)}
       aria-label={`Focus ${label}`}
       title="Keep only this node's path"
-      className="shrink-0 text-zinc-600 opacity-0 hover:text-zinc-200 focus:opacity-100 group-hover:opacity-100"
+      className={`shrink-0 text-zinc-600 hover:text-zinc-200 ${always ? "" : "opacity-0 focus:opacity-100 group-hover:opacity-100"}`}
     >
       <Crosshair className="h-3 w-3" />
     </button>
@@ -350,7 +351,7 @@ function FlowCell({
           </Link>
         }
         state={node.runs === "line" ? <LineState enablement={node.enablement} /> : null}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         about={node.about ?? null}
         facts={[["Runs", (node.when ?? "").replace(/^\w/, (c) => c.toLowerCase())]]}
       />
@@ -371,7 +372,7 @@ function FlowCell({
           </Link>
         }
         state={null}
-        focus={<FocusButton id={node.id} label="Inbox" onFocus={onFocus} />}
+        focus={<FocusButton id={node.id} label="Inbox" onFocus={onFocus} always />}
         about={null}
         facts={[["Unread", unread ? `${unread.count}${unread.more ? "+" : ""}` : "…"], ["For", "an agent or a person to judge"]]}
       />
@@ -389,7 +390,7 @@ function FlowCell({
         title={[node.label, node.about, node.detail, tags.length ? `Captured under ${tags.join(", ")}` : null].filter(Boolean).join("\n")}
         name={<span className={`truncate text-[12px] ${node.ownWord ? "font-sans text-zinc-200" : "font-mono text-zinc-100"}`}>{strip(node.label, prefix)}</span>}
         state={null}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         about={node.acquired || node.ownWord ? null : node.about ?? node.detail ?? null}
         aboutLines={1}
         stacked
@@ -430,7 +431,7 @@ function FlowCell({
           </Link>
         }
         state={<LineState enablement={node.enablement} />}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         about={node.about ?? null}
         facts={[
           ["At most", node.authority ? term("authority", node.authority).word.toLowerCase() : "unknown"],
@@ -540,16 +541,15 @@ function FlowCard({
   return (
     <div
       style={{ ...style, borderLeft: `3px solid ${accent}` }}
-      className={`group absolute flex flex-col overflow-hidden border border-zinc-800 ${dashed ? "border-dashed bg-zinc-950" : "bg-zinc-900/70"} px-2 pb-1.5 pt-1.5 transition-opacity ${dim ? "opacity-25" : ""}`}
+      className={`group absolute flex flex-col overflow-hidden border border-zinc-800 ${dashed ? "border-dashed bg-zinc-950" : "bg-zinc-900"} px-2 pb-1.5 pt-1.5 transition-opacity ${dim ? "opacity-25" : ""}`}
       title={title}
       {...hover}
     >
+      {/* State first, the name, then the focus control flush with the card's right edge (the text's edge too). */}
       <div className="flex min-w-0 items-center gap-1.5 leading-4">
+        {state}
         {name}
-        <span className="ml-auto flex shrink-0 items-center gap-1.5">
-          {state}
-          {focus}
-        </span>
+        <span className="ml-auto flex shrink-0 items-center">{focus}</span>
       </div>
       {about && <div className={`mt-0.5 text-[11px] leading-4 text-zinc-400 ${aboutLines === 1 ? "truncate" : "line-clamp-2"}`}>{about}</div>}
       <dl className={`mt-auto flex min-w-0 whitespace-nowrap text-[10.5px] leading-4 ${stacked ? "flex-col" : "gap-x-3"}`}>
