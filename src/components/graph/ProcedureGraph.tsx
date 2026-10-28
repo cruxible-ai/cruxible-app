@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { ArrowRightLeft, ArrowUpDown, Clock, Cpu, CornerDownRight, Database, Download, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useInstanceId, useInterfaces } from "@/api/hooks";
 import { SignalDot } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
-import { GraphCanvas, type GraphSelection } from "@/components/graph/GraphCanvas";
+import { CONTROL_CLASS, GraphCanvas, type GraphSelection } from "@/components/graph/GraphCanvas";
+import { RefLink } from "@/components/RefLink";
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { parseRef, refRoute } from "@/lib/cruxible-ref";
-import { slotBinding, slotInterfaceRef, type LineDefinition, type ProcedureSpec } from "@/lib/definitions";
+import { interfaceBase, producedFields, slotBinding, slotInterfaceRef, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
 import { providerName } from "@/lib/ontology";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
@@ -450,7 +451,17 @@ export function ProcedureGraph({
         nodes={nodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
-        renderPanel={() => null}
+        renderPanel={(selection) => {
+          if (selection.kind !== "node") return null;
+          const view = model.nodes.find((n) => n.id === selection.id)?.view;
+          return view ? (
+            <StepPanel
+              view={view}
+              produced={view.interface ? producedFields(interfaces.data?.rows.find((r) => r.name === interfaceBase(view.interface!))?.operation_contract) : null}
+              binding={bindingWords(view, definition, builds)}
+            />
+          ) : null;
+        }}
         className=""
         height={canvasHeight}
         fitMinZoom={FIT_MIN_ZOOM}
@@ -459,18 +470,16 @@ export function ProcedureGraph({
         recenter={false}
         nodeName={nodeName}
         fitPadding={FIT_PADDING}
-        overlay={
-          <>
-            <RoleLegend roles={nodes.map((n) => n.data.role)} />
-            <button
-              onClick={toggleVertical}
-              title={vertical ? "Lay the steps out left to right" : "Lay the steps out top to bottom"}
-              className="inline-flex items-center gap-1 border border-zinc-800 bg-zinc-950/90 px-1.5 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
-            >
-              {vertical ? <ArrowRightLeft className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
-              {vertical ? "Left to right" : "Top to bottom"}
-            </button>
-          </>
+        overlay={<RoleLegend roles={nodes.map((n) => n.data.role)} />}
+        controls={
+          <button
+            onClick={toggleVertical}
+            title={vertical ? "Lay the steps out left to right" : "Lay the steps out top to bottom"}
+            aria-label={vertical ? "Lay the steps out left to right" : "Lay the steps out top to bottom"}
+            className={CONTROL_CLASS}
+          >
+            {vertical ? <ArrowRightLeft className="h-3.5 w-3.5" /> : <ArrowUpDown className="h-3.5 w-3.5" />}
+          </button>
         }
       />
     </div>
@@ -490,5 +499,58 @@ function RoleLegend({ roles }: { roles: StepRole[] }) {
         </span>
       ))}
     </span>
+  );
+}
+
+/** How a step's slot binds: the Line's explicit binding, else the one installed build that fits, else why not. */
+function bindingWords(view: StepView, definition: LineDefinition | null, builds: ReadonlyMap<string, string[]>): string | null {
+  if (!view.slot || !view.interface) return null;
+  const explicit = definition?.bindings[view.slot];
+  if (explicit) return `Line binds ${providerName(explicit)}`;
+  const installed = builds.get(interfaceBase(view.interface)) ?? [];
+  if (installed.length === 1) return `By fit: ${providerName(installed[0]!)}`;
+  return installed.length > 1 ? `By fit: one of ${installed.length} installed builds` : "No installed build fits this slot";
+}
+
+/** A clicked step: what it is, what it names (linked), how its slot binds, and what it produces. */
+function StepPanel({ view, produced, binding }: { view: StepView; produced: { name: string; type: string }[] | null; binding: string | null }) {
+  const row = (label: string, value: ReactNode) => (
+    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2">
+      <dt className="text-zinc-500">{label}</dt>
+      <dd className="min-w-0 break-words text-zinc-300">{value}</dd>
+    </div>
+  );
+  return (
+    <div className="space-y-2 text-[12px]">
+      <div>
+        <div className="t-meta">{term("stepKind", view.kind).word}</div>
+        <div className="font-mono text-[13px] text-zinc-100">{view.id}</div>
+        <div className="mt-0.5 text-zinc-500">{term("stepKind", view.kind).meaning}</div>
+      </div>
+      <dl className="space-y-1">
+        {view.name && view.name !== view.id && row("Name", <span className="font-mono">{view.name}</span>)}
+        {view.contract && row("Contract", <RefLink value={`CaptureContract:${view.contract}`} />)}
+        {view.query && row("Query", <RefLink value={`query:${view.query}`} />)}
+        {view.claimType && row("ClaimType", <RefLink value={`ClaimType:${view.claimType}`} />)}
+        {view.procedure && row("Procedure", <RefLink value={`Procedure:${view.procedure}`} />)}
+        {view.interface && row("Interface", <RefLink value={slotInterfaceRef(view.interface)} />)}
+        {view.slot && row("Slot", <span className="font-mono">{view.slot}</span>)}
+        {binding && row("Binds", binding)}
+        {view.detail && row("Detail", <span className="font-mono">{view.detail}</span>)}
+      </dl>
+      {produced && produced.length > 0 && (
+        <div>
+          <div className="t-meta mb-0.5">Produces</div>
+          <ul className="space-y-0.5">
+            {produced.map((f) => (
+              <li key={f.name}>
+                <span className="font-mono text-zinc-200">{f.name}</span>
+                <span className="text-zinc-600">: {f.type}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

@@ -23,6 +23,9 @@ export interface GraphPanelApi {
 
 const edgeTypes = { floating: FloatingEdge, routed: RoutedEdge };
 
+/** The canvas's square icon controls (top right): expand, and whatever a graph adds beside it. */
+export const CONTROL_CLASS = "border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200";
+
 /** What the focus chip names: the node's id, or an edge as source → target. */
 function selectionLabel(selection: GraphSelection, edges: Edge[], name: (id: string) => string = (id) => id): string {
   if (selection.kind === "node") return name(selection.id);
@@ -70,6 +73,8 @@ export function GraphCanvas(props: {
   fitMinZoom?: number;
   /** Offer the taller-canvas toggle (default true); a page that is already all graph leaves it off. */
   expandable?: boolean;
+  /** Extra canvas controls, drawn beside the expand toggle at the top right (use CONTROL_CLASS). */
+  controls?: ReactNode;
   /** Show every edge label while nothing is selected (a graph already cut down to a few nodes, like a focus). */
   revealAll?: boolean;
 }) {
@@ -98,6 +103,7 @@ function Canvas({
   expandable = true,
   revealAll = false,
   height,
+  controls,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
@@ -357,15 +363,20 @@ function Canvas({
           </div>
         )}
 
-        {expandable && (
-          <button
-            onClick={toggleTall}
-            title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
-            aria-label={fullscreen ? "Make the graph smaller" : "Make the graph taller"}
-            className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-          >
-            {fullscreen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
-          </button>
+        {(expandable || controls) && (
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+            {controls}
+            {expandable && (
+              <button
+                onClick={toggleTall}
+                title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
+                aria-label={fullscreen ? "Make the graph smaller" : "Make the graph taller"}
+                className={CONTROL_CLASS}
+              >
+                {fullscreen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+              </button>
+            )}
+          </div>
         )}
 
         {panel && (

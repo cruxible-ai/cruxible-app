@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { vi } from "vitest";
 import { RECORDED } from "@/fixtures/handlers";
 import { renderApp } from "@/test/render";
@@ -128,11 +128,11 @@ describe("recorded reference world", () => {
     expect(await line.findByText("catalog")).toBeInTheDocument();
     expect(line.getByText("None: every slot binds by fit")).toBeInTheDocument();
     expect(line.getByText("from cisa.kev.catalog")).toBeInTheDocument();
-    const definition = within((await m.findByText("Definition")).closest("section")!);
-    expect(definition.getByText("security.kev-catalog@2")).toBeInTheDocument();
-    expect(await definition.findByText("security-analysis-provider")).toBeInTheDocument();
-    expect(definition.getByText("reads the landing")).toBeInTheDocument();
-    expect(definition.getByRole("link", { name: "security.watched_vulnerabilities" })).toBeInTheDocument();
+    // the Procedure as authored is on the steps graph: a clicked step names its interface and binding
+    await waitFor(() => expect(document.querySelector('[data-testid="procedure-graph"] .react-flow__node[data-id="parse"]')).not.toBeNull(), { timeout: 8000 });
+    fireEvent.click(document.querySelector('[data-testid="procedure-graph"] .react-flow__node[data-id="parse"]')!);
+    expect(await screen.findByText("By fit: security-analysis-provider", { selector: "dd" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /security\.kev-catalog/ }).closest("dl")).not.toBeNull();
   });
 
   it("run page: a Line-triggered run", async () => {

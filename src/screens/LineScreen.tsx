@@ -26,7 +26,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextTable } from "@/components/next/NextTable";
-import { LineDefinitionPanel, ProcedureDefinition } from "@/components/ontology/Definitions";
+import { LineDefinitionPanel } from "@/components/ontology/Definitions";
 import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
 import { interfaceBase, readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
 import { buildProcedureGraph, cronWords, INPUT_NODE } from "@/lib/procedure-graph";
@@ -157,7 +157,6 @@ function DefinitionPanels({
   const proof = useGet(`Line:${line}`, "proof");
   const procedureRead = useCard(`Procedure:${procedure}`);
   const triggerCards = useGetBatch(triggers);
-  const [selected, setSelected] = useState<string | null>(null);
   const definition = readLineEnvelope(proof.data?.proof);
   const spec = cardOf(procedureRead.data, "procedure")?.authored ?? null;
   const landing: LandingTrigger[] = triggerCards.results.flatMap((result) => {
@@ -213,12 +212,11 @@ function DefinitionPanels({
           spec={spec}
           context={{ definition, maxAuthority: definition?.maxAuthority ?? card.authority, triggers: graphTriggers }}
           runsTotal={card.runs_total ?? 0}
-          onSelectStep={setSelected}
         />
       )}
-      {inbox}
+      {/* The Procedure as authored lives on the steps graph: click a step for what it names, binds and produces. */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        {spec ? <ProcedureDefinition spec={spec} line={definition} selectedStep={selected} /> : <div />}
+        {inbox}
         {runs}
       </div>
     </>
@@ -236,13 +234,11 @@ function LineGraphPanel({
   spec,
   context,
   runsTotal,
-  onSelectStep,
 }: {
   line: string;
   spec: ProcedureSpec;
   context: Parameters<typeof ProcedureGraph>[0]["line"];
   runsTotal: number;
-  onSelectStep: (step: string | null) => void;
 }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
@@ -264,7 +260,6 @@ function LineGraphPanel({
       title="Steps"
       meta={
         <span className="flex flex-wrap items-baseline gap-x-3">
-          <span>Arrows: what each step reads · dashed: where a guard goes otherwise · click a step to follow it</span>
           {runsTotal > 0 && (
             <label className="inline-flex items-baseline gap-1.5">
               <span>Run</span>
@@ -286,7 +281,7 @@ function LineGraphPanel({
         </span>
       }
     >
-      <ProcedureGraph spec={spec} line={context} run={marks} onSelectStep={onSelectStep} />
+      <ProcedureGraph spec={spec} line={context} run={marks} />
       {picked && (
         <div className="mt-2 space-y-0.5 text-[12px] text-zinc-500">
           {runCard ? (

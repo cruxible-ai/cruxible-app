@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 
 afterEach(cleanup);
@@ -106,19 +106,24 @@ describe("Line definitions", () => {
     expect(await line.findByText("catalog")).toBeInTheDocument(); // trigger input step
     expect(line.getByText("security.kev-http-v1")).toBeInTheDocument();
     expect(line.getByText("security-analysis-provider")).toBeInTheDocument(); // explicit binding
-    const definition = within((await main.findByText("Definition")).closest("section")!);
-    expect(definition.getByText("web.fetch@3")).toBeInTheDocument();
-    // the Line binds parse explicitly; catalog binds by fit to the one installed web.fetch build
-    expect(definition.getByText("Line binds", { exact: false })).toBeInTheDocument();
-    expect(await definition.findByText("cruxible-provider-web")).toBeInTheDocument();
-    expect(definition.getByText("reads the landing")).toBeInTheDocument();
-    expect(definition.getByText("cisa.kev.catalog")).toBeInTheDocument();
-    expect(definition.getByRole("link", { name: "security.kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
-    expect(definition.getByRole("link", { name: "security.kev_exposure" })).toHaveAttribute(
+    // the Procedure as authored is on the steps graph: a clicked step names its contract, interface, binding and query
+    const node = async (id: string) => {
+      await waitFor(() => expect(document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`)).not.toBeNull(), { timeout: 8000 });
+      return document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`) as HTMLElement;
+    };
+    fireEvent.click(await node("catalog"));
+    let panel = within(await screen.findByText("Binds", { selector: "dt" }).then((dt) => dt.closest("dl")!.parentElement!));
+    expect(panel.getByRole("link", { name: /security\.kev-http-v1/ })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
+    expect(await panel.findByText("By fit: cruxible-provider-web", { selector: "dd" })).toBeInTheDocument();
+    fireEvent.click(await node("parse"));
+    panel = within(await screen.findByText(/^Line binds /, { selector: "dd" }).then((el) => el.closest("dl")!.parentElement!));
+    expect(panel.getByText("Line binds security-analysis-provider", { exact: false })).toBeInTheDocument();
+    fireEvent.click(await node("watched"));
+    panel = within(await screen.findByText("Query", { selector: "dt" }).then((dt) => dt.closest("dl")!.parentElement!));
+    expect(panel.getByRole("link", { name: /security\.kev_exposure/ })).toHaveAttribute(
       "href",
       `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`,
     );
-    expect(definition.getByText("parse.changed > 0 · refuses no_change")).toBeInTheDocument();
   });
 
   it("shows a landing Trigger's contract, the logical sources it selects and the Line it starts", async () => {
