@@ -545,21 +545,23 @@ function FlowCard({
       title={title}
       {...hover}
     >
-      {/* State first, the name, then the focus control flush with the card's right edge (the text's edge too). */}
+      {/* The name, with its state at the top right; the focus control at the bottom right, beside the facts. */}
       <div className="flex min-w-0 items-center gap-1.5 leading-4">
-        {state}
         {name}
-        <span className="ml-auto flex shrink-0 items-center">{focus}</span>
+        {state && <span className="ml-auto flex shrink-0 items-center">{state}</span>}
       </div>
       {about && <div className={`mt-0.5 text-[11px] leading-4 text-zinc-400 ${aboutLines === 1 ? "truncate" : "line-clamp-2"}`}>{about}</div>}
-      <dl className={`mt-auto flex min-w-0 whitespace-nowrap text-[10.5px] leading-4 ${stacked ? "flex-col" : "gap-x-3"}`}>
-        {facts.map(([label, value], i) => (
-          <div key={label} className={`flex min-w-0 gap-1 ${stacked || i === facts.length - 1 ? "" : "shrink-0"}`}>
-            <dt className="shrink-0 uppercase tracking-wide text-zinc-600">{label}</dt>
-            <dd className="min-w-0 truncate text-zinc-400">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="mt-auto flex min-w-0 items-end gap-1.5">
+        <dl className={`flex min-w-0 flex-1 whitespace-nowrap text-[10.5px] leading-4 ${stacked ? "flex-col" : "gap-x-3"}`}>
+          {facts.map(([label, value], i) => (
+            <div key={label} className={`flex min-w-0 gap-1 ${stacked || i === facts.length - 1 ? "" : "shrink-0"}`}>
+              <dt className="shrink-0 uppercase tracking-wide text-zinc-600">{label}</dt>
+              <dd className="min-w-0 truncate text-zinc-400">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <span className="flex shrink-0 items-center pb-0.5">{focus}</span>
+      </div>
     </div>
   );
 }
