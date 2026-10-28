@@ -226,6 +226,8 @@ export interface Retention {
   emitted: boolean;
   /** The input field a direct run is given its logical source by (`$input.<field>`). */
   given: string | null;
+  /** The interface the retaining step reads through (null for an emit). */
+  interface: string | null;
 }
 
 /**
@@ -259,11 +261,11 @@ export function retentions(
       const declared = !ref && step.interface ? produces(step.interface) : [];
       if (declared.length) {
         for (const name of declared) {
-          out.push({ contract: step.contract, source: name, procedure: step.procedure, line: line?.line ?? null, emitted: step.emitted, given: null });
+          out.push({ contract: step.contract, source: name, procedure: step.procedure, line: line?.line ?? null, emitted: step.emitted, given: null, interface: step.interface });
         }
         continue;
       }
-      out.push({ contract: step.contract, source, procedure: step.procedure, line: line?.line ?? null, emitted: step.emitted, given });
+      out.push({ contract: step.contract, source, procedure: step.procedure, line: line?.line ?? null, emitted: step.emitted, given, interface: step.interface });
     }
   }
   return out;

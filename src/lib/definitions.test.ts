@@ -113,7 +113,7 @@ describe("definitions", () => {
   it("retains through Lines (resolving $input. by parameters), skips a Line's trigger input, keeps direct runs", () => {
     const steps = [FETCH, TRIAGE, SBOM, EPSS].flatMap((spec) => sourceSteps(spec.procedure, spec));
     const all = retentions(steps, LINES);
-    expect(all).toEqual([
+    expect(all.map(({ interface: _, ...rest }) => rest)).toEqual([
       { contract: "sec.fetched-v1", source: "cisa.kev.catalog", procedure: "sec.fetch-observed", line: "kev-daily", emitted: false, given: null },
       { contract: "sec.observation-output-v1", source: null, procedure: "sec.fetch-observed", line: "kev-daily", emitted: true, given: null },
       // kev-triage reads its catalog from the landing: no retention

@@ -23,7 +23,7 @@ import { lineName } from "@/lib/lines";
 import { AUTHORITY_COLOR } from "@/lib/palette";
 import { HealthDot } from "@/components/Chip";
 import { term } from "@/lib/vocabulary";
-import { arrivalWords, gist, lineGist, retainedByWords, sourceSteps, urlWords, type Retention } from "@/lib/definitions";
+import { arrivalWords, gist, lineGist, retainedByWords, urlWords, type Retention } from "@/lib/definitions";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { wakeOf } from "@/lib/schedule";
@@ -74,10 +74,10 @@ export function FlowScreen() {
       const retention = retainedBy.find((r) => urlWords(r.line ? lineOf.get(r.line)?.parameters : undefined)) ?? retainedBy[0];
       if (!retention) return { about: null, arrives: null };
       const spec = specs.get(retention.procedure);
-      const step = spec ? sourceSteps(retention.procedure, spec).find((st) => st.contract === retention.contract && st.emitted === retention.emitted) : undefined;
       return {
         about: urlWords(retention.line ? lineOf.get(retention.line)?.parameters : undefined) ?? gist(spec?.description),
-        arrives: arrivalWords(step ?? null),
+        // the step that retains this source (a Procedure may fetch several under one contract)
+        arrives: arrivalWords({ interface: retention.interface, emitted: retention.emitted }),
       };
     };
     // Where sources come from: a Line that fetches them, or a direct run of the Procedure that retains them.
