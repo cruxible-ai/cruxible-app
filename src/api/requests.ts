@@ -36,7 +36,9 @@ export type OkResponse<P extends keyof paths, M extends Method> =
  * /procedures/{name}/runs, /measurements, /resolution-dispositions, and
  * /lines/{line}/evaluate (which mutates unless dry_run). POST /captures/read
  * writes nothing but needs GOVERNED_WRITE (bodies can be private): a Capture
- * page reads its contents through it, and says so when the token can't.
+ * page reads its contents through it, and says so when the token can't. POST
+ * /get with detail="body" (a Document's body, by byte range) is gated the
+ * same way, and the Docs page says so the same way.
  */
 export const READ_ROUTES = [
   "GET /api/v1/{instance_id}/head",
@@ -102,6 +104,8 @@ export interface GetArgs {
   detail?: GetDetail | undefined;
   limit?: number | undefined;
   cursor?: string | undefined;
+  /** A byte range of a Document body (detail="body" only). */
+  range?: { start: number; end: number } | undefined;
 }
 
 export function getBody(args: GetArgs): RequestBody<"/api/v1/{instance_id}/get", "post"> {
@@ -112,7 +116,19 @@ export function getBody(args: GetArgs): RequestBody<"/api/v1/{instance_id}/get",
     surface: "sdk",
     ...(args.limit !== undefined ? { limit: args.limit } : {}),
     ...(args.cursor !== undefined ? { cursor: args.cursor } : {}),
+    ...(args.range !== undefined ? { range: args.range } : {}),
   };
+}
+
+/** The widest byte range one get(detail="body") returns (core's GET_BODY_RANGE_MAX_BYTES). */
+export const DOCUMENT_RANGE_BYTES = 256 * 1024;
+
+/** The most of a Document's body the Docs page reads (larger ones point to the CLI). */
+export const DOCUMENT_READ_MAX_BYTES = 8 * 1024 * 1024;
+
+/** One range of a Document's body, at the page coordinate. */
+export function documentBodyRange(name: string, coordinate: AcceptedCoordinate, start: number) {
+  return getBody({ ref: `Document:${name}`, coordinate, detail: "body", range: { start, end: start + DOCUMENT_RANGE_BYTES } });
 }
 
 /** Whole-graph page size (orient section=graph; the route's cap). */

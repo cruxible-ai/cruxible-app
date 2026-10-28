@@ -15,6 +15,8 @@ import {
   LEDGER_PAGE,
   ACTIVITY_PAGE,
   captureReadBody,
+  documentBodyRange,
+  DOCUMENT_READ_MAX_BYTES,
   LINE_RUNS_PAGE,
   CLAIM_READ_BATCH_MAX,
   headQuery,
@@ -54,6 +56,7 @@ import {
   type ProcedureSpec,
 } from "@/lib/definitions";
 import { lineName } from "@/lib/lines";
+import { decodeBase64 } from "@/lib/capture-body";
 
 /**
  * Read hooks over the playbill daemon. Every state read is pinned to one
@@ -269,7 +272,7 @@ export function useOntologyKinds() {
 
 /** All rows of one paged orient section, following next_cursor. */
 function useOrientSectionAll<
-  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins" | "procedures" | "interfaces",
+  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins" | "procedures" | "interfaces" | "documents",
 >(
   section: K,
   enabled = true,
@@ -328,6 +331,11 @@ export function useSubjectKinds(enabled = true) {
 /** Every Procedure (name, lifecycle, how it runs). */
 export function useProcedures(enabled = true) {
   return useOrientSectionAll("procedures", enabled);
+}
+
+/** Every Document (name, title, kind, media type). */
+export function useDocuments(enabled = true) {
+  return useOrientSectionAll("documents", enabled);
 }
 
 /** Every ProviderInterface with its installed Provider builds. */
@@ -681,6 +689,60 @@ export function useCaptureRead(capture: string | null) {
       ),
     capture !== null && capture !== "",
   );
+}
+
+/** A Document's whole body, or why the page won't read it all. */
+export type DocumentBody =
+  | { status: "read"; bytes: Uint8Array; mediaType: string; digest: string }
+  | { status: "too_large"; size: number; mediaType: string; digest: string };
+
+/**
+ * One Document's body (get detail="body") at the page coordinate, read in
+ * DOCUMENT_RANGE_BYTES ranges and joined, up to DOCUMENT_READ_MAX_BYTES; the
+ * daemon verifies the bytes against the body digest. A token below
+ * governed_write is refused (the page says so).
+ */
+export function useDocumentBody(name: string | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return usePinnedQuery(
+    "document-body",
+    [name],
+    async (coordinate): Promise<DocumentBody> => {
+      const parts: Uint8Array[] = [];
+      let start = 0;
+      for (;;) {
+        const result = unwrap(
+          await client.POST("/api/v1/{instance_id}/get", {
+            params: { path: { instance_id: instanceId } },
+            body: documentBodyRange(name!, coordinate, start),
+          }),
+        );
+        const body = result.body;
+        if (!body) throw new Error(`The daemon returned no body for Document:${name}`);
+        if (body.size > DOCUMENT_READ_MAX_BYTES) {
+          return { status: "too_large", size: body.size, mediaType: body.media_type, digest: body.body_digest };
+        }
+        // a range that decodes as UTF-8 comes back as text, any other as base64
+        parts.push(body.text != null ? new TextEncoder().encode(body.text) : decodeBase64(body.content_base64 ?? ""));
+        start = body.range?.end ?? 0;
+        if (body.range == null || start >= body.size) {
+          return { status: "read", bytes: joinBytes(parts), mediaType: body.media_type, digest: body.body_digest };
+        }
+      }
+    },
+    name !== null && name !== "",
+  );
+}
+
+function joinBytes(parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
 }
 
 /**

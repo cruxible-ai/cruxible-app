@@ -59,9 +59,14 @@ function header(headers: unknown, name: string): string | null {
   return hit && typeof hit[1] === "string" ? hit[1] : null;
 }
 
-function inner(bytes: Uint8Array, format: CaptureBody["format"], extra: Partial<CaptureBody> = {}): CaptureBody {
+/** Bytes as UTF-8 text when they decode cleanly, and that text as JSON when it parses. */
+export function decodeText(bytes: Uint8Array): { text: string | null; json: unknown } {
   const text = utf8(bytes);
-  return { bytes, text, json: parseJson(text), format, url: null, status: null, contentType: null, name: null, ...extra };
+  return { text, json: parseJson(text) };
+}
+
+function inner(bytes: Uint8Array, format: CaptureBody["format"], extra: Partial<CaptureBody> = {}): CaptureBody {
+  return { bytes, ...decodeText(bytes), format, url: null, status: null, contentType: null, name: null, ...extra };
 }
 
 export function unwrapCaptureBody(base64: string): CaptureBody {
