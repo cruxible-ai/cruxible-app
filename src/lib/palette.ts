@@ -45,6 +45,7 @@ export const ROLE_COLOR: Record<StepRoleColor, { color: string; legend: string }
 
 /** The evidence flow's columns. */
 export const FLOW_COLOR = {
+  acquirer: PALETTE.indigo,
   source: PALETTE.teal,
   contract: PALETTE.slate,
   trigger: PALETTE.sky,

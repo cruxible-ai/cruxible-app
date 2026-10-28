@@ -110,9 +110,9 @@ describe("evidence flow layout", () => {
   const layout = layoutFlow(buildFlow(INPUTS));
   it("puts sources, Lines and ClaimTypes in three columns, each packed from the top, without overlap", () => {
     const at = (kind: string) => layout.placed.filter((p) => p.kind === kind);
-    expect(new Set(at("source").map((p) => p.x))).toEqual(new Set([COLUMNS[0].x]));
-    expect(new Set(at("line").map((p) => p.x))).toEqual(new Set([COLUMNS[1].x]));
-    expect(new Set(at("claim_type").map((p) => p.x))).toEqual(new Set([COLUMNS[2].x]));
+    expect(new Set(at("source").map((p) => p.x))).toEqual(new Set([COLUMNS[1].x]));
+    expect(new Set(at("line").map((p) => p.x))).toEqual(new Set([COLUMNS[2].x]));
+    expect(new Set(at("claim_type").map((p) => p.x))).toEqual(new Set([COLUMNS[3].x]));
     const top = Math.min(...at("source").map((p) => p.y));
     expect(Math.min(...at("line").map((p) => p.y))).toBe(top);
     for (const column of [at("source"), at("line"), [...at("claim_type"), ...at("kind")]]) {
@@ -141,5 +141,36 @@ describe("helpers", () => {
     };
     expect(readClaimTypeAccepts(proof)).toEqual({ predicate: "sec.vuln.kev_listed", accepts: [{ contract: "fetched-v1", sources: ["cisa.kev"] }] });
     expect(readClaimTypeAccepts({})).toBeNull();
+  });
+});
+
+describe("where sources come from", () => {
+  const model = buildFlow({
+    ...INPUTS,
+    acquirers: [
+      { name: "kev-daily", runs: "line", about: "From www.cisa.gov", when: "Daily at 06:00 UTC", sources: ["cisa.kev"] },
+      { name: "evidence-acquire", runs: "direct", about: "Read one workspace file", when: "When an agent runs it", sources: ["evidence.file"] },
+      { name: "orphan-pull", runs: "line", sources: ["nothing.here"] },
+    ],
+  });
+  const node = (id: string) => model.nodes.find((n) => n.id === id);
+
+  it("links each fetching Line and direct run to the sources it retains, and marks those sources", () => {
+    const kevDaily = nodeId.acquirer("line", "kev-daily");
+    expect(node(kevDaily)).toMatchObject({ kind: "acquirer", runs: "line", about: "From www.cisa.gov", when: "Daily at 06:00 UTC" });
+    expect(model.edges.some((e) => e.from === kevDaily && e.to === nodeId.source("cisa.kev"))).toBe(true);
+    expect(node(nodeId.source("cisa.kev"))!.acquired).toBe(true);
+    expect(node(nodeId.source("first.epss"))!.acquired).toBeUndefined();
+    expect(node(nodeId.acquirer("direct", "evidence-acquire"))!.runs).toBe("direct");
+    // an acquirer of a source not on the flow is left off
+    expect(node(nodeId.acquirer("line", "orphan-pull"))).toBeUndefined();
+  });
+
+  it("puts them in the first column, and a focus on a ClaimType keeps its acquirer", () => {
+    const layout = layoutFlow(model);
+    const placed = layout.byId.get(nodeId.acquirer("line", "kev-daily"))!;
+    expect(placed.x).toBe(COLUMNS[0].x);
+    expect(related(model, nodeId.claimType("sec.vuln.kev_listed")).has(nodeId.acquirer("line", "kev-daily"))).toBe(true);
+    expect(related(model, nodeId.claimType("sec.vuln.epss")).has(nodeId.acquirer("line", "kev-daily"))).toBe(false);
   });
 });

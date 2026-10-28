@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair } from "lucide-react";
-import { useClaimTypes, useGetBatch, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
+import { useCards, useClaimTypes, useGetBatch, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
+import { cardOf } from "@/api/schemas";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
 import {
   buildFlow,
+  type AcquirerInput,
   edgePath,
   focusFlow,
   layoutFlow,
@@ -22,6 +24,8 @@ import { FLOW_COLOR } from "@/lib/palette";
 import { arrivalWords, gist, lineGist, retainedByWords, sourceSteps, urlWords, type Retention } from "@/lib/definitions";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { wakeOf } from "@/lib/schedule";
+import { sentence } from "@/lib/text";
 
 /**
  * Evidence flow: sources -> the Lines that read their landings -> the
@@ -43,6 +47,12 @@ export function FlowScreen() {
   const claimTypes = useClaimTypes();
   const lines = useLines();
   const sources = useSourceModel();
+  // The Lines that retain a named source (they fetch it), for when they run.
+  const fetchingLines = useMemo(
+    () => [...new Set((sources.data?.retentions ?? []).filter((r) => r.line && r.source && !r.emitted).map((r) => r.line!))].sort(),
+    [sources.data],
+  );
+  const lineCards = useCards(fetchingLines.map((line) => `Line:${line}`));
   const proofs = useGetBatch(
     (claimTypes.data?.rows ?? []).filter((row) => (row.evidence ?? []).length > 0).map((row) => `ClaimType:${row.predicate}`),
     "proof",
@@ -55,7 +65,7 @@ export function FlowScreen() {
       const read = readClaimTypeAccepts((result as { proof?: unknown }).proof);
       if (read) accepts.set(read.predicate, read.accepts);
     }
-    const { specs, lines: lineDefinitions } = sources.data;
+    const { specs, lines: lineDefinitions, retentions: allRetentions } = sources.data;
     const lineOf = new Map(lineDefinitions.map((line) => [line.line, line] as const));
     // What a source is: a fetch Line's URL, else its retaining Procedure's description; how it arrives: that step's interface.
     const describeSource = (retainedBy: readonly Retention[]) => {
@@ -68,7 +78,36 @@ export function FlowScreen() {
         arrives: arrivalWords(step ?? null),
       };
     };
+    // Where sources come from: a Line that fetches them, or a direct run of the Procedure that retains them.
+    const whenOf = new Map(
+      fetchingLines.map((line, i) => {
+        const card = cardOf(lineCards[i], "line");
+        const words = (card?.triggers ?? []).map((t) => wakeOf(t.fires).words);
+        return [line, words.length ? sentence(words.join("; ")) : "When it is run"] as const;
+      }),
+    );
+    const acquirers = new Map<string, AcquirerInput & { sources: string[] }>();
+    for (const r of allRetentions) {
+      if (r.source === null || r.emitted) continue;
+      const runs = r.line ? ("line" as const) : ("direct" as const);
+      const name = r.line ?? r.procedure;
+      const key = `${runs}:${name}`;
+      let entry = acquirers.get(key);
+      if (!entry) {
+        const description = specs.get(r.procedure)?.description;
+        entry = {
+          name,
+          runs,
+          about: (r.line ? urlWords(lineOf.get(r.line)?.parameters) : null) ?? gist(description),
+          when: r.line ? (whenOf.get(r.line) ?? null) : "When an agent runs it",
+          sources: [],
+        };
+        acquirers.set(key, entry);
+      }
+      if (!entry.sources.includes(r.source)) entry.sources.push(r.source);
+    }
     return buildFlow({
+      acquirers: [...acquirers.values()],
       sources: sources.data.sources.map((source) => ({
         id: source.id,
         contracts: source.contracts,
@@ -86,7 +125,7 @@ export function FlowScreen() {
       triggers: sources.data.triggers,
       lineAuthority: new Map(lines.data.rows.map((row) => [lineName(row.line), row.authority] as const)),
     });
-  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results]);
+  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, fetchingLines, lineCards]);
 
   const clearFocus = useCallback(() => {
     const next = new URLSearchParams(params);
@@ -99,8 +138,11 @@ export function FlowScreen() {
   const layout = useMemo(() => (shown ? layoutFlow(shown) : null), [shown]);
   const lit = useMemo(() => (shown && hover ? related(shown, hover) : null), [shown, hover]);
   // Names share the kit namespace ("security."): say it once, drop it from labels.
-  // (Line and Trigger names only: Subject kinds can come from other namespaces, such as core's semantic.*.)
-  const prefix = useMemo(() => sharedPrefix((model?.nodes ?? []).filter((n) => n.kind === "line").map((n) => n.label)), [model]);
+  // (Line, Procedure and Trigger names only: Subject kinds can come from other namespaces, such as core's semantic.*.)
+  const prefix = useMemo(
+    () => sharedPrefix((model?.nodes ?? []).filter((n) => n.kind === "line" || n.kind === "acquirer").map((n) => n.label)),
+    [model],
+  );
 
   // ClaimType proofs only sharpen the Line → ClaimType edges: without them, fall back to contracts (and say so).
   const error = claimTypes.error ?? lines.error ?? sources.error;
@@ -115,6 +157,7 @@ export function FlowScreen() {
     setHover(null);
   };
   const count = (kind: string) => shown.nodes.filter((n) => n.kind === kind).length;
+  const fetching = shown.nodes.filter((n) => n.kind === "acquirer" && n.runs === "line").length;
   const focused = focus ? layout.byId.get(focus) ?? null : null;
   const capped = sources.data?.truncated || claimTypes.data?.truncated;
 
@@ -123,13 +166,17 @@ export function FlowScreen() {
       <header>
         <h1 className="t-title">Evidence flow</h1>
         <p className="mt-1 max-w-3xl text-[13px] text-zinc-400">
-          How evidence moves: each source, the Lines that read it when it lands, and the ClaimTypes those Lines may write.
+          How evidence moves: where each source comes from (a Line that fetches it, or a run an agent starts), the Lines
+          that read it when it lands, and the ClaimTypes those Lines may write.
           A source no Line reads, and statements on their author's own word, go straight to the ClaimTypes that accept them.
           Hover to trace; focus keeps only a path.
         </p>
         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
           <span>
             <span className="font-mono text-zinc-200">{count("source")}</span> {count("source") === 1 ? "source" : "sources"}
+          </span>
+          <span>
+            <span className="font-mono text-zinc-200">{fetching}</span> fetched by a Line
           </span>
           <span>
             <span className="font-mono text-zinc-200">{count("line")}</span> {count("line") === 1 ? "Line" : "Lines"}
@@ -285,7 +332,7 @@ function FlowCell({
           {node.arrives && <span className="ml-auto shrink-0 text-[10.5px] text-zinc-500">{node.arrives}</span>}
           <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
         </div>
-        <div className="line-clamp-3 text-[11px] leading-4 text-zinc-400">{node.about ?? node.detail}</div>
+        {!node.acquired && <div className="line-clamp-2 text-[11px] leading-4 text-zinc-400">{node.about ?? node.detail}</div>}
         {!node.ownWord && tags.length > 0 && (
           <div className="truncate text-[10.5px] text-zinc-600">
             {tags.map((t, i) => (
@@ -298,6 +345,28 @@ function FlowCell({
             ))}
           </div>
         )}
+      </div>
+    );
+  }
+  if (node.kind === "acquirer") {
+    const name = strip(node.label, prefix);
+    const href = node.runs === "line" ? `/i/${instanceId}/lines/${encodeURIComponent(node.label)}` : `/i/${instanceId}/ref/${encodeURIComponent(`Procedure:${node.label}`)}`;
+    return (
+      <div
+        style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.acquirer}` }}
+        className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 bg-zinc-900/60 px-2 leading-4`}
+        title={[node.label, node.about, node.when].filter(Boolean).join("\n")}
+        {...hover}
+      >
+        <div className="flex items-center gap-1.5">
+          <Link to={link(href)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
+            {name}
+          </Link>
+          <span className="ml-auto shrink-0 text-[10.5px] text-zinc-500">{node.runs === "line" ? "Line" : "Direct run"}</span>
+          <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
+        </div>
+        {node.about && <div className="line-clamp-2 text-[11px] leading-4 text-zinc-400">{node.about}</div>}
+        {node.when && <div className="truncate text-[10.5px] text-zinc-600">{node.when}</div>}
       </div>
     );
   }

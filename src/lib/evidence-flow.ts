@@ -3,8 +3,12 @@ import type { OrientPredicate } from "../api/schemas.ts";
 /**
  * The evidence-flow view's model and layout: how evidence moves.
  *
- *   Sources ──► Lines that read their landings ──► ClaimTypes they may write
- *          └────────────── (no Line reads it) ──────────────┘
+ *   Where it comes from ──► Sources ──► Lines that read their landings ──► ClaimTypes they may write
+ *                                   └────────────── (no Line reads it) ──────────────┘
+ *
+ * Where a source comes from: the Lines that fetch it on a schedule and the
+ * direct runs that retain it (an agent runs the Procedure), from the source
+ * steps that name the logical source in their definitions.
  *
  * A source is a logical source the definitions name (from the source steps
  * that retain it and the landing Triggers that select it), plus one pseudo
@@ -28,7 +32,7 @@ import type { OrientPredicate } from "../api/schemas.ts";
  * down the page. Pure and deterministic: same inputs, same pixels.
  */
 
-export type FlowNodeKind = "source" | "line" | "claim_type";
+export type FlowNodeKind = "acquirer" | "source" | "line" | "claim_type";
 
 export interface FlowNode {
   id: string;
@@ -41,6 +45,12 @@ export interface FlowNode {
   about?: string;
   /** source: how it arrives (HTTP fetch, Workspace file, Run output, an interface). */
   arrives?: string;
+  /** acquirer: a Line that fetches, or a Procedure an agent runs directly. */
+  runs?: "line" | "direct";
+  /** acquirer: when it runs, in words ("Daily at 06:00 UTC", "When an agent runs it"). */
+  when?: string;
+  /** source: an acquirer on the flow says where it comes from. */
+  acquired?: boolean;
   /** source: the bare contracts it is captured under. */
   contracts?: string[];
   /** source: the pseudo source for statements on their author's own word. */
@@ -98,6 +108,18 @@ export interface FlowInputs {
   lineAuthority?: ReadonlyMap<string, string>;
   /** What each Line does, in a line, per bare Line name. */
   lineAbout?: ReadonlyMap<string, string>;
+  /** Where sources come from: the Lines and direct runs that retain them. */
+  acquirers?: readonly AcquirerInput[];
+}
+
+export interface AcquirerInput {
+  /** A Line name, or a Procedure name for a direct run. */
+  name: string;
+  runs: "line" | "direct";
+  about?: string | null | undefined;
+  when?: string | null | undefined;
+  /** The logical sources it retains. */
+  sources: readonly string[];
 }
 
 const bareContract = (value: string) => value.replace(/^CaptureContract:/, "");
@@ -108,6 +130,7 @@ export const isSelfSource = (contract: string) => /self-source/.test(contract);
 export const OWN_WORD = "source:own-word";
 
 export const nodeId = {
+  acquirer: (runs: "line" | "direct", name: string) => `acquirer:${runs}:${name}`,
   source: (source: string) => `source:${source}`,
   line: (name: string) => `line:${name}`,
   claimType: (predicate: string) => `claim_type:${predicate}`,
@@ -167,6 +190,25 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       contracts: selfContracts,
       ownWord: true,
     });
+  }
+
+  // Where sources come from: each acquirer links to the sources it retains.
+  for (const acquirer of [...(inputs.acquirers ?? [])].sort((a, b) => byText(a.name, b.name))) {
+    const targets = [...new Set(acquirer.sources)].map(nodeId.source).filter((id) => nodes.has(id));
+    if (!targets.length) continue;
+    const id = nodeId.acquirer(acquirer.runs, acquirer.name);
+    nodes.set(id, {
+      id,
+      kind: "acquirer",
+      label: acquirer.name,
+      runs: acquirer.runs,
+      ...(acquirer.about ? { about: acquirer.about } : {}),
+      ...(acquirer.when ? { when: acquirer.when } : {}),
+    });
+    for (const to of targets.sort(byText)) {
+      addEdge({ from: id, to });
+      nodes.get(to)!.acquired = true;
+    }
   }
 
   // Lines that landing Triggers start, with what they read.
@@ -325,21 +367,23 @@ export interface FlowLayout {
   height: number;
 }
 
-/** Column boxes: sources, Lines, ClaimTypes; wide gutters carry the fan-outs. */
+/** Column boxes: where sources come from, sources, Lines, ClaimTypes; the widest gutter carries the Line fan-out. */
 export const COLUMNS = [
-  { x: 0, w: 290 },
-  { x: 370, w: 320 },
-  { x: 770, w: 330 },
+  { x: 0, w: 210 },
+  { x: 255, w: 240 },
+  { x: 545, w: 280 },
+  { x: 880, w: 270 },
 ] as const;
 
 const HEIGHT: Record<PlacedKind, number> = {
-  source: 92,
+  acquirer: 76,
+  source: 58,
   line: 92,
   claim_type: 18,
   kind: 20,
   heading: 22,
 };
-const GAP: Record<PlacedKind, number> = { source: 6, line: 6, claim_type: 2, kind: 2, heading: 4 };
+const GAP: Record<PlacedKind, number> = { acquirer: 6, source: 6, line: 6, claim_type: 2, kind: 2, heading: 4 };
 const KIND_GAP = 8;
 
 const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : Number.POSITIVE_INFINITY);
@@ -367,8 +411,8 @@ export function layoutFlow(model: FlowModel): FlowLayout {
 
   // ClaimTypes: kinds ordered by the Lines/sources that feed them, stacked in rows.
   const rows: Placed[] = [];
-  const x = COLUMNS[2].x;
-  const w = COLUMNS[2].w;
+  const x = COLUMNS[3].x;
+  const w = COLUMNS[3].w;
   let y = top;
   const groups = new Map<string, FlowNode[]>();
   for (const node of of("claim_type")) groups.set(node.group ?? "", [...(groups.get(node.group ?? "") ?? []), node]);
@@ -410,12 +454,28 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     top,
   );
 
+  // Where sources come from, ordered by the sources they retain.
+  const sourceCentre = (id: string) => {
+    const sy = sourceY.get(id);
+    return sy !== undefined ? sy + HEIGHT.source / 2 : undefined;
+  };
+  const acquirerY = packTop(
+    of("acquirer").map((n) => ({
+      id: n.id,
+      kind: "acquirer" as const,
+      desired: mean((outgoing.get(n.id) ?? []).map(sourceCentre).filter((v): v is number => v !== undefined)),
+    })),
+    top,
+  );
+
   const placed: Placed[] = [
-    { id: "heading:sources", kind: "heading", label: "Sources", x: COLUMNS[0].x, y: 0, w: COLUMNS[0].w, h: HEIGHT.heading },
-    { id: "heading:lines", kind: "heading", label: "Lines that read them", x: COLUMNS[1].x, y: 0, w: COLUMNS[1].w, h: HEIGHT.heading },
-    { id: "heading:claims", kind: "heading", label: "ClaimTypes they may write", x: COLUMNS[2].x, y: 0, w: COLUMNS[2].w, h: HEIGHT.heading },
-    ...of("source").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[0].x, y: sourceY.get(node.id)!, w: COLUMNS[0].w, h: HEIGHT.source })),
-    ...of("line").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[1].x, y: lineY.get(node.id)!, w: COLUMNS[1].w, h: HEIGHT.line })),
+    { id: "heading:acquirers", kind: "heading", label: "Where it comes from", x: COLUMNS[0].x, y: 0, w: COLUMNS[0].w, h: HEIGHT.heading },
+    { id: "heading:sources", kind: "heading", label: "Sources", x: COLUMNS[1].x, y: 0, w: COLUMNS[1].w, h: HEIGHT.heading },
+    { id: "heading:lines", kind: "heading", label: "Lines that read them", x: COLUMNS[2].x, y: 0, w: COLUMNS[2].w, h: HEIGHT.heading },
+    { id: "heading:claims", kind: "heading", label: "ClaimTypes they may write", x: COLUMNS[3].x, y: 0, w: COLUMNS[3].w, h: HEIGHT.heading },
+    ...of("acquirer").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[0].x, y: acquirerY.get(node.id)!, w: COLUMNS[0].w, h: HEIGHT.acquirer })),
+    ...of("source").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[1].x, y: sourceY.get(node.id)!, w: COLUMNS[1].w, h: HEIGHT.source })),
+    ...of("line").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[2].x, y: lineY.get(node.id)!, w: COLUMNS[2].w, h: HEIGHT.line })),
     ...rows,
   ];
   const height = Math.max(...placed.map((p) => p.y + p.h), top) + 8;
@@ -423,7 +483,7 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     placed,
     byId: new Map(placed.map((p) => [p.id, p] as const)),
     edges: model.edges,
-    width: COLUMNS[2].x + COLUMNS[2].w,
+    width: COLUMNS[3].x + COLUMNS[3].w,
     height,
   };
 }
