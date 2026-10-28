@@ -374,7 +374,7 @@ function FlowCell({
         state={null}
         focus={<FocusButton id={node.id} label="Inbox" onFocus={onFocus} always />}
         about={null}
-        facts={[["Unread", unread ? `${unread.count}${unread.more ? "+" : ""}` : "…"], ["For", "an agent or a person to judge"]]}
+        facts={[["Unread", unread ? `${unread.count}${unread.more ? "+" : ""}` : "…"]]}
       />
     );
   }
