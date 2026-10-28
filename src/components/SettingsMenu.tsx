@@ -35,7 +35,7 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
           <div className="pb-2 text-[12px] font-medium text-zinc-500">
             Display settings
           </div>
-          <label className="mb-2 flex cursor-pointer items-start gap-2">
+          <label className="flex cursor-pointer items-start gap-2">
             <input
               type="checkbox"
               checked={settings.followHead}
@@ -47,22 +47,6 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
               <span className="block text-[12px] leading-snug text-zinc-500">
                 Move every screen to each newly accepted generation. Off: a
                 page keeps the generation it opened on and offers the newer one.
-              </span>
-            </span>
-          </label>
-          <label className="flex cursor-pointer items-start gap-2">
-            <input
-              type="checkbox"
-              checked={settings.colorByLayer}
-              onChange={(e) => update({ colorByLayer: e.target.checked })}
-              className="mt-0.5 accent-zinc-400"
-            />
-            <span>
-              <span className="block text-[14px] text-zinc-200">Color by layer</span>
-              <span className="block text-[12px] leading-snug text-zinc-500">
-                Accent the type map, sidebar and neighborhood by the kit that
-                owns each Subject kind (or this instance, for kinds authored
-                here). Only shows when kinds span kits.
               </span>
             </span>
           </label>

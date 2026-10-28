@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useSubjectKinds } from "@/api/hooks";
 import type { OrientSubjectKind } from "@/api/schemas";
-import { useSettings } from "@/lib/settings";
 import { buildTypeColors } from "@/lib/type-colors";
 
 /**
@@ -34,7 +33,7 @@ export function ownerOf(kind: string, ownership: KitOwnership): TypeOwner {
 }
 
 export interface LayerColoring {
-  /** The settings toggle AND more than one layer among the kinds shown. */
+  /** More than one layer among the kinds shown. */
   enabled: boolean;
   layers: { layer: string; color: string; source: TypeOwner["source"] }[];
   ownerOfKind: (kind: string) => TypeOwner;
@@ -61,15 +60,15 @@ export function layerColoring(kinds: readonly string[], ownership: KitOwnership,
   };
 }
 
-/** `layerColoring` over the given kinds, with the settings toggle and kit ownership. */
+/** `layerColoring` over the given kinds, with kit ownership. */
 export function useLayerColoring(kinds: readonly string[]): LayerColoring {
-  const { settings } = useSettings();
   const subjectKinds = useSubjectKinds();
   const ownership = useMemo(() => kitOwnership(subjectKinds.data?.rows), [subjectKinds.data]);
   // Keyed on the names, not the array identity, so callers can pass a fresh array.
   const key = kinds.join("\n");
   return useMemo(
-    () => layerColoring(key === "" ? [] : key.split("\n"), ownership, settings.colorByLayer),
-    [key, ownership, settings.colorByLayer],
+    // Kit accents show whenever kinds span kits (a single-kit instance never draws them).
+    () => layerColoring(key === "" ? [] : key.split("\n"), ownership, true),
+    [key, ownership],
   );
 }
