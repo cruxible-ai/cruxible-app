@@ -237,11 +237,13 @@ export function retentions(
   steps: readonly SourceStep[],
   lines: readonly LineDefinition[],
   produces: (iface: string) => readonly string[] = () => [],
+  /** Whether a Procedure runs directly; one that runs only as a Line retains nothing until a Line runs it. */
+  direct: (procedure: string) => boolean = () => true,
 ): Retention[] {
   const out: Retention[] = [];
   for (const step of steps) {
     const running = lines.filter((line) => line.procedure === step.procedure).sort((a, b) => (a.line < b.line ? -1 : 1));
-    const runs: (LineDefinition | null)[] = running.length ? running : [null];
+    const runs: (LineDefinition | null)[] = running.length ? running : direct(step.procedure) ? [null] : [];
     for (const line of runs) {
       if (line && line.triggerInput !== null && line.triggerInput === step.alias) continue;
       const ref = step.logicalSource;

@@ -97,7 +97,7 @@ function Preview({ body }: { body: CaptureBody }) {
       </pre>
       {cut && (
         <div className="mt-2 text-[12px] text-zinc-500">
-          Showing the first {formatSize(PREVIEW_CHARS)} of {formatSize(text.length)}; download it for the whole body.
+          Showing the first {PREVIEW_CHARS.toLocaleString()} of {text.length.toLocaleString()} characters; download it for the whole body.
         </div>
       )}
     </div>

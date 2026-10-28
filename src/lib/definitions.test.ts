@@ -219,3 +219,11 @@ describe("provider-named sources", () => {
     expect(interfaceBase("workspace.file")).toBe("workspace.file");
   });
 });
+
+describe("Procedures that run only as Lines", () => {
+  it("retain nothing until a Line runs them", () => {
+    const step = { procedure: "log-import", alias: "log", contract: "file-v1", interface: "workspace.file", logicalSource: { literal: "log-read" }, emitted: false };
+    expect(retentions([step], [], () => [], (procedure) => procedure !== "log-import")).toEqual([]);
+    expect(retentions([step], [], () => [], () => true)).toHaveLength(1);
+  });
+});

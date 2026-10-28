@@ -381,11 +381,13 @@ export function useSourceModel(enabled = true) {
       target: cellText(row.target),
       logicalSources: cellList(row.logical_sources),
     }));
+    const runnable = new Map(procedures.data.rows.map((row) => [row.name.replace(/^Procedure:/, ""), row.runnable] as const));
     const produced = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, row.produces ?? []] as const));
     const all = retentions(
       [...specs].flatMap(([name, spec]) => sourceSteps(name, spec)),
       lineDefinitions,
       (iface) => produced.get(interfaceBase(iface)) ?? [],
+      (procedure) => runnable.get(procedure) !== "line",
     );
     return {
       specs,
