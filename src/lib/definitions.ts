@@ -233,7 +233,11 @@ export interface Retention {
  * (one per Line running the Procedure, else one direct run), and every emit.
  * A Line's `$input.` logical source resolves through its parameters.
  */
-export function retentions(steps: readonly SourceStep[], lines: readonly LineDefinition[]): Retention[] {
+export function retentions(
+  steps: readonly SourceStep[],
+  lines: readonly LineDefinition[],
+  produces: (iface: string) => readonly string[] = () => [],
+): Retention[] {
   const out: Retention[] = [];
   for (const step of steps) {
     const running = lines.filter((line) => line.procedure === step.procedure).sort((a, b) => (a.line < b.line ? -1 : 1));
@@ -248,6 +252,14 @@ export function retentions(steps: readonly SourceStep[], lines: readonly LineDef
         const value = line?.parameters[ref.input];
         if (typeof value === "string" && value) source = value;
         else given = ref.input;
+      }
+      // No source in the request: the Provider names it, as its interface declares (`produces`).
+      const declared = !ref && step.interface ? produces(step.interface) : [];
+      if (declared.length) {
+        for (const name of declared) {
+          out.push({ contract: step.contract, source: name, procedure: step.procedure, line: line?.line ?? null, emitted: step.emitted, given: null });
+        }
+        continue;
       }
       out.push({ contract: step.contract, source, procedure: step.procedure, line: line?.line ?? null, emitted: step.emitted, given });
     }
@@ -315,8 +327,9 @@ export function retainedByWords(all: readonly Retention[]): string {
 
 // -- slot bindings --------------------------------------------------------------
 
-/** The interface name a slot takes (`web.fetch@3` -> `web.fetch`), as the interfaces section names it. */
-export const interfaceBase = (value: string) => (value.includes("@") ? value.slice(0, value.lastIndexOf("@")) : value);
+/** The interface name a slot or step takes (`web.fetch@3`, `web.fetch/v3` -> `web.fetch`), as the interfaces section names it. */
+export const interfaceBase = (value: string) =>
+  value.includes("@") ? value.slice(0, value.lastIndexOf("@")) : value.replace(/\/v\d+$/, "");
 
 /**
  * The build a slot binds to, from what is served: the Line's explicit binding,

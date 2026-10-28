@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   arrivalWords,
   gist,
+  interfaceBase,
   lineGist,
   logicalSources,
   procedureSlots,
@@ -175,5 +176,46 @@ describe("gists", () => {
     expect(arrivalWords({ interface: null, emitted: true })).toBe("Run output");
     expect(urlWords({ url: "https://www.cisa.gov/sites/default/files/feeds/kev.json" })).toBe("From www.cisa.gov");
     expect(urlWords({})).toBeNull();
+  });
+});
+
+describe("provider-named sources", () => {
+  const step = (procedure: string, iface: string | null, logicalSource: { literal: string } | null = null) => ({
+    procedure,
+    alias: "pull",
+    contract: "fetched-v1",
+    interface: iface,
+    logicalSource,
+    emitted: false,
+  });
+  const line = (name: string, procedure: string) => ({
+    line: name,
+    procedure,
+    parameters: {},
+    triggerInput: null,
+    triggerContract: null,
+    bindings: {},
+    acquisitionPolicy: null,
+    maxAuthority: null,
+    occurrenceEpoch: null,
+  });
+
+  it("take the source names a step's interface declares it produces when its request names none", () => {
+    const produces = (iface: string) => (iface.startsWith("security.pypi-release") ? ["pypi.release"] : []);
+    const out = retentions(
+      [step("registry-acquire", "security.pypi-release/v2"), step("fetch", "web.fetch/v3", { literal: "cisa.kev" }), step("asset", "security.other/v1")],
+      [line("registry-pull.cruxible", "registry-acquire")],
+      produces,
+    );
+    expect(out.find((r) => r.procedure === "registry-acquire")).toMatchObject({ source: "pypi.release", line: "registry-pull.cruxible" });
+    // a request that names its source keeps it; an interface that declares nothing leaves it unnamed
+    expect(out.find((r) => r.procedure === "fetch")!.source).toBe("cisa.kev");
+    expect(out.find((r) => r.procedure === "asset")!.source).toBeNull();
+  });
+
+  it("match interfaces by name across version spellings", () => {
+    expect(interfaceBase("web.fetch@3")).toBe("web.fetch");
+    expect(interfaceBase("security.pypi-release/v2")).toBe("security.pypi-release");
+    expect(interfaceBase("workspace.file")).toBe("workspace.file");
   });
 });

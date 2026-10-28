@@ -9370,9 +9370,10 @@ export interface components {
          * GetProviderInterfaceCard
          * @description One live provider interface: its contract fields, effect and implementations.
          *
-         *     ``detail="proof"`` answers the accepted inventory entry a Procedure node
-         *     pins (``entry``): the artifact and interface digests, the operation contract
-         *     and every implementation.
+         *     ``produces`` lists the logical source names the interface declares its
+         *     Captures carry (empty when undeclared). ``detail="proof"`` answers the
+         *     accepted inventory entry a Procedure node pins (``entry``): the artifact and
+         *     interface digests, the operation contract and every implementation.
          */
         GetProviderInterfaceCard: {
             /** Interface */
@@ -9394,6 +9395,11 @@ export interface components {
              * @enum {string}
              */
             effect: "pure" | "external_read" | "external_mutation";
+            /**
+             * Produces
+             * @default []
+             */
+            produces?: string[];
             /**
              * Providers
              * @default []
@@ -13769,7 +13775,9 @@ export interface components {
          *     governed effect class: an ``external_mutation`` call needs an effect policy
          *     on its node. ``providers`` names the live Providers implementing it; one
          *     with none has nothing to run it yet. ``operation_contract`` describes the
-         *     node's input and output. ``get("ProviderInterface:<name>")`` reads the
+         *     node's input and output. ``produces`` lists the logical source names the
+         *     interface declares its Captures carry (empty when undeclared, as when the
+         *     caller names the source). ``get("ProviderInterface:<name>")`` reads the
          *     whole accepted entry. Admission records the exact versions selected by name.
          */
         OrientInterface: {
@@ -13792,6 +13800,11 @@ export interface components {
              * @enum {string}
              */
             effect: "pure" | "external_read" | "external_mutation";
+            /**
+             * Produces
+             * @default []
+             */
+            produces?: string[];
             /**
              * Providers
              * @default []

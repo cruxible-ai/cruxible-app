@@ -45,6 +45,7 @@ import { useSettings } from "@/lib/settings";
 import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
 import { ontologyKinds } from "@/lib/type-graph";
 import {
+  interfaceBase,
   logicalSources,
   readLineEnvelope,
   retentions,
@@ -356,12 +357,13 @@ const cellList = (value: unknown) => (Array.isArray(value) ? value.filter((item)
  */
 export function useSourceModel(enabled = true) {
   const procedures = useProcedures(enabled);
+  const interfaces = useInterfaces(enabled);
   const lines = useLines(enabled);
   const triggers = useStateQuery(enabled ? LANDING_TRIGGERS_QUERY : null);
   const procedureCards = useGetBatch((procedures.data?.rows ?? []).map((row) => `Procedure:${row.name.replace(/^Procedure:/, "")}`));
   const lineProofs = useGetBatch((lines.data?.rows ?? []).map((row) => `Line:${lineName(row.line)}`), "proof");
   const pending =
-    procedures.isPending || lines.isPending || triggers.isPending || procedureCards.isPending || lineProofs.isPending;
+    procedures.isPending || lines.isPending || triggers.isPending || interfaces.isPending || procedureCards.isPending || lineProofs.isPending;
   const data = useMemo(() => {
     if (pending || !procedures.data || !lines.data || !triggers.data) return undefined;
     const specs = new Map<string, ProcedureSpec>();
@@ -379,7 +381,12 @@ export function useSourceModel(enabled = true) {
       target: cellText(row.target),
       logicalSources: cellList(row.logical_sources),
     }));
-    const all = retentions([...specs].flatMap(([name, spec]) => sourceSteps(name, spec)), lineDefinitions);
+    const produced = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, row.produces ?? []] as const));
+    const all = retentions(
+      [...specs].flatMap(([name, spec]) => sourceSteps(name, spec)),
+      lineDefinitions,
+      (iface) => produced.get(interfaceBase(iface)) ?? [],
+    );
     return {
       specs,
       lines: lineDefinitions,
@@ -389,10 +396,10 @@ export function useSourceModel(enabled = true) {
       truncated:
         procedures.data.truncated || lines.data.truncated || (triggers.data.capped?.length ?? 0) > 0 || triggers.data.truncated === true,
     };
-  }, [pending, procedures.data, lines.data, triggers.data, procedureCards.results, lineProofs.results]);
+  }, [pending, procedures.data, lines.data, triggers.data, interfaces.data, procedureCards.results, lineProofs.results]);
   return {
     isPending: pending,
-    error: procedures.error ?? lines.error ?? triggers.error ?? procedureCards.error ?? lineProofs.error,
+    error: procedures.error ?? lines.error ?? triggers.error ?? interfaces.error ?? procedureCards.error ?? lineProofs.error,
     data,
   };
 }
