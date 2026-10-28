@@ -101,7 +101,8 @@ describe("Line definitions", () => {
   it("shows the Line as authored and its slotted Procedure: slots with the builds they bind, steps with what each names", async () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const main = within(await screen.findByRole("main"));
-    const line = within((await main.findByText("Line definition")).closest("section")!);
+    // the panel shows while the Line's envelope loads; read it once its rows are in
+    const line = within((await main.findByText("Trigger input")).closest("section")!);
     expect(await line.findByText("catalog")).toBeInTheDocument(); // trigger input step
     expect(line.getByText("security.kev-http-v1")).toBeInTheDocument();
     expect(line.getByText("security-analysis-provider")).toBeInTheDocument(); // explicit binding

@@ -109,13 +109,16 @@ export function LineScreen() {
 
       {!enablement && <NotEnabledBanner line={line} />}
       {/* What it is (steps, definition) and what it has posted come first; how it runs and what it ran follow. */}
-      <DefinitionPanels line={line} card={lineCard} procedure={procedure} aside={<InboxPanel line={line} />} />
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-        <TriggersPanel card={lineCard} />
-        <RunsPanel line={line} total={lineCard.runs_total ?? 0} />
-      </div>
+      <DefinitionPanels
+        line={line}
+        card={lineCard}
+        procedure={procedure}
+        triggersPanel={<TriggersPanel card={lineCard} />}
+        inbox={<InboxPanel line={line} />}
+        runs={<RunsPanel line={line} total={lineCard.runs_total ?? 0} />}
+      />
       <LineNextPanel line={line} />
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <MandatesPanel procedure={procedure} />
         <ProcedurePanel procedure={procedure} />
       </div>
@@ -129,7 +132,27 @@ export function LineScreen() {
  * bindings), the Procedure's authored form, and its Triggers' cards for the
  * logical sources a landing Trigger selects.
  */
-function DefinitionPanels({ line, card, procedure, aside }: { line: string; card: LineCard; procedure: string; aside: ReactNode }) {
+/**
+ * The page's body, top to bottom: what the Line is (its definition) beside
+ * what starts it (Triggers); its steps; what it has posted (Inbox); its
+ * Procedure as authored beside what it ran (Runs). Side-by-side panels share
+ * a row height.
+ */
+function DefinitionPanels({
+  line,
+  card,
+  procedure,
+  triggersPanel,
+  inbox,
+  runs,
+}: {
+  line: string;
+  card: LineCard;
+  procedure: string;
+  triggersPanel: ReactNode;
+  inbox: ReactNode;
+  runs: ReactNode;
+}) {
   const triggers = (card.triggers ?? []).map((t) => t.trigger);
   const proof = useGet(`Line:${line}`, "proof");
   const procedureRead = useCard(`Procedure:${procedure}`);
@@ -173,9 +196,17 @@ function DefinitionPanels({ line, card, procedure, aside }: { line: string; card
     definition && spec
       ? retentions(sourceSteps(procedure, spec), [definition], (iface) => produced.get(interfaceBase(iface)) ?? []).filter((r) => r.line === line)
       : [];
-  if (!definition && !spec) return proof.error ? <LoadState error={proof.error} /> : null;
+  if (!definition && !spec && proof.error) return <LoadState error={proof.error} />;
   return (
     <>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {definition ? (
+          <LineDefinitionPanel line={definition} retains={retains} triggers={landing} />
+        ) : (
+          <Panel title="Line definition">{proof.isPending ? <LoadState /> : null}</Panel>
+        )}
+        {triggersPanel}
+      </div>
       {spec && (
         <LineGraphPanel
           line={line}
@@ -185,12 +216,10 @@ function DefinitionPanels({ line, card, procedure, aside }: { line: string; card
           onSelectStep={setSelected}
         />
       )}
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-        <div className="space-y-5">
-          {definition ? <LineDefinitionPanel line={definition} retains={retains} triggers={landing} /> : <Panel title="Line definition">{proof.isPending ? <LoadState /> : proof.error ? <LoadState error={proof.error} /> : null}</Panel>}
-          {spec && <ProcedureDefinition spec={spec} line={definition} selectedStep={selected} />}
-        </div>
-        {aside}
+      {inbox}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {spec ? <ProcedureDefinition spec={spec} line={definition} selectedStep={selected} /> : <div />}
+        {runs}
       </div>
     </>
   );
@@ -341,8 +370,7 @@ function TriggersPanel({ card }: { card: LineCard }) {
   const armed = new Set((current?.triggers ?? []).map((t) => t.trigger.replace(/^Trigger:/, "")));
   const now = new Date();
   return (
-    <div id="triggers">
-      <Panel title="Triggers" meta={<span>{card.due ?? 0} due · {card.waiting ?? 0} scheduled</span>}>
+      <Panel title="Triggers" meta={<span id="triggers">{card.due ?? 0} due · {card.waiting ?? 0} scheduled</span>}>
         {(card.triggers ?? []).length === 0 ? (
           <div className="text-[13px] text-zinc-600">No Triggers aimed at this Line: it runs only when started by hand.</div>
         ) : (
@@ -363,20 +391,22 @@ function TriggersPanel({ card }: { card: LineCard }) {
                 const state = !current ? "not enabled" : on ? "armed" : current.state === "running" ? "not armed by this enablement" : term("line", current.state).word.toLowerCase();
                 return (
                   <tr key={trigger.trigger} className={trClass}>
-                    <Td>
-                      <RefLink value={trigger.trigger}>
-                        <span className="font-mono text-[12px]">{name}</span>
-                      </RefLink>
-                      <span className="ml-1.5 text-[11px] text-zinc-600">v{trigger.version}</span>
+                    <Td className="max-w-[14rem]">
+                      <span className="flex min-w-0 items-baseline gap-1.5" title={`${trigger.trigger} v${trigger.version}`}>
+                        <RefLink value={trigger.trigger}>
+                          <span className="block truncate font-mono text-[12px]">{name.replace(/^security\./, "")}</span>
+                        </RefLink>
+                        <span className="shrink-0 text-[11px] text-zinc-600">v{trigger.version}</span>
+                      </span>
                     </Td>
-                    <Td className="text-[12px] text-zinc-300">{sentence(wake.words)}</Td>
-                    <Td className="text-[12px]">
+                    <Td className="whitespace-nowrap text-[12px] text-zinc-300">{sentence(wake.words)}</Td>
+                    <Td className="whitespace-nowrap text-[12px]">
                       <span className="inline-flex items-center gap-1.5 text-zinc-300">
                         <HealthDot tone={on ? "ok" : "off"} title={state} />
                         {sentence(state)}
                       </span>
                     </Td>
-                    <Td className="text-[12px] text-zinc-400">
+                    <Td className="whitespace-nowrap text-[12px] text-zinc-400">
                       {wake.landing ? "On landing" : wake.next ? <span title={wake.next.toISOString()}>{formatWhen(wake.next.toISOString())}</span> : "–"}
                       {!on && !wake.landing && wake.next && <span className="text-zinc-600"> (if armed)</span>}
                     </Td>
@@ -437,7 +467,6 @@ function TriggersPanel({ card }: { card: LineCard }) {
           </div>
         )}
       </Panel>
-    </div>
   );
 }
 
