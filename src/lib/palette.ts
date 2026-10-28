@@ -44,6 +44,19 @@ export const ROLE_COLOR: Record<StepRoleColor, { color: string; legend: string }
 };
 
 /** The evidence flow's columns. */
+/**
+ * What a Line may do to accepted state, as a color: settle (accepts its own
+ * changes under a mandate), propose (submits them for review), observe
+ * (writes nothing; posts to its inbox). Settle shares fuchsia with "accepted
+ * into state" in the activity feed. Written only by hand: neutral.
+ */
+export const AUTHORITY_COLOR = {
+  settle: PALETTE.fuchsia,
+  propose: PALETTE.blue,
+  observe: PALETTE.slate,
+  none: "#52525b",
+} as const;
+
 export const FLOW_COLOR = {
   acquirer: PALETTE.indigo,
   source: PALETTE.teal,

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair } from "lucide-react";
 import { useCards, useClaimTypes, useGetBatch, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
@@ -20,7 +20,9 @@ import {
   type Placed,
 } from "@/lib/evidence-flow";
 import { lineName } from "@/lib/lines";
-import { FLOW_COLOR } from "@/lib/palette";
+import { AUTHORITY_COLOR } from "@/lib/palette";
+import { HealthDot } from "@/components/Chip";
+import { term } from "@/lib/vocabulary";
 import { arrivalWords, gist, lineGist, retainedByWords, sourceSteps, urlWords, type Retention } from "@/lib/definitions";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -124,6 +126,7 @@ export function FlowScreen() {
       accepts,
       triggers: sources.data.triggers,
       lineAuthority: new Map(lines.data.rows.map((row) => [lineName(row.line), row.authority] as const)),
+      lineEnablement: new Map(lines.data.rows.map((row) => [lineName(row.line), row.enablement ?? null] as const)),
     });
   }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, fetchingLines, lineCards]);
 
@@ -190,6 +193,7 @@ export function FlowScreen() {
             </span>
           )}
         </div>
+        <AuthorityLegend />
         {capped && <div className="mt-1 text-[12px] text-zinc-500">A listing stopped at its page cap: the flow may be incomplete.</div>}
         {proofs.error && (
           <div className="mt-1 text-[12px] text-zinc-500">
@@ -227,10 +231,11 @@ export function FlowScreen() {
                     key={`${edge.from}\n${edge.to}`}
                     d={edgePath(from, to)}
                     fill="none"
-                    stroke={edge.direct ? FLOW_COLOR.source : edge.required ? "rgb(222 219 208)" : "rgb(163 160 148)"}
+                    // An edge leaving a Line takes its authority's color; the rest stay neutral.
+                    stroke={edge.authority ? AUTHORITY_COLOR[edge.authority] : edge.required ? "rgb(222 219 208)" : "rgb(163 160 148)"}
                     strokeDasharray={edge.direct ? "4 3" : undefined}
                     strokeWidth={on ? 1.5 : 1}
-                    strokeOpacity={on === null ? (edge.required ? 0.4 : 0.22) : on ? 0.9 : 0.05}
+                    strokeOpacity={on === null ? (edge.authority ? 0.45 : edge.required ? 0.4 : 0.22) : on ? 0.9 : 0.05}
                   />
                 );
               })}
@@ -318,86 +323,100 @@ function FlowCell({
   }
   if (!node) return null;
 
+  // Sources, Lines and what fetches them share one card: name and state on top,
+  // what it is in two lines, label/value facts pinned to the bottom.
+  if (node.kind === "acquirer") {
+    const href = node.runs === "line" ? `/i/${instanceId}/lines/${encodeURIComponent(node.label)}` : `/i/${instanceId}/ref/${encodeURIComponent(`Procedure:${node.label}`)}`;
+    return (
+      <FlowCard
+        style={style}
+        dim={dim}
+        hover={hover}
+        accent={node.runs === "line" ? authorityColor(node.authority) : AUTHORITY_COLOR.none}
+        title={[node.label, node.about, node.when].filter(Boolean).join("\n")}
+        name={
+          <Link to={link(href)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
+            {strip(node.label, prefix)}
+          </Link>
+        }
+        state={node.runs === "line" ? <LineState enablement={node.enablement} /> : null}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
+        about={node.about ?? null}
+        facts={[["Runs", (node.when ?? "").replace(/^\w/, (c) => c.toLowerCase())]]}
+      />
+    );
+  }
   if (node.kind === "source") {
     const tags = (node.contracts ?? []).map(contractName);
     return (
-      <div
-        style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.source}` }}
-        className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 ${node.ownWord ? "border-dashed bg-zinc-950" : "bg-zinc-900/60"} px-2 leading-4`}
+      <FlowCard
+        style={style}
+        dim={dim}
+        hover={hover}
+        accent="#3f3f46"
+        dashed={node.ownWord === true}
         title={[node.label, node.about, node.detail, tags.length ? `Captured under ${tags.join(", ")}` : null].filter(Boolean).join("\n")}
-        {...hover}
-      >
-        <div className="flex items-center gap-1.5">
-          <span className={`truncate text-[12px] ${node.ownWord ? "font-sans text-zinc-200" : "font-mono text-zinc-100"}`}>{node.label}</span>
-          {node.arrives && <span className="ml-auto shrink-0 text-[10.5px] text-zinc-500">{node.arrives}</span>}
-          <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
-        </div>
-        {!node.acquired && <div className="line-clamp-2 text-[11px] leading-4 text-zinc-400">{node.about ?? node.detail}</div>}
-        {!node.ownWord && tags.length > 0 && (
-          <div className="truncate text-[10.5px] text-zinc-600">
-            {tags.map((t, i) => (
-              <span key={t}>
-                {i > 0 && ", "}
-                <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(t)}`)} className="hover:text-zinc-300 hover:underline">
-                  {t}
-                </Link>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-  if (node.kind === "acquirer") {
-    const name = strip(node.label, prefix);
-    const href = node.runs === "line" ? `/i/${instanceId}/lines/${encodeURIComponent(node.label)}` : `/i/${instanceId}/ref/${encodeURIComponent(`Procedure:${node.label}`)}`;
-    return (
-      <div
-        style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.acquirer}` }}
-        className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 bg-zinc-900/60 px-2 leading-4`}
-        title={[node.label, node.about, node.when].filter(Boolean).join("\n")}
-        {...hover}
-      >
-        <div className="flex items-center gap-1.5">
-          <Link to={link(href)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
-            {name}
-          </Link>
-          <span className="ml-auto shrink-0 text-[10.5px] text-zinc-500">{node.runs === "line" ? "Line" : "Direct run"}</span>
-          <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
-        </div>
-        {node.about && <div className="line-clamp-2 text-[11px] leading-4 text-zinc-400">{node.about}</div>}
-        {node.when && <div className="truncate text-[10.5px] text-zinc-600">{node.when}</div>}
-      </div>
+        name={<span className={`truncate text-[12px] ${node.ownWord ? "font-sans text-zinc-200" : "font-mono text-zinc-100"}`}>{strip(node.label, prefix)}</span>}
+        state={null}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
+        about={node.acquired || node.ownWord ? null : node.about ?? node.detail ?? null}
+        aboutLines={1}
+        stacked
+        facts={
+          node.ownWord
+            ? [["On", "their author's own word"]]
+            : [
+                ...(node.arrives ? [["Arrives", node.arrives] as [string, string]] : []),
+                [
+                  tags.length === 1 ? "Contract" : "Contracts",
+                  <span key="c">
+                    {tags.map((t, i) => (
+                      <span key={t}>
+                        {i > 0 && ", "}
+                        <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(t)}`)} className="hover:text-zinc-200 hover:underline">
+                          {strip(t, prefix)}
+                        </Link>
+                      </span>
+                    ))}
+                  </span>,
+                ],
+              ]
+        }
+      />
     );
   }
   if (node.kind === "line") {
     return (
-      <div
-        style={{ ...style, borderLeft: `3px solid ${FLOW_COLOR.line}` }}
-        className={`${base} flex-col items-stretch justify-center gap-0.5 border border-zinc-800 bg-zinc-900 px-2 leading-4`}
+      <FlowCard
+        style={style}
+        dim={dim}
+        hover={hover}
+        accent={authorityColor(node.authority)}
         title={[node.label, node.about, node.detail, node.triggers?.length ? `Triggers: ${node.triggers.join(", ")}` : null].filter(Boolean).join("\n")}
-        {...hover}
-      >
-        <div className="flex items-center gap-1.5">
+        name={
           <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.label)}`)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
             {strip(node.label, prefix)}
           </Link>
-          {node.authority && (
-            <span className="shrink-0 text-[10.5px] text-zinc-500" title={node.authority === "observe" ? "Capped at observe: it retains evidence and posts inbox items, but writes no Claims" : undefined}>
-              {node.authority === "observe" ? "observe · writes no Claims" : `at most ${node.authority}`}
-            </span>
-          )}
-          <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
-        </div>
-        <div className="line-clamp-3 text-[11px] leading-4 text-zinc-400">{node.about ?? node.detail}</div>
-        {node.about && <div className="truncate text-[10.5px] text-zinc-600">{node.detail}</div>}
-      </div>
+        }
+        state={<LineState enablement={node.enablement} />}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
+        about={node.about ?? null}
+        facts={[
+          ["At most", node.authority ? term("authority", node.authority).word.toLowerCase() : "unknown"],
+          ["On", (node.detail ?? "").replace(/^When /, "").replace(/ lands$/, " landing")],
+        ]}
+      />
     );
   }
-  // claim_type
+  // claim_type: tinted by the strongest Line that may write it (neutral: written only by hand)
   const kind = node.group ?? "";
   return (
-    <div style={{ ...style, borderLeft: `2px solid ${FLOW_COLOR.claimType}` }} className={`${base} pl-3 text-[12px]`} title={[node.detail, node.about].filter(Boolean).join("\n")} {...hover}>
+    <div
+      style={{ ...style, borderLeft: `2px solid ${authorityColor(node.authority)}` }}
+      className={`${base} pl-3 text-[12px]`}
+      title={[node.detail, node.about, node.authority ? `Written by Lines that may ${node.authority}` : "Written by hand only"].filter(Boolean).join("\n")}
+      {...hover}
+    >
       <Link
         to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?view=claim-types&claim_type=${encodeURIComponent(node.detail ?? "")}`)}
         className="truncate font-mono text-zinc-300 hover:underline"
@@ -410,6 +429,100 @@ function FlowCell({
         </span>
       )}
       <FocusButton id={node.id} label={node.label} onFocus={onFocus} />
+    </div>
+  );
+}
+
+/** What the colors mean: a Line's max authority (and the ClaimTypes its edges reach); the dot, whether it runs. */
+function AuthorityLegend() {
+  const swatch = (color: string, label: string, help: string) => (
+    <span className="inline-flex items-center gap-1.5" title={help}>
+      <span className="inline-block h-2.5 w-[3px]" style={{ background: color }} />
+      {label}
+    </span>
+  );
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-400">
+      {swatch(AUTHORITY_COLOR.settle, "May settle", term("authority", "settle").meaning)}
+      {swatch(AUTHORITY_COLOR.propose, "Proposes for review", term("authority", "propose").meaning)}
+      {swatch(AUTHORITY_COLOR.observe, "Observes only", "Observe: writes no Claims; posts to its inbox")}
+      {swatch(AUTHORITY_COLOR.none, "By hand", "No Line writes it: written by an agent or a person")}
+      <span className="inline-flex items-center gap-1.5">
+        <HealthDot tone="ok" title="Running" /> Running
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <HealthDot tone="off" title="Not enabled" /> Not enabled
+      </span>
+    </div>
+  );
+}
+
+const authorityColor = (authority: string | undefined) =>
+  authority === "settle" || authority === "propose" || authority === "observe" ? AUTHORITY_COLOR[authority] : AUTHORITY_COLOR.none;
+
+/** A Line's enablement as the health dot: running green, stalled amber, stopped red, never enabled hollow. */
+function LineState({ enablement }: { enablement: string | null | undefined }) {
+  if (enablement === undefined) return null;
+  const word = enablement ? term("line", enablement).word : "Not enabled";
+  const tone = enablement === "running" ? "ok" : enablement ? (term("line", enablement).signal ?? "off") : "off";
+  return <HealthDot tone={tone} title={word} />;
+}
+
+type Fact = [label: string, value: ReactNode];
+
+function FlowCard({
+  style,
+  dim,
+  hover,
+  accent,
+  dashed = false,
+  title,
+  name,
+  state,
+  focus,
+  about,
+  aboutLines = 2,
+  stacked = false,
+  facts,
+}: {
+  style: CSSProperties;
+  dim: boolean;
+  hover: { onMouseEnter: () => void; onMouseLeave: () => void };
+  accent: string;
+  dashed?: boolean;
+  title: string;
+  name: ReactNode;
+  state: ReactNode;
+  focus: ReactNode;
+  about: string | null;
+  aboutLines?: 1 | 2;
+  /** One fact per row (sources) instead of one row of facts, the last truncating. */
+  stacked?: boolean;
+  facts: Fact[];
+}) {
+  return (
+    <div
+      style={{ ...style, borderLeft: `3px solid ${accent}` }}
+      className={`group absolute flex flex-col overflow-hidden border border-zinc-800 ${dashed ? "border-dashed bg-zinc-950" : "bg-zinc-900/70"} px-2 pb-1.5 pt-1.5 transition-opacity ${dim ? "opacity-25" : ""}`}
+      title={title}
+      {...hover}
+    >
+      <div className="flex min-w-0 items-center gap-1.5 leading-4">
+        {name}
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          {state}
+          {focus}
+        </span>
+      </div>
+      {about && <div className={`mt-0.5 text-[11px] leading-4 text-zinc-400 ${aboutLines === 1 ? "truncate" : "line-clamp-2"}`}>{about}</div>}
+      <dl className={`mt-auto flex min-w-0 whitespace-nowrap text-[10.5px] leading-4 ${stacked ? "flex-col" : "gap-x-3"}`}>
+        {facts.map(([label, value], i) => (
+          <div key={label} className={`flex min-w-0 gap-1 ${stacked || i === facts.length - 1 ? "" : "shrink-0"}`}>
+            <dt className="shrink-0 uppercase tracking-wide text-zinc-600">{label}</dt>
+            <dd className="min-w-0 truncate text-zinc-400">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

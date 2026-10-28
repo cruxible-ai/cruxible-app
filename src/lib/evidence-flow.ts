@@ -55,8 +55,13 @@ export interface FlowNode {
   contracts?: string[];
   /** source: the pseudo source for statements on their author's own word. */
   ownWord?: boolean;
-  /** line: the Line's max authority. */
-  authority?: string;
+  /**
+   * line, acquirer: the Line's max authority; claim_type: the highest max
+   * authority of the Lines that may write it (absent: only written by hand).
+   */
+  authority?: Authority;
+  /** line, acquirer: whether the Line is enabled (null: never enabled). */
+  enablement?: string | null;
   /** line: its landing Triggers. */
   triggers?: string[];
   /** claim_type: its first Subject kind (the group it renders under). */
@@ -65,9 +70,16 @@ export interface FlowNode {
   required?: boolean;
 }
 
+export type Authority = "observe" | "propose" | "settle";
+const RANK: Record<Authority, number> = { observe: 0, propose: 1, settle: 2 };
+const asAuthority = (value: string | undefined): Authority | undefined =>
+  value === "observe" || value === "propose" || value === "settle" ? value : undefined;
+
 export interface FlowEdge {
   from: string;
   to: string;
+  /** The max authority of the Line the edge leaves (line → ClaimType, fetching Line → source). */
+  authority?: Authority;
   /** The logical sources this edge carries (absent: any under the contract). */
   sources?: string[];
   /** → claim_type where the ClaimType requires a Capture. */
@@ -108,6 +120,8 @@ export interface FlowInputs {
   lineAuthority?: ReadonlyMap<string, string>;
   /** What each Line does, in a line, per bare Line name. */
   lineAbout?: ReadonlyMap<string, string>;
+  /** Each Line's enablement per bare Line name (null: never enabled). */
+  lineEnablement?: ReadonlyMap<string, string | null>;
   /** Where sources come from: the Lines and direct runs that retain them. */
   acquirers?: readonly AcquirerInput[];
 }
@@ -197,16 +211,21 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     const targets = [...new Set(acquirer.sources)].map(nodeId.source).filter((id) => nodes.has(id));
     if (!targets.length) continue;
     const id = nodeId.acquirer(acquirer.runs, acquirer.name);
+    const authority = acquirer.runs === "line" ? asAuthority(inputs.lineAuthority?.get(acquirer.name)) : undefined;
     nodes.set(id, {
       id,
       kind: "acquirer",
       label: acquirer.name,
       runs: acquirer.runs,
+      ...(authority ? { authority } : {}),
+      ...(acquirer.runs === "line" && inputs.lineEnablement?.has(acquirer.name)
+        ? { enablement: inputs.lineEnablement.get(acquirer.name) ?? null }
+        : {}),
       ...(acquirer.about ? { about: acquirer.about } : {}),
       ...(acquirer.when ? { when: acquirer.when } : {}),
     });
     for (const to of targets.sort(byText)) {
-      addEdge({ from: id, to });
+      addEdge({ from: id, to, ...(authority ? { authority } : {}) });
       nodes.get(to)!.acquired = true;
     }
   }
@@ -225,7 +244,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
   for (const [line, lineReads] of [...reads].sort(([a], [b]) => byText(a, b))) {
     const id = nodeId.line(line);
     const what = lineReads.map((r) => (r.sources ? r.sources.join(" or ") : `any ${r.contract} landing`)).join("; ");
-    const authority = inputs.lineAuthority?.get(line);
+    const authority = asAuthority(inputs.lineAuthority?.get(line));
     const about = inputs.lineAbout?.get(line);
     nodes.set(id, {
       id,
@@ -235,6 +254,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       triggers: triggersOf.get(line) ?? [],
       ...(authority ? { authority } : {}),
       ...(about ? { about } : {}),
+      ...(inputs.lineEnablement?.has(line) ? { enablement: inputs.lineEnablement.get(line) ?? null } : {}),
     });
     // source → line
     for (const node of nodes.values()) {
@@ -255,14 +275,23 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     const id = nodeId.claimType(row.predicate);
     const required = row.evidence_requirement === "captured";
     const before = edges.length;
+    let strongest: Authority | undefined;
     // line → claim_type: the Line reads a landing it accepts (a Line capped at observe writes no Claims).
     for (const [line, lineReads] of reads) {
-      if (inputs.lineAuthority?.get(line) === "observe") continue;
+      const authority = asAuthority(inputs.lineAuthority?.get(line));
+      if (authority === "observe") continue;
       for (const r of lineReads) {
         for (const a of accepted) {
           const shared = meet(r, a);
           if (shared === false) continue;
-          addEdge({ from: nodeId.line(line), to: id, ...(shared ? { sources: shared } : {}), ...(required ? { required } : {}) });
+          addEdge({
+            from: nodeId.line(line),
+            to: id,
+            ...(shared ? { sources: shared } : {}),
+            ...(required ? { required } : {}),
+            ...(authority ? { authority } : {}),
+          });
+          if (authority && (!strongest || RANK[authority] > RANK[strongest])) strongest = authority;
         }
       }
     }
@@ -284,6 +313,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       label: row.name,
       detail: row.predicate,
       ...(row.description ? { about: row.description } : {}),
+      ...(strongest ? { authority: strongest } : {}),
       group: [...(row.subject_kinds ?? [])].sort(byText)[0] ?? "",
       required,
     });
@@ -376,9 +406,9 @@ export const COLUMNS = [
 ] as const;
 
 const HEIGHT: Record<PlacedKind, number> = {
-  acquirer: 76,
-  source: 58,
-  line: 92,
+  acquirer: 84,
+  source: 64,
+  line: 84,
   claim_type: 18,
   kind: 20,
   heading: 22,

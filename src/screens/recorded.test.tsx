@@ -196,16 +196,16 @@ describe("recorded reference world", () => {
     // where each source comes from: the Line that fetches it (its host and schedule) or a direct run (its Procedure's gist)
     const kevDaily = within(flow.getByRole("link", { name: "kev-daily" }).closest("[title]") as HTMLElement);
     expect(kevDaily.getByText(/^From /)).toBeInTheDocument();
-    expect(kevDaily.getByText("Line")).toBeInTheDocument();
+    expect(kevDaily.getByText("Runs")).toBeInTheDocument();
     const sbomAcquire = within(flow.getByRole("link", { name: "sbom-acquire" }).closest("[title]") as HTMLElement);
     expect(sbomAcquire.getByText("Read one CycloneDX JSON SBOM from the attached workspace")).toBeInTheDocument();
-    expect(sbomAcquire.getByText("When an agent runs it")).toBeInTheDocument();
+    expect(sbomAcquire.getByText("when an agent runs it")).toBeInTheDocument();
     // a source says how it arrives; who retains it is on hover
     const sbom = flow.getByText("cyclonedx.sbom").closest("[title]") as HTMLElement;
     expect(within(sbom).getByText("Workspace file")).toBeInTheDocument();
     expect(flow.getByText("cisa.kev.catalog").closest("[title]")).toHaveAttribute("title", expect.stringContaining("Retained by Line security.kev-daily"));
     // the contract is a tag on the source, linked
-    expect(flow.getAllByRole("link", { name: "security.fetched-v1" })[0]).toHaveAttribute("href", `${I}/contracts/security.fetched-v1`);
+    expect(flow.getAllByRole("link", { name: "fetched-v1" })[0]).toHaveAttribute("href", `${I}/contracts/security.fetched-v1`);
     // Lines in their own column, named without the shared kit namespace, linked
     expect(flow.getAllByRole("link", { name: "repo-parse.cruxible-ci" })[0]).toHaveAttribute("href", `${I}/lines/security.repo-parse.cruxible-ci`);
     expect(screen.getByText("Names under", { exact: false })).toHaveTextContent("Names under security.");
