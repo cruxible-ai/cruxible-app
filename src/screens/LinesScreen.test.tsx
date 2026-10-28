@@ -5,7 +5,7 @@ import { renderApp } from "@/test/render";
 afterEach(cleanup);
 
 describe("Lines", () => {
-  it("reads each Line from what starts it to what it ends in, grouped by state, with its last run and what needs you", async () => {
+  it("reads each Line from what starts it to what it ends in, running first, with its last run and what needs you", async () => {
     renderApp("/i/inst_fixture/lines");
     const main = within(await screen.findByRole("main"));
     const kev = await main.findByRole("link", { name: "kev-triage" });
@@ -17,8 +17,6 @@ describe("Lines", () => {
     expect(await row.findByText(/^(settles|proposes|posts to|lands)$/)).toBeInTheDocument();
     const cve = within(main.getByRole("link", { name: "cve-applicability" }).closest("tr")!);
     expect(await cve.findByText("Never run")).toBeInTheDocument();
-    // grouped by state: a group line per state, with its count
-    expect(main.getByText("Running", { selector: "span.font-semibold" })).toBeInTheDocument();
     // Procedure, mandates, authority and due work are columns to switch on
     expect(main.queryByRole("columnheader", { name: /Mandate/ })).toBeNull();
     expect(main.getByRole("button", { name: /Columns \(\d+ of \d+\)/ })).toBeInTheDocument();

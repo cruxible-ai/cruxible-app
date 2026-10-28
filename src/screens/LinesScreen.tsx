@@ -37,7 +37,7 @@ const stateRank = (row: LineRow) => {
  * starts it, what it ends in (the ClaimTypes it proposes or settles, the
  * sources it lands, its inbox; in its authority's color), its last run, and
  * what needs a person (its `next` rows and unread inbox, from the first `next`
- * page). Grouped by state until a column sorts; Procedure, mandates, max
+ * page). Running Lines first; Procedure, mandates, max
  * authority and due work are columns to switch on. Reads: the evidence-flow
  * model (useFlowModel), the orient lines and mandates sections, ⌈Lines/64⌉
  * get-batch calls for the Line cards (last run), one `next` page.
@@ -324,16 +324,6 @@ export function LinesScreen() {
             rows={rows}
             columns={columns}
             rowKey={(row) => row.line}
-            group={{
-              key: stateOf,
-              header: (members) => (
-                <span className="inline-flex items-baseline gap-2 text-[13px]">
-                  <LineStateDot state={members[0]!.enablement ?? null} />
-                  <span className="font-semibold text-zinc-100">{term("line", stateOf(members[0]!)).word}</span>
-                  <span className="font-mono text-[12px] text-zinc-500">{members.length}</span>
-                </span>
-              ),
-            }}
             label="Lines"
             partial={lines.data.truncated ? `the first ${rows.length} Lines the daemon listed` : null}
             note={
