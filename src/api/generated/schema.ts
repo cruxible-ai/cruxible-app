@@ -14130,7 +14130,8 @@ export interface components {
          *       ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an
          *       operational family:
          *       ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,
-         *       ``predictions``, ``mandates``), the principal registry (``principals``),
+         *       ``predictions``, ``mandates``), the logical sources runs landed
+         *       Captures from (``sources``), the principal registry (``principals``),
          *       the governed policies in force (``policies``), the accepted generations
          *       newest first (``generations``), the Subject graph (``graph``), the
          *       pins between live definitions (``pins``) or what just happened, newest
@@ -14172,7 +14173,7 @@ export interface components {
             attention?: components["schemas"]["OrientAttention"] | null;
             kind_detail?: components["schemas"]["OrientKindDetail"] | null;
             /** Section */
-            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity") | null;
+            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources") | null;
             /** Documents */
             documents?: components["schemas"]["OrientDocument"][] | null;
             /** Procedures */
@@ -14193,6 +14194,10 @@ export interface components {
             captures?: components["schemas"]["OrientCapture"][] | null;
             /** Capture Contracts */
             capture_contracts?: components["schemas"]["OrientCaptureContract"][] | null;
+            /** Sources */
+            sources?: components["schemas"]["OrientSource"][] | null;
+            /** Sources Unattributed */
+            sources_unattributed?: number | null;
             /** Predictions */
             predictions?: components["schemas"]["OrientPrediction"][] | null;
             /** Mandates */
@@ -14221,6 +14226,80 @@ export interface components {
              * @default []
              */
             next?: string[];
+        };
+        /**
+         * OrientSource
+         * @description One logical source runs have landed Captures from, cited or not.
+         *
+         *     ``landings`` counts its landings (the ``capture_landed`` events the
+         *     activity feed lists), ``latest`` is the most recent, and ``contracts`` the
+         *     contract versions they were landed under, each with its count.
+         */
+        OrientSource: {
+            /** Logical Source */
+            logical_source: string;
+            /** Landings */
+            landings: number;
+            latest: components["schemas"]["OrientSourceLanding"];
+            /** Contracts */
+            contracts: components["schemas"]["OrientSourceContract"][];
+        };
+        /**
+         * OrientSourceContract
+         * @description One CaptureContract version a logical source's landed Captures are under.
+         *
+         *     ``version`` counts that contract's accepted versions at the current head; it
+         *     is absent when the digest names no accepted version there (``contract``
+         *     then reads ``unresolved:<digest>``).
+         */
+        OrientSourceContract: {
+            /** Contract */
+            contract: string;
+            /** Version */
+            version?: number | null;
+            /** Landings */
+            landings: number;
+        };
+        /**
+         * OrientSourceLanding
+         * @description A logical source's latest landing: the run that landed it and the Capture it landed.
+         *
+         *     ``landed_at`` is the landing record's instant, ``run`` and ``line`` the run
+         *     that recorded it (``line`` absent for a direct run). ``capture`` is the
+         *     Capture's handle and ``ref`` its ``Capture:<digest>``; ``observed_at`` and
+         *     ``size`` come from its envelope; ``status``, ``status_detail`` and
+         *     ``erased`` say, as the Capture card does, whether the store can still
+         *     produce it. ``unavailable`` marks a landing whose payload or envelope can
+         *     no longer be read: the landing is listed by its run alone.
+         */
+        OrientSourceLanding: {
+            /**
+             * Landed At
+             * Format: date-time
+             */
+            landed_at: string;
+            /** Run */
+            run: string;
+            /** Line */
+            line?: string | null;
+            /** Capture */
+            capture?: string | null;
+            /** Ref */
+            ref?: string | null;
+            /** Observed At */
+            observed_at?: string | null;
+            /** Size */
+            size?: number | null;
+            /** Status */
+            status?: ("available" | "unavailable") | null;
+            /** Status Detail */
+            status_detail?: string | null;
+            erased?: components["schemas"]["GetCaptureErasure"] | null;
+            /**
+             * Unavailable
+             * @default false
+             */
+            unavailable?: boolean;
         };
         /**
          * OrientSubjectKind
@@ -26727,7 +26806,7 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: string | null;
-                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity") | null;
+                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources") | null;
                 limit?: number;
                 cursor?: string | null;
                 /** @description An accepted generation's Git OID, or a unique prefix of at least 12 hex characters; the four coordinate fields also pin one. */

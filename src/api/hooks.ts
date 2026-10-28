@@ -292,6 +292,29 @@ function useOrientSectionAll<
   }, enabled);
 }
 
+/**
+ * Each logical source's landings: how many, the latest (its Capture, when,
+ * size, the Line or run that landed it, whether its body is still there) and
+ * the contracts it lands under. Read live at the head (the section says so),
+ * with the landings whose source couldn't be read counted apart.
+ */
+export function useSourceLandings(enabled = true) {
+  const orient = useOrientFetch();
+  return usePinnedQuery("orient-section-sources", [], async (coordinate) => {
+    const rows: NonNullable<OrientResult["sources"]>[number][] = [];
+    let unattributed = 0;
+    let cursor: string | undefined;
+    for (let page = 0; page < MAX_SECTION_PAGES; page += 1) {
+      const result = await orient(coordinate, { section: "sources", limit: ORIENT_PAGE, ...(cursor !== undefined ? { cursor } : {}) });
+      rows.push(...(result.sources ?? []));
+      if (page === 0) unattributed = result.sources_unattributed ?? 0;
+      if (!result.next_cursor) return { rows, unattributed, truncated: false };
+      cursor = result.next_cursor;
+    }
+    return { rows, unattributed, truncated: true };
+  }, enabled);
+}
+
 /** Every ClaimType with cardinality, value type, evidence and staleness rules. */
 export function useClaimTypes(enabled = true) {
   return useOrientSectionAll("claim_types", enabled);

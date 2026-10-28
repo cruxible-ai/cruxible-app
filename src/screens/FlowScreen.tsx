@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair } from "lucide-react";
-import { useCards, useClaimTypes, useGetBatch, useInbox, useInstanceId, useLines, useSourceModel } from "@/api/hooks";
+import { useCards, useClaimTypes, useGetBatch, useInbox, useInstanceId, useLines, useSourceLandings, useSourceModel } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
@@ -29,7 +29,7 @@ import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { LegendRow, SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { wakeOf } from "@/lib/schedule";
-import { sentence } from "@/lib/text";
+import { formatRelative, sentence } from "@/lib/text";
 
 /**
  * Evidence flow: sources -> the Lines that read their landings -> the
@@ -161,6 +161,9 @@ export function FlowScreen() {
   }, [shown, query]);
   const lit = useMemo(() => (shown && hover ? related(shown, hover) : matches), [shown, hover, matches]);
   const unread = useInbox(undefined, "unread", 200);
+  // When each source last landed, and how often (read live from the landing records).
+  const landings = useSourceLandings();
+  const landingsOf = useMemo(() => new Map((landings.data?.rows ?? []).map((row) => [row.logical_source, row] as const)), [landings.data]);
   // Names share the kit namespace ("security."): say it once, drop it from labels.
   // (Line, Procedure and Trigger names only: Subject kinds can come from other namespaces, such as core's semantic.*.)
   const prefix = useMemo(
@@ -275,6 +278,7 @@ export function FlowScreen() {
                 link={link}
                 unread={unread.data ? { count: unread.data.entries.length, more: unread.data.truncated === true } : null}
                 triggerWords={triggerWords}
+                landingsOf={landings.data ? landingsOf : null}
               />
             ))}
           </div>
@@ -314,7 +318,10 @@ function FlowCell({
   link,
   unread,
   triggerWords,
+  landingsOf,
 }: {
+  /** Each source's landings (null while the read loads). */
+  landingsOf: ReadonlyMap<string, SourceLandings> | null;
   unread: { count: number; more: boolean } | null;
   /** Each Line's Triggers in words (null while its card loads). */
   triggerWords: ReadonlyMap<string, readonly string[] | null>;
@@ -422,6 +429,7 @@ function FlowCell({
           node.ownWord
             ? [["On", "their author's own word"]]
             : [
+                landedFact(landingsOf, node.label, instanceId, link),
                 ...(node.arrives ? [["Arrives", node.arrives] as [string, string]] : []),
                 [
                   tags.length === 1 ? "Contract" : "Contracts",
@@ -544,6 +552,30 @@ function LineState({ enablement }: { enablement: string | null | undefined }) {
 }
 
 type Fact = [label: string, value: ReactNode];
+type SourceLandings = NonNullable<ReturnType<typeof useSourceLandings>["data"]>["rows"][number];
+
+/** When a source last landed, linked to that Capture, and how many times it has landed. */
+function landedFact(landingsOf: ReadonlyMap<string, SourceLandings> | null, source: string, instanceId: string, link: (path: string) => string): Fact {
+  if (!landingsOf) return ["Landed", "…"];
+  const row = landingsOf.get(source);
+  if (!row) return ["Landed", "never"];
+  const latest = row.latest;
+  const when = formatRelative(latest.landed_at);
+  const gone = latest.erased ? " (erased)" : latest.unavailable ? " (unavailable)" : "";
+  return [
+    "Landed",
+    <span key="landed" title={`${row.landings} ${row.landings === 1 ? "landing" : "landings"}; the latest ${latest.landed_at}${latest.line ? ` by ${latest.line}` : ""}`}>
+      {latest.ref ? (
+        <Link to={link(`/i/${instanceId}/ref/${encodeURIComponent(latest.ref)}`)} className="hover:text-zinc-200 hover:underline">
+          {when}
+        </Link>
+      ) : (
+        when
+      )}
+      {gone} · {row.landings.toLocaleString()}
+    </span>,
+  ];
+}
 
 function FlowCard({
   style,

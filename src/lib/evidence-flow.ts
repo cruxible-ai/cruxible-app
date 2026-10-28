@@ -420,7 +420,7 @@ export const COLUMNS = [
 const HEIGHT: Record<PlacedKind, number> = {
   acquirer: 84,
   inbox: 44,
-  source: 64,
+  source: 84,
   line: 84,
   claim_type: 18,
   kind: 20,
