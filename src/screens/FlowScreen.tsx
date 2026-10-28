@@ -114,7 +114,7 @@ export function FlowScreen() {
       sources: sources.data.sources.map((source) => ({
         id: source.id,
         contracts: source.contracts,
-        retainedBy: source.retainedBy.length ? `Retained by ${retainedByWords(source.retainedBy)}` : "Named by its Provider at run time",
+        retainedBy: source.retainedBy.length ? `Retained by ${retainedByWords(source.retainedBy)}` : "Named by whoever runs the fetch",
         ...describeSource(source.retainedBy),
       })),
       lineAbout: new Map(
@@ -175,10 +175,8 @@ export function FlowScreen() {
       <header>
         <h1 className="t-title">Evidence flow</h1>
         <p className="mt-1 max-w-3xl text-[13px] text-zinc-400">
-          How evidence moves: where each source comes from (a Line that fetches it, or a run an agent starts), the Lines
-          that read it when it lands, and the ClaimTypes those Lines may write.
-          A source no Line reads, and statements on their author's own word, go straight to the ClaimTypes that accept them.
-          Hover to trace; focus keeps only a path.
+          Where your evidence comes from and what it turns into. Each source is fetched on a schedule or added by an agent;
+          Lines read what arrives and propose facts or post items for review. Hover a card to trace its path.
         </p>
         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[13px] text-zinc-500">
           <span>
