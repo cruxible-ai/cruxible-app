@@ -6,7 +6,8 @@ import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { AuthorityBar, AuthorityLegend } from "@/components/AuthorityLegend";
 import { Stat, StatsRow } from "@/components/StatsRow";
-import { DueCount, LineStateDot } from "@/screens/LineScreen";
+import { DueCount } from "@/screens/LineScreen";
+import { LineStateDot } from "@/components/LineStateDot";
 import { Page, PageHeader } from "@/components/Page";
 import { DataTable, useTableState, type Column } from "@/components/DataTable";
 import { LoadState, Panel } from "@/components/Panel";
@@ -70,6 +71,7 @@ export function LinesScreen() {
     });
     return byLine;
   }, [cards.results, listed]);
+  const inProgress = rows.filter((row) => lastRun.get(lineName(row.line))?.status === "running").length;
   const mandatesByProcedure = useMemo(() => {
     const out = new Map<string, Mandate[]>();
     for (const mandate of mandates.data?.rows ?? []) {
@@ -103,7 +105,7 @@ export function LinesScreen() {
           const name = nameOf(row);
           return (
             <span className="inline-flex items-baseline gap-2">
-              <LineStateDot state={row.enablement ?? null} />
+              <LineStateDot state={row.enablement ?? null} running={lastRun.get(name)?.status === "running"} />
               <Link
                 to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)}
                 title={name}
@@ -305,6 +307,7 @@ export function LinesScreen() {
                   const n = rows.filter((row) => stateOf(row) === state).length;
                   return n > 0 ? <Stat key={state} n={n} label={term("line", state).word.toLowerCase()} /> : null;
                 })}
+                {inProgress > 0 && <Stat n={inProgress} label="running now" />}
                 {short.prefix && (
                   <span>
                     Names under <span className="font-mono text-zinc-300">{short.prefix}</span>

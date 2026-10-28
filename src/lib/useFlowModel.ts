@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useCards, useClaimTypes, useGetBatch, useLines, useSourceModel } from "@/api/hooks";
+import { useClaimTypes, useGetBatch, useLines, useSourceModel } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { arrivalWords, gist, lineGist, retainedByWords, stepKind, urlWords, type Retention } from "@/lib/definitions";
 import { buildFlow, readClaimTypeAccepts, type AcceptedEvidence, type AcquirerInput, type FlowModel } from "@/lib/evidence-flow";
@@ -20,16 +20,23 @@ export function useFlowModel() {
   const sources = useSourceModel();
   // Every Line's card, for its Triggers in words (a Line may have several: a schedule and landings).
   const lineNames = useMemo(() => (lines.data?.rows ?? []).map((row) => lineName(row.line)), [lines.data]);
-  const lineCards = useCards(lineNames.map((line) => `Line:${line}`));
+  // One get-batch in the daemon's order: the same request (and cache entry) the Lines table makes.
+  const lineCards = useGetBatch(lineNames.map((line) => `Line:${line}`));
   const triggerWords = useMemo(
     () =>
       new Map(
         lineNames.map((line, i) => {
-          const card = cardOf(lineCards[i], "line");
+          const card = cardOf(lineCards.results[i], "line");
           return [line, card ? (card.triggers ?? []).map((t) => wakeOf(t.fires).words.replace(/^when /, "")) : null] as const;
         }),
       ),
-    [lineNames, lineCards],
+    [lineNames, lineCards.results],
+  );
+  // Lines whose newest run has not finished: their dot pulses.
+  const runningLines = useMemo(
+    () =>
+      new Set(lineNames.filter((_, i) => cardOf(lineCards.results[i], "line")?.recent_runs?.[0]?.status === "running")),
+    [lineNames, lineCards.results],
   );
   const proofs = useGetBatch(
     (claimTypes.data?.rows ?? []).filter((row) => (row.evidence ?? []).length > 0).map((row) => `ClaimType:${row.predicate}`),
@@ -110,5 +117,5 @@ export function useFlowModel() {
 
   const error = claimTypes.error ?? lines.error ?? sources.error;
   const capped = Boolean(sources.data?.truncated || claimTypes.data?.truncated);
-  return { model, triggerWords, proofs, error, capped };
+  return { model, triggerWords, runningLines, proofs, error, capped };
 }

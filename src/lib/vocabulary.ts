@@ -89,8 +89,8 @@ const STANCE: Record<string, Term> = {
 const LINE: Record<string, Term> = {
   live: t("Live", "Live: the Line is defined in accepted state"),
   retired: t("Retired", "Retired: the Line no longer runs"),
-  running: t("Running", "Running: enabled, and its triggers start runs"),
-  enabled: t("Running", "Running: enabled, and its triggers start runs"),
+  running: t("Armed", "Armed: enabled; its Triggers start runs when they fire"),
+  enabled: t("Armed", "Armed: enabled; its Triggers start runs when they fire"),
   stalled: t("Stalled", "Stalled: enabled but not making progress; next names the repair", "wrong"),
   stopped: t("Stopped", "Stopped: enabled once, now stopped; the stop reason says why"),
   disabled: t("Disabled", "Disabled: turned off"),

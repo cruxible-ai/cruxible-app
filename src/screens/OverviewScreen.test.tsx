@@ -49,7 +49,7 @@ describe("Overview", () => {
     expect(feed.getByText("posted to the inbox")).toBeInTheDocument();
     const refused = feed.getByText("ran · refused").parentElement!;
     expect(within(refused).getByRole("img", { name: "Wrong or blocked" })).toBeInTheDocument();
-    expect(feed.getByText("running → stopped")).toBeInTheDocument();
+    expect(feed.getByText("armed → stopped")).toBeInTheDocument();
     fireEvent.click(feed.getByRole("button", { name: "Show older activity" }));
     expect(await feed.findByText("let due work lapse")).toBeInTheDocument();
     expect(feed.queryByRole("button", { name: "Show older activity" })).toBeNull();

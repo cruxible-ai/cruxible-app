@@ -16,13 +16,13 @@ import {
   type Placed,
 } from "@/lib/evidence-flow";
 import { AUTHORITY_COLOR } from "@/lib/palette";
-import { HealthDot } from "@/components/Chip";
 import { term } from "@/lib/vocabulary";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { useFlowModel } from "@/lib/useFlowModel";
 import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { AuthorityLegend } from "@/components/AuthorityLegend";
+import { LineStateDot } from "@/components/LineStateDot";
 import { formatRelative } from "@/lib/text";
 
 /**
@@ -42,7 +42,7 @@ export function FlowScreen() {
   const focus = params.get("focus");
   const [hover, setHover] = useState<string | null>(null);
 
-  const { model, triggerWords, proofs, error, capped } = useFlowModel();
+  const { model, triggerWords, runningLines, proofs, error, capped } = useFlowModel();
 
   const clearFocus = useCallback(() => {
     const next = new URLSearchParams(params);
@@ -181,6 +181,7 @@ export function FlowScreen() {
                 link={link}
                 unread={unread.data ? { count: unread.data.entries.length, more: unread.data.truncated === true } : null}
                 triggerWords={triggerWords}
+                runningLines={runningLines}
                 landingsOf={landings.data ? landingsOf : null}
               />
             ))}
@@ -221,6 +222,7 @@ function FlowCell({
   link,
   unread,
   triggerWords,
+  runningLines,
   landingsOf,
 }: {
   /** Each source's landings (null while the read loads). */
@@ -228,6 +230,7 @@ function FlowCell({
   unread: { count: number; more: boolean } | null;
   /** Each Line's Triggers in words (null while its card loads). */
   triggerWords: ReadonlyMap<string, readonly string[] | null>;
+  runningLines: ReadonlySet<string>;
   placed: Placed;
   prefix: string;
   dim: boolean;
@@ -280,7 +283,7 @@ function FlowCell({
             {strip(node.label, prefix)}
           </Link>
         }
-        state={node.runs === "line" ? <LineState enablement={node.enablement} /> : null}
+        state={node.runs === "line" ? <LineStateDot state={node.enablement} running={runningLines.has(node.label)} /> : null}
         focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         about={node.about ?? null}
         facts={[
@@ -373,7 +376,7 @@ function FlowCell({
             {strip(node.label, prefix)}
           </Link>
         }
-        state={<LineState enablement={node.enablement} />}
+        state={<LineStateDot state={node.enablement} running={runningLines.has(node.label)} />}
         focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         about={node.about ?? null}
         // Its authority is the card's color (and the tooltip's first line after the name).
@@ -423,13 +426,6 @@ function traceColor(node: FlowNode | undefined): string {
 const authorityColor = (authority: string | undefined) =>
   authority === "settle" || authority === "propose" || authority === "observe" ? AUTHORITY_COLOR[authority] : AUTHORITY_COLOR.none;
 
-/** A Line's enablement as the health dot: running green, stalled amber, stopped red, never enabled hollow. */
-function LineState({ enablement }: { enablement: string | null | undefined }) {
-  if (enablement === undefined) return null;
-  const word = enablement ? term("line", enablement).word : "Not enabled";
-  const tone = enablement === "running" ? "ok" : enablement ? (term("line", enablement).signal ?? "off") : "off";
-  return <HealthDot tone={tone} title={word} />;
-}
 
 type Fact = [label: string, value: ReactNode];
 type SourceLandings = NonNullable<ReturnType<typeof useSourceLandings>["data"]>["rows"][number];

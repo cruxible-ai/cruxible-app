@@ -45,13 +45,13 @@ const HEALTH_DOT: Record<HealthTone, string> = {
 };
 
 /** A health dot: green working, hollow not observed or not set up, amber or red as everywhere. */
-export function HealthDot({ tone, title }: { tone: HealthTone; title: string }) {
+export function HealthDot({ tone, title, pulse = false }: { tone: HealthTone; title: string; pulse?: boolean }) {
   return (
     <span
       role="img"
       aria-label={title}
       title={title}
-      className={`inline-block h-1.5 w-1.5 shrink-0 self-center rounded-full ${HEALTH_DOT[tone]}`}
+      className={`inline-block h-1.5 w-1.5 shrink-0 self-center rounded-full ${HEALTH_DOT[tone]} ${pulse ? "motion-safe:animate-pulse" : ""}`}
     />
   );
 }

@@ -34,7 +34,7 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden /> Wrong
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden /> Running
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden title="Pulses while a run is in progress" /> Armed
             </li>
             <li className="flex items-center gap-1.5">
               <span className="inline-block h-1.5 w-1.5 rounded-full border border-zinc-500" aria-hidden /> Off

@@ -34,6 +34,7 @@ import { runMarks } from "@/lib/run-marks";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime, formatWhen, sentence } from "@/lib/text";
+import { LineStateDot } from "@/components/LineStateDot";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { wakeOf } from "@/lib/schedule";
 import { term } from "@/lib/vocabulary";
@@ -76,7 +77,7 @@ export function LineScreen() {
               <span className="inline-flex items-center gap-3">
                 {lineCard.lifecycle !== "live" && <Chip concept="line" value={lineCard.lifecycle} />}
                 <span className="inline-flex items-center gap-1.5">
-                  <LineStateDot state={enablement?.state ?? null} />
+                  <LineStateDot state={enablement?.state ?? null} running={lineCard.recent_runs?.[0]?.status === "running"} />
                   <Chip concept="line" value={enablement ? enablement.state : "not_enabled"} />
                 </span>
               </span>
@@ -334,12 +335,6 @@ export function DueCount({ due, scheduled }: { due: number; scheduled: number })
       {due} / {scheduled}
     </span>
   );
-}
-
-/** A Line's enablement as the health dot: running green, stalled amber, stopped red, never enabled hollow. */
-export function LineStateDot({ state }: { state: string | null }) {
-  const tone = state === "running" ? "ok" : state ? (term("line", state).signal ?? "off") : "off";
-  return <HealthDot tone={tone} title={state ? term("line", state).word : "Not enabled"} />;
 }
 
 /** Shown while a Line was never enabled: it runs on nothing until someone enables it. */

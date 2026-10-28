@@ -25,7 +25,10 @@ export function AuthorityLegend({ byHand = true }: { byHand?: boolean }) {
       {swatch(AUTHORITY_COLOR.observe, "Observes only", "Observe: writes no Claims; posts to its inbox")}
       {byHand && swatch(AUTHORITY_COLOR.none, "By hand", "No Line writes it: written by an agent or a person")}
       <span className="inline-flex items-center gap-1.5">
-        <HealthDot tone="ok" title="Running" /> Running
+        <HealthDot tone="ok" title="Armed: enabled; its Triggers start runs" /> Armed
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <HealthDot tone="ok" title="Running: a run is in progress" pulse /> Running
       </span>
       <span className="inline-flex items-center gap-1.5">
         <HealthDot tone="off" title="Not enabled" /> Not enabled
