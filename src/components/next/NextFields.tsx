@@ -80,7 +80,9 @@ export function RepairText({ item }: { item: NextItem }) {
       )}
       {item.repair_requires && (
         <span className={item.repair ? "ml-2" : undefined}>
-          Repair needs {item.repair_requires.tier} ({item.repair_requires.because.join(", ")})
+          {item.repair
+            ? `Needs a ${item.repair_requires.tier} token (${item.repair_requires.because.join(", ")})`
+            : `The repair needs a ${item.repair_requires.tier} token (${item.repair_requires.because.join(", ")}); this console reads without one, so next leaves it out`}
         </span>
       )}
     </div>
