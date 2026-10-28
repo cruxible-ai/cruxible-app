@@ -15,7 +15,7 @@ export type ActivityFamily = "generation" | "run" | "capture" | "inbox" | "occur
 export const FAMILY: Record<ActivityFamily, { color: string; legend: string }> = {
   generation: { color: PALETTE.fuchsia, legend: "Accepted into state" },
   run: { color: PALETTE.sky, legend: "Runs" },
-  capture: { color: PALETTE.teal, legend: "Evidence landed" },
+  capture: { color: PALETTE.blue, legend: "Evidence landed" },
   inbox: { color: PALETTE.violet, legend: "Inbox" },
   occurrence: { color: PALETTE.indigo, legend: "Work coming due" },
   line: { color: PALETTE.slate, legend: "Line state" },

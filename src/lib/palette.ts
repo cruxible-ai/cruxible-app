@@ -10,7 +10,6 @@
 export const PALETTE = {
   sky: "#38bdf8",
   indigo: "#818cf8",
-  teal: "#2dd4bf",
   /** Cruxible teal (the brand mark's color). */
   brand: "#00A595",
   violet: "#a78bfa",
@@ -19,6 +18,7 @@ export const PALETTE = {
   emerald: "#34d399",
   slate: "#94a3b8",
   stone: "#a8a29e",
+  zinc: "#d4d4d8",
 } as const;
 
 export type StepRoleColor =
@@ -36,11 +36,11 @@ export type StepRoleColor =
 export const ROLE_COLOR: Record<StepRoleColor, { color: string; legend: string }> = {
   trigger: { color: PALETTE.sky, legend: "What starts it" },
   input: { color: PALETTE.indigo, legend: "Input and parameters" },
-  source: { color: PALETTE.teal, legend: "Retains evidence" },
+  source: { color: PALETTE.blue, legend: "Retains evidence" },
   tap: { color: PALETTE.violet, legend: "Reads state" },
-  call: { color: PALETTE.blue, legend: "Calls a Provider" },
+  call: { color: PALETTE.stone, legend: "Calls a Provider" },
   invoke: { color: PALETTE.fuchsia, legend: "Runs a Procedure" },
-  guard: { color: PALETTE.stone, legend: "Checks a condition" },
+  guard: { color: PALETTE.zinc, legend: "Checks a condition" },
   shape: { color: PALETTE.slate, legend: "Reshapes data" },
   terminal: { color: PALETTE.emerald, legend: "Writes or returns" },
 };
@@ -61,7 +61,7 @@ export const AUTHORITY_COLOR = {
 
 export const FLOW_COLOR = {
   acquirer: PALETTE.indigo,
-  source: PALETTE.teal,
+  source: PALETTE.blue,
   contract: PALETTE.slate,
   trigger: PALETTE.sky,
   line: PALETTE.blue,
