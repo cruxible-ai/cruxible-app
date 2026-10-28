@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { downloadName, formatSize, previewText, unwrapCaptureBody } from "./capture-body";
+import { captureFormat, downloadName, formatSize, unwrapCaptureBody } from "./capture-body";
 
 const b64 = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text)));
 
@@ -21,7 +21,7 @@ describe("capture bodies", () => {
     expect(body.url).toBe("https://example.test/feeds/kev.json");
     expect(body.status).toBe(200);
     expect(body.json).toEqual({ title: "KEV", count: 2 });
-    expect(previewText(body)).toContain('"title": "KEV"');
+    expect(captureFormat(body, "cisa.kev.catalog")).toBe("json");
     expect(downloadName(body, "cisa.kev.catalog", "CAP-1")).toBe("cisa.kev.catalog.json");
   });
 
@@ -34,7 +34,7 @@ describe("capture bodies", () => {
     const bin = unwrapCaptureBody(b64(JSON.stringify({ content: { kind: "bytes", encoding: "base64", bytes: btoa("ÿþ\u0000") } })));
     expect(Array.from(bin.bytes)).toEqual([255, 254, 0]);
     expect(bin.text).toBeNull();
-    expect(previewText(bin)).toBeNull();
+    expect(captureFormat(bin, null)).toBe("binary");
     expect(downloadName(bin, "some source", "CAP-abc")).toBe("some-source.bin");
   });
 
@@ -44,7 +44,32 @@ describe("capture bodies", () => {
     expect(body.json).toEqual({ summary: { status: 200 } });
     const plain = unwrapCaptureBody(b64("line one\nline two"));
     expect(plain.json).toBeUndefined();
-    expect(previewText(plain)).toBe("line one\nline two");
+    expect(captureFormat(plain, null)).toBe("text");
+  });
+});
+
+describe("capture formats", () => {
+  it("renders a fetched page by its Content-Type, a fetched file by its URL, a workspace file by its logical source", () => {
+    const fetched = (type: string | null, url: string, text: string) =>
+      unwrapCaptureBody(
+        b64(JSON.stringify({ retrieved: { url, status_code: 200, headers: type ? { "content-type": type } : {}, body_base64: b64(text) } })),
+      );
+    const page = fetched("text/html; charset=utf-8", "https://example.test/advisory", "<p>Patched</p>");
+    expect(captureFormat(page, "vendor.advisories")).toBe("html");
+    expect(downloadName(page, "vendor.advisories", "CAP-1")).toBe("vendor.advisories.html");
+    // raw.githubusercontent serves markdown as text/plain: the URL's extension decides
+    const readme = fetched("text/plain; charset=utf-8", "https://raw.example.test/repo/README.md?ref=main", "Just words.");
+    expect(captureFormat(readme, null)).toBe("markdown");
+    expect(readme.name).toBe("https://raw.example.test/repo/README.md?ref=main");
+
+    const file = unwrapCaptureBody(
+      b64(JSON.stringify({ source: { logical_source: "repo.docs.design.md" }, content: { kind: "text", text: "Plain words." } })),
+    );
+    expect(file.name).toBe("repo.docs.design.md");
+    expect(captureFormat(file, null)).toBe("markdown");
+    expect(downloadName(file, "repo.docs.design.md", "CAP-1")).toBe("repo.docs.design.md");
+    // the Capture's own source is the fallback hint
+    expect(captureFormat(unwrapCaptureBody(b64("Plain words.")), "notes.md")).toBe("markdown");
   });
 });
 
