@@ -422,7 +422,15 @@ function FlowCell({
         dim={dim}
         hover={hover}
         accent={authorityColor(node.authority)}
-        title={[node.label, node.about, node.detail, node.triggers?.length ? `Triggers: ${node.triggers.join(", ")}` : null].filter(Boolean).join("\n")}
+        title={[
+          node.label,
+          node.authority ? `At most ${node.authority}: ${term("authority", node.authority).meaning}` : null,
+          node.about,
+          node.detail,
+          node.triggers?.length ? `Triggers: ${node.triggers.join(", ")}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n")}
         name={
           <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.label)}`)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
             {strip(node.label, prefix)}
@@ -431,10 +439,8 @@ function FlowCell({
         state={<LineState enablement={node.enablement} />}
         focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         about={node.about ?? null}
-        facts={[
-          ["At most", node.authority ? term("authority", node.authority).word.toLowerCase() : "unknown"],
-          ["On", (node.detail ?? "").replace(/^When /, "").replace(/ lands$/, " landing")],
-        ]}
+        // Its authority is the card's color (and the tooltip's first line after the name).
+        facts={[["On", (node.detail ?? "").replace(/^When /, "").replace(/ lands$/, " landing")]]}
       />
     );
   }

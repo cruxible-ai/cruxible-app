@@ -21,9 +21,10 @@ describe("Evidence flow", () => {
     // Lines in their own column, linked, with what starts them
     expect(flow.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/kev-triage`);
     // its card's facts: the authority it may write with, and what starts it
-    const triage = within(flow.getByRole("link", { name: "kev-triage" }).closest("[title]") as HTMLElement);
-    expect(triage.getByText("cisa.kev.catalog landing")).toBeInTheDocument();
-    expect(triage.getByText("settle")).toBeInTheDocument();
+    const card = flow.getByRole("link", { name: "kev-triage" }).closest("[title]") as HTMLElement;
+    expect(within(card).getByText("cisa.kev.catalog landing")).toBeInTheDocument();
+    // its authority is the card's color, and named in the tooltip
+    expect(card).toHaveAttribute("title", expect.stringContaining("At most settle"));
     // ClaimTypes under their kind
     expect(flow.getByRole("link", { name: "security.vulnerability" })).toHaveAttribute("href", `${I}/kinds/security.vulnerability`);
     expect(flow.getByRole("link", { name: "kev_listed" })).toBeInTheDocument();
