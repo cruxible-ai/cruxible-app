@@ -177,7 +177,7 @@ export function FlowScreen() {
     <div className="space-y-3">
       <header>
         <h1 className="t-title">Evidence flow</h1>
-        <p className="mt-1 max-w-3xl text-[13px] text-zinc-400">
+        <p className="t-lede measure mt-1">
           Where your evidence comes from and what it turns into. Each source is fetched on a schedule or added by an agent;
           Lines read what arrives and propose facts or post items for review. Hover a card to trace its path.
         </p>
