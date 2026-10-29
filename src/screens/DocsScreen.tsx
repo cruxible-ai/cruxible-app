@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Download, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useDocumentBody, useDocuments, useGetBatch, type DocumentBody } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
 import { DOCUMENT_READ_MAX_BYTES } from "@/api/requests";
@@ -12,6 +12,7 @@ import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { bodyFormat, extensionFor } from "@/lib/body-format";
 import { decodeText, formatSize } from "@/lib/capture-body";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { useClearOnEscape } from "@/components/graph/FocusChip";
 
 type DocumentRow = Schemas["OrientDocument"];
 type DocumentCard = Schemas["GetDocumentCard"];
@@ -29,6 +30,17 @@ export function DocsScreen() {
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [listHidden, setListHidden] = useListHidden();
+  const reading = params.get("read") === "1";
+  const setReading = useCallback(
+    (on: boolean) => {
+      const next = new URLSearchParams(params);
+      if (on) next.set("read", "1");
+      else next.delete("read");
+      setParams(next);
+    },
+    [params, setParams],
+  );
+  useClearOnEscape(reading, () => setReading(false));
   usePageTitle("Docs");
   const rows = useMemo(() => documents.data?.rows ?? [], [documents.data]);
   const cards = useGetBatch(rows.map((row) => `Document:${row.name}`));
@@ -119,10 +131,13 @@ export function DocsScreen() {
                 row={open}
                 card={cardByName.get(open.name)}
                 wide={listHidden}
+                reading={reading}
                 nav={
                   <ReaderNav
                     listHidden={listHidden}
                     onToggle={() => setListHidden(!listHidden)}
+                    reading={reading}
+                    onReading={setReading}
                     rows={shown.length > 0 ? shown : rows}
                     open={open.name}
                     onSelect={select}
@@ -204,34 +219,64 @@ const NAV_BUTTON =
 function ReaderNav({
   listHidden,
   onToggle,
+  reading,
+  onReading,
   rows,
   open,
   onSelect,
 }: {
   listHidden: boolean;
   onToggle: () => void;
+  reading: boolean;
+  onReading: (on: boolean) => void;
   rows: DocumentRow[];
   open: string;
   onSelect: (name: string) => void;
 }) {
   const at = rows.findIndex((row) => row.name === open);
-  const step = (by: number) => {
-    const next = rows[at + by];
-    if (next) onSelect(next.name);
-  };
+  const step = useCallback(
+    (by: number) => {
+      const next = rows[at + by];
+      if (next) onSelect(next.name);
+    },
+    [rows, at, onSelect],
+  );
+  // Reading full window: ← and → step between Documents.
+  useEffect(() => {
+    if (!reading) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement | null)?.closest("input, textarea")) return;
+      if (event.key === "ArrowLeft") step(-1);
+      if (event.key === "ArrowRight") step(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [reading, step]);
   return (
     <span className="relative top-[3px] mr-2 inline-flex items-center gap-0.5">
       <button
         type="button"
-        onClick={onToggle}
-        aria-pressed={listHidden}
-        title={listHidden ? "Show the Document list" : "Hide the Document list to read wider"}
-        aria-label={listHidden ? "Show the Document list" : "Hide the Document list"}
+        onClick={() => onReading(!reading)}
+        aria-pressed={reading}
+        title={reading ? "Exit full-window reading (Esc)" : "Read in the full window"}
+        aria-label={reading ? "Exit full-window reading" : "Read in the full window"}
         className={NAV_BUTTON}
       >
-        {listHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        {reading ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
       </button>
-      {listHidden && rows.length > 1 && (
+      {!reading && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-pressed={listHidden}
+          title={listHidden ? "Show the Document list" : "Hide the Document list to read wider"}
+          aria-label={listHidden ? "Show the Document list" : "Hide the Document list"}
+          className={NAV_BUTTON}
+        >
+          {listHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
+      )}
+      {(listHidden || reading) && rows.length > 1 && (
         <>
           <button type="button" onClick={() => step(-1)} disabled={at <= 0} aria-label="Previous Document" className={NAV_BUTTON}>
             <ChevronLeft className="h-4 w-4" />
@@ -259,12 +304,15 @@ function DocumentReader({
   card,
   nav,
   wide,
+  reading,
 }: {
   row: DocumentRow;
   card: DocumentCard | undefined;
   nav: ReactNode;
   /** The list is hidden: rendered markdown centres at its reading width. */
   wide: boolean;
+  /** Full window: the Document over the whole app, its header pinned. */
+  reading: boolean;
 }) {
   const read = useDocumentBody(row.name);
   const body = readOf(read.data);
@@ -281,6 +329,45 @@ function DocumentReader({
       )}
     </span>
   );
+  const content = read.isPending ? (
+    <LoadState />
+  ) : read.error ? (
+    read.error instanceof ApiError && read.error.status === 403 ? (
+      <Note cli={cliRead(row.name)}>
+        This console's token can't read Document bodies: that takes governed_write. Read it from a terminal:
+      </Note>
+    ) : (
+      <LoadState error={read.error} />
+    )
+  ) : read.data?.status === "too_large" ? (
+    <Note cli={`${cliRead(row.name)} --output ${row.name}`}>
+      {formatSize(read.data.size)}: larger than the {formatSize(DOCUMENT_READ_MAX_BYTES)} the page reads. Save it from a terminal:
+    </Note>
+  ) : body && decoded && format ? (
+    <BodyView
+      format={format}
+      text={decoded.text}
+      json={decoded.json}
+      size={body.bytes.length}
+      title={`Body of ${row.title}`}
+      centered={wide || reading}
+      fill={reading}
+    />
+  ) : null;
+  if (reading) {
+    return (
+      <div role="dialog" aria-modal="true" aria-label={`Reading ${row.title}`} className="fixed inset-0 z-50 overflow-y-auto bg-zinc-950">
+        <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-zinc-800 bg-zinc-950/95 px-6 py-2 backdrop-blur">
+          <span className="inline-flex items-baseline">
+            {nav}
+            <span className="text-[15px] font-semibold text-zinc-100">{row.title}</span>
+          </span>
+          <span className="ml-auto">{meta}</span>
+        </header>
+        <div className="px-6 pb-16 pt-8">{content}</div>
+      </div>
+    );
+  }
   return (
     <Panel
       title={
@@ -292,30 +379,7 @@ function DocumentReader({
       meta={meta}
     >
       <div className="t-meta -mt-1 mb-3 font-mono">Document:{row.name}</div>
-      {read.isPending ? (
-        <LoadState />
-      ) : read.error ? (
-        read.error instanceof ApiError && read.error.status === 403 ? (
-          <Note cli={cliRead(row.name)}>
-            This console's token can't read Document bodies: that takes governed_write. Read it from a terminal:
-          </Note>
-        ) : (
-          <LoadState error={read.error} />
-        )
-      ) : read.data?.status === "too_large" ? (
-        <Note cli={`${cliRead(row.name)} --output ${row.name}`}>
-          {formatSize(read.data.size)}: larger than the {formatSize(DOCUMENT_READ_MAX_BYTES)} the page reads. Save it from a terminal:
-        </Note>
-      ) : body && decoded && format ? (
-        <BodyView
-          format={format}
-          text={decoded.text}
-          json={decoded.json}
-          size={body.bytes.length}
-          title={`Body of ${row.title}`}
-          centered={wide}
-        />
-      ) : null}
+      {content}
     </Panel>
   );
 }

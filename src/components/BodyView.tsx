@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Prose } from "@/components/Prose";
+import { DocumentProse } from "@/components/DocumentProse";
 import { formatSize } from "@/lib/capture-body";
 import { sandboxSrcDoc, type BodyFormat } from "@/lib/body-format";
 
@@ -20,6 +20,7 @@ export function BodyView({
   size,
   title,
   centered = false,
+  fill = false,
 }: {
   format: BodyFormat;
   text: string | null;
@@ -27,8 +28,10 @@ export function BodyView({
   size: number;
   /** Names the HTML frame for assistive tech. */
   title: string;
-  /** Centre rendered markdown at its reading width (a wide reader). */
+  /** A wide reader: markdown gets its table of contents beside it, centred. */
   centered?: boolean;
+  /** Fill the window: the HTML frame and raw text take the viewport's height. */
+  fill?: boolean;
 }) {
   const [raw, setRaw] = useState(false);
   if (format === "binary" || text === null) {
@@ -50,16 +53,18 @@ export function BodyView({
       )}
       {rendered && !raw ? (
         format === "markdown" ? (
-          <div className={centered ? "mx-auto max-w-3xl" : undefined}>
-            <Cut text={text}>{(cut) => <Prose text={cut} />}</Cut>
+          <div className={centered ? "flex justify-center" : undefined}>
+            <Cut text={text}>{(cut) => <DocumentProse text={cut} toc={centered} />}</Cut>
           </div>
         ) : (
-          <HtmlFrame html={text} title={title} />
+          <HtmlFrame html={text} title={title} fill={fill} />
         )
       ) : (
         <Cut text={shown}>
           {(cut) => (
-            <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-all bg-zinc-950 p-3 font-mono text-[12px] leading-5 text-zinc-300">
+            <pre
+              className={`${fill ? "max-h-[calc(100vh-9rem)]" : "max-h-[70vh]"} overflow-auto whitespace-pre-wrap break-all bg-zinc-950 p-3 font-mono text-[12px] leading-5 text-zinc-300`}
+            >
               {cut}
             </pre>
           )}
@@ -102,7 +107,7 @@ function Cut({ text, children }: { text: string; children: (text: string) => Rea
  * scripts, no same-origin, no forms, popups or top navigation), and a srcdoc
  * that is the sanitized document under a policy that loads nothing remote.
  */
-function HtmlFrame({ html, title }: { html: string; title: string }) {
+function HtmlFrame({ html, title, fill }: { html: string; title: string; fill: boolean }) {
   const srcDoc = useMemo(() => sandboxSrcDoc(html), [html]);
   return (
     <div>
@@ -111,7 +116,7 @@ function HtmlFrame({ html, title }: { html: string; title: string }) {
         srcDoc={srcDoc}
         title={title}
         referrerPolicy="no-referrer"
-        className="h-[70vh] w-full resize-y border border-zinc-800 bg-white"
+        className={`${fill ? "h-[calc(100vh-10rem)]" : "h-[70vh]"} w-full resize-y border border-zinc-800 bg-white`}
       />
       <div className="mt-1 text-[12px] text-zinc-500">Shown sandboxed: scripts don't run and nothing remote loads.</div>
     </div>

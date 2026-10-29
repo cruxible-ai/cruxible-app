@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { DOCS, PRIVATE_DOC } from "@/fixtures/authored/documents";
 
@@ -39,7 +39,7 @@ describe("Docs", () => {
     // the cards (revision, size) and the body arrive apart; read once both have
     expect(await main.findByText("Revision 3")).toBeInTheDocument();
     expect(await main.findByRole("link", { name: /Download/ })).toHaveAttribute("download", "architecture.md");
-    expect(main.getByRole("heading", { name: "Triage architecture", level: 3 })).toBeInTheDocument();
+    expect(main.getByRole("heading", { name: "Triage architecture", level: 1 })).toBeInTheDocument();
     expect(main.getByText("Captures").tagName).toBe("STRONG");
     expect(main.getByRole("table")).toBeInTheDocument();
     // a cruxible:// ref in the body is a chip linking into the console
@@ -97,6 +97,18 @@ describe("Docs", () => {
     fireEvent.click(main.getByRole("button", { name: "Show the Document list" }));
     expect(main.getByRole("list", { name: "Documents" })).toBeInTheDocument();
     expect(main.queryByRole("button", { name: "Next Document" })).toBeNull();
+  });
+
+  it("reads full window: linkable headings, Escape returns to the page", async () => {
+    renderApp(docs());
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByRole("heading", { name: "Triage architecture", level: 1 })).toHaveAttribute("id", "triage-architecture");
+    fireEvent.click(main.getByRole("button", { name: "Read in the full window" }));
+    const reader = within(await screen.findByRole("dialog", { name: /^Reading / }));
+    expect(reader.getByRole("button", { name: "Exit full-window reading" })).toBeInTheDocument();
+    expect(reader.getByRole("heading", { name: "Triage architecture", level: 1 })).toBeInTheDocument();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("says when the named Document is not at this generation", async () => {
