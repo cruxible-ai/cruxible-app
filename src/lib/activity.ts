@@ -13,11 +13,13 @@ import { term, type Signal } from "./vocabulary.ts";
 export type ActivityFamily = "generation" | "run" | "capture" | "inbox" | "occurrence" | "line" | "erasure" | "gap";
 
 export const FAMILY: Record<ActivityFamily, { color: string; legend: string }> = {
+  // Far-apart hues for the families that share a feed (blue, green, violet,
+  // pink, lime), so a glance tells a run from a landing from work coming due.
   generation: { color: PALETTE.fuchsia, legend: "Accepted into state" },
   run: { color: PALETTE.sky, legend: "Runs" },
-  capture: { color: PALETTE.blue, legend: "Evidence landed" },
-  inbox: { color: PALETTE.violet, legend: "Inbox" },
-  occurrence: { color: PALETTE.indigo, legend: "Work coming due" },
+  capture: { color: PALETTE.emerald, legend: "Evidence landed" },
+  inbox: { color: PALETTE.lime, legend: "Inbox" },
+  occurrence: { color: PALETTE.violet, legend: "Work coming due" },
   line: { color: PALETTE.slate, legend: "Line state" },
   erasure: { color: PALETTE.stone, legend: "Erased" },
   gap: { color: PALETTE.stone, legend: "Records unavailable" },

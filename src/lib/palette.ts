@@ -19,6 +19,7 @@ export const PALETTE = {
   slate: "#94a3b8",
   stone: "#a8a29e",
   zinc: "#d4d4d8",
+  lime: "#a3e635",
 } as const;
 
 export type StepRoleColor =

@@ -12,6 +12,8 @@ export interface Wake {
   /** The next fire time, for a schedule this page can compute (UTC cron). */
   next: Date | null;
   landing: boolean;
+  /** The logical sources a landing waits on (empty for a schedule or a contract-only landing). */
+  sources: string[];
 }
 
 const LANDING = /^when CaptureContract:(\S+?)(?: from (.+))? lands$/;
@@ -21,7 +23,12 @@ export function wakeOf(fires: string, now: Date = new Date()): Wake {
   const landing = LANDING.exec(fires);
   if (landing) {
     const [, contract, sources] = landing;
-    return { words: sources ? `when ${sources} lands` : `when a ${contract} Capture lands`, next: null, landing: true };
+    return {
+      words: sources ? `when ${sources} lands` : `when a ${contract} Capture lands`,
+      next: null,
+      landing: true,
+      sources: sources ? sources.split(/,\s*|\s+or\s+/).filter(Boolean) : [],
+    };
   }
   const cron = CRON.exec(fires);
   if (cron) {
@@ -31,9 +38,10 @@ export function wakeOf(fires: string, now: Date = new Date()): Wake {
       words: `${cronWords(expression!)}${zone ? ` ${zone}` : ""}`,
       next: utc ? nextCronFire(expression!, now) : null,
       landing: false,
+      sources: [],
     };
   }
-  return { words: fires, next: null, landing: false };
+  return { words: fires, next: null, landing: false, sources: [] };
 }
 
 function field(spec: string, min: number, max: number): Set<number> | null {

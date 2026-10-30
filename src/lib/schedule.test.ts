@@ -10,6 +10,7 @@ describe("when a Line wakes", () => {
       words: "when cisa.kev.catalog lands",
       next: null,
       landing: true,
+      sources: ["cisa.kev.catalog"],
     });
     expect(wakeOf("when CaptureContract:security.file-v1 lands").words).toBe("when a security.file-v1 Capture lands");
   });
@@ -21,7 +22,7 @@ describe("when a Line wakes", () => {
   });
 
   it("keeps text it does not read as it is", () => {
-    expect(wakeOf("daily at 06:00 UTC")).toEqual({ words: "daily at 06:00 UTC", next: null, landing: false });
+    expect(wakeOf("daily at 06:00 UTC")).toEqual({ words: "daily at 06:00 UTC", next: null, landing: false, sources: [] });
   });
 });
 

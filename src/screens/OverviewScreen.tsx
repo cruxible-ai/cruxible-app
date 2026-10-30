@@ -1,6 +1,6 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useCards, useInstanceId, useKits, useLines, useNext, useOrient } from "@/api/hooks";
+import { useCards, useInstanceId, useKits, useLines, useNext, useOrient, useSourceModel } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import type { NextHealth, NextResult, NextSeverity, OrientResult, Schemas } from "@/api/schemas";
 import { ActivityFeed } from "@/components/ActivityFeed";
@@ -278,13 +278,19 @@ const enabled = (row: OrientLine) => row.enablement != null && row.enablement !=
 
 /**
  * Each enabled Line: what wakes it, when it next does, and how its last run
- * went; due work first, then soonest. Lines not enabled fold into one line.
+ * went, as chains: a Line woken by a landing sits under the enabled Line that
+ * retains that source (epss-daily, then epss-triage when first.epss.daily
+ * lands), so a schedule and what it sets off read as one timeline. Chains with
+ * due work first, then soonest. A Line with a schedule of its own heads its own
+ * chain and is listed under its feeders by name. Lines not enabled fold into
+ * one line.
  */
 function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pending: boolean; error: Error | null }) {
   const live = (rows ?? []).filter((row) => row.lifecycle === "live");
   const on = live.filter(enabled);
   const off = live.filter((row) => !enabled(row));
   const cards = useCards(on.map((row) => `Line:${lineName(row.line)}`));
+  const sourceModel = useSourceModel();
   const prefix = sharedPrefix(live.map((row) => lineName(row.line)));
   const now = new Date();
 
@@ -296,12 +302,7 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
     const times = [...scheduled, ...wakes.flatMap((w) => (w.next ? [w.next] : []))].sort((a, b) => a.getTime() - b.getTime());
     return { name: lineName(row.line), row, card, wakes, soonest: due ? now : (times[0] ?? null), due };
   });
-  upcoming.sort((a, b) => {
-    if (a.due !== b.due) return a.due ? -1 : 1;
-    const at = a.soonest?.getTime() ?? Infinity;
-    const bt = b.soonest?.getTime() ?? Infinity;
-    return at !== bt ? at - bt : a.name.localeCompare(b.name);
-  });
+  const chains = chainUpcoming(upcoming, sourceModel.data?.retentions ?? []);
 
   return (
     <Panel
@@ -311,10 +312,10 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
       {pending && <LoadState />}
       {error && <LoadState error={error} />}
       {rows && on.length === 0 && <EmptyState>No Line is enabled, so nothing runs on its own.</EmptyState>}
-      {upcoming.length > 0 && (
+      {chains.length > 0 && (
         <div className="divide-y divide-zinc-800/60">
-          {upcoming.map((u) => (
-            <UpcomingRow key={u.name} u={u} label={u.name.slice(prefix.length)} now={now} />
+          {chains.map((chain) => (
+            <ChainRows key={chain.u.name} chain={chain} prefix={prefix} now={now} depth={0} />
           ))}
         </div>
       )}
@@ -329,7 +330,119 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
   );
 }
 
-function UpcomingRow({ u, label, now }: { u: Upcoming; label: string; now: Date }) {
+interface Chain {
+  u: Upcoming;
+  /** Lines this one's landings wake, in the order they run (soonest first). */
+  next: Chain[];
+  /** Lines with a schedule of their own that this one also wakes (shown by name, not nested). */
+  alsoWakes: string[];
+  /** When this Line next runs if it only follows its feeder: the feeder's next time. */
+  after: { name: string; at: Date | null } | null;
+}
+
+/**
+ * Chains of enabled Lines: a Line whose every wake is a landing goes under the
+ * enabled Line that retains the first source it waits on; anything else heads
+ * a chain. Roots sort due-first (a chain is due when any member is), then by
+ * soonest.
+ */
+function chainUpcoming(upcoming: Upcoming[], retentions: readonly { source: string | null; line: string | null }[]): Chain[] {
+  const byName = new Map(upcoming.map((u) => [u.name, u] as const));
+  const producers = new Map<string, string[]>();
+  for (const r of retentions) {
+    if (r.source === null || r.line === null || !byName.has(r.line)) continue;
+    const list = producers.get(r.source) ?? [];
+    if (!list.includes(r.line)) list.push(r.line);
+    producers.set(r.source, list);
+  }
+  const feedersOf = (u: Upcoming) =>
+    [...new Set(u.wakes.flatMap((w) => w.sources.flatMap((source) => producers.get(source) ?? [])))].filter((n) => n !== u.name);
+  const onlyLandings = (u: Upcoming) => u.wakes.length > 0 && u.wakes.every((w) => w.landing);
+
+  const parent = new Map<string, string>();
+  for (const u of upcoming) {
+    if (!onlyLandings(u)) continue;
+    const feeder = feedersOf(u).sort(bySoonest(byName))[0];
+    if (feeder !== undefined) parent.set(u.name, feeder);
+  }
+  // A cycle (a Line woken by its own descendant) breaks at its first member: that one heads the chain.
+  for (const name of [...parent.keys()]) {
+    const seen = new Set<string>([name]);
+    let cursor = parent.get(name);
+    while (cursor !== undefined && !seen.has(cursor)) {
+      seen.add(cursor);
+      cursor = parent.get(cursor);
+    }
+    if (cursor !== undefined) parent.delete(name);
+  }
+
+  const build = (u: Upcoming): Chain => {
+    const kids = upcoming
+      .filter((c) => parent.get(c.name) === u.name)
+      .sort((a, b) => bySoonest(byName)(a.name, b.name))
+      .map((c) => build(c));
+    const alsoWakes = upcoming
+      .filter((c) => !parent.has(c.name) && c.name !== u.name && feedersOf(c).includes(u.name))
+      .map((c) => c.name)
+      .sort();
+    const feeder = parent.get(u.name);
+    return {
+      u,
+      next: kids,
+      alsoWakes,
+      after: feeder === undefined ? null : { name: feeder, at: byName.get(feeder)?.soonest ?? null },
+    };
+  };
+  const dueIn = (c: Chain): boolean => c.u.due || c.next.some(dueIn);
+  const roots = upcoming.filter((u) => !parent.has(u.name)).map((u) => build(u));
+  return roots.sort((a, b) => {
+    const ad = dueIn(a);
+    const bd = dueIn(b);
+    if (ad !== bd) return ad ? -1 : 1;
+    const at = a.u.soonest?.getTime() ?? Infinity;
+    const bt = b.u.soonest?.getTime() ?? Infinity;
+    return at !== bt ? at - bt : a.u.name.localeCompare(b.u.name);
+  });
+}
+
+const bySoonest = (byName: Map<string, Upcoming>) => (a: string, b: string) => {
+  const at = byName.get(a)?.soonest?.getTime() ?? Infinity;
+  const bt = byName.get(b)?.soonest?.getTime() ?? Infinity;
+  return at !== bt ? at - bt : a.localeCompare(b);
+};
+
+function ChainRows({ chain, prefix, now, depth }: { chain: Chain; prefix: string; now: Date; depth: number }) {
+  return (
+    <div className={depth === 0 ? "" : "ml-1.5 border-l border-zinc-700 pl-3"}>
+      <UpcomingRow
+        u={chain.u}
+        label={chain.u.name.slice(prefix.length)}
+        now={now}
+        after={chain.after && { ...chain.after, name: chain.after.name.slice(prefix.length) }}
+        alsoWakes={chain.alsoWakes.map((name) => name.slice(prefix.length))}
+      />
+      {chain.next.map((child) => (
+        <Fragment key={child.u.name}>
+          <ChainRows chain={child} prefix={prefix} now={now} depth={depth + 1} />
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+function UpcomingRow({
+  u,
+  label,
+  now,
+  after = null,
+  alsoWakes = [],
+}: {
+  u: Upcoming;
+  label: string;
+  now: Date;
+  after?: Chain["after"];
+  alsoWakes?: string[];
+}) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   const last = u.card?.recent_runs?.[0];
@@ -392,10 +505,17 @@ function UpcomingRow({ u, label, now }: { u: Upcoming; label: string; now: Date 
                     · next {formatRelative(w.next, now)}
                   </span>
                 )}
+                {w.landing && after?.at && !u.due && (
+                  <span className="text-zinc-500" title={formatDateTime(after.at.toISOString())}>
+                    {" "}
+                    · next after {after.name}, {formatRelative(after.at, now)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
         )}
+        {alsoWakes.length > 0 && <div className="truncate text-zinc-500">Also wakes {alsoWakes.join(", ")}</div>}
       </div>
     </div>
   );
