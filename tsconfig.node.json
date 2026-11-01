@@ -26,6 +26,7 @@
     "src/api/generated/schema.ts",
     "src/fixtures/key.ts",
     "src/lib/neighborhood.ts",
+    "src/lib/change-sets.ts",
     "src/lib/cruxible-ref.ts",
     "src/lib/type-graph.ts",
     "src/lib/lines.ts"

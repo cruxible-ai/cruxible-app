@@ -66,7 +66,8 @@ describe("recorded reference world", () => {
     const m = await main();
     expect(await m.findByText("pkg:githubactions/actions/checkout@v4")).toBeInTheDocument();
     expect(m.getByText("6 fields · 7 Claims")).toBeInTheDocument();
-    expect((await m.findAllByText("Supported")).length).toBeGreaterThan(0);
+    // every Claim supported: the header says so in one phrase
+    expect(await m.findByText("· all supported")).toBeInTheDocument();
     expect(await m.findByText("2/2 admitted")).toBeInTheDocument();
   });
 

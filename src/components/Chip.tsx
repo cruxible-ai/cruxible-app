@@ -2,7 +2,8 @@ import { changeMark, healthTone, term as termFor, type Concept, type HealthTone,
 
 /**
  * The status chip: a word, with a dot only for the two signals (amber:
- * waiting on you or someone; red: wrong or blocked). The word and its hover
+ * waiting on you or someone; red: wrong or blocked); a gone state (retired,
+ * overturned) reads dimmed and struck through. The word and its hover
  * meaning come from the glossary (src/lib/vocabulary.ts); there is no other
  * tone. Pass a concept and its raw value, or a term already looked up.
  */
@@ -29,7 +30,7 @@ export function Chip(props: ChipProps) {
   const resolved = props.term ?? termFor(props.concept, props.value);
   return (
     <span
-      className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] leading-4 text-zinc-400"
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] leading-4 ${resolved.gone ? "text-zinc-600 line-through" : "text-zinc-400"}`}
       title={resolved.meaning}
     >
       {resolved.signal && <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[resolved.signal]}`} />}

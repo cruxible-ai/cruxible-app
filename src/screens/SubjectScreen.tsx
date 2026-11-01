@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
-import { ChevronDown, ChevronRight, Waypoints } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronRight, Waypoints } from "lucide-react";
 import {
   useAdmissionAccounts,
   useCard,
@@ -8,8 +8,11 @@ import {
   useClaimRevisions,
   useGetBatch,
   useInstanceId,
+  useLatestRevision,
   useOntologyKinds,
+  useRunAuthor,
   useSubjectHistory,
+  useSubjectKinds,
 } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
 import {
@@ -34,6 +37,7 @@ import { Table, Td, Th, trClass } from "@/components/Table";
 import { IncomingList } from "@/components/IncomingList";
 import { useAtLink, withAt } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
+import { lineName, runId } from "@/lib/lines";
 import { contractName } from "@/lib/ontology";
 import {
   admissionTally,
@@ -44,9 +48,11 @@ import {
   recordLabel,
 } from "@/lib/evidence";
 import { predicateIndex } from "@/lib/neighborhood";
+import { changeSetRun, changeSets, reasonWords } from "@/lib/change-sets";
+import { claimStates, evidenceNeed, isKeyField, keyPredicates, type EvidenceNeed } from "@/lib/subject";
 import { formatWhen, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { term } from "@/lib/vocabulary";
+import { term, type Term } from "@/lib/vocabulary";
 
 type SubjectClaim = GetSubjectCard["claims"][number];
 
@@ -64,11 +70,17 @@ const QUIET_VERDICTS = new Set(["supported"]);
  * state, each attestation with whether it counts toward the verdict, the
  * rationale) and revisions; then the Subject's field history, paged. Every read is this
  * Subject's own: the card, ⌈Claims/64⌉ get-batch calls for verdicts,
- * ⌈Claims/256⌉ read-batch calls for admission, and one read per expansion.
+ * ⌈Claims/256⌉ read-batch calls for admission, and one read per expansion;
+ * the history adds one run read per change set a run produced (kept once
+ * read) and one revision read per Line; the incoming list one get-batch per
+ * page. The ClaimTypes and SubjectKinds are the ontology reads every page
+ * shares.
  *
- * Layout: the header says how healthy the card is (verdict tally, evidence
- * admitted); the field list shows each value once, quiet when supported;
- * history groups one change set's events under one line.
+ * Layout: the header says how healthy the card is (the Claims and their
+ * states, evidence admitted where a ClaimType requires it); the field list
+ * shows each value once, quiet when supported, key parts marked `key`;
+ * history reads one change set per entry, authored by its Line, run or
+ * principal, one line per field it changed.
  */
 export function SubjectScreen() {
   const { ref: raw = "" } = useParams();
@@ -83,6 +95,8 @@ export function SubjectScreen() {
   const subject = cardOf(card.data, "subject");
   const kinds = useOntologyKinds();
   const predicates = useMemo(() => predicateIndex(kinds.data?.kinds ?? []), [kinds.data]);
+  const subjectKinds = useSubjectKinds();
+  const keysByKind = useMemo(() => keyPredicates(subjectKinds.data?.rows), [subjectKinds.data]);
   const ids = useMemo(() => (subject?.claims ?? []).flatMap(claimIds), [subject]);
   const verdicts = useGetBatch(ids);
   const admission = useAdmissionAccounts(ids);
@@ -110,10 +124,13 @@ export function SubjectScreen() {
   }
   if (!subject) return <LoadState error={new Error(`${ref} did not resolve to a Subject card`)} />;
   const [kind, id] = [subject.kind, subject.subject.slice(subject.kind.length + 1)];
+  const keys = keysByKind.get(kind);
+  const descriptorOf = (entry: SubjectClaim) => predicates.get(`${kind}\n${entry.predicate}`);
+  const isKey = (entry: SubjectClaim) => isKeyField(keys, entry.predicate, descriptorOf(entry));
 
-  const tally = new Map<string, number>();
-  for (const claim of claimCards.values()) tally.set(claim.verdict, (tally.get(claim.verdict) ?? 0) + 1);
-  const evidence = admissionTally([...admission.byClaim.values()].flat());
+  // The header counts evidence only for fields whose ClaimType requires it.
+  const requiring = subject.claims.filter((entry) => !isKey(entry) && evidenceNeed(descriptorOf(entry)) === "required");
+  const evidence = admissionTally(requiring.flatMap((entry) => claimIds(entry).flatMap((claim) => admission.byClaim.get(claim) ?? [])));
 
   return (
     <Page>
@@ -132,18 +149,13 @@ export function SubjectScreen() {
           </Link>
         }
         summary={
-          <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            {ids.length === 0 && <span>No live Claims.</span>}
-            {verdicts.isPending && ids.length > 0 && <span className="t-meta animate-pulse">Reading verdicts…</span>}
-            {[...tally.entries()]
-              .sort(([a], [b]) => (QUIET_VERDICTS.has(a) ? 1 : 0) - (QUIET_VERDICTS.has(b) ? 1 : 0))
-              .map(([verdict, count]) => (
-                <span key={verdict} className="inline-flex items-baseline gap-1.5 text-[13px]">
-                  <Chip concept="claim" value={verdict} />
-                  <span className="font-mono text-zinc-200">{count}</span>
-                </span>
-              ))}
-          </span>
+          ids.length === 0 ? (
+            <span>No live Claims.</span>
+          ) : verdicts.isPending ? (
+            <span className="t-meta animate-pulse">Reading verdicts…</span>
+          ) : (
+            <ClaimsTally cards={[...claimCards.values()]} />
+          )
         }
         facts={
           <>
@@ -152,9 +164,13 @@ export function SubjectScreen() {
             </Fact>
             <Fact
               label="Evidence admitted"
-              title="Citations offered as evidence that their ClaimTypes' rules admit, so the verdict reads them; a copy the rule does not admit is not evidence"
+              title="For the fields whose ClaimType requires captured evidence: citations offered as evidence that the rule admits, so the verdict reads them; a copy the rule does not admit is not evidence"
             >
-              {evidence.offered === 0 ? (
+              {kinds.isPending ? (
+                <span className="t-meta animate-pulse">…</span>
+              ) : requiring.length === 0 ? (
+                <span className="text-zinc-500">None required</span>
+              ) : evidence.offered === 0 ? (
                 <span className="text-zinc-500">{evidence.notEvidence === 0 ? "No evidence citations" : "None"}</span>
               ) : (
                 <span className="inline-flex items-baseline gap-1.5">
@@ -180,7 +196,7 @@ export function SubjectScreen() {
         rail={
           subject.incoming_count > 0 ? (
             <Panel title="Pointed at by" meta={<span>{subject.incoming_count}</span>}>
-              <IncomingList subject={subject.subject} total={subject.incoming_count} />
+              <IncomingList subject={subject.subject} total={subject.incoming_count} summaries />
             </Panel>
           ) : null
         }
@@ -202,7 +218,8 @@ export function SubjectScreen() {
                 key={`${entry.predicate}\n${entry.qualifier ?? ""}`}
                 kind={kind}
                 entry={entry}
-                descriptor={predicates.get(`${kind}\n${entry.predicate}`)}
+                descriptor={descriptorOf(entry)}
+                isKey={isKey(entry)}
                 cards={claimCards}
                 accounts={admission.byClaim}
                 focus={focusClaim}
@@ -211,9 +228,49 @@ export function SubjectScreen() {
           </div>
         </Panel>
 
-        <HistoryPanel subjectRef={subject.subject} />
+        <HistoryPanel subjectRef={subject.subject} keys={keys} />
       </WithRail>
     </Page>
+  );
+}
+
+/**
+ * "4 Claims · all supported", or the count in each state that is not the
+ * normal one ("4 Claims · 2 contested · 1 stale"), each with its signal.
+ */
+function ClaimsTally({ cards }: { cards: GetClaimCard[] }) {
+  const { total, states } = claimStates(cards);
+  const noun = `${total} ${total === 1 ? "Claim" : "Claims"}`;
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px]">
+      <span className="text-zinc-200">{noun}</span>
+      {states.size === 0 ? (
+        <span className="text-zinc-400">· {total === 1 ? "supported" : "all supported"}</span>
+      ) : (
+        [...states.entries()].map(([state, count]) => {
+          const word = term("claim", state);
+          return (
+            <span key={state} className="inline-flex items-baseline gap-1.5">
+              <span className="text-zinc-400">·</span>
+              <span className="font-mono text-zinc-200">{count}</span>
+              <Chip term={{ ...word, word: word.word.toLowerCase() }} />
+            </span>
+          );
+        })
+      )}
+    </span>
+  );
+}
+
+/** The `key` mark: a field that is part of the SubjectKind's key (the id spells it; no evidence asked). */
+function KeyMark({ kind }: { kind: string | null }) {
+  return (
+    <span
+      className="border border-zinc-800 px-1 font-mono text-[11px] leading-4 text-zinc-500"
+      title={`Part of the ${kind ?? "Subject's"} key: it names the Subject, so no evidence is asked of it`}
+    >
+      key
+    </span>
   );
 }
 
@@ -247,6 +304,7 @@ function ClaimRow({
   kind,
   entry,
   descriptor,
+  isKey,
   cards,
   accounts,
   focus,
@@ -254,6 +312,7 @@ function ClaimRow({
   kind: string;
   entry: SubjectClaim;
   descriptor: OrientPredicate | undefined;
+  isKey: boolean;
   cards: Map<string, GetClaimCard>;
   accounts: Map<string, CaptureAdmissionAccount[]>;
   focus: string | null;
@@ -269,6 +328,7 @@ function ClaimRow({
   }, [focused]);
   const flags: readonly string[] = entry.flags ?? [];
   const predicate = descriptor?.predicate ?? entry.predicate;
+  const need: EvidenceNeed = isKey ? "none" : evidenceNeed(descriptor);
   return (
     <div ref={rowRef} className={`py-2 first:pt-0 last:pb-0 ${focused ? "bg-zinc-900/40" : ""}`}>
       <div className="grid grid-cols-[1rem_minmax(9rem,15rem)_minmax(0,1fr)_minmax(0,max-content)] items-baseline gap-x-4 text-[13px]">
@@ -283,7 +343,7 @@ function ClaimRow({
         <Link
           to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)}
           className="truncate font-mono text-[12px] text-zinc-400 hover:text-zinc-200 hover:underline"
-          title={`${predicate}${descriptor ? ` · ${descriptor.cardinality} · ${descriptor.type}` : ""}`}
+          title={`${predicate}${descriptor ? ` · ${descriptor.cardinality} · ${descriptor.type}` : ""}${need === "none" ? " · no evidence required" : ""}`}
         >
           {entry.predicate}
           {entry.qualifier && <span className="text-zinc-500">[{entry.qualifier}]</span>}
@@ -299,13 +359,13 @@ function ClaimRow({
           {[...new Set(ids.map((id) => cards.get(id)?.verdict))].filter((v): v is string => !!v && !QUIET_VERDICTS.has(v) && !flags.includes(v)).map((verdict) => (
             <Chip key={verdict} concept="claim" value={verdict} />
           ))}
-          <AdmissionSummary accounts={ids.flatMap((id) => accounts.get(id) ?? [])} />
+          {isKey ? <KeyMark kind={kind} /> : <AdmissionSummary need={need} accounts={ids.flatMap((id) => accounts.get(id) ?? [])} />}
         </div>
       </div>
       {open && (
         <div className="ml-8 mt-2 space-y-2">
           {ids.map((id) => (
-            <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} />
+            <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} need={need} isKey={isKey} />
           ))}
         </div>
       )}
@@ -313,19 +373,36 @@ function ClaimRow({
   );
 }
 
-/** Citations offered as evidence that the rule admits; copies that are not evidence are left out. */
-function AdmissionSummary({ accounts }: { accounts: CaptureAdmissionAccount[] }) {
+/**
+ * Citations offered as evidence that the rule admits; copies that are not
+ * evidence are left out. Red only where the ClaimType requires captured
+ * evidence and a citation is refused; a field that requires none shows
+ * nothing.
+ */
+function AdmissionSummary({ need, accounts }: { need: EvidenceNeed; accounts: CaptureAdmissionAccount[] }) {
   const { admitted, offered } = admissionTally(accounts);
-  if (offered === 0) return null;
+  if (offered === 0 || need === "none") return null;
   return (
     <span
       className="inline-flex items-baseline gap-1.5 whitespace-nowrap text-[12px] text-zinc-500"
-      title="Citations offered as evidence that the ClaimType's evidence rule admits"
+      title={
+        need === "own-words"
+          ? "Citations offered as evidence that the ClaimType's evidence rule admits; the author's own words may stand without them"
+          : "Citations offered as evidence that the ClaimType's evidence rule admits"
+      }
     >
-      {admitted < offered && <SignalDot signal="wrong" title={term("evidence", "not_admitted").meaning} />}
+      {need === "required" && admitted < offered && <SignalDot signal="wrong" title={term("evidence", "not_admitted").meaning} />}
       {admitted}/{offered} admitted
     </span>
   );
+}
+
+/** A citation's evidence status; refused reads as wrong only where the ClaimType requires captured evidence. */
+function evidenceTerm(status: string, need: EvidenceNeed): Term {
+  const word = term("evidence", status);
+  if (need === "required" || !word.signal) return word;
+  const { signal: _signal, ...quiet } = word;
+  return quiet;
 }
 
 /** One Claim, expanded: verdict and contenders, evidence, admission, revisions. */
@@ -333,10 +410,14 @@ function ClaimDetail({
   claimId,
   card,
   accounts,
+  need,
+  isKey,
 }: {
   claimId: string;
   card: GetClaimCard | undefined;
   accounts: CaptureAdmissionAccount[] | undefined;
+  need: EvidenceNeed;
+  isKey: boolean;
 }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
@@ -364,6 +445,7 @@ function ClaimDetail({
             </span>
           </>
         )}
+        {need === "none" && <span className="text-zinc-500">{isKey ? "Key: no evidence required" : "No evidence required"}</span>}
         {ev && <Corroboration summary={corroboration(ev.attestations)} />}
       </div>
 
@@ -412,7 +494,7 @@ function ClaimDetail({
                         {citationLabel(capture)}
                       </Td>
                       <Td className="whitespace-nowrap">
-                        <Chip concept="evidence" value={capture.status} />
+                        <Chip term={evidenceTerm(capture.status, need)} />
                       </Td>
                       <Td className="max-w-[18rem] truncate text-zinc-400" title={capture.source}>
                         {publicName(capture.source)}
@@ -461,7 +543,7 @@ function ClaimDetail({
                   <Td className="text-zinc-400">{account.citation_role}</Td>
                   <Td className="text-zinc-400">{account.citation_origin}</Td>
                   <Td>
-                    <Chip concept="evidence" value={account.status} />
+                    <Chip term={evidenceTerm(account.status, need)} />
                   </Td>
                   <Td className="text-zinc-500">
                     {account.decision ? (
@@ -569,11 +651,6 @@ function GenerationLink({ sequence }: { sequence: number }) {
 
 type Reason = SubjectHistoryEvent["reason"] | GetRevision["reason"];
 
-function reasonText(reason: Reason): string | null {
-  if (!reason) return null;
-  return `${reason.kind === "change_set" ? reason.text : reason.reason}${reason.truncated ? "…" : ""}`;
-}
-
 function ReasonSource({ reason }: { reason: Reason }) {
   if (!reason || reason.kind !== "procedure_item") return null;
   return (
@@ -584,7 +661,7 @@ function ReasonSource({ reason }: { reason: Reason }) {
 }
 
 function RevisionLine({ revision }: { revision: GetRevision }) {
-  const text = reasonText(revision.reason);
+  const text = reasonWords(revision.reason);
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-x-3">
@@ -604,42 +681,14 @@ function RevisionLine({ revision }: { revision: GetRevision }) {
   );
 }
 
-/**
- * Consecutive events of one accepted change (same generation, actor and
- * approvers) read as one entry; inside it, events are grouped under their
- * reason so a reason shared by several fields shows once.
- */
-function groupEvents(events: SubjectHistoryEvent[]): SubjectHistoryEvent[][] {
-  const key = (e: SubjectHistoryEvent) => `${e.sequence}\n${e.actor ?? ""}\n${(e.approved_by ?? []).join(",")}`;
-  const groups: SubjectHistoryEvent[][] = [];
-  for (const event of events) {
-    const last = groups[groups.length - 1];
-    if (last && key(last[0]!) === key(event)) last.push(event);
-    else groups.push([event]);
-  }
-  return groups;
-}
-
-function byReason(events: SubjectHistoryEvent[]): { text: string | null; reason: Reason; events: SubjectHistoryEvent[] }[] {
-  const out = new Map<string, { text: string | null; reason: Reason; events: SubjectHistoryEvent[] }>();
-  for (const event of events) {
-    const text = reasonText(event.reason);
-    const k = text ?? "";
-    const entry = out.get(k) ?? { text, reason: event.reason, events: [] };
-    entry.events.push(event);
-    out.set(k, entry);
-  }
-  return [...out.values()];
-}
-
 /** The Subject's field history, newest first, a page at a time (O(page)). */
-function HistoryPanel({ subjectRef }: { subjectRef: string }) {
+function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: ReadonlySet<string> | undefined }) {
   const [cursors, setCursors] = useState<string[]>([]);
   const cursor = cursors[cursors.length - 1];
   const read = useSubjectHistory(subjectRef, cursor);
   const history = read.data?.history;
   const events: SubjectHistoryEvent[] = history?.kind === "subject" ? history.events : [];
-  const groups = groupEvents(events);
+  const groups = changeSets(events);
   return (
     <Panel
       title="Field history"
@@ -668,57 +717,156 @@ function HistoryPanel({ subjectRef }: { subjectRef: string }) {
       {read.data && events.length === 0 && <EmptyState>No field events.</EmptyState>}
       <div className="divide-y divide-zinc-800/70">
         {groups.map((group) => (
-          <HistoryGroup key={`${group[0]!.sequence}\n${group[0]!.claim}`} events={group} />
+          <ChangeSet key={`${group[0]!.sequence}\n${group[0]!.claim}`} events={group} keys={keys} />
         ))}
       </div>
     </Panel>
   );
 }
 
-function HistoryGroup({ events }: { events: SubjectHistoryEvent[] }) {
+const Dot = () => <span className="text-zinc-600">·</span>;
+
+/**
+ * One change set: its generation, when, who authored it and who approved it
+ * on one line, then one line per field it changed. A proposal's own words
+ * show once under the line; core's "Proposed by Procedure … run …" text only
+ * restates the run, which the author link already names.
+ */
+function ChangeSet({ events, keys }: { events: SubjectHistoryEvent[]; keys: ReadonlySet<string> | undefined }) {
   const head = events[0]!;
+  const source = changeSetRun(events);
+  const notes = [
+    ...new Set(events.flatMap((event) => (event.reason?.kind === "change_set" ? [reasonWords(event.reason)] : [])).filter((text): text is string => !!text)),
+  ];
   return (
-    <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-4 py-2.5 text-[13px] first:pt-0 last:pb-0">
-      <div className="pt-px">
+    <div className="py-2.5 text-[13px] first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-baseline gap-x-2 text-zinc-400">
         <GenerationLink sequence={head.sequence} />
-        <div className="t-meta" title={head.accepted}>
+        <Dot />
+        <span className="text-zinc-500" title={head.accepted}>
           {formatWhen(head.accepted)}
-        </div>
+        </span>
+        <Dot />
+        <ChangeSetAuthor source={source} sequence={head.sequence} actor={head.actor ?? null} approvers={head.approved_by ?? []} />
       </div>
-      <div className="min-w-0 space-y-2">
-        <div className="t-meta flex flex-wrap items-baseline gap-x-2">
-          {head.actor && <span className="font-mono text-zinc-400">{head.actor}</span>}
-          {(head.approved_by?.length ?? 0) > 0 && <span>approved by {head.approved_by!.join(", ")}</span>}
+      {notes.map((text) => (
+        <div key={text} className="mt-1">
+          <LongText text={text} lines={2} className="text-zinc-200" />
         </div>
-        {byReason(events).map(({ text, reason, events: fields }) => (
-          <div key={text ?? ""} className="space-y-1">
-            {(text || reason) && (
-              <div className="flex flex-wrap items-baseline gap-x-3">
-                {text && (
-                  <span className="min-w-0 flex-1">
-                    <LongText text={text} lines={2} className="text-zinc-200" />
-                  </span>
-                )}
-                <ReasonSource reason={reason} />
-              </div>
-            )}
-            <dl className="grid grid-cols-[minmax(7rem,max-content)_minmax(0,1fr)] gap-x-4 gap-y-1">
-              {fields.map((event, i) => (
-                <Fragment key={`${event.claim}\n${i}`}>
-                  <dt className="flex items-baseline gap-2 whitespace-nowrap">
-                    <ChangeMark change={event.change ?? "stated"} />
-                    <span className="font-mono text-[12px] text-zinc-400">{event.field}</span>
-                  </dt>
-                  <dd className="min-w-0">
-                    <EventValue event={event} />
-                  </dd>
-                </Fragment>
-              ))}
-            </dl>
-          </div>
+      ))}
+      <div className="mt-1.5 grid grid-cols-[minmax(7rem,max-content)_fit-content(24rem)_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1">
+        {events.map((event, i) => (
+          <FieldChange key={`${event.claim}\n${i}`} event={event} isKey={isKeyField(keys, event.predicate)} />
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Who authored a change set. A run's Line, linked as of the change's
+ * generation (and to the Line now, when it has been revised since); a run no
+ * Line triggered, as its Procedure and the principal who ran it; otherwise
+ * the principal. Approvers follow, leaving out the author.
+ */
+function ChangeSetAuthor({
+  source,
+  sequence,
+  actor,
+  approvers,
+}: {
+  source: { run: string; procedure: string } | null;
+  sequence: number;
+  actor: string | null;
+  approvers: string[];
+}) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const run = useRunAuthor(source?.run ?? null);
+  const line = run.data?.line ?? null;
+  const latest = useLatestRevision(line);
+  const changedSince = latest.latest !== null && latest.latest.sequence > sequence;
+  const runner = run.data?.actor ?? actor;
+  const author = line ? null : runner;
+  const approved = approvers.filter((principal) => principal !== author);
+  const id = source ? runId(source.run) : null;
+  const runLink = id && (
+    <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(id)}`)} className="font-mono text-zinc-500 hover:text-zinc-200 hover:underline" title={id}>
+      run {/^RUN-[0-9a-f]{7,}$/.test(id) ? `${id.slice(4, 10)}…` : id}
+    </Link>
+  );
+  const procedure = (run.data?.procedure ?? source?.procedure ?? "").replace(/^Procedure:/, "");
+  return (
+    <>
+      {source && run.isPending && <span className="t-meta animate-pulse">{procedure}</span>}
+      {line && (
+        <span className="inline-flex items-baseline gap-x-2">
+          <Link
+            to={withAt(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`, String(sequence))}
+            className="inline-flex items-baseline gap-0.5 font-mono text-zinc-200 hover:underline"
+            title={`${lineName(line)} as it was at g${sequence}`}
+          >
+            {lineName(line)}
+            <ArrowUpRight className="relative top-[1px] h-3 w-3 self-center text-zinc-500" aria-hidden />
+          </Link>
+          <span className="text-zinc-500">({runLink})</span>
+          {changedSince && (
+            <Link
+              to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`)}
+              className="t-meta hover:text-zinc-200 hover:underline"
+              title={`The Line was revised at g${latest.latest!.sequence}, after this change`}
+            >
+              changed since
+            </Link>
+          )}
+        </span>
+      )}
+      {source && !line && !run.isPending && (
+        <span className="inline-flex items-baseline gap-x-2">
+          <RefLink value={`Procedure:${procedure}`} className="font-mono text-[13px]" />
+          <span className="text-zinc-500">({runLink})</span>
+          {/* a run read refused (pruned, or not recorded) leaves the trigger unknown: the principal alone */}
+          {runner &&
+            (run.data ? (
+              <span className="text-zinc-500">
+                direct run by <span className="font-mono text-zinc-300">{runner}</span>
+              </span>
+            ) : (
+              <span className="font-mono text-zinc-300">{runner}</span>
+            ))}
+        </span>
+      )}
+      {!source && actor && <span className="font-mono text-zinc-300">{actor}</span>}
+      {approved.length > 0 && (
+        <>
+          <Dot />
+          <span className="text-zinc-500">approved by {approved.join(", ")}</span>
+        </>
+      )}
+    </>
+  );
+}
+
+/** One field a change set changed: its mark and name (`key` for a key part), the value, and the item's own reason. */
+function FieldChange({ event, isKey }: { event: SubjectHistoryEvent; isKey: boolean }) {
+  const reason = event.reason?.kind === "procedure_item" ? reasonWords(event.reason) : null;
+  return (
+    <>
+      <div className="flex items-baseline gap-2 whitespace-nowrap">
+        <ChangeMark change={event.change ?? "stated"} />
+        <span className="font-mono text-[12px] text-zinc-400">{event.field}</span>
+      </div>
+      <div className="min-w-0">
+        <EventValue event={event} />
+      </div>
+      <div className="min-w-0">
+        {reason ? (
+          <LongText text={`“${reason}”`} lines={1} className="text-zinc-500" />
+        ) : (
+          isKey && <KeyMark kind={null} />
+        )}
+      </div>
+    </>
   );
 }
 

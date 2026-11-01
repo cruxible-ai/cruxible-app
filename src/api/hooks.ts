@@ -773,6 +773,44 @@ export function useCards(refs: readonly string[]) {
   });
 }
 
+/**
+ * Who a run ran for: the Line that triggered it (null for a direct run), its
+ * Procedure and actor. A run's trigger never changes, so each run is read
+ * once (its summary card through get-batch, as the run page reads it) and
+ * kept whatever the head does.
+ */
+export function useRunAuthor(run: string | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  const { coordinate } = usePin();
+  return useQuery({
+    queryKey: ["run-author", instanceId, run],
+    enabled: run !== null && coordinate !== undefined,
+    staleTime: Infinity,
+    queryFn: async () => {
+      const batch = unwrap(
+        await client.POST("/api/v1/{instance_id}/get-batch", {
+          params: { path: { instance_id: instanceId } },
+          body: getBatchBody([`ProcedureRun:${run!}`], coordinate!),
+        }),
+      );
+      const card = cardOf(batch.results[0], "procedure_run");
+      return {
+        line: card?.triggered_by?.line ?? null,
+        procedure: card?.procedure ?? null,
+        actor: card?.actor ?? null,
+      };
+    },
+  });
+}
+
+/** A definition's latest revision (its history's first row, newest first) at the page coordinate. */
+export function useLatestRevision(ref: string | null) {
+  const read = useGet(ref, "history", { limit: 1 });
+  const history = read.data?.history;
+  return { ...read, latest: history?.kind === "revisions" ? (history.revisions[0] ?? null) : null };
+}
+
 /** A Subject's field history (stated/changed/reobserved/retired), one page. */
 export function useSubjectHistory(ref: string | null, cursor?: string) {
   return useGet(ref, "history", { limit: HISTORY_PAGE, ...(cursor !== undefined ? { cursor } : {}) });

@@ -10,8 +10,11 @@ import { humanize } from "./text.ts";
  * - amber dot: waiting on you or someone (a proposal waiting for review, a
  *   repair to run, an unread inbox item, a due occurrence);
  * - red dot: wrong or blocked (refused, conflicted, not admitted, a failed run);
- * - no dot: everything else (accepted, live, supported, running, retired).
- * There is no green, except on Health (see healthTone). Every term carries a meaning, shown on hover, that says
+ * - no dot: everything else (accepted, live, supported, running), in plain
+ *   text.
+ * Gone states (a retired or overturned Claim, a retired Subject) carry no dot
+ * either: they read dimmed and struck through. There is no green, except on
+ * Health (see healthTone). Every term carries a meaning, shown on hover, that says
  * what the word means and, for a signal, what to do. Values the glossary does
  * not know read as their humanized raw value, with no dot.
  */
@@ -24,11 +27,15 @@ export interface Term {
   /** What it means and, for a signal, what to do (the hover). */
   meaning: string;
   signal?: Signal;
+  /** No longer in accepted state: the word reads dimmed and struck through. */
+  gone?: true;
 }
 
 /** The legend Settings shows. */
 
 const t = (word: string, meaning: string, signal?: Signal): Term => (signal ? { word, meaning, signal } : { word, meaning });
+/** A gone state: no signal, dimmed and struck through. */
+const gone = (word: string, meaning: string): Term => ({ word, meaning, gone: true });
 
 /** Proposal state: the Proposals tabs and the state chip use these words. */
 const PROPOSAL: Record<string, Term> = {
@@ -56,14 +63,16 @@ const CLAIM: Record<string, Term> = {
   accepted: t("Accepted", "Accepted: in accepted state"),
   contested: t("Contested", "Contested: Claims in this slot disagree; settle one on the CLI or MCP", "waiting"),
   stale: t("Stale", "Stale: its evidence expired; re-observe it", "waiting"),
+  stale_evidence: t("Stale evidence", "Stale evidence: a cited Capture is past its freshness; re-observe it", "waiting"),
   uncovered: t("Uncovered", "Uncovered: no admitted evidence backs it; cite a Capture its ClaimType admits", "waiting"),
   unresolved: t("Unresolved", "Unresolved: the verdict is not decided yet", "waiting"),
   unsure_hold: t("Held", "Held: an unsure attestation holds it for a look", "waiting"),
   contradicted: t("Contradicted", "Contradicted: a contradiction that counts toward the verdict stands against it", "wrong"),
   conflicted: t("Conflicted", "Conflicted: more Claims than the slot allows stand; settle which one holds", "wrong"),
   ineligible: t("Ineligible", "Ineligible: its ClaimType's rules refuse it", "wrong"),
-  overturned: t("Overturned", "Overturned: a later judgment replaced it"),
-  retired: t("Retired", "Retired: no longer in accepted state"),
+  refused: t("Refused", "Refused: evaluation refused it; the refusal says why", "wrong"),
+  overturned: gone("Overturned", "Overturned: a later judgment replaced it"),
+  retired: gone("Retired", "Retired: no longer in accepted state"),
   live: t("Live", "Live: in accepted state"),
 };
 
@@ -257,7 +266,7 @@ const PROVIDER: Record<string, Term> = {
 /** Lifecycle of definitions (kinds, contracts, Subjects). */
 const LIFECYCLE: Record<string, Term> = {
   live: t("Live", "Live: in accepted state"),
-  retired: t("Retired", "Retired: no longer in accepted state"),
+  retired: gone("Retired", "Retired: no longer in accepted state"),
 };
 
 export const VOCABULARY = {

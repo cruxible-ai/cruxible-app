@@ -214,9 +214,11 @@ const CLAIMS: ClaimSpec[] = [
     predicate: "security.assessment.vulnerability", value: "security.vulnerability/cve-2024-3094",
     verdict: "supported", status: "accepted", revision: 1,
   },
+  // The key: its ClaimType requires no evidence, so the citation the rule refuses is not wrong.
   {
     id: clm(0xb1), subject: "security.vulnerability/cve-2024-3094", field: "cve_id",
     predicate: "security.vulnerability.cve_id", value: "CVE-2024-3094", verdict: "supported", status: "accepted", revision: 1,
+    accounts: [account(OSV_CAPTURE, "security.osv-applicability-v1", "not_admitted")],
   },
   {
     id: clm(0xb2), subject: "security.vulnerability/cve-2024-3094", field: "kev_listed",
@@ -224,10 +226,12 @@ const CLAIMS: ClaimSpec[] = [
     revision: 3, flags: ["stale"],
     accounts: [account(KEV_CAPTURE, "security.kev-http-v1", "not_admitted")],
   },
+  // Requires no evidence either (and is no key): a refused citation stays quiet.
   {
     id: clm(0xb3), subject: "security.vulnerability/cve-2024-3094", field: "related",
     predicate: "security.vulnerability.related", value: "security.vulnerability/cve-2024-6387",
     verdict: "supported", status: "accepted", revision: 1,
+    accounts: [account(ADVISORY_CAPTURE, "security.vendor-advisory-v1", "not_admitted")],
   },
 ];
 
@@ -334,6 +338,9 @@ function claimSet(subject: string) {
   ];
 }
 
+/** A run no Line triggered (run-7, in lines.ts, is the kev-triage Line's). */
+const DIRECT_RUN = `RUN-${"d1".repeat(32)}`;
+
 function historyFixture(subject: string) {
   return defineFixture({
     method: "post",
@@ -358,7 +365,7 @@ function historyFixture(subject: string) {
                   change: "changed", field: "status", predicate: "security.assessment.status", claim: clm(0xa2),
                   sequence: 40, git_oid: "000000000028", accepted: "2026-10-18T22:15:00Z", actor: "triage-agent",
                   approved_by: ["release-owner"], before: "under_investigation", value: "affected",
-                  reason: { kind: "procedure_item", reason: "OSV range match", proposal: "sha256:" + "7".repeat(64), procedure: "security.cve-applicability", run: "run-7", terminal: "settled" },
+                  reason: { kind: "procedure_item", reason: "OSV range match", proposal: "sha256:" + "7".repeat(64), procedure: "Procedure:security.kev-triage", run: "run-7", terminal: "settled" },
                 },
                 {
                   change: "stated", field: "release", predicate: "security.assessment.release", claim: clm(0xa1),
@@ -371,6 +378,23 @@ function historyFixture(subject: string) {
                   change: "reobserved", field: "kev_listed", predicate: "security.vulnerability.kev_listed", claim: clm(0xb2),
                   sequence: 38, git_oid: "000000000026", accepted: "2026-10-18T06:00:00Z", actor: "kev-sync", value: true,
                 },
+                // A direct run's change set: the key's reason is core's proposal text, which only restates the run.
+                {
+                  change: "stated", field: "kev_listed", predicate: "security.vulnerability.kev_listed", claim: clm(0xb2),
+                  sequence: 30, git_oid: "00000000001e", accepted: "2026-10-16T06:00:00Z", actor: "kev-sync", approved_by: ["kev-sync"],
+                  value: true,
+                  reason: { kind: "procedure_item", reason: "CISA's KEV catalog lists CVE-2024-3094.", proposal: "sha256:" + "8".repeat(64), procedure: "Procedure:security.kev-backfill", run: DIRECT_RUN, terminal: "propose" },
+                },
+                {
+                  change: "stated", field: "cve_id", predicate: "security.vulnerability.cve_id", claim: clm(0xb1),
+                  sequence: 30, git_oid: "00000000001e", accepted: "2026-10-16T06:00:00Z", actor: "kev-sync", approved_by: ["kev-sync"],
+                  value: "CVE-2024-3094",
+                  reason: {
+                    kind: "change_set",
+                    text: `Proposed by Procedure security.kev-backfill run ${DIRECT_RUN} terminal propose\n\n2 items; each item's reason is recorded with the Claim or Subject it explains.`,
+                    proposal: "sha256:" + "8".repeat(64),
+                  },
+                },
               ],
       },
       next_cursor: subject === "security.assessment/rel-1-cve-2024-3094" ? "page-2" : null,
@@ -379,6 +403,56 @@ function historyFixture(subject: string) {
 }
 
 const ASSESSMENT = "security.assessment/rel-1-cve-2024-3094";
+
+// -- who authored a change set --------------------------------------------------
+// The direct run's card, and the kev-triage Line's latest revision (g45: revised
+// after run-7's change at g40).
+
+const runAuthors = [
+  batch([`ProcedureRun:${DIRECT_RUN}`], [
+    {
+      tag: "playbill-get-result-v1",
+      ref: `ProcedureRun:${DIRECT_RUN}`,
+      kind: "procedure_run",
+      detail: "summary",
+      coordinate: AT,
+      accepted_coordinate: COORDINATE,
+      evaluation_time: NOW,
+      card: {
+        run: DIRECT_RUN,
+        procedure: "Procedure:security.kev-backfill",
+        status: "succeeded",
+        nodes_done: 3,
+        nodes_total: 3,
+        started_at: "2026-10-16T05:59:00Z",
+        actor: "kev-sync",
+      },
+    },
+  ]),
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get",
+    body: getBody({ ref: "Line:kev-triage", coordinate: COORDINATE, detail: "history", limit: 1 }),
+    response: {
+      tag: "playbill-get-result-v1",
+      ref: "Line:kev-triage",
+      kind: "line",
+      detail: "history",
+      coordinate: AT,
+      accepted_coordinate: COORDINATE,
+      evaluation_time: NOW,
+      history: {
+        kind: "revisions",
+        revisions: [
+          {
+            revision: 2, sequence: 45, git_oid: "00000000002d", accepted: "2026-10-19T08:00:00Z", actor: "release-owner",
+            digest: "sha256:" + "9".repeat(12),
+          },
+        ],
+      },
+    },
+  }),
+];
 
 function incomingFixture(subject: string, claims: Schemas["GetIncomingClaim"][]) {
   return defineFixture({
@@ -433,11 +507,17 @@ export default [
       },
     },
   }),
+  ...runAuthors,
   incomingFixture(ASSESSMENT, []),
   incomingFixture("security.vulnerability/cve-2024-3094", [
     { claim: clm(0xa4), subject: ASSESSMENT, predicate: "security.assessment.vulnerability" },
     { claim: clm(0xf1), subject: "security.vulnerability/cve-2024-6387", predicate: "security.vulnerability.related" },
   ]),
+  // The Subjects pointing at cve-2024-3094, summarized in its incoming list.
+  batch(
+    [ASSESSMENT, "security.vulnerability/cve-2024-6387"],
+    [subjectResult(ASSESSMENT), subjectResult("security.vulnerability/cve-2024-6387")],
+  ),
   // Neighborhood hops from the assessment: depth 1, then depth 2.
   batch(
     ["security.release/rel-1", "security.vulnerability/cve-2024-3094"],

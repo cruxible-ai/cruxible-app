@@ -41,6 +41,7 @@ import { digest8, fixtureKey, normalizePath, normalizeQuery } from "../src/fixtu
 import { walkNeighborhood, type CardFetcher, type IncomingReader } from "../src/lib/neighborhood.ts";
 import { lineName } from "../src/lib/lines.ts";
 import { ontologyKinds } from "../src/lib/type-graph.ts";
+import { changeSetRun, changeSets } from "../src/lib/change-sets.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -262,7 +263,18 @@ const incoming: IncomingReader = async (subject, cursor) => {
 /** Every read the Subject page and the neighborhood (depth 1 and 2) make for one Subject. */
 async function recordSubject(ref: string) {
   const [read] = await fetchCards([ref]).catch(() => [undefined]);
-  await call("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
+  const history = await call<GetResult>("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
+  // Each change set's author: its run's card, and the run's Line's latest revision.
+  const events = history?.history?.kind === "subject" ? history.history.events : [];
+  for (const source of new Set(changeSets(events).map((group) => changeSetRun(group)?.run).filter((run): run is string => !!run))) {
+    const [run] = await fetchCards([`ProcedureRun:${source}`]).catch(() => [undefined]);
+    const line = (run?.card as { triggered_by?: { line?: string } | null } | undefined)?.triggered_by?.line;
+    if (line) await call("post", `${P}/get`, { body: getBody({ ref: line, coordinate: C, detail: "history", limit: 1 }) });
+  }
+  // The incoming list's first page, with the pointing Subjects' cards.
+  const pointing = await incoming(ref, null);
+  const pointers = [...new Set(pointing.claims.map((claim) => claim.subject))];
+  for (let i = 0; i < pointers.length; i += GET_BATCH_MAX) await fetchCards(pointers.slice(i, i + GET_BATCH_MAX)).catch(() => null);
   const card = read?.card as { claims?: { claim: string | string[] }[] } | undefined;
   const ids = (card?.claims ?? []).flatMap((entry) => (Array.isArray(entry.claim) ? entry.claim : [entry.claim]));
   for (let i = 0; i < ids.length; i += GET_BATCH_MAX) await fetchCards(ids.slice(i, i + GET_BATCH_MAX)).catch(() => null);
