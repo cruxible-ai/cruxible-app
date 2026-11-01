@@ -739,7 +739,7 @@ function ChangeSet({ events, keys }: { events: SubjectHistoryEvent[]; keys: Read
     ...new Set(events.flatMap((event) => (event.reason?.kind === "change_set" ? [reasonWords(event.reason)] : [])).filter((text): text is string => !!text)),
   ];
   return (
-    <div className="py-2.5 text-[13px] first:pt-0 last:pb-0">
+    <div className="py-4 text-[13px] first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-baseline gap-x-2 text-zinc-400">
         <GenerationLink sequence={head.sequence} />
         <Dot />
@@ -754,9 +754,9 @@ function ChangeSet({ events, keys }: { events: SubjectHistoryEvent[]; keys: Read
           <LongText text={text} lines={2} className="text-zinc-200" />
         </div>
       ))}
-      <div className="mt-1.5 grid grid-cols-[minmax(7rem,max-content)_fit-content(24rem)_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1">
-        {events.map((event, i) => (
-          <FieldChange key={`${event.claim}\n${i}`} event={event} isKey={isKeyField(keys, event.predicate)} />
+      <div className="mt-2.5 grid grid-cols-[minmax(9rem,max-content)_minmax(0,1fr)] items-baseline gap-x-5 gap-y-3">
+        {fieldGroups(events).map((group) => (
+          <FieldChangeGroup key={`${group.field}\n${group.change}`} group={group} isKey={isKeyField(keys, group.events[0]!.predicate)} />
         ))}
       </div>
     </div>
@@ -848,22 +848,95 @@ function ChangeSetAuthor({
 }
 
 /** One field a change set changed: its mark and name (`key` for a key part), the value, and the item's own reason. */
-function FieldChange({ event, isKey }: { event: SubjectHistoryEvent; isKey: boolean }) {
-  const reason = event.reason?.kind === "procedure_item" ? reasonWords(event.reason) : null;
+interface FieldGroup {
+  field: string;
+  change: string;
+  events: SubjectHistoryEvent[];
+}
+
+/** A change set's field changes, one group per (field, change), in first-seen order. */
+function fieldGroups(events: SubjectHistoryEvent[]): FieldGroup[] {
+  const out = new Map<string, FieldGroup>();
+  for (const event of events) {
+    const change = event.change ?? "stated";
+    const key = `${event.field}\n${change}`;
+    let group = out.get(key);
+    if (!group) out.set(key, (group = { field: event.field, change, events: [] }));
+    group.events.push(event);
+  }
+  return [...out.values()];
+}
+
+/** The text a value reads as, to find it inside an item's reason. */
+function valueText(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return null;
+}
+
+/**
+ * The reasons of a group of changes, said once: when every reason is the same
+ * sentence around its own value, the sentence with the value elided;
+ * otherwise the first reason and how many more there are.
+ */
+function groupReason(events: SubjectHistoryEvent[]): { text: string; more: number } | null {
+  const reasons = events.map((event) => (event.reason?.kind === "procedure_item" ? reasonWords(event.reason) : null));
+  if (reasons.every((r) => !r)) return null;
+  if (events.length === 1) return reasons[0] ? { text: reasons[0], more: 0 } : null;
+  const patterns = events.map((event, i) => {
+    const reason = reasons[i];
+    const value = valueText(event.value);
+    return reason && value ? reason.split(value).join("…").replace(/…\.$/, "…") : reason;
+  });
+  if (patterns.every((p) => p === patterns[0])) return { text: patterns[0]!, more: 0 };
+  const first = reasons.find((r) => !!r)!;
+  return { text: first, more: reasons.filter((r) => !!r).length - 1 };
+}
+
+/** How many values a repeated field shows before "show all". */
+const GROUP_PREVIEW = 3;
+
+function FieldChangeGroup({ group, isKey }: { group: FieldGroup; isKey: boolean }) {
+  const [all, setAll] = useState(false);
+  const count = group.events.length;
+  const shown = all ? group.events : group.events.slice(0, GROUP_PREVIEW);
+  const reason = groupReason(group.events);
   return (
     <>
       <div className="flex items-baseline gap-2 whitespace-nowrap">
-        <ChangeMark change={event.change ?? "stated"} />
-        <span className="font-mono text-[12px] text-zinc-400">{event.field}</span>
+        <ChangeMark change={group.change} />
+        <span className="font-mono text-[12px] text-zinc-400">{group.field}</span>
+        {count > 1 && <span className="text-[12px] text-zinc-600">× {count}</span>}
       </div>
-      <div className="min-w-0">
-        <EventValue event={event} />
-      </div>
-      <div className="min-w-0">
-        {reason ? (
-          <LongText text={`“${reason}”`} lines={1} className="text-zinc-500" />
+      <div className="min-w-0 space-y-0.5">
+        {count === 1 ? (
+          <div className="flex flex-wrap items-baseline gap-x-3">
+            <span className="min-w-0">
+              <EventValue event={group.events[0]!} />
+            </span>
+            {isKey && <KeyMark kind={null} />}
+          </div>
         ) : (
-          isKey && <KeyMark kind={null} />
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            {shown.map((event, i) => (
+              <span key={`${event.claim}\n${i}`} className="whitespace-nowrap text-zinc-300">
+                {valueText(event.value) ?? <ShownValue value={event.value} />}
+                {i < shown.length - 1 && <span className="text-zinc-600">,</span>}
+              </span>
+            ))}
+            {count > GROUP_PREVIEW && (
+              <button onClick={() => setAll((v) => !v)} className="ml-1 text-[12px] text-zinc-500 hover:text-zinc-200">
+                {all ? "show fewer" : `… show all ${count}`}
+              </button>
+            )}
+          </div>
+        )}
+        {reason && (
+          <LongText
+            text={reason.more > 0 ? `${reason.text} (+${reason.more} more reasons)` : reason.text}
+            lines={1}
+            className="text-[12px] text-zinc-500"
+          />
         )}
       </div>
     </>

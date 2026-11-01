@@ -128,7 +128,7 @@ describe("Subject page", () => {
     expect(await main.findByRole("link", { name: "changed since" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
     expect(main.getByRole("link", { name: "run run-7" })).toHaveAttribute("href", "/i/inst_fixture/runs/run-7");
     expect(main.getByText("approved by release-owner")).toBeInTheDocument();
-    expect(main.getByText("“OSV range match”")).toBeInTheDocument();
+    expect(main.getByText("OSV range match")).toBeInTheDocument();
     // the actor is not repeated beside the Line
     expect(main.queryByText("triage-agent")).toBeNull();
     // g41: hand-authored, its principal the author, the proposal's words once
@@ -144,7 +144,7 @@ describe("Subject page", () => {
     // the approver is the runner: not repeated
     expect(main.queryByText(/approved by/)).toBeNull();
     expect(main.queryByText(/Proposed by Procedure/)).toBeNull();
-    expect(main.getByText("“CISA's KEV catalog lists CVE-2024-3094.”")).toBeInTheDocument();
+    expect(main.getByText("CISA's KEV catalog lists CVE-2024-3094.")).toBeInTheDocument();
     // the key field in the Fields list and in the history
     expect(main.getAllByText("key")).toHaveLength(2);
   });
