@@ -508,8 +508,10 @@ export function CosmosDots({
       }
       // Keep the forming picture framed, but never yank a camera the user
       // has already taken over.
-      if ((firstUpdate || e.data.done) && !cameraOwnedRef.current) {
-        fitTo(graph, e.data.done ? positions : positionsRef.current, e.data.done ? 400 : 0);
+      // Re-frame on every update so the graph is watched settling into shape
+      // (a short ease per step), as long as the camera is still the layout's.
+      if (!cameraOwnedRef.current) {
+        fitTo(graph, e.data.done ? positions : positionsRef.current, firstUpdate ? 0 : e.data.done ? 400 : 250);
       }
       firstUpdate = false;
     };

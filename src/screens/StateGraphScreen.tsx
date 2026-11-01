@@ -1,11 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
+import { Link } from "react-router-dom";
+import { useCard, useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
+import { cardOf } from "@/api/schemas";
+import { ShownValue } from "@/components/ShownValue";
 import { toggleChipClass } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { CosmosDots, type GlDotEdge, type GlDotNode } from "@/components/graph/CosmosDots";
-import { PanelHeading } from "@/components/graph/PanelBits";
+import { ConnectionList, PanelActions, PanelHeading, PanelSection } from "@/components/graph/PanelBits";
+import type { GraphPanelApi } from "@/components/graph/GraphCanvas";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
 import { buildTypeColors } from "@/lib/type-colors";
@@ -35,7 +38,6 @@ function idOf(subject: string, kind: string): string {
 export function StateGraphScreen() {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  const navigate = useNavigate();
   usePageTitle("State graph");
   const first = useGraphFirstPage(true);
   const subjects = first.data?.page.graph?.totals.subjects;
@@ -85,6 +87,11 @@ export function StateGraphScreen() {
   }, [search, drawn.nodes]);
 
   const edgeById = useMemo(() => new Map((graph.data?.edges ?? []).map((edge) => [edge.claim, edge])), [graph.data]);
+  // The selected Subject's one-hop links, in the panel's edge shape (label = predicate).
+  const panelEdges = useMemo(
+    () => (graph.data?.edges ?? []).map((edge) => ({ id: edge.claim, source: edge.source, target: edge.target, label: edge.predicate })),
+    [graph.data],
+  );
 
   const showAllKinds = useCallback(() => setHiddenKinds(new Set()), []);
   useClearOnEscape(hiddenKinds.size > 0, showAllKinds);
@@ -103,7 +110,7 @@ export function StateGraphScreen() {
       <header className="mb-2">
         <h1 className="t-title">State graph</h1>
         <p className="t-lede measure mt-1">
-          Every Subject and the Claims that link them; a dot's color is its kind. Click a dot to open it, hover a line for
+          Every Subject and the Claims that link them; a dot's color is its kind. Click a dot to read it here, hover a line for
           its ClaimType.
         </p>
         {graph.data && (
@@ -208,8 +215,19 @@ export function StateGraphScreen() {
             selectRequest={jump}
             className="min-h-[70vh] flex-1"
             expandable={false}
-            onNodeClick={(subject) => navigate(link(`/i/${instanceId}/s/${encodeURIComponent(subject)}`))}
-            renderPanel={(selection) => {
+            renderPanel={(selection, api) => {
+              if (selection.kind === "node") {
+                return (
+                  <SubjectPanel
+                    subject={selection.id}
+                    edges={panelEdges}
+                    api={api}
+                    labelFor={(id) => id}
+                    openHref={link(`/i/${instanceId}/s/${encodeURIComponent(selection.id)}`)}
+                    neighborhoodHref={link(`/i/${instanceId}/s/${encodeURIComponent(selection.id)}/graph`)}
+                  />
+                );
+              }
               if (selection.kind !== "edge") return null;
               const edge = edgeById.get(selection.id);
               if (!edge) return null;
@@ -242,6 +260,81 @@ export function StateGraphScreen() {
           />
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * A selected Subject, read in place: its current Claims (one line per field,
+ * flags kept), its one-hop links in this view (a click walks the selection
+ * there), and the way out to its full page or neighborhood.
+ */
+/** A many-valued field shows this many values in the panel; the rest are on the Subject's page. */
+const PANEL_LIST_CAP = 6;
+
+function SubjectPanel({
+  subject,
+  edges,
+  api,
+  labelFor,
+  openHref,
+  neighborhoodHref,
+}: {
+  subject: string;
+  edges: { id: string; source: string; target: string; label: string }[];
+  api: GraphPanelApi;
+  labelFor: (id: string) => string;
+  openHref: string;
+  neighborhoodHref: string;
+}) {
+  const card = useCard(subject);
+  const data = cardOf(card.data, "subject");
+  const kind = subject.split("/", 1)[0]!;
+  const id = subject.slice(kind.length + 1);
+  // Subject-valued Claims are already drawn as links; list the literal-valued ones.
+  const literal = (data?.claims ?? []).filter((c) => !(typeof c.value === "string" && /^[a-z0-9_.-]+\/[^\s]+$/.test(c.value)));
+  return (
+    <div className="text-[12px]">
+      <PanelHeading kicker={kind} title={id} />
+      <PanelSection title="Claims">
+        {card.isPending && <div className="text-zinc-600">Reading…</div>}
+        {card.error && <div className="text-zinc-500">Could not read this Subject.</div>}
+        {data && literal.length === 0 && <div className="text-zinc-600">No literal values; its links are below.</div>}
+        <div className="space-y-0.5">
+          {literal.map((c) => (
+            <div key={`${c.predicate}-${c.qualifier ?? ""}`} className="flex items-baseline gap-1.5">
+              <span className="shrink-0 text-zinc-500">
+                {c.predicate.slice(c.predicate.lastIndexOf(".") + 1)}
+                {c.qualifier ? `[${c.qualifier}]` : ""}
+              </span>
+              <span className="min-w-0 break-words text-zinc-200">
+                {Array.isArray(c.value) && c.value.length > PANEL_LIST_CAP ? (
+                  <>
+                    <ShownValue value={c.value.slice(0, PANEL_LIST_CAP) as typeof c.value} />
+                    <Link to={openHref} className="block text-zinc-500 hover:text-zinc-300">
+                      +{c.value.length - PANEL_LIST_CAP} more
+                    </Link>
+                  </>
+                ) : (
+                  <ShownValue value={c.value} />
+                )}
+              </span>
+              {(c.flags ?? []).length > 0 && <span className="shrink-0 text-amber-400">{(c.flags ?? []).join(", ")}</span>}
+            </div>
+          ))}
+        </div>
+      </PanelSection>
+      <PanelSection title="Links">
+        <ConnectionList nodeId={subject} edges={edges as never} api={api} labelFor={labelFor} />
+      </PanelSection>
+      <PanelActions>
+        <Link to={openHref} className="border border-zinc-700 px-2 py-0.5 text-zinc-200 hover:border-zinc-500">
+          Open Subject
+        </Link>
+        <Link to={neighborhoodHref} className="border border-zinc-800 px-2 py-0.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200">
+          Neighborhood
+        </Link>
+      </PanelActions>
     </div>
   );
 }
