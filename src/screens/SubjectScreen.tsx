@@ -245,7 +245,10 @@ function ClaimsTally({ cards }: { cards: GetClaimCard[] }) {
     <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px]">
       <span className="text-zinc-200">{noun}</span>
       {states.size === 0 ? (
-        <span className="text-zinc-400">· {total === 1 ? "supported" : "all supported"}</span>
+        <span className="inline-flex items-baseline gap-1.5">
+          <span className="text-zinc-400">·</span>
+          <Chip term={{ ...term("claim", "supported"), word: total === 1 ? "Supported" : "All supported" }} />
+        </span>
       ) : (
         [...states.entries()].map(([state, count]) => {
           const word = term("claim", state);

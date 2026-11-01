@@ -13,8 +13,8 @@ import { humanize } from "./text.ts";
  * - no dot: everything else (accepted, live, supported, running), in plain
  *   text.
  * Gone states (a retired or overturned Claim, a retired Subject) carry no dot
- * either: they read dimmed and struck through. There is no green, except on
- * Health (see healthTone). Every term carries a meaning, shown on hover, that says
+ * either: they read dimmed and struck through. Healthy normal states (live,
+ * supported, accepted) carry a quiet green dot; Health uses green too (see healthTone). Every term carries a meaning, shown on hover, that says
  * what the word means and, for a signal, what to do. Values the glossary does
  * not know read as their humanized raw value, with no dot.
  */
@@ -29,11 +29,15 @@ export interface Term {
   signal?: Signal;
   /** No longer in accepted state: the word reads dimmed and struck through. */
   gone?: true;
+  /** A healthy normal state (live, supported, accepted): a quiet green dot, so state reads at a glance. */
+  ok?: true;
 }
 
 /** The legend Settings shows. */
 
 const t = (word: string, meaning: string, signal?: Signal): Term => (signal ? { word, meaning, signal } : { word, meaning });
+/** A healthy normal state: a quiet green dot. */
+const ok = (word: string, meaning: string): Term => ({ word, meaning, ok: true });
 /** A gone state: no signal, dimmed and struck through. */
 const gone = (word: string, meaning: string): Term => ({ word, meaning, gone: true });
 
@@ -51,7 +55,7 @@ const PROPOSAL: Record<string, Term> = {
 
 /** How a settled proposal ended, and an open one's refusal. */
 const PROPOSAL_OUTCOME: Record<string, Term> = {
-  accepted: t("Accepted", "Accepted: its changes are in accepted state"),
+  accepted: ok("Accepted", "Accepted: its changes are in accepted state"),
   refused: t("Refused", "Refused: evaluation refused it; the refusal says why", "wrong"),
   rejected: t("Rejected", "Rejected: a reviewer rejected it"),
   withdrawn: t("Withdrawn", "Withdrawn: its proposer withdrew it"),
@@ -59,7 +63,7 @@ const PROPOSAL_OUTCOME: Record<string, Term> = {
 
 /** A Claim's verdict, status and read flags share one vocabulary. */
 const CLAIM: Record<string, Term> = {
-  supported: t("Supported", "Supported: admitted evidence backs it"),
+  supported: ok("Supported", "Supported: admitted evidence backs it"),
   accepted: t("Accepted", "Accepted: in accepted state"),
   contested: t("Contested", "Contested: Claims in this slot disagree; settle one on the CLI or MCP", "waiting"),
   stale: t("Stale", "Stale: its evidence expired; re-observe it", "waiting"),
@@ -73,7 +77,7 @@ const CLAIM: Record<string, Term> = {
   refused: t("Refused", "Refused: evaluation refused it; the refusal says why", "wrong"),
   overturned: gone("Overturned", "Overturned: a later judgment replaced it"),
   retired: gone("Retired", "Retired: no longer in accepted state"),
-  live: t("Live", "Live: in accepted state"),
+  live: ok("Live", "Live: in accepted state"),
 };
 
 /** A cited Capture's state as evidence. */
@@ -265,7 +269,7 @@ const PROVIDER: Record<string, Term> = {
 
 /** Lifecycle of definitions (kinds, contracts, Subjects). */
 const LIFECYCLE: Record<string, Term> = {
-  live: t("Live", "Live: in accepted state"),
+  live: ok("Live", "Live: in accepted state"),
   retired: gone("Retired", "Retired: no longer in accepted state"),
 };
 
