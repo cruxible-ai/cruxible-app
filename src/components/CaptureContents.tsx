@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Download } from "lucide-react";
 import { useCaptureRead } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
@@ -7,12 +7,14 @@ import { Panel, LoadState } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
 import { CAPTURE_READ_MAX_BYTES } from "@/api/requests";
 import { BodyView } from "@/components/BodyView";
+import { ExchangeList } from "@/components/ExchangeList";
 import { captureFormat, downloadName, formatSize, unwrapCaptureBody, type CaptureBody } from "@/lib/capture-body";
 import { formatDateTime } from "@/lib/text";
 
 /**
  * What a Capture holds: its retained body read through captures/read,
- * unwrapped from core's fetch and file formats, shown inline (markdown and
+ * unwrapped from core's fetch and file formats (a provider's request bundle
+ * becomes a table of its requests, each response decoded), shown inline (markdown and
  * HTML rendered, with a Raw toggle; JSON pretty-printed; the first 200k
  * characters) with a download of the whole thing. An erased body, one past
  * the read cap, or a token that may not read bodies each say so, with the CLI
@@ -48,6 +50,8 @@ export function CaptureContents({ card }: { card: Schemas["GetCaptureCard"] }) {
         <Note cli={`${cli} --max-bytes ${card.size ?? CAPTURE_READ_MAX_BYTES * 4}`}>
           Larger than the {formatSize(CAPTURE_READ_MAX_BYTES)} the page reads. Read it from a terminal:
         </Note>
+      ) : body?.exchanges ? (
+        <ExchangesOrRaw body={body} title={`Contents of ${card.capture}`} />
       ) : body ? (
         <BodyView
           format={captureFormat(body, card.source ?? null)}
@@ -60,6 +64,36 @@ export function CaptureContents({ card }: { card: Schemas["GetCaptureCard"] }) {
         <Note cli={cli}>The daemon returned no body for this Capture{material ? ` (${material.status.replace(/_/g, " ")})` : ""}.</Note>
       )}
     </Panel>
+  );
+}
+
+/** A request bundle as its requests, with a Raw toggle back to the stored JSON. */
+function ExchangesOrRaw({ body, title }: { body: CaptureBody; title: string }) {
+  const [raw, setRaw] = useState(false);
+  return (
+    <div className="space-y-2">
+      <div role="group" aria-label="Show as" className="flex gap-px text-[12px]">
+        {(["Requests", "Raw"] as const).map((label) => {
+          const pressed = (label === "Raw") === raw;
+          return (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={pressed}
+              onClick={() => setRaw(label === "Raw")}
+              className={`border px-2 py-0.5 ${pressed ? "border-zinc-500 bg-zinc-800 text-zinc-100" : "border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      {raw ? (
+        <BodyView format="json" text={body.text} json={body.json} size={body.bytes.length} title={title} />
+      ) : (
+        <ExchangeList exchanges={body.exchanges ?? []} context={body.context} title={title} />
+      )}
+    </div>
   );
 }
 

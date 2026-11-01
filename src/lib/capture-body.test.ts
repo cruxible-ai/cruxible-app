@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { captureFormat, downloadName, formatSize, unwrapCaptureBody } from "./capture-body";
+import { captureFormat, decodeBase64Fields, downloadName, formatSize, unwrapCaptureBody } from "./capture-body";
 
 const b64 = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text)));
 
@@ -70,6 +70,36 @@ describe("capture formats", () => {
     expect(downloadName(file, "repo.docs.design.md", "CAP-1")).toBe("repo.docs.design.md");
     // the Capture's own source is the fallback hint
     expect(captureFormat(unwrapCaptureBody(b64("Plain words.")), "notes.md")).toBe("markdown");
+  });
+});
+
+describe("request bundles", () => {
+  it("splits a provider's exchanges into requests with decoded responses, and decodes base64 fields in the rest", () => {
+    const bundle = {
+      exchanges: [
+        { method: "POST", path: "/v1/querybatch", request: { purls: ["pkg:pypi/a@1"] }, status: 200, body_base64: b64('{"results":[{}]}') },
+        { method: "GET", path: "/v1/vulns/GHSA-1", request: null, status: 404, body_base64: b64("not found") },
+      ],
+      service: "https://api.osv.dev",
+      listing: { body_base64: b64('["PyPI"]'), at: "now" },
+    };
+    const body = unwrapCaptureBody(b64(JSON.stringify(bundle)));
+    expect(body.format).toBe("exchanges");
+    expect(body.url).toBe("https://api.osv.dev");
+    expect(body.exchanges?.map((e) => [e.method, e.path, e.status])).toEqual([
+      ["POST", "/v1/querybatch", 200],
+      ["GET", "/v1/vulns/GHSA-1", 404],
+    ]);
+    expect(body.exchanges?.[0]?.json).toEqual({ results: [{}] });
+    expect(body.exchanges?.[1]?.text).toBe("not found");
+    expect(body.context).toEqual({ service: "https://api.osv.dev", listing: { body: ["PyPI"], at: "now" } });
+    // the stored JSON stays the raw view
+    expect(body.json).toEqual(bundle);
+  });
+
+  it("leaves a list that is not exchanges, and bytes that are not text, as they are", () => {
+    expect(unwrapCaptureBody(b64(JSON.stringify({ exchanges: [{ id: 1 }] }))).format).toBe("raw");
+    expect(decodeBase64Fields({ blob_base64: btoa("\xff\xfe") })).toEqual({ blob_base64: btoa("\xff\xfe") });
   });
 });
 
