@@ -7,6 +7,7 @@ import { Disclosure, Panel, LoadState } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId, shortId } from "@/components/ShortId";
 import { CaptureContents } from "@/components/CaptureContents";
+import { CitedBy } from "@/components/CitedBy";
 import { formatSize } from "@/lib/capture-body";
 import { Chip } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
@@ -71,6 +72,7 @@ export function RefScreen() {
                   <Fact label="Contract">
                     <RefLink value={capture.contract} />
                   </Fact>
+                  {capture.access && <Fact label="Access">{humanize(capture.access)}</Fact>}
                 </>
               )}
               <Fact label="Kind">{humanize(read.data.kind)}</Fact>
@@ -92,9 +94,10 @@ export function RefScreen() {
       {procedure?.authored && <ProcedureWithGraph spec={procedure.authored} />}
       {trigger && <TriggerDefinition schedule={trigger.schedule} target={trigger.target} />}
       {capture && <CaptureContents card={capture} />}
-      {read.data?.card && (
+      {capture && <CitedBy citing={capture.citing ?? []} total={capture.citing_total ?? capture.citing?.length ?? 0} />}
+      {read.data?.card && !capture && (
         <Panel title="Card">
-          <Fields value={rest(read.data.card as Record<string, unknown>, omitted(procedure?.authored != null, capture != null))} depth={0} path="" />
+          <Fields value={rest(read.data.card as Record<string, unknown>, omitted(procedure?.authored != null))} depth={0} path="" />
         </Panel>
       )}
     </Page>
@@ -103,12 +106,9 @@ export function RefScreen() {
 
 const MAX_DEPTH = 3;
 
-/** Card fields the header or a dedicated panel already shows (a Capture's next is the CLI read in Contents). */
-function omitted(authored: boolean, capture: boolean): string[] {
-  return [
-    ...(authored ? ["authored"] : []),
-    ...(capture ? ["capture", "digest", "source", "observed_at", "size", "contract", "status", "erased", "next"] : []),
-  ];
+/** Card fields a dedicated panel already shows (a Capture's card is its header, Contents and Cited by). */
+function omitted(authored: boolean): string[] {
+  return authored ? ["authored"] : [];
 }
 
 /** A card without the fields a dedicated panel already shows. */

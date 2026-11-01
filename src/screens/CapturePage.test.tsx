@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
-import { ADVISORY, FETCHED, PRIVATE, RUNBOOK } from "@/fixtures/authored/captures";
+import { ADVISORY, CITING_CLAIM, FETCHED, PRIVATE, RUNBOOK } from "@/fixtures/authored/captures";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -25,6 +25,17 @@ describe("Capture page", () => {
     expect(main.getByRole("link", { name: /Download/ })).toHaveAttribute("download", "cisa.kev.catalog.json");
     // the SDK call the card names as next is not shown
     expect(main.queryByText(/client\.read_capture/)).not.toBeInTheDocument();
+  });
+
+  it("shows the card's sample of citing Claims, what each says, and how many cite it in all", async () => {
+    renderApp(page(FETCHED));
+    const cited = within((await screen.findByText("Cited by")).closest("section")!);
+    expect(await cited.findByText("security.vulnerability.kev_listed")).toBeInTheDocument();
+    expect(cited.getByRole("link", { name: "security.vulnerability/cve-2024-3094" })).toBeInTheDocument();
+    expect(cited.getByText("A sample of 1 of the 12 Claims that cite it")).toBeInTheDocument();
+    expect(cited.getByRole("link", { name: new RegExp(CITING_CLAIM.slice(0, 10)) })).toBeInTheDocument();
+    // the bare card is gone: its fields are the header, Contents and Cited by
+    expect(screen.queryByText("Card")).not.toBeInTheDocument();
   });
 
   it("says when the token can't read bodies and gives the CLI read", async () => {

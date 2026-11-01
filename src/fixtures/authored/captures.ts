@@ -73,7 +73,32 @@ const WRAPPED = JSON.stringify({
   },
 });
 
-function card(digest: string, source: string, contract: string, size: number): GetResult {
+/** The Claim the fetched catalog's card samples as citing it. */
+export const CITING_CLAIM = "CLM-" + "c1".repeat(16);
+
+function citingClaim(): GetResult {
+  return {
+    tag: "playbill-get-result-v1",
+    ref: `Claim:${CITING_CLAIM}`,
+    kind: "claim",
+    detail: "summary",
+    coordinate: AT,
+    accepted_coordinate: COORDINATE,
+    evaluation_time: NOW,
+    card: {
+      claim: CITING_CLAIM,
+      subject: "security.vulnerability/cve-2024-3094",
+      predicate: "kev_listed",
+      predicate_full: "security.vulnerability.kev_listed",
+      value: true,
+      verdict: "supported",
+      status: "accepted",
+      revision: 1,
+    },
+  };
+}
+
+function card(digest: string, source: string, contract: string, size: number, citing: string[] = [], citingTotal = 0): GetResult {
   return {
     tag: "playbill-get-result-v1",
     ref: `Capture:${digest}`,
@@ -95,8 +120,8 @@ function card(digest: string, source: string, contract: string, size: number): G
       status_detail: null,
       erased: null,
       subjects: [],
-      citing: [],
-      citing_total: 0,
+      citing,
+      citing_total: citingTotal,
       next: [`client.read_capture(instance_id, CaptureReadRequest(capture_digest="${digest}"))`],
     },
   };
@@ -111,7 +136,8 @@ const batch = (result: GetResult) =>
   });
 
 export default [
-  batch(card(FETCHED, "cisa.kev.catalog", "CaptureContract:security.fetched-v1", WRAPPED.length)),
+  batch(card(FETCHED, "cisa.kev.catalog", "CaptureContract:security.fetched-v1", WRAPPED.length, [CITING_CLAIM], 12)),
+  batch(citingClaim()),
   batch(card(PRIVATE, "security.analysis.evidence", "CaptureContract:security.file-v1", 812)),
   batch(card(RUNBOOK, "repo.docs.triage-runbook.md", "CaptureContract:security.file-v1", RUNBOOK_BODY.length)),
   batch(card(ADVISORY, "vendor.advisories", "CaptureContract:security.fetched-v1", ADVISORY_BODY.length)),
