@@ -123,12 +123,13 @@ describe("Subject page", () => {
     renderApp(ASSESSMENT);
     const main = within(await screen.findByRole("main"));
     // g40: run-7 of the kev-triage Line, revised since (g45)
-    const line = await main.findByRole("link", { name: "kev-triage" });
-    expect(line).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage?at=40");
+    // the Line is named twice: under the field it set (since g40) and on its change
+    const lines = await main.findAllByRole("link", { name: "kev-triage" });
+    expect(lines.map((l) => l.getAttribute("href"))).toContain("/i/inst_fixture/lines/kev-triage?at=40");
     expect(await main.findByRole("link", { name: "changed since" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
     expect(main.getByRole("link", { name: "run-7" })).toHaveAttribute("href", "/i/inst_fixture/runs/run-7");
     expect(main.getByText("Approved by")).toBeInTheDocument();
-    expect(main.getByText("OSV range match")).toBeInTheDocument();
+    expect(main.getAllByText("OSV range match").length).toBeGreaterThan(0);
     // the actor is not repeated beside the Line
     expect(main.queryByText("triage-agent")).toBeNull();
     // g41: hand-authored, its principal the author, the proposal's words once
@@ -139,12 +140,14 @@ describe("Subject page", () => {
   it("names a direct run's Procedure and principal, hides core's run boilerplate and marks the key", async () => {
     renderApp(VULNERABILITY);
     const main = within(await screen.findByRole("main"));
+    // only creations: Changes opens as a list; open its fields
+    (await main.findByRole("button", { name: "Show each change's fields" })).click();
     expect(await main.findByText("Direct run by")).toBeInTheDocument();
     expect(main.getByRole("link", { name: "Procedure:security.kev-backfill" })).toBeInTheDocument();
     // the approver is the runner: not repeated
     expect(main.queryByText("Approved by")).toBeNull();
     expect(main.queryByText(/Proposed by Procedure/)).toBeNull();
-    expect(main.getByText("CISA's KEV catalog lists CVE-2024-3094.")).toBeInTheDocument();
+    expect(main.getAllByText("CISA's KEV catalog lists CVE-2024-3094.").length).toBeGreaterThan(0);
     // the key field in the Fields list and in the history
     expect(main.getAllByText("key")).toHaveLength(2);
   });

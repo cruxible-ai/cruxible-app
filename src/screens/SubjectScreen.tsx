@@ -108,6 +108,14 @@ export function SubjectScreen() {
     }
     return byId;
   }, [verdicts.results]);
+  // The newest change to each Claim (the history's first page): where a field's value came from.
+  const firstHistory = useSubjectHistory(ref);
+  const provenance = useMemo(() => {
+    const out = new Map<string, SubjectHistoryEvent>();
+    const h = firstHistory.data?.history;
+    for (const event of h?.kind === "subject" ? h.events : []) if (!out.has(event.claim)) out.set(event.claim, event);
+    return out;
+  }, [firstHistory.data]);
   usePageTitle(ref ?? raw);
 
   if (!ref) {
@@ -223,6 +231,7 @@ export function SubjectScreen() {
                 cards={claimCards}
                 accounts={admission.byClaim}
                 focus={focusClaim}
+                provenance={provenance}
               />
             ))}
           </div>
@@ -311,6 +320,7 @@ function ClaimRow({
   cards,
   accounts,
   focus,
+  provenance,
 }: {
   kind: string;
   entry: SubjectClaim;
@@ -319,10 +329,12 @@ function ClaimRow({
   cards: Map<string, GetClaimCard>;
   accounts: Map<string, CaptureAdmissionAccount[]>;
   focus: string | null;
+  provenance: Map<string, SubjectHistoryEvent>;
 }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   const ids = claimIds(entry);
+  const origin = ids.map((id) => provenance.get(id)).find((e) => e !== undefined);
   const focused = focus !== null && ids.includes(focus);
   const [open, setOpen] = useState(focused);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -353,6 +365,7 @@ function ClaimRow({
         </Link>
         <div className="min-w-0">
           <FieldValue value={entry.value} />
+          {origin && <FieldProvenance event={origin} isKey={isKey} />}
         </div>
         <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5">
           {flags.map((flag) => (
@@ -685,6 +698,42 @@ function RevisionLine({ revision }: { revision: GetRevision }) {
 }
 
 /** The Subject's field history, newest first, a page at a time (O(page)). */
+/**
+ * Where a field's current value came from, under the value: since which
+ * generation, by which Line (as of then), and the item's own reason when it
+ * has one. The full change is in Changes below.
+ */
+function FieldProvenance({ event, isKey }: { event: SubjectHistoryEvent; isKey: boolean }) {
+  const instanceId = useInstanceId();
+  const source = changeSetRun([event]);
+  const run = useRunAuthor(source?.run ?? null);
+  const line = run.data?.line ?? null;
+  const reason = !isKey && event.reason?.kind === "procedure_item" ? reasonWords(event.reason) : null;
+  return (
+    <div className="mt-0.5 space-y-0.5 text-[12px] text-zinc-500">
+      <div className="flex flex-wrap items-baseline gap-x-1.5">
+        <span>since</span>
+        <GenerationLink sequence={event.sequence} />
+        <span title={event.accepted}>· {formatWhen(event.accepted)}</span>
+        {line ? (
+          <>
+            <span>·</span>
+            <Link
+              to={withAt(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`, String(event.sequence))}
+              className="font-mono text-zinc-400 hover:text-zinc-200 hover:underline"
+            >
+              {lineName(line)}
+            </Link>
+          </>
+        ) : (
+          event.actor && <span>· {event.actor}</span>
+        )}
+      </div>
+      {reason && <LongText text={reason} lines={1} className="text-zinc-500" />}
+    </div>
+  );
+}
+
 function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: ReadonlySet<string> | undefined }) {
   const [cursors, setCursors] = useState<string[]>([]);
   const cursor = cursors[cursors.length - 1];
@@ -692,9 +741,13 @@ function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: Readonly
   const history = read.data?.history;
   const events: SubjectHistoryEvent[] = history?.kind === "subject" ? history.events : [];
   const groups = changeSets(events);
+  // Opened by default only when a field was revised or retired: then the history is the story.
+  const eventful = events.some((e) => e.change === "changed" || e.change === "retired" || e.change === "rebound");
+  const [expanded, setExpanded] = useState<boolean | null>(null);
+  const open = expanded ?? eventful;
   return (
     <Panel
-      title="Field history"
+      title="Changes"
       meta={
         <span className="flex gap-3">
           {cursors.length > 0 && (
@@ -718,12 +771,59 @@ function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: Readonly
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
       {read.data && events.length === 0 && <EmptyState>No field events.</EmptyState>}
-      <div className="divide-y divide-zinc-800/70">
-        {groups.map((group) => (
-          <ChangeSet key={`${group[0]!.sequence}\n${group[0]!.claim}`} events={group} keys={keys} />
-        ))}
-      </div>
+      {groups.length > 0 && (
+        <button onClick={() => setExpanded(!open)} className="mb-2 text-[12px] text-zinc-500 hover:text-zinc-200">
+          {open ? "Show as a list" : "Show each change's fields"}
+        </button>
+      )}
+      {open ? (
+        <div className="divide-y divide-zinc-800/70">
+          {groups.map((group) => (
+            <ChangeSet key={`${group[0]!.sequence}\n${group[0]!.claim}`} events={group} keys={keys} />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-1 text-[13px]">
+          {groups.map((group) => (
+            <ChangeSummary key={`${group[0]!.sequence}\n${group[0]!.claim}`} events={group} />
+          ))}
+        </div>
+      )}
     </Panel>
+  );
+}
+
+/** One change set as one line: generation, when, its Line (or author), and how many fields it touched. */
+function ChangeSummary({ events }: { events: SubjectHistoryEvent[] }) {
+  const instanceId = useInstanceId();
+  const head = events[0]!;
+  const source = changeSetRun(events);
+  const run = useRunAuthor(source?.run ?? null);
+  const line = run.data?.line ?? null;
+  const fields = new Set(events.map((e) => e.field)).size;
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2 text-zinc-400">
+      <GenerationLink sequence={head.sequence} />
+      <Dot />
+      <span className="text-zinc-500" title={head.accepted}>
+        {formatWhen(head.accepted)}
+      </span>
+      <Dot />
+      {line ? (
+        <Link
+          to={withAt(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`, String(head.sequence))}
+          className="font-mono text-zinc-300 hover:underline"
+        >
+          {lineName(line)}
+        </Link>
+      ) : (
+        <span className="font-mono text-zinc-300">{head.actor ?? "—"}</span>
+      )}
+      <Dot />
+      <span className="text-zinc-500">
+        {events.length} {events.length === 1 ? "change" : "changes"} to {fields} {fields === 1 ? "field" : "fields"}
+      </span>
+    </div>
   );
 }
 
