@@ -104,14 +104,15 @@ export function ConnectionsPanel({ subject }: { subject: Schemas["GetSubjectCard
         </span>
       }
     >
-      <div ref={holder} className="h-[280px]">
+      <div ref={holder} className="min-h-[380px]">
         {visible && drawn.nodes.length > 1 ? (
           <CosmosDots
             nodes={drawn.nodes}
             edges={drawn.edges}
             nodeColors={drawn.colors}
-            className="h-[280px]"
-            expandable={false}
+            className="h-[380px]"
+            expandable
+            expandedHeight="600px"
             compact
             selectRequest={{ id: subject.subject, nonce: 1 }}
             onNodeClick={(ref) => {

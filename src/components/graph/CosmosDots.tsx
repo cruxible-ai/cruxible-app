@@ -127,6 +127,7 @@ export function CosmosDots({
   matchedIds,
   onNodeClick,
   compact = false,
+  expandedHeight = "85vh",
 }: {
   nodes: GlDotNode[];
   edges: GlDotEdge[];
@@ -148,6 +149,8 @@ export function CosmosDots({
   onNodeClick?: ((nodeId: string) => void) | undefined;
   /** Embedded in a page about one Subject: no focus chip or Center button (the page already names it). */
   compact?: boolean;
+  /** How tall "Make the graph taller" makes it (a page section asks for less than the full-page graph). */
+  expandedHeight?: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<Graph | null>(null);
@@ -737,7 +740,7 @@ export function CosmosDots({
       className={`relative flex flex-col ${className}`}
       style={
         fullscreen
-          ? { height: "85vh", minHeight: "85vh", flex: "none" }
+          ? { height: expandedHeight, minHeight: expandedHeight, flex: "none" }
           : undefined
       }
     >
