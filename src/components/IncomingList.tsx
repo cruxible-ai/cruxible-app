@@ -70,7 +70,12 @@ export function IncomingList({
   );
 }
 
-/** Each pointing Subject as its id and literal fields; the pointing ClaimType and Claim, quieter, beneath. */
+/**
+ * The pointing Subjects as tables: one per (kind, pointing ClaimType), a row
+ * per Subject, a column per literal field shown (in first-seen order), so the
+ * same field lines up from row to row. The pointing Claim is the row's last,
+ * quiet cell.
+ */
 function SummarizedClaims({ claims }: { claims: IncomingClaim[] }) {
   const refs = useMemo(() => [...new Set(claims.map((claim) => claim.subject))], [claims]);
   const cards = useGetBatch(refs);
@@ -86,39 +91,77 @@ function SummarizedClaims({ claims }: { claims: IncomingClaim[] }) {
     }
     return out;
   }, [cards.results]);
+
+  const groups = useMemo(() => {
+    const out = new Map<string, { kind: string; via: string; rows: { claim: IncomingClaim; id: string; fields: Map<string, string> }[]; columns: string[] }>();
+    for (const claim of claims) {
+      const parsed = parseRef(claim.subject);
+      const kind = parsed?.kind === "subject" ? claim.subject.slice(0, claim.subject.indexOf("/")) : "";
+      const id = kind ? claim.subject.slice(kind.length + 1) : claim.subject;
+      const via = `${claim.predicate}${claim.qualifier ? `[${claim.qualifier}]` : ""}`;
+      const key = `${kind} ${via}`;
+      let group = out.get(key);
+      if (!group) out.set(key, (group = { kind, via, rows: [], columns: [] }));
+      const card = byRef.get(claim.subject);
+      const fields = new Map<string, string>();
+      for (const field of card && kinds.data ? literalSummary(card, predicates, keys.get(card.kind)) : []) {
+        fields.set(field.field, field.value);
+        if (!group.columns.includes(field.field)) group.columns.push(field.field);
+      }
+      group.rows.push({ claim, id, fields });
+    }
+    return [...out.values()];
+  }, [claims, byRef, kinds.data, predicates, keys]);
+
   return (
-    <div className="space-y-1.5">
-      {claims.map((claim) => {
-        const card = byRef.get(claim.subject);
-        const parsed = parseRef(claim.subject);
-        const id = parsed?.kind === "subject" ? claim.subject.slice(claim.subject.indexOf("/") + 1) : claim.subject;
-        const fields = card && kinds.data ? literalSummary(card, predicates, keys.get(card.kind)) : [];
-        return (
-          <div key={claim.claim}>
-            <div className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
-              <RefLink value={claim.subject}>
-                <span className="font-mono text-[13px]" title={claim.subject}>
-                  {id}
-                </span>
-              </RefLink>
-              {fields.map((field) => (
-                <span key={field.field} className="text-zinc-500">
-                  · {field.field} <span className="text-zinc-300">{field.value}</span>
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-baseline gap-x-2 text-[11px] text-zinc-600">
-              <span className="font-mono" title="The ClaimType pointing here">
-                {claim.predicate}
-                {claim.qualifier && <span>[{claim.qualifier}]</span>}
-              </span>
-              <RefLink value={claim.claim}>
-                <span className="font-mono text-[11px] text-zinc-600">{claim.claim.slice(0, 12)}…</span>
-              </RefLink>
-            </div>
+    <div className="space-y-4">
+      {groups.map((group) => (
+        <div key={`${group.kind} ${group.via}`}>
+          <div className="mb-1 text-[12px] text-zinc-500">
+            <span className="font-mono text-zinc-400">{group.kind}</span> · via{" "}
+            <span className="font-mono">{group.via.slice(group.via.lastIndexOf(".") + 1)}</span>
+            <span className="text-zinc-600"> · {group.rows.length}</span>
           </div>
-        );
-      })}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-[13px]">
+              <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
+                <tr className="border-b border-zinc-800">
+                  <th className="py-1.5 pr-6 font-medium">Subject</th>
+                  {group.columns.map((column) => (
+                    <th key={column} className="py-1.5 pr-6 font-medium">
+                      {column}
+                    </th>
+                  ))}
+                  <th className="py-1.5 font-medium">Claim</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.rows.map((row) => (
+                  <tr key={row.claim.claim} className="border-b border-zinc-800/60 align-top">
+                    <td className="py-1.5 pr-6">
+                      <RefLink value={row.claim.subject}>
+                        <span className="font-mono text-[12.5px]" title={row.claim.subject}>
+                          {row.id}
+                        </span>
+                      </RefLink>
+                    </td>
+                    {group.columns.map((column) => (
+                      <td key={column} className="py-1.5 pr-6 text-zinc-200">
+                        {row.fields.get(column) ?? <span className="text-zinc-700">—</span>}
+                      </td>
+                    ))}
+                    <td className="py-1.5">
+                      <RefLink value={row.claim.claim}>
+                        <span className="font-mono text-[11px] text-zinc-600">{row.claim.claim.slice(4, 12)}…</span>
+                      </RefLink>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

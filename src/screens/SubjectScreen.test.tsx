@@ -16,21 +16,25 @@ describe("Subject page", () => {
     expect(main.getByRole("button", { name: "Expand release" })).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("pages the Subjects pointing at this one, each as its id and a few literal fields", async () => {
+  it("tables the Subjects pointing at this one: a table per kind and ClaimType, a column per literal field", async () => {
     renderApp(VULNERABILITY);
     expect(await screen.findByText("Pointed at by")).toBeInTheDocument();
-    // the pointing ClaimType stays, beneath its Subject
-    expect(await screen.findByText("security.assessment.vulnerability")).toBeInTheDocument();
+    // each group is headed by its kind and the pointing field
+    expect(await screen.findByText("security.assessment")).toBeInTheDocument();
     const assessment = await screen.findByRole("link", { name: "rel-1-cve-2024-3094" });
     expect(assessment).toHaveAttribute("href", "/i/inst_fixture/s/security.assessment%2Frel-1-cve-2024-3094");
     // Subject-valued fields (release, vulnerability) are left out; the contested status shows both answers
-    const row = assessment.parentElement!;
-    expect(await within(row).findByText("affected, not_affected")).toBeInTheDocument();
+    const row = assessment.closest("tr")!;
+    expect(within(row).getByText("affected, not_affected")).toBeInTheDocument();
     expect(row).not.toHaveTextContent("release");
+    // its table has a column for each literal field shown
+    const table = row.closest("table")!;
+    expect(within(table).getByRole("columnheader", { name: "status" })).toBeInTheDocument();
     // the key (cve_id) is in the id already
-    const related = screen.getByRole("link", { name: "cve-2024-6387" }).parentElement!;
-    expect(related).toHaveTextContent("kev_listed false");
-    expect(related).not.toHaveTextContent("cve_id");
+    const related = screen.getByRole("link", { name: "cve-2024-6387" }).closest("tr")!;
+    expect(related).toHaveTextContent("false");
+    expect(within(related.closest("table")!).getByRole("columnheader", { name: "kev_listed" })).toBeInTheDocument();
+    expect(related.closest("table")!).not.toHaveTextContent("cve_id");
   });
 
   it("marks key fields and reds evidence only where the ClaimType requires it", async () => {
