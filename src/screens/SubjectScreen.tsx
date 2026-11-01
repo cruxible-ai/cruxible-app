@@ -204,7 +204,7 @@ export function SubjectScreen() {
       <WithRail
         rail={
           subject.incoming_count > 0 ? (
-            <Panel title="Pointed at by" meta={<span>{subject.incoming_count}</span>}>
+            <Panel title="Pointed at by">
               <IncomingList subject={subject.subject} total={subject.incoming_count} summaries />
             </Panel>
           ) : null
@@ -212,11 +212,6 @@ export function SubjectScreen() {
       >
         <Panel
           title="Fields"
-          meta={
-            <span>
-              {subject.claims.length} fields · {ids.length} Claims
-            </span>
-          }
         >
           {subject.claims.length === 0 && <EmptyState>No live Claims.</EmptyState>}
           {verdicts.error && <LoadState error={verdicts.error} />}
@@ -759,11 +754,6 @@ function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: Readonly
             <button onClick={() => setCursors((c) => c.slice(0, -1))} className="hover:text-zinc-200">
               ← Newer
             </button>
-          )}
-          {read.data && (
-            <span>
-              {events.length} events in {groups.length} {groups.length === 1 ? "change" : "changes"}
-            </span>
           )}
           {read.data?.next_cursor && (
             <button onClick={() => setCursors((c) => [...c, read.data!.next_cursor!])} className="hover:text-zinc-200">

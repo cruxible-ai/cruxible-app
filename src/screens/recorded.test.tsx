@@ -65,7 +65,6 @@ describe("recorded reference world", () => {
     renderApp(`${I}/s/${encodeURIComponent(JOB)}`, RECORDED);
     const m = await main();
     expect(await m.findByText("pkg:githubactions/actions/checkout@v4")).toBeInTheDocument();
-    expect(m.getByText("6 fields · 7 Claims")).toBeInTheDocument();
     // every Claim supported: the header says so in one phrase
     expect(await m.findByText("All supported")).toBeInTheDocument();
     expect(await m.findByText("2/2 admitted")).toBeInTheDocument();

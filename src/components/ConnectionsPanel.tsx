@@ -94,11 +94,7 @@ export function ConnectionsPanel({ subject }: { subject: Schemas["GetSubjectCard
       title="Connections"
       meta={
         <span className="flex gap-3">
-          <span>
-            {drawn.neighbors} {drawn.neighbors === 1 ? "neighbor" : "neighbors"}
-            {more > 0 && ` · +${more} not drawn`}
-          </span>
-          <Link to={graphHref} className="hover:text-zinc-200">
+          <Link to={graphHref} className="hover:text-zinc-200" title={more > 0 ? `${more} more links are in the State graph` : undefined}>
             Open in State graph →
           </Link>
         </span>
