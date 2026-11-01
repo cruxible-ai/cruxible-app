@@ -126,8 +126,8 @@ describe("Subject page", () => {
     const line = await main.findByRole("link", { name: "kev-triage" });
     expect(line).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage?at=40");
     expect(await main.findByRole("link", { name: "changed since" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
-    expect(main.getByRole("link", { name: "run run-7" })).toHaveAttribute("href", "/i/inst_fixture/runs/run-7");
-    expect(main.getByText("approved by release-owner")).toBeInTheDocument();
+    expect(main.getByRole("link", { name: "run-7" })).toHaveAttribute("href", "/i/inst_fixture/runs/run-7");
+    expect(main.getByText("Approved by")).toBeInTheDocument();
     expect(main.getByText("OSV range match")).toBeInTheDocument();
     // the actor is not repeated beside the Line
     expect(main.queryByText("triage-agent")).toBeNull();
@@ -139,10 +139,10 @@ describe("Subject page", () => {
   it("names a direct run's Procedure and principal, hides core's run boilerplate and marks the key", async () => {
     renderApp(VULNERABILITY);
     const main = within(await screen.findByRole("main"));
-    expect(await main.findByText("direct run by")).toBeInTheDocument();
+    expect(await main.findByText("Direct run by")).toBeInTheDocument();
     expect(main.getByRole("link", { name: "Procedure:security.kev-backfill" })).toBeInTheDocument();
     // the approver is the runner: not repeated
-    expect(main.queryByText(/approved by/)).toBeNull();
+    expect(main.queryByText("Approved by")).toBeNull();
     expect(main.queryByText(/Proposed by Procedure/)).toBeNull();
     expect(main.getByText("CISA's KEV catalog lists CVE-2024-3094.")).toBeInTheDocument();
     // the key field in the Fields list and in the history

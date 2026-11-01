@@ -740,7 +740,8 @@ function ChangeSet({ events, keys }: { events: SubjectHistoryEvent[]; keys: Read
   ];
   return (
     <div className="py-4 text-[13px] first:pt-0 last:pb-0">
-      <div className="flex flex-wrap items-baseline gap-x-2 text-zinc-400">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-zinc-400">
+        <HeaderLabel>Generation</HeaderLabel>
         <GenerationLink sequence={head.sequence} />
         <Dot />
         <span className="text-zinc-500" title={head.accepted}>
@@ -792,7 +793,7 @@ function ChangeSetAuthor({
   const id = source ? runId(source.run) : null;
   const runLink = id && (
     <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(id)}`)} className="font-mono text-zinc-500 hover:text-zinc-200 hover:underline" title={id}>
-      run {/^RUN-[0-9a-f]{7,}$/.test(id) ? `${id.slice(4, 10)}…` : id}
+      {/^RUN-[0-9a-f]{7,}$/.test(id) ? `${id.slice(4, 10)}…` : id}
     </Link>
   );
   const procedure = (run.data?.procedure ?? source?.procedure ?? "").replace(/^Procedure:/, "");
@@ -800,7 +801,8 @@ function ChangeSetAuthor({
     <>
       {source && run.isPending && <span className="t-meta animate-pulse">{procedure}</span>}
       {line && (
-        <span className="inline-flex items-baseline gap-x-2">
+        <span className="inline-flex flex-wrap items-baseline gap-x-3">
+          <HeaderLabel>Line</HeaderLabel>
           <Link
             to={withAt(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`, String(sequence))}
             className="inline-flex items-baseline gap-0.5 font-mono text-zinc-200 hover:underline"
@@ -809,7 +811,6 @@ function ChangeSetAuthor({
             {lineName(line)}
             <ArrowUpRight className="relative top-[1px] h-3 w-3 self-center text-zinc-500" aria-hidden />
           </Link>
-          <span className="text-zinc-500">({runLink})</span>
           {changedSince && (
             <Link
               to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`)}
@@ -819,32 +820,51 @@ function ChangeSetAuthor({
               changed since
             </Link>
           )}
+          <Dot />
+          <HeaderLabel>Run</HeaderLabel>
+          {runLink}
         </span>
       )}
       {source && !line && !run.isPending && (
-        <span className="inline-flex items-baseline gap-x-2">
+        <span className="inline-flex flex-wrap items-baseline gap-x-3">
+          <HeaderLabel>Procedure</HeaderLabel>
           <RefLink value={`Procedure:${procedure}`} className="font-mono text-[13px]" />
-          <span className="text-zinc-500">({runLink})</span>
+          <Dot />
+          <HeaderLabel>Run</HeaderLabel>
+          {runLink}
           {/* a run read refused (pruned, or not recorded) leaves the trigger unknown: the principal alone */}
           {runner &&
             (run.data ? (
-              <span className="text-zinc-500">
-                direct run by <span className="font-mono text-zinc-300">{runner}</span>
-              </span>
+              <>
+                <Dot />
+                <HeaderLabel>Direct run by</HeaderLabel>
+                <span className="font-mono text-zinc-300">{runner}</span>
+              </>
             ) : (
               <span className="font-mono text-zinc-300">{runner}</span>
             ))}
         </span>
       )}
-      {!source && actor && <span className="font-mono text-zinc-300">{actor}</span>}
+      {!source && actor && (
+        <span className="inline-flex items-baseline gap-x-2">
+          <HeaderLabel>Author</HeaderLabel>
+          <span className="font-mono text-zinc-300">{actor}</span>
+        </span>
+      )}
       {approved.length > 0 && (
         <>
           <Dot />
-          <span className="text-zinc-500">approved by {approved.join(", ")}</span>
+          <HeaderLabel>Approved by</HeaderLabel>
+          <span className="text-zinc-300">{approved.join(", ")}</span>
         </>
       )}
     </>
   );
+}
+
+/** A quiet label naming the value after it in a change's header (Line, Run, Approved by …). */
+function HeaderLabel({ children }: { children: string }) {
+  return <span className="-mr-1.5 ml-2 text-[10.5px] uppercase tracking-wider text-zinc-600 first:ml-0">{children}</span>;
 }
 
 /** One field a change set changed: its mark and name (`key` for a key part), the value, and the item's own reason. */
