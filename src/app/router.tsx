@@ -7,7 +7,6 @@ import { OverviewScreen } from "@/screens/OverviewScreen";
 import { TypeMapScreen } from "@/screens/TypeMapScreen";
 import { RefScreen } from "@/screens/RefScreen";
 import { SubjectScreen } from "@/screens/SubjectScreen";
-import { NeighborhoodScreen } from "@/screens/NeighborhoodScreen";
 import { NextScreen } from "@/screens/NextScreen";
 import { BeliefsScreen } from "@/screens/BeliefsScreen";
 import { LedgerScreen } from "@/screens/LedgerScreen";
@@ -62,7 +61,6 @@ export const routes = [
       },
       { path: "ref/:ref", element: <RefScreen /> },
       { path: "s/:ref", element: <SubjectScreen /> },
-      { path: "s/:ref/graph", element: <NeighborhoodScreen /> },
       { path: "next", element: <NextScreen /> },
       { path: "beliefs", element: <BeliefsScreen /> },
       { path: "docs", element: <DocsScreen /> },

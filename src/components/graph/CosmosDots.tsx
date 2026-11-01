@@ -8,7 +8,14 @@ import {
   type ReactNode,
 } from "react";
 import { Graph, type GraphConfigInterface } from "@cosmograph/cosmos";
-import { ChevronsDownUp, ChevronsUpDown, Minus, Plus, Scan, X } from "lucide-react";
+import {
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Minus,
+  Plus,
+  Scan,
+  X,
+} from "lucide-react";
 import type { GraphPanelApi, GraphSelection } from "./GraphCanvas";
 import type { LayoutUpdate } from "./layout.worker";
 import { FocusChip } from "./FocusChip";
@@ -16,7 +23,9 @@ import { FocusChip } from "./FocusChip";
 /** Clears the focused-point ring. GraphConfigInterface declares the index as
  * non-optional under exactOptionalPropertyTypes, but the library treats
  * undefined as "no focus" — hence the cast. */
-const UNFOCUS = { focusedPointIndex: undefined } as unknown as Partial<GraphConfigInterface>;
+const UNFOCUS = {
+  focusedPointIndex: undefined,
+} as unknown as Partial<GraphConfigInterface>;
 
 /** An edge stroke: 0-255 RGB plus 0-1 alpha. */
 export type EdgeRgba = [number, number, number, number];
@@ -85,16 +94,25 @@ const toSpace = (v: number) => SPACE_SIZE / 2 + v * LAYOUT_SCALE;
  * already have them.
  */
 type CosmosGraph = InstanceType<typeof Graph>;
-function fitTo(graph: CosmosGraph, positions: ArrayLike<number> | null | undefined, duration: number) {
-  if (positions && positions.length >= 2) graph.fitViewByPointPositions(Array.from(positions), duration);
+function fitTo(
+  graph: CosmosGraph,
+  positions: ArrayLike<number> | null | undefined,
+  duration: number,
+) {
+  if (positions && positions.length >= 2)
+    graph.fitViewByPointPositions(Array.from(positions), duration);
 }
 function centerOn(graph: CosmosGraph, x: number, y: number, duration: number) {
   // The point's transform at the current zoom (cosmos's own method for this, by position; private in its typings).
-  (graph as unknown as { setZoomTransformByPointPositions: (p: number[], d: number, scale?: number) => void }).setZoomTransformByPointPositions(
-    [x, y],
-    duration,
-    graph.getZoomLevel(),
-  );
+  (
+    graph as unknown as {
+      setZoomTransformByPointPositions: (
+        p: number[],
+        d: number,
+        scale?: number,
+      ) => void;
+    }
+  ).setZoomTransformByPointPositions([x, y], duration, graph.getZoomLevel());
 }
 
 export function CosmosDots({
@@ -108,6 +126,7 @@ export function CosmosDots({
   selectRequest,
   matchedIds,
   onNodeClick,
+  compact = false,
 }: {
   nodes: GlDotNode[];
   edges: GlDotEdge[];
@@ -127,6 +146,8 @@ export function CosmosDots({
   matchedIds?: Set<string> | null;
   /** When set, clicking a dot calls this instead of selecting it. */
   onNodeClick?: ((nodeId: string) => void) | undefined;
+  /** Embedded in a page about one Subject: no focus chip or Center button (the page already names it). */
+  compact?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const graphRef = useRef<Graph | null>(null);
@@ -354,7 +375,13 @@ export function CosmosDots({
         const dx = x2 - x1;
         const dy = y2 - y1;
         const len2 = dx * dx + dy * dy;
-        const tt = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2));
+        const tt =
+          len2 === 0
+            ? 0
+            : Math.max(
+                0,
+                Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2),
+              );
         const ex = x1 + tt * dx - px;
         const ey = y1 + tt * dy - py;
         const d2 = ex * ex + ey * ey;
@@ -378,7 +405,8 @@ export function CosmosDots({
       const hit = pickEdgeAt(event.offsetX, event.offsetY);
       setSelection(hit ? { kind: "edge", id: hit } : null);
     },
-    hover: (index) => setHoverId(index === null ? null : (nodes[index]?.id ?? null)),
+    hover: (index) =>
+      setHoverId(index === null ? null : (nodes[index]?.id ?? null)),
   };
 
   // Graph + layout worker lifecycle, one per dataset.
@@ -411,8 +439,11 @@ export function CosmosDots({
       disableAttribution: true,
       // Cosmos's config types don't survive its internal path-alias import
       // under our tsconfig, so callback params are annotated explicitly.
-      onClick: (index: number | undefined, _pos: [number, number] | undefined, event: MouseEvent) =>
-        handlersRef.current.click(index, event),
+      onClick: (
+        index: number | undefined,
+        _pos: [number, number] | undefined,
+        event: MouseEvent,
+      ) => handlersRef.current.click(index, event),
       onPointMouseOver: (index: number) => handlersRef.current.hover(index),
       onPointMouseOut: () => handlersRef.current.hover(null),
       onZoom: (_e: unknown, userDriven: boolean) => {
@@ -499,7 +530,8 @@ export function CosmosDots({
       const positions = e.data.positions;
       // Index is bounded by the loop, so the noUncheckedIndexedAccess widening
       // to `undefined` is not reachable here.
-      for (let i = 0; i < positions.length; i++) positions[i] = toSpace(positions[i]!);
+      for (let i = 0; i < positions.length; i++)
+        positions[i] = toSpace(positions[i]!);
       targetPositions = positions;
       streamDone = e.data.done;
       if (!animFrame) {
@@ -511,7 +543,11 @@ export function CosmosDots({
       // Re-frame on every update so the graph is watched settling into shape
       // (a short ease per step), as long as the camera is still the layout's.
       if (!cameraOwnedRef.current) {
-        fitTo(graph, e.data.done ? positions : positionsRef.current, firstUpdate ? 0 : e.data.done ? 400 : 250);
+        fitTo(
+          graph,
+          e.data.done ? positions : positionsRef.current,
+          firstUpdate ? 0 : e.data.done ? 400 : 250,
+        );
       }
       firstUpdate = false;
     };
@@ -573,7 +609,8 @@ export function CosmosDots({
   // camera.
   const consumedSelectNonce = useRef<number | null>(null);
   useEffect(() => {
-    if (!selectRequest || consumedSelectNonce.current === selectRequest.nonce) return;
+    if (!selectRequest || consumedSelectNonce.current === selectRequest.nonce)
+      return;
     consumedSelectNonce.current = selectRequest.nonce;
     // A repeated search hit still recenters — the caller bumps the nonce.
     select(selectRequest.id);
@@ -606,20 +643,35 @@ export function CosmosDots({
   const toScreen = (i: number): [number, number] | null => {
     if (!g || !pos) return null;
     const p = g.spaceToScreenPosition([pos[i * 2]!, pos[i * 2 + 1]!]);
-    if (p[0] < -24 || p[0] > width + 24 || p[1] < -24 || p[1] > height + 24) return null;
+    if (p[0] < -24 || p[0] > width + 24 || p[1] < -24 || p[1] > height + 24)
+      return null;
     return p;
   };
 
   const revealLabels =
-    litSets !== null && litSets.litNodes.size <= REVEAL_LABEL_CAP ? litSets : null;
-  const labelled: Array<{ key: string; x: number; y: number; text: string; edge?: boolean }> = [];
+    litSets !== null && litSets.litNodes.size <= REVEAL_LABEL_CAP
+      ? litSets
+      : null;
+  const labelled: Array<{
+    key: string;
+    x: number;
+    y: number;
+    text: string;
+    edge?: boolean;
+  }> = [];
   if (g && pos) {
     if (revealLabels) {
       for (const id of revealLabels.litNodes) {
         const i = data.idToIndex.get(id);
         if (i === undefined) continue;
         const p = toScreen(i);
-        if (p) labelled.push({ key: `n${id}`, x: p[0], y: p[1], text: nodes[i]!.title });
+        if (p)
+          labelled.push({
+            key: `n${id}`,
+            x: p[0],
+            y: p[1],
+            text: nodes[i]!.title,
+          });
       }
       for (const ei of revealLabels.litEdges) {
         const e = data.drawn[ei]!;
@@ -639,7 +691,13 @@ export function CosmosDots({
       const i = data.idToIndex.get(hoverId);
       if (i !== undefined) {
         const p = toScreen(i);
-        if (p) labelled.push({ key: `h${hoverId}`, x: p[0], y: p[1], text: nodes[i]!.title });
+        if (p)
+          labelled.push({
+            key: `h${hoverId}`,
+            x: p[0],
+            y: p[1],
+            text: nodes[i]!.title,
+          });
       }
     }
   }
@@ -648,7 +706,14 @@ export function CosmosDots({
     if (e && !(revealLabels?.litEdges.has(hoverEdge) ?? false)) {
       const s = toScreen(data.idToIndex.get(e.source)!);
       const t = toScreen(data.idToIndex.get(e.target)!);
-      if (s && t) labelled.push({ key: `he${e.id}`, x: (s[0] + t[0]) / 2, y: (s[1] + t[1]) / 2, text: e.label, edge: true });
+      if (s && t)
+        labelled.push({
+          key: `he${e.id}`,
+          x: (s[0] + t[0]) / 2,
+          y: (s[1] + t[1]) / 2,
+          text: e.label,
+          edge: true,
+        });
     }
   }
   const rings: Array<{ key: string; x: number; y: number }> = [];
@@ -670,7 +735,11 @@ export function CosmosDots({
     <div
       // Expanded = a taller canvas in place (the page scrolls), never full screen.
       className={`relative flex flex-col ${className}`}
-      style={fullscreen ? { height: "85vh", minHeight: "85vh", flex: "none" } : undefined}
+      style={
+        fullscreen
+          ? { height: "85vh", minHeight: "85vh", flex: "none" }
+          : undefined
+      }
     >
       <div className="relative min-h-0 flex-1 overflow-hidden border border-zinc-800">
         <div
@@ -684,7 +753,9 @@ export function CosmosDots({
             edgeHoverFrame.current = requestAnimationFrame(() => {
               edgeHoverFrame.current = 0;
               const hit = pickEdgeAt(x, y);
-              setHoverEdge(hit === null ? null : (data.edgeIndexById.get(hit) ?? null));
+              setHoverEdge(
+                hit === null ? null : (data.edgeIndexById.get(hit) ?? null),
+              );
             });
           }}
           onMouseLeave={() => setHoverEdge(null)}
@@ -696,7 +767,9 @@ export function CosmosDots({
           {rings.map((r) => (
             <div
               key={r.key}
-              style={{ transform: `translate(${r.x}px, ${r.y}px) translate(-50%, -50%)` }}
+              style={{
+                transform: `translate(${r.x}px, ${r.y}px) translate(-50%, -50%)`,
+              }}
               className="absolute left-0 top-0 h-4 w-4 rounded-full ring-2 ring-zinc-100"
             />
           ))}
@@ -704,7 +777,9 @@ export function CosmosDots({
             l.edge ? (
               <div
                 key={l.key}
-                style={{ transform: `translate(${l.x}px, ${l.y}px) translate(-50%, -50%)` }}
+                style={{
+                  transform: `translate(${l.x}px, ${l.y}px) translate(-50%, -50%)`,
+                }}
                 className="absolute left-0 top-0 whitespace-nowrap bg-zinc-950/85 px-1 text-[11px] leading-4 text-zinc-400"
               >
                 {l.text}
@@ -712,7 +787,9 @@ export function CosmosDots({
             ) : (
               <div
                 key={l.key}
-                style={{ transform: `translate(${l.x + 8}px, ${l.y}px) translateY(-50%)` }}
+                style={{
+                  transform: `translate(${l.x + 8}px, ${l.y}px) translateY(-50%)`,
+                }}
                 className="absolute left-0 top-0 whitespace-nowrap bg-zinc-950/85 px-1 text-[11px] leading-4 text-zinc-300"
               >
                 {l.text}
@@ -721,7 +798,7 @@ export function CosmosDots({
           )}
         </div>
 
-        {(selection || overlay) && (
+        {!compact && (selection || overlay) && (
           <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-24rem)] flex-wrap items-center gap-2">
             {selection && (
               <FocusChip
@@ -729,8 +806,13 @@ export function CosmosDots({
                   selection.kind === "node"
                     ? selection.id
                     : (() => {
-                        const edge = data.drawn[data.edgeIndexById.get(selection.id) ?? -1];
-                        return edge ? `${edge.label}: ${edge.source} → ${edge.target}` : selection.id;
+                        const edge =
+                          data.drawn[
+                            data.edgeIndexById.get(selection.id) ?? -1
+                          ];
+                        return edge
+                          ? `${edge.label}: ${edge.source} → ${edge.target}`
+                          : selection.id;
                       })()
                 }
                 onClear={() => setSelection(null)}
@@ -760,26 +842,38 @@ export function CosmosDots({
         </div>
 
         {/* Center: fit every drawn dot back into view (a pan or zoom can lose them all). */}
-        <button
-          onClick={() => {
-            const g = graphRef.current;
-            if (g) fitTo(g, positionsRef.current, 300);
-          }}
-          title="Fit every Subject into view"
-          className="absolute left-2 top-2 z-10 inline-flex items-center gap-1.5 border border-zinc-800 bg-zinc-950/90 px-2 py-1 text-[12px] text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
-        >
-          <Scan className="h-3.5 w-3.5" /> Center
-        </button>
+        {!compact && (
+          <button
+            onClick={() => {
+              const g = graphRef.current;
+              if (g) fitTo(g, positionsRef.current, 300);
+            }}
+            title="Fit every Subject into view"
+            className="absolute left-2 top-2 z-10 inline-flex items-center gap-1.5 border border-zinc-800 bg-zinc-950/90 px-2 py-1 text-[12px] text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
+          >
+            <Scan className="h-3.5 w-3.5" /> Center
+          </button>
+        )}
 
         {expandable && (
-        <button
-          onClick={() => setFullscreen((f) => !f)}
-          title={fullscreen ? "Make the graph smaller (Esc)" : "Make the graph taller"}
-          aria-label={fullscreen ? "Make the graph smaller" : "Make the graph taller"}
-          className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
-        >
-          {fullscreen ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
-        </button>
+          <button
+            onClick={() => setFullscreen((f) => !f)}
+            title={
+              fullscreen
+                ? "Make the graph smaller (Esc)"
+                : "Make the graph taller"
+            }
+            aria-label={
+              fullscreen ? "Make the graph smaller" : "Make the graph taller"
+            }
+            className="absolute right-2 top-2 z-10 border border-zinc-800 bg-zinc-950/90 p-1.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+          >
+            {fullscreen ? (
+              <ChevronsDownUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronsUpDown className="h-3.5 w-3.5" />
+            )}
+          </button>
         )}
 
         {panel && (

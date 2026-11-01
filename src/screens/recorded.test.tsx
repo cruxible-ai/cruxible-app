@@ -91,9 +91,14 @@ describe("recorded reference world", () => {
     expect(await m.findByText("osv.dev.query")).toBeInTheDocument();
   });
 
-  it("neighborhood: a hub with its incoming column", async () => {
-    renderApp(`${I}/s/${encodeURIComponent(RELEASE)}/graph`, RECORDED);
-    expect(await screen.findByText(/16 Subjects · 15 links/)).toBeInTheDocument();
+  it("subject connections: the hub's links, one hop in and out, beside an Open in State graph link", async () => {
+    renderApp(`${I}/s/${encodeURIComponent(RELEASE)}`, RECORDED);
+    const m = await main();
+    expect(await m.findByText("Connections")).toBeInTheDocument();
+    expect(m.getByRole("link", { name: "Open in State graph →" })).toHaveAttribute(
+      "href",
+      `${I}/graph?focus=${encodeURIComponent(RELEASE)}`,
+    );
   });
 
   it("ledger: the generation timeline", async () => {

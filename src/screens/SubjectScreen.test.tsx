@@ -71,9 +71,9 @@ describe("Subject page", () => {
     // copies the rule does not admit are not evidence: left out of "admitted", named in the header
     expect(await main.findByText("2/2 admitted")).toBeInTheDocument();
     expect(main.getByText("· 1 not evidence")).toBeInTheDocument();
-    expect(main.getByRole("link", { name: /Neighborhood/ })).toHaveAttribute(
+    expect(main.getByRole("link", { name: /^State graph$/ })).toHaveAttribute(
       "href",
-      "/i/inst_fixture/s/security.assessment%2Frel-1-cve-2024-3094/graph",
+      "/i/inst_fixture/graph?focus=security.assessment%2Frel-1-cve-2024-3094",
     );
   });
 

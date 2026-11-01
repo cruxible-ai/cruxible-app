@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCard, useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { ShownValue } from "@/components/ShownValue";
@@ -47,6 +47,9 @@ export function StateGraphScreen() {
   const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [jump, setJump] = useState<{ id: string; nonce: number } | null>(null);
+  // ?focus=<subject> (a Subject page's "State graph" link): select and center it once it is drawn.
+  const [params] = useSearchParams();
+  const focus = params.get("focus");
 
   const kinds = useMemo(() => {
     const counts = new Map<string, number>();
@@ -79,6 +82,10 @@ export function StateGraphScreen() {
       }));
     return { nodes, colors, edges };
   }, [graph.data, hiddenKinds, colorOf]);
+
+  useEffect(() => {
+    if (focus && drawn.nodes.some((node) => node.id === focus)) setJump({ id: focus, nonce: Date.now() });
+  }, [focus, drawn.nodes]);
 
   const matched = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -224,7 +231,6 @@ export function StateGraphScreen() {
                     api={api}
                     labelFor={(id) => id}
                     openHref={link(`/i/${instanceId}/s/${encodeURIComponent(selection.id)}`)}
-                    neighborhoodHref={link(`/i/${instanceId}/s/${encodeURIComponent(selection.id)}/graph`)}
                   />
                 );
               }
@@ -278,14 +284,12 @@ function SubjectPanel({
   api,
   labelFor,
   openHref,
-  neighborhoodHref,
 }: {
   subject: string;
   edges: { id: string; source: string; target: string; label: string }[];
   api: GraphPanelApi;
   labelFor: (id: string) => string;
   openHref: string;
-  neighborhoodHref: string;
 }) {
   const card = useCard(subject);
   const data = cardOf(card.data, "subject");
@@ -330,9 +334,6 @@ function SubjectPanel({
       <PanelActions>
         <Link to={openHref} className="border border-zinc-700 px-2 py-0.5 text-zinc-200 hover:border-zinc-500">
           Open Subject
-        </Link>
-        <Link to={neighborhoodHref} className="border border-zinc-800 px-2 py-0.5 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200">
-          Neighborhood
         </Link>
       </PanelActions>
     </div>

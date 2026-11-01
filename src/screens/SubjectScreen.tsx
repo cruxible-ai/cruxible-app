@@ -34,6 +34,7 @@ import { Disclosure, EmptyState, LoadState, Panel, SubSection } from "@/componen
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { Table, Td, Th, trClass } from "@/components/Table";
+import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { IncomingList } from "@/components/IncomingList";
 import { useAtLink, withAt } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
@@ -149,11 +150,11 @@ export function SubjectScreen() {
         mono
         actions={
           <Link
-            to={link(`/i/${instanceId}/s/${encodeURIComponent(subject.subject)}/graph`)}
+            to={link(`/i/${instanceId}/graph?focus=${encodeURIComponent(subject.subject)}`)}
             className={`inline-flex items-center gap-1.5 ${actionChipClass}`}
           >
             <Waypoints className="h-3 w-3" />
-            Neighborhood
+            State graph
           </Link>
         }
         summary={
@@ -237,6 +238,7 @@ export function SubjectScreen() {
           </div>
         </Panel>
 
+        <ConnectionsPanel subject={subject} />
         <HistoryPanel subjectRef={subject.subject} keys={keys} />
       </WithRail>
     </Page>
