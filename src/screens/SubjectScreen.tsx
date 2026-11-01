@@ -334,7 +334,8 @@ function ClaimRow({
   const instanceId = useInstanceId();
   const link = useAtLink();
   const ids = claimIds(entry);
-  const origin = ids.map((id) => provenance.get(id)).find((e) => e !== undefined);
+  const origins = ids.map((id) => provenance.get(id)).filter((e): e is SubjectHistoryEvent => e !== undefined);
+  const origin = origins[0];
   const focused = focus !== null && ids.includes(focus);
   const [open, setOpen] = useState(focused);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -365,7 +366,7 @@ function ClaimRow({
         </Link>
         <div className="min-w-0">
           <FieldValue value={entry.value} />
-          {origin && <FieldProvenance event={origin} isKey={isKey} />}
+          {origin && <FieldProvenance event={origin} siblings={origins} isKey={isKey} />}
         </div>
         <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5">
           {flags.map((flag) => (
@@ -703,12 +704,14 @@ function RevisionLine({ revision }: { revision: GetRevision }) {
  * generation, by which Line (as of then), and the item's own reason when it
  * has one. The full change is in Changes below.
  */
-function FieldProvenance({ event, isKey }: { event: SubjectHistoryEvent; isKey: boolean }) {
+function FieldProvenance({ event, siblings, isKey }: { event: SubjectHistoryEvent; siblings: SubjectHistoryEvent[]; isKey: boolean }) {
   const instanceId = useInstanceId();
   const source = changeSetRun([event]);
   const run = useRunAuthor(source?.run ?? null);
   const line = run.data?.line ?? null;
-  const reason = !isKey && event.reason?.kind === "procedure_item" ? reasonWords(event.reason) : null;
+  // A many-valued field's values share one reason sentence: say it once (see groupReason).
+  const said = isKey ? null : groupReason(siblings);
+  const reason = said ? (said.more > 0 ? `${said.text} (+${said.more} more reasons)` : said.text) : null;
   return (
     <div className="mt-0.5 space-y-0.5 text-[12px] text-zinc-500">
       <div className="flex flex-wrap items-baseline gap-x-1.5">
