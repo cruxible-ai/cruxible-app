@@ -328,15 +328,6 @@ export function TypeMapScreen() {
               Names under <span className="font-mono text-zinc-300">{names.prefix}</span>
             </span>
           )}
-          <button
-            type="button"
-            aria-pressed={populatedOnly}
-            onClick={() => setParam("populated", populatedOnly ? null : "1")}
-            title="Show only the kinds that hold at least one Subject"
-            className={`border px-2 py-0.5 text-[12px] ${populatedOnly ? "border-zinc-500 bg-zinc-800 text-zinc-100" : "border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}
-          >
-            Only kinds with Subjects
-          </button>
         </StatsRow>
         <MapLegend undeclared={graph.nodes.some((n) => n.referencedOnly)} />
       </header>
@@ -359,6 +350,25 @@ export function TypeMapScreen() {
         expandable={false}
         // A focus keeps a kind and its neighbors: few enough to label every link.
         revealAll={focus !== null}
+        controls={
+          <button
+            type="button"
+            aria-pressed={populatedOnly}
+            onClick={() => setParam("populated", populatedOnly ? null : "1")}
+            title="Show only the kinds that hold at least one Subject"
+            className={
+              populatedOnly
+                ? "inline-flex items-center gap-1.5 border border-zinc-500 bg-zinc-800 px-2 py-1 text-[12px] leading-4 text-zinc-100"
+                : "inline-flex items-center gap-1.5 border border-zinc-800 bg-zinc-950/90 px-2 py-1 text-[12px] leading-4 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+            }
+          >
+            <span
+              aria-hidden
+              className={`h-2 w-2 border ${populatedOnly ? "border-zinc-200 bg-zinc-200" : "border-zinc-500"}`}
+            />
+            Only kinds with Subjects
+          </button>
+        }
         overlay={coloring.enabled ? <LayerLegend layers={coloring.layers} /> : undefined}
       />
       )}
