@@ -4,13 +4,14 @@ import { useCaptureContracts, useCard, useClaimTypes, useGet, useInstanceId, use
 import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
+import { FieldList } from "@/components/FieldList";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Pending } from "@/components/ontology/Pending";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
-import { retainedByWords, type Retention } from "@/lib/definitions";
+import { retainedByWords, type LandingTrigger, type LogicalSource, type Retention } from "@/lib/definitions";
 import { contractName, contractProducers, providerName, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
 import { sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -45,8 +46,6 @@ const UNNAMED: { test: (r: Retention) => boolean; words: string; title: string }
  */
 export function ContractScreen() {
   const { name = "" } = useParams();
-  const instanceId = useInstanceId();
-  const link = useAtLink();
   usePageTitle(name);
   const card = useCard(`CaptureContract:${name}`);
   const contract = cardOf(card.data, "capture_contract");
@@ -102,7 +101,7 @@ export function ContractScreen() {
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <Panel title="Logical sources" meta={<span title="A Capture is retained under a contract and a logical source: what was read. The steps that name it retain it; a landing Trigger selects it.">{sources.length}</span>}>
-          <div className="text-[12px] text-zinc-500">
+          <div className="mb-1.5 text-[12px] text-zinc-500">
             Source: <span className="text-zinc-300">{definition.sourceKinds.map(sourceKindLabel).join(", ") || "—"}</span>
           </div>
           {model.isPending && <LoadState />}
@@ -110,29 +109,15 @@ export function ContractScreen() {
           {model.data && sources.length === 0 && unnamed.length === 0 && (
             <div className="text-[12px] text-zinc-600">No definition names a logical source under this contract.</div>
           )}
-          <div className="mt-1 space-y-1 text-[12px]">
-            {sources.map((source) => (
-              <div key={source.id}>
-                <span className="font-mono text-zinc-200">{source.id}</span>
-                <span className="text-zinc-500">
-                  {" "}
-                  {source.retainedBy.some((r) => r.contract === name)
-                    ? `retained by ${retainedByWords(source.retainedBy.filter((r) => r.contract === name))}`
-                    : "no step names it"}
-                  {source.selectedBy.some((t) => t.contract === name) &&
-                    ` · selected by ${source.selectedBy.filter((t) => t.contract === name).map((t) => t.name).join(", ")}`}
-                </span>
+          {sources.length > 0 && <SourcesTable sources={sources} contract={name} />}
+          {UNNAMED.map(({ test, words, title }) => {
+            const group = unnamed.filter(test);
+            return group.length > 0 ? (
+              <div key={words} className="mt-1.5 text-[12px] text-zinc-500" title={title}>
+                Also retained by {retainedByWords(group)}, {words}
               </div>
-            ))}
-            {UNNAMED.map(({ test, words, title }) => {
-              const group = unnamed.filter(test);
-              return group.length > 0 ? (
-                <div key={words} className="text-zinc-500" title={title}>
-                  Also retained by {retainedByWords(group)}, {words}
-                </div>
-              ) : null;
-            })}
-          </div>
+            ) : null;
+          })}
         </Panel>
         <Panel
           title="Captured under it by"
@@ -141,36 +126,7 @@ export function ContractScreen() {
           {pins.isPending && <LoadState />}
           {pins.error && <LoadState error={pins.error} />}
           {producers && producers.length === 0 && <EmptyState>No Procedure pins this contract.</EmptyState>}
-          <div className="space-y-1 text-[12px]">
-            {(producers ?? []).map((p) => (
-              <div key={p.source}>
-                <div className="flex flex-wrap items-baseline gap-x-2">
-                  <RefLink value={p.source} />
-                  <span className="text-zinc-600">{p.source.startsWith("Blueprint:") ? "Blueprint" : "Procedure"}</span>
-                  {retaining.has(p.source) && <span className="text-zinc-500">retains Captures under it</span>}
-                  {p.startedByLanding.length > 0 && (
-                    <span className="text-zinc-500" title="Its Lines start on this contract's landings: it reads what landed">
-                      reads its landings
-                    </span>
-                  )}
-                </div>
-                {(p.providers.length > 0 || p.lines.length > 0) && (
-                  <div className="flex flex-wrap gap-x-3 pl-3 text-zinc-500">
-                    {p.providers.map((provider) => (
-                      <RefLink key={provider} value={provider} className="text-zinc-400">
-                        <span className="font-mono text-[12px]">{providerName(provider)}</span>
-                      </RefLink>
-                    ))}
-                    {p.lines.map((line) => (
-                      <Link key={line} to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`)} className="font-mono text-zinc-300 hover:underline">
-                        {lineName(line)}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          {producers && producers.length > 0 && <ProducersTable producers={producers} retaining={retaining} />}
           {pins.data?.truncated && <div className="mt-1 text-[12px] text-zinc-500">The pins listing stopped at its page cap.</div>}
           <div className="mt-2 text-[12px] text-zinc-500">
             Landings, cited Captures and citing Claims <Pending gap="K4" />
@@ -187,16 +143,19 @@ export function ContractScreen() {
           </div>
         )}
         {terms && (
-          <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-1.5 text-[13px]">
-            {termRows(terms).map((row) => (
-              <div key={row.label} className="contents">
-                <dt className="text-zinc-500">{row.label}</dt>
-                <dd className="text-zinc-200" title={row.raw}>
+          <FieldList
+            labels="words"
+            label="Terms"
+            fields={termRows(terms).map((row) => ({
+              key: row.label,
+              label: row.label,
+              value: (
+                <span className="text-zinc-200" title={row.raw}>
                   {row.words}
-                </dd>
-              </div>
-            ))}
-          </dl>
+                </span>
+              ),
+            }))}
+          />
         )}
       </Panel>
 
@@ -205,36 +164,7 @@ export function ContractScreen() {
       <Panel title="Triggers on its landings" meta={<span>{firing.length}</span>}>
         {model.isPending && <LoadState />}
         {model.data && firing.length === 0 && <EmptyState>No Trigger fires when a Capture under this contract lands.</EmptyState>}
-        <div className="space-y-0.5 text-[12px]">
-          {firing.map((row) => {
-            const target = row.target;
-            const line = target.startsWith("Line:") ? lineByName.get(lineName(target)) : undefined;
-            return (
-              <div key={row.name} className="flex flex-wrap items-baseline gap-x-3">
-                <RefLink value={`Trigger:${row.name}`}>
-                  <span className="font-mono text-zinc-300">{row.name}</span>
-                </RefLink>
-                <span className="text-zinc-500" title="The logical sources whose landings fire it">
-                  {row.logicalSources.length ? `on ${row.logicalSources.join(", ")}` : "on any landing"}
-                </span>
-                <span className="text-zinc-600">→</span>
-                {target.startsWith("Line:") ? (
-                  <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(target))}`)} className="font-mono text-zinc-200 hover:underline">
-                    {lineName(target)}
-                  </Link>
-                ) : (
-                  <span className="font-mono text-zinc-400">{target}</span>
-                )}
-                {line && (
-                  <span className="text-zinc-500">
-                    {line.procedure.replace(/^Procedure:/, "")} · at most {term("authority", line.authority).word.toLowerCase()} ·{" "}
-                    {term("line", line.enablement ?? "not_enabled").word.toLowerCase()}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {firing.length > 0 && <TriggersTable triggers={firing} lines={lineByName} />}
         {model.data?.truncated && (
           <div className="mt-1 text-[12px] text-zinc-500">A definition listing stopped at its cap.</div>
         )}
@@ -245,6 +175,208 @@ export function ContractScreen() {
       </Panel>
       </div>
     </Page>
+  );
+}
+
+/** Tables this short read without the toolbar; longer ones get its sort, filter and Columns. */
+const TOOLBAR_AT = 10;
+
+/** The logical sources Captures under the contract land under: who retains each and which Triggers select it. */
+function SourcesTable({ sources, contract }: { sources: LogicalSource[]; contract: string }) {
+  const columns = useMemo<Column<LogicalSource>[]>(
+    () => [
+      {
+        id: "source",
+        header: "Logical source",
+        hideable: false,
+        sortValue: (s) => s.id,
+        filter: { kind: "text", text: (s) => s.id },
+        className: "font-mono text-[12px] text-zinc-200",
+        cell: (s) => s.id,
+      },
+      {
+        id: "retained",
+        header: "Retained by",
+        title: "The source steps that name it under this contract",
+        className: "text-[12px] text-zinc-400",
+        cell: (s) => {
+          const own = s.retainedBy.filter((r) => r.contract === contract);
+          return own.length ? retainedByWords(own) : <span className="text-zinc-500">No step names it</span>;
+        },
+      },
+      {
+        id: "selected",
+        header: "Selected by",
+        title: "Landing Triggers that select it",
+        className: "text-[12px] text-zinc-400",
+        cell: (s) => {
+          const own = s.selectedBy.filter((t) => t.contract === contract);
+          return own.length ? own.map((t) => t.name).join(", ") : <span className="text-zinc-600">—</span>;
+        },
+      },
+    ],
+    [contract],
+  );
+  return (
+    <DataTable
+      rows={sources}
+      columns={columns}
+      rowKey={(s) => s.id}
+      urlKey="src"
+      label="Logical sources"
+      toolbar={sources.length > TOOLBAR_AT}
+      maxHeight="none"
+    />
+  );
+}
+
+type Producer = ReturnType<typeof contractProducers>[number];
+
+/** What a Procedure does with the contract: retains Captures under it, reads its landings, or both. */
+function producerRoles(p: Producer, retaining: ReadonlySet<string>): string[] {
+  return [...(retaining.has(p.source) ? ["retains Captures under it"] : []), ...(p.startedByLanding.length > 0 ? ["reads its landings"] : [])];
+}
+
+/** The Procedures that capture under the contract (from their pins): what each does with it, its interfaces and Lines. */
+function ProducersTable({ producers, retaining }: { producers: Producer[]; retaining: ReadonlySet<string> }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const columns = useMemo<Column<Producer>[]>(
+    () => [
+      {
+        id: "procedure",
+        header: "Procedure",
+        hideable: false,
+        sortValue: (p) => p.source,
+        filter: { kind: "text", text: (p) => p.source },
+        cell: (p) => (
+          <span className="flex flex-wrap items-baseline gap-x-2">
+            <RefLink value={p.source} />
+            {p.source.startsWith("Blueprint:") && <span className="text-[12px] text-zinc-600">Blueprint</span>}
+            {producerRoles(p, retaining).map((role) => (
+              <span
+                key={role}
+                className="text-[12px] text-zinc-500"
+                title={role === "reads its landings" ? "Its Lines start on this contract's landings: it reads what landed" : "A source or emit step retains Captures under it"}
+              >
+                {role}
+              </span>
+            ))}
+          </span>
+        ),
+      },
+      {
+        id: "interfaces",
+        header: "Interfaces",
+        className: "text-[12px]",
+        cell: (p) => (
+          <span className="flex flex-wrap gap-x-3">
+            {p.providers.map((provider) => (
+              <RefLink key={provider} value={provider} className="text-zinc-400">
+                <span className="font-mono text-[12px]">{providerName(provider)}</span>
+              </RefLink>
+            ))}
+          </span>
+        ),
+      },
+      {
+        id: "lines",
+        header: "Lines",
+        filter: { kind: "enum", values: (p) => p.lines.map(lineName) },
+        className: "text-[12px]",
+        cell: (p) => (
+          <span className="flex flex-wrap gap-x-3">
+            {p.lines.map((line) => (
+              <Link key={line} to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`)} className="font-mono text-zinc-300 hover:underline">
+                {lineName(line)}
+              </Link>
+            ))}
+          </span>
+        ),
+      },
+    ],
+    [instanceId, link, retaining],
+  );
+  return (
+    <DataTable
+      rows={producers}
+      columns={columns}
+      rowKey={(p) => p.source}
+      urlKey="by"
+      label="Captured under it by"
+      toolbar={producers.length > TOOLBAR_AT}
+      maxHeight="none"
+    />
+  );
+}
+
+type LineRow = Schemas["OrientLine"];
+
+/** The Triggers that fire on the contract's landings: the sources they select and the Line each starts. */
+function TriggersTable({ triggers, lines }: { triggers: LandingTrigger[]; lines: ReadonlyMap<string, LineRow> }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const columns = useMemo<Column<LandingTrigger>[]>(
+    () => [
+      {
+        id: "trigger",
+        header: "Trigger",
+        hideable: false,
+        sortValue: (t) => t.name,
+        filter: { kind: "text", text: (t) => t.name },
+        cell: (t) => (
+          <RefLink value={`Trigger:${t.name}`}>
+            <span className="font-mono text-[12px] text-zinc-300">{t.name}</span>
+          </RefLink>
+        ),
+      },
+      {
+        id: "on",
+        header: "On",
+        title: "The logical sources whose landings fire it",
+        filter: { kind: "enum", values: (t) => (t.logicalSources.length ? t.logicalSources : ["any landing"]) },
+        className: "text-[12px] text-zinc-500",
+        cell: (t) => (t.logicalSources.length ? t.logicalSources.join(", ") : "any landing"),
+      },
+      {
+        id: "starts",
+        header: "Starts",
+        sortValue: (t) => t.target,
+        className: "text-[12px]",
+        cell: (t) => {
+          const line = t.target.startsWith("Line:") ? lines.get(lineName(t.target)) : undefined;
+          return (
+            <>
+              {t.target.startsWith("Line:") ? (
+                <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(t.target))}`)} className="font-mono text-zinc-200 hover:underline">
+                  {lineName(t.target)}
+                </Link>
+              ) : (
+                <span className="font-mono text-zinc-400">{t.target}</span>
+              )}
+              {line && (
+                <div className="text-zinc-500">
+                  {line.procedure.replace(/^Procedure:/, "")} · at most {term("authority", line.authority).word.toLowerCase()} ·{" "}
+                  {term("line", line.enablement ?? "not_enabled").word.toLowerCase()}
+                </div>
+              )}
+            </>
+          );
+        },
+      },
+    ],
+    [instanceId, link, lines],
+  );
+  return (
+    <DataTable
+      rows={triggers}
+      columns={columns}
+      rowKey={(t) => t.name}
+      urlKey="trg"
+      label="Triggers on its landings"
+      toolbar={triggers.length > TOOLBAR_AT}
+      maxHeight="none"
+    />
   );
 }
 

@@ -181,9 +181,11 @@ describe("recorded reference world", () => {
     const m = within(screen.getByRole("main"));
     expect(m.getByText("Admitted by").nextElementSibling).toHaveTextContent("42 ClaimTypes");
     // logical sources from the definitions: a Line parameter names KEV's; a Trigger selects the repository snapshot
-    expect(await m.findByText("cisa.kev.catalog")).toBeInTheDocument();
-    expect(m.getByText(/retained by Line security.kev-daily · selected by security.kev-landed, security.kev-landed-attention/)).toBeInTheDocument();
-    expect(m.getByText("github.repo.snapshot")).toBeInTheDocument();
+    const sources = within((await m.findByText("Logical sources", { selector: "h2" })).closest("section")!);
+    const kev = within((await sources.findByText("cisa.kev.catalog")).closest("tr")!);
+    expect(kev.getByText("Line security.kev-daily")).toBeInTheDocument(); // retained by
+    expect(kev.getByText("security.kev-landed, security.kev-landed-attention")).toBeInTheDocument(); // selected by
+    expect(sources.getByText("github.repo.snapshot")).toBeInTheDocument();
     expect(m.getByText(/security.repo-pull.cruxible-ci, under a source named at run time/)).toBeInTheDocument();
     expect(await m.findByText("security.harden-on-snapshot")).toBeInTheDocument();
     expect(m.getAllByRole("link", { name: "security.harden" })[0]).toHaveAttribute("href", `${I}/lines/security.harden`);
