@@ -40,7 +40,10 @@ describe("Type map", () => {
     expect(screen.queryByText(/^of \d+ kinds$/)).toBeNull();
     cleanup();
     renderApp("/i/inst_fixture/map?populated=1");
-    expect(await screen.findByRole("button", { name: "Only kinds with Subjects", pressed: true })).toBeInTheDocument();
+    const on = await screen.findByRole("button", { name: "Only kinds with Subjects", pressed: true });
+    // switching it off is explicit in the URL, so a mostly empty map can still show every kind
+    fireEvent.click(on);
+    expect(await screen.findByRole("button", { name: "Only kinds with Subjects", pressed: false })).toBeInTheDocument();
   });
 
   it("names the focus in a chip at the top of the graph; the chip and Esc clear it", async () => {

@@ -112,8 +112,17 @@ export function TypeMapScreen() {
   usePageTitle("Type map");
 
   const allKinds = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
-  // ?populated=1 keeps only kinds that hold Subjects (and the links between them).
-  const populatedOnly = params.get("populated") === "1";
+  // ?populated=1 keeps only kinds that hold Subjects (and the links between them);
+  // ?populated=0 shows every kind. Unset, it starts on when most declared kinds are
+  // empty (a fresh or partly loaded instance), unless the URL opens on a kind or field.
+  const populatedParam = params.get("populated");
+  const mostlyEmpty = useMemo(() => {
+    const all = kinds.data?.kinds ?? [];
+    return all.length > 0 && all.filter((k) => k.subjects === 0).length * 2 > all.length;
+  }, [kinds.data]);
+  const opensOnSomething = params.has("kind") || params.has("focus") || params.has("claim_type");
+  const populatedOnly =
+    populatedParam === "1" || (populatedParam === null && mostlyEmpty && !opensOnSomething);
   const fullGraph = useMemo(() => {
     if (!populatedOnly) return allKinds;
     const held = new Set((kinds.data?.kinds ?? []).filter((k) => k.subjects > 0).map((k) => k.kind));
@@ -354,7 +363,7 @@ export function TypeMapScreen() {
           <button
             type="button"
             aria-pressed={populatedOnly}
-            onClick={() => setParam("populated", populatedOnly ? null : "1")}
+            onClick={() => setParam("populated", populatedOnly ? "0" : "1")}
             title="Show only the kinds that hold at least one Subject"
             className={
               populatedOnly
