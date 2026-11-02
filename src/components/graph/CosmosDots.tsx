@@ -801,9 +801,10 @@ export function CosmosDots({
           )}
         </div>
 
-        {!compact && (selection || overlay) && (
+        {/* The focus chip names the selection only when no side panel already does. */}
+        {!compact && ((selection && !panel) || overlay) && (
           <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-24rem)] flex-wrap items-center gap-2">
-            {selection && (
+            {selection && !panel && (
               <FocusChip
                 label={
                   selection.kind === "node"
