@@ -18,6 +18,7 @@ import {
   cardOf,
   type CaptureAdmissionAccount,
   type GetAttestationEvidence,
+  type GetCaptureEvidence,
   type GetClaimCard,
   type GetRevision,
   type GetSubjectCard,
@@ -32,7 +33,7 @@ import { Fact, Page, PageHeader, WithRail } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel, SubSection } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
-import { Table, Td, Th, trClass } from "@/components/Table";
+import { DataTable, type Column } from "@/components/DataTable";
 import { ChangeAuthor } from "@/components/ChangeAuthor";
 import {
   ChangeEntry,
@@ -422,8 +423,6 @@ function ClaimDetail({
   need: EvidenceNeed;
   isKey: boolean;
 }) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
   const evidence = useClaimEvidence(claimId);
   const revisions = useClaimRevisions(claimId);
   const ev = evidence.data?.evidence ?? null;
@@ -476,47 +475,7 @@ function ClaimDetail({
           <SubSection title="Captures" meta={ev.captures.length}>
             {ev.captures.length === 0 && <div className="text-zinc-500">No cited Captures.</div>}
             {ev.captures.length > 0 && (
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Capture</Th>
-                    <Th title="What the citation is: evidence, the Claim's own words, or a passage of a file">Cited as</Th>
-                    <Th title="Whether the verdict reads it">Status</Th>
-                    <Th>Source</Th>
-                    <Th>Contract</Th>
-                    <Th>Observed</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ev.captures.map((capture) => (
-                    <tr key={`${capture.capture}\n${capture.role}`} className={trClass}>
-                      <Td className="whitespace-nowrap">
-                        <RefLink value={capture.capture} />
-                      </Td>
-                      <Td className="max-w-[20rem] truncate text-zinc-300" title={citationLabel(capture)}>
-                        {citationLabel(capture)}
-                      </Td>
-                      <Td className="whitespace-nowrap">
-                        <Chip term={evidenceTerm(capture.status, need)} />
-                      </Td>
-                      <Td className="max-w-[18rem] truncate text-zinc-400" title={capture.source}>
-                        {publicName(capture.source)}
-                      </Td>
-                      <Td className="font-mono text-[12px]">
-                        <Link
-                          to={link(`/i/${instanceId}/contracts/${encodeURIComponent(contractName(capture.contract))}`)}
-                          className="text-zinc-400 hover:text-zinc-200 hover:underline"
-                        >
-                          {contractName(capture.contract)} v{capture.version}
-                        </Link>
-                      </Td>
-                      <Td className="whitespace-nowrap text-zinc-400" title={capture.observed_at}>
-                        {formatWhen(capture.observed_at)}
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <CapturesTable captures={ev.captures} need={need} />
             )}
           </SubSection>
           {ev.attestations.length > 0 && <AttestationList attestations={ev.attestations} />}
@@ -525,48 +484,7 @@ function ClaimDetail({
 
       {accounts && accounts.length > 0 && (
         <Disclosure className="mt-3" label="Admission accounts">
-          <Table>
-            <thead>
-              <tr>
-                <Th>Capture</Th>
-                <Th>Contract</Th>
-                <Th>Role</Th>
-                <Th>Origin</Th>
-                <Th>Status</Th>
-                <Th>Rule</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((account) => (
-                <tr key={account.citation_id} className={trClass}>
-                  <Td className="whitespace-nowrap">
-                    <RefLink value={`CAP-${account.capture_digest.replace(/^sha256:/, "").slice(0, 12)}`} />
-                  </Td>
-                  <Td className="font-mono text-[12px] text-zinc-400">{account.capture_contract_identity}</Td>
-                  <Td className="text-zinc-400">{account.citation_role}</Td>
-                  <Td className="text-zinc-400">{account.citation_origin}</Td>
-                  <Td>
-                    <Chip term={evidenceTerm(account.status, need)} />
-                  </Td>
-                  <Td className="text-zinc-500">
-                    {account.decision ? (
-                      <div>
-                        {sentence(account.decision.status.replaceAll("_", " "))}
-                        {account.decision.admission && <span> ({account.decision.admission.replaceAll("_", " ")})</span>}
-                        {account.decision.rule_id && <span className="font-mono"> {account.decision.rule_id}</span>}
-                        {account.decision.refusal_code && <span className="font-mono text-zinc-400"> {account.decision.refusal_code}</span>}
-                        {account.decision.closest_rule_id && (
-                          <span className="font-mono"> closest {account.decision.closest_rule_id}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span title="Not evidence: no rule was consulted">-</span>
-                    )}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <AdmissionTable accounts={accounts} need={need} />
         </Disclosure>
       )}
 
@@ -583,6 +501,110 @@ function ClaimDetail({
   );
 }
 
+/** A Claim's cited Captures: what each is cited as, whether the verdict reads it, its source, contract and when observed. */
+function CapturesTable({ captures, need }: { captures: GetCaptureEvidence[]; need: EvidenceNeed }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const columns = useMemo<Column<GetCaptureEvidence>[]>(
+    () => [
+      { id: "capture", header: "Capture", className: "whitespace-nowrap", cell: (c) => <RefLink value={c.capture} /> },
+      {
+        id: "cited_as",
+        header: "Cited as",
+        title: "What the citation is: evidence, the Claim's own words, or a passage of a file",
+        className: "max-w-[20rem] truncate text-zinc-300",
+        cell: (c) => <span title={citationLabel(c)}>{citationLabel(c)}</span>,
+      },
+      { id: "status", header: "Status", title: "Whether the verdict reads it", className: "whitespace-nowrap", cell: (c) => <Chip term={evidenceTerm(c.status, need)} /> },
+      {
+        id: "source",
+        header: "Source",
+        className: "max-w-[18rem] truncate text-zinc-400",
+        cell: (c) => <span title={c.source}>{publicName(c.source)}</span>,
+      },
+      {
+        id: "contract",
+        header: "Contract",
+        className: "font-mono text-[12px]",
+        cell: (c) => (
+          <Link
+            to={link(`/i/${instanceId}/contracts/${encodeURIComponent(contractName(c.contract))}`)}
+            className="text-zinc-400 hover:text-zinc-200 hover:underline"
+          >
+            {contractName(c.contract)} v{c.version}
+          </Link>
+        ),
+      },
+      {
+        id: "observed",
+        header: "Observed",
+        className: "whitespace-nowrap text-zinc-400",
+        cell: (c) => <span title={c.observed_at}>{formatWhen(c.observed_at)}</span>,
+      },
+    ],
+    [instanceId, link, need],
+  );
+  return (
+    <DataTable rows={captures} columns={columns} rowKey={(c) => `${c.capture}\n${c.role}`} label="Captures" toolbar={false} maxHeight="none" />
+  );
+}
+
+/** Each citation's admission account: the rule the ClaimType's evidence rule applied, or none (not evidence). */
+function AdmissionTable({ accounts, need }: { accounts: CaptureAdmissionAccount[]; need: EvidenceNeed }) {
+  const columns = useMemo<Column<CaptureAdmissionAccount>[]>(
+    () => [
+      {
+        id: "capture",
+        header: "Capture",
+        className: "whitespace-nowrap",
+        cell: (a) => <RefLink value={`CAP-${a.capture_digest.replace(/^sha256:/, "").slice(0, 12)}`} />,
+      },
+      { id: "contract", header: "Contract", className: "font-mono text-[12px] text-zinc-400", cell: (a) => a.capture_contract_identity },
+      { id: "role", header: "Role", className: "text-zinc-400", cell: (a) => a.citation_role },
+      { id: "origin", header: "Origin", className: "text-zinc-400", cell: (a) => a.citation_origin },
+      { id: "status", header: "Status", cell: (a) => <Chip term={evidenceTerm(a.status, need)} /> },
+      {
+        id: "rule",
+        header: "Rule",
+        className: "text-zinc-500",
+        cell: (a) =>
+          a.decision ? (
+            <div>
+              {sentence(a.decision.status.replaceAll("_", " "))}
+              {a.decision.admission && <span> ({a.decision.admission.replaceAll("_", " ")})</span>}
+              {a.decision.rule_id && <span className="font-mono"> {a.decision.rule_id}</span>}
+              {a.decision.refusal_code && <span className="font-mono text-zinc-400"> {a.decision.refusal_code}</span>}
+              {a.decision.closest_rule_id && <span className="font-mono"> closest {a.decision.closest_rule_id}</span>}
+            </div>
+          ) : (
+            <span title="Not evidence: no rule was consulted">-</span>
+          ),
+      },
+    ],
+    [need],
+  );
+  return <DataTable rows={accounts} columns={columns} rowKey={(a) => a.citation_id} label="Admission accounts" toolbar={false} maxHeight="none" />;
+}
+
+const ATTESTATION_COLUMNS: Column<GetAttestationEvidence>[] = [
+  { id: "stance", header: "Stance", cell: (a) => <Chip concept="stance" value={a.stance} /> },
+  { id: "by", header: "By", className: "font-mono text-[12px] text-zinc-300", cell: (a) => a.principal },
+  { id: "at", header: "At", className: "whitespace-nowrap text-zinc-400", cell: (a) => <span title={a.at}>{formatWhen(a.at)}</span> },
+  {
+    id: "record",
+    header: "Record",
+    title: "Accepted: an accepted attestation, which the verdict reads. Recorded: an event claim attest recorded, shown and resurfaced in next",
+    className: "whitespace-nowrap text-zinc-400",
+    cell: (a) => (
+      <span title={a.event ?? undefined}>
+        {recordLabel(a.record)}
+        <span className="t-meta"> · {basisLabel(a.basis)}</span>
+      </span>
+    ),
+  },
+  { id: "counts", header: "Counts toward the verdict", cell: (a) => <CountsMark counts={a.counts} reason={countsReasonText(a)} /> },
+];
+
 /**
  * A Claim version's attestations, accepted and recorded, each with whether it
  * counts toward the verdict and why. Ones no longer current are dimmed.
@@ -590,39 +612,15 @@ function ClaimDetail({
 function AttestationList({ attestations }: { attestations: GetAttestationEvidence[] }) {
   return (
     <SubSection title="Attestations" meta={attestations.length}>
-      <Table>
-        <thead>
-          <tr>
-            <Th>Stance</Th>
-            <Th>By</Th>
-            <Th>At</Th>
-            <Th title="Accepted: an accepted attestation, which the verdict reads. Recorded: an event claim attest recorded, shown and resurfaced in next">
-              Record
-            </Th>
-            <Th>Counts toward the verdict</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {attestations.map((attestation, i) => (
-            <tr key={`${attestation.event ?? attestation.principal}\n${attestation.at}\n${i}`} className={`${trClass} ${attestation.current ? "" : "opacity-60"}`}>
-              <Td>
-                <Chip concept="stance" value={attestation.stance} />
-              </Td>
-              <Td className="font-mono text-[12px] text-zinc-300">{attestation.principal}</Td>
-              <Td className="whitespace-nowrap text-zinc-400" title={attestation.at}>
-                {formatWhen(attestation.at)}
-              </Td>
-              <Td className="whitespace-nowrap text-zinc-400" title={attestation.event ?? undefined}>
-                {recordLabel(attestation.record)}
-                <span className="t-meta"> · {basisLabel(attestation.basis)}</span>
-              </Td>
-              <Td>
-                <CountsMark counts={attestation.counts} reason={countsReasonText(attestation)} />
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
+      <DataTable
+        rows={attestations}
+        columns={ATTESTATION_COLUMNS}
+        rowKey={(a) => `${a.event ?? a.principal}\n${a.at}\n${attestations.indexOf(a)}`}
+        rowClassName={(a) => (a.current ? "" : "opacity-60")}
+        label="Attestations"
+        toolbar={false}
+        maxHeight="none"
+      />
     </SubSection>
   );
 }

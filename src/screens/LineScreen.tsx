@@ -21,7 +21,6 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { LongText } from "@/components/LongText";
 import { CopyButton, ShortId } from "@/components/ShortId";
-import { Table, Td, Th, trClass } from "@/components/Table";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
@@ -350,6 +349,64 @@ function NotEnabledBanner({ line }: { line: string }) {
   );
 }
 
+type LineTrigger = NonNullable<LineCard["triggers"]>[number];
+type LineEnablement = NonNullable<LineCard["enablements"]>[number];
+
+/** The Triggers table's columns: each Trigger, when it fires, whether the current enablement armed it, its next fire. */
+function triggerColumns(current: LineEnablement | undefined, armed: ReadonlySet<string>, now: Date): Column<LineTrigger>[] {
+  const view = (trigger: LineTrigger) => {
+    const name = trigger.trigger.replace(/^Trigger:/, "");
+    const on = current?.state === "running" && armed.has(name);
+    const state = !current ? "not enabled" : on ? "armed" : current.state === "running" ? "not armed by this enablement" : term("line", current.state).word.toLowerCase();
+    return { name, wake: wakeOf(trigger.fires, now), on, state };
+  };
+  return [
+    {
+      id: "trigger",
+      header: "Trigger",
+      className: "max-w-[14rem]",
+      cell: (trigger) => (
+        <span className="flex min-w-0 items-baseline gap-1.5" title={`${trigger.trigger} v${trigger.version}`}>
+          <RefLink value={trigger.trigger}>
+            <span className="block truncate font-mono text-[12px]">{view(trigger).name.replace(/^security\./, "")}</span>
+          </RefLink>
+          <span className="shrink-0 text-[11px] text-zinc-600">v{trigger.version}</span>
+        </span>
+      ),
+    },
+    { id: "fires", header: "Fires", className: "whitespace-nowrap text-[12px] text-zinc-300", cell: (trigger) => sentence(view(trigger).wake.words) },
+    {
+      id: "armed",
+      header: "Armed",
+      title: "Whether the Line's current enablement armed this Trigger",
+      className: "whitespace-nowrap text-[12px]",
+      cell: (trigger) => {
+        const { on, state } = view(trigger);
+        return (
+          <span className="inline-flex items-center gap-1.5 text-zinc-300">
+            <HealthDot tone={on ? "ok" : "off"} title={state} />
+            {sentence(state)}
+          </span>
+        );
+      },
+    },
+    {
+      id: "next",
+      header: "Next fire",
+      className: "whitespace-nowrap text-[12px] text-zinc-400",
+      cell: (trigger) => {
+        const { wake, on } = view(trigger);
+        return (
+          <>
+            {wake.landing ? "On landing" : wake.next ? <span title={wake.next.toISOString()}>{formatWhen(wake.next.toISOString())}</span> : "–"}
+            {!on && !wake.landing && wake.next && <span className="text-zinc-600"> (if armed)</span>}
+          </>
+        );
+      },
+    },
+  ];
+}
+
 /**
  * The Triggers aimed at the Line, one row each: when it fires, whether the
  * current enablement armed it (the enablement lists the Triggers it armed),
@@ -364,47 +421,14 @@ function TriggersPanel({ card }: { card: LineCard }) {
         {(card.triggers ?? []).length === 0 ? (
           <div className="text-[13px] text-zinc-600">No Triggers aimed at this Line: it runs only when started by hand.</div>
         ) : (
-          <Table>
-            <thead>
-              <tr>
-                <Th>Trigger</Th>
-                <Th>Fires</Th>
-                <Th title="Whether the Line's current enablement armed this Trigger">Armed</Th>
-                <Th>Next fire</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {(card.triggers ?? []).map((trigger) => {
-                const name = trigger.trigger.replace(/^Trigger:/, "");
-                const wake = wakeOf(trigger.fires, now);
-                const on = current?.state === "running" && armed.has(name);
-                const state = !current ? "not enabled" : on ? "armed" : current.state === "running" ? "not armed by this enablement" : term("line", current.state).word.toLowerCase();
-                return (
-                  <tr key={trigger.trigger} className={trClass}>
-                    <Td className="max-w-[14rem]">
-                      <span className="flex min-w-0 items-baseline gap-1.5" title={`${trigger.trigger} v${trigger.version}`}>
-                        <RefLink value={trigger.trigger}>
-                          <span className="block truncate font-mono text-[12px]">{name.replace(/^security\./, "")}</span>
-                        </RefLink>
-                        <span className="shrink-0 text-[11px] text-zinc-600">v{trigger.version}</span>
-                      </span>
-                    </Td>
-                    <Td className="whitespace-nowrap text-[12px] text-zinc-300">{sentence(wake.words)}</Td>
-                    <Td className="whitespace-nowrap text-[12px]">
-                      <span className="inline-flex items-center gap-1.5 text-zinc-300">
-                        <HealthDot tone={on ? "ok" : "off"} title={state} />
-                        {sentence(state)}
-                      </span>
-                    </Td>
-                    <Td className="whitespace-nowrap text-[12px] text-zinc-400">
-                      {wake.landing ? "On landing" : wake.next ? <span title={wake.next.toISOString()}>{formatWhen(wake.next.toISOString())}</span> : "–"}
-                      {!on && !wake.landing && wake.next && <span className="text-zinc-600"> (if armed)</span>}
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
+          <DataTable
+            rows={card.triggers ?? []}
+            columns={triggerColumns(current, armed, now)}
+            rowKey={(trigger) => trigger.trigger}
+            label="Triggers"
+            toolbar={false}
+            maxHeight="none"
+          />
         )}
         {(card.enablements ?? []).length > 0 && (
           <div className="mt-3 space-y-1 text-[12px]">
@@ -701,6 +725,36 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
   );
 }
 
+type Reading = NonNullable<ReturnType<typeof useReadings>["data"]>["readings"][number];
+
+/** The readings table's columns: when observed, the measurement, verdict, grade, Subject, value and run. */
+function readingColumns(instanceId: string, link: (path: string) => string): Column<Reading>[] {
+  return [
+    {
+      id: "observed",
+      header: "Observed",
+      className: "whitespace-nowrap text-zinc-500",
+      cell: (reading) => <span title={reading.observed_at ?? undefined}>{reading.observed_at ? formatWhen(reading.observed_at) : "—"}</span>,
+    },
+    { id: "measurement", header: "Measurement", className: "font-mono text-[12px] text-zinc-300", cell: (reading) => reading.measurement_name ?? "—" },
+    { id: "verdict", header: "Verdict", cell: (reading) => <Chip concept="reading" value={reading.verdict} /> },
+    { id: "grade", header: "Grade", className: "text-zinc-500", cell: (reading) => reading.grade },
+    { id: "subject", header: "Subject", className: "break-all", cell: (reading) => <RefLink value={reading.subject.artifact_path} /> },
+    { id: "value", header: "Value", className: "text-zinc-300", cell: (reading) => reading.value !== undefined && <ShownValue value={reading.value} /> },
+    {
+      id: "run",
+      header: "Run",
+      className: "whitespace-nowrap",
+      cell: (reading) =>
+        reading.run_id && (
+          <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(reading.run_id)}`)} className="font-mono text-zinc-300 hover:underline" title={reading.run_id}>
+            {shortRunId(reading.run_id)}
+          </Link>
+        ),
+    },
+  ];
+}
+
 function Readings({ procedure }: { procedure: string }) {
   const [cursors, setCursors] = useState<string[]>([]);
   const read = useReadings(procedure, READINGS_PAGE, cursors[cursors.length - 1]);
@@ -738,44 +792,14 @@ function Readings({ procedure }: { procedure: string }) {
           ))}
           {data.readings.length === 0 && <div className="text-zinc-500">No readings on this page.</div>}
           {data.readings.length > 0 && (
-            <Table>
-              <thead>
-                <tr>
-                  {["Observed", "Measurement", "Verdict", "Grade", "Subject", "Value", "Run"].map((h) => (
-                    <Th key={h}>{h}</Th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.readings.map((reading) => (
-                  <tr key={reading.reading_id} className={trClass}>
-                    <Td className="whitespace-nowrap text-zinc-500" title={reading.observed_at ?? undefined}>
-                      {reading.observed_at ? formatWhen(reading.observed_at) : "—"}
-                    </Td>
-                    <Td className="font-mono text-[12px] text-zinc-300">{reading.measurement_name ?? "—"}</Td>
-                    <Td>
-                      <Chip concept="reading" value={reading.verdict} />
-                    </Td>
-                    <Td className="text-zinc-500">{reading.grade}</Td>
-                    <Td className="break-all">
-                      <RefLink value={reading.subject.artifact_path} />
-                    </Td>
-                    <Td className="text-zinc-300">{reading.value !== undefined && <ShownValue value={reading.value} />}</Td>
-                    <Td className="whitespace-nowrap">
-                      {reading.run_id && (
-                        <Link
-                          to={link(`/i/${instanceId}/runs/${encodeURIComponent(reading.run_id)}`)}
-                          className="font-mono text-zinc-300 hover:underline"
-                          title={reading.run_id}
-                        >
-                          {shortRunId(reading.run_id)}
-                        </Link>
-                      )}
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+            <DataTable
+              rows={data.readings}
+              columns={readingColumns(instanceId, link)}
+              rowKey={(reading) => reading.reading_id}
+              label="Readings"
+              toolbar={false}
+              maxHeight="none"
+            />
           )}
           {(data.unavailable_reading_count ?? 0) > 0 && (
             <div className="text-zinc-500">{data.unavailable_reading_count} readings' payloads are unavailable.</div>
