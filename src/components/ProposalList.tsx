@@ -164,7 +164,18 @@ function CopyableId({ id }: { id: string }) {
 }
 
 /** A proposal's origin and its changes as facts, from its review (expanded rows). */
-export function ProposalPeek({ id, indent = "ml-6", skipWords }: { id: string; indent?: string; skipWords?: string | null | undefined }) {
+export function ProposalPeek({
+  id,
+  indent = "ml-6",
+  skipWords,
+  origin: showOrigin = true,
+}: {
+  id: string;
+  indent?: string;
+  skipWords?: string | null | undefined;
+  /** Name the Procedure and run a Procedure's proposal came from (off where the header already does). */
+  origin?: boolean;
+}) {
   const review = useReview(id);
   if (review.isPending) return <div className={`${indent} animate-pulse text-[12px] text-zinc-500`}>Reading…</div>;
   if (review.error) return <div className={`${indent} text-[12px] text-red-400/80`}>{review.error.message}</div>;
@@ -174,7 +185,7 @@ export function ProposalPeek({ id, indent = "ml-6", skipWords }: { id: string; i
   return (
     <div className={`${indent} mt-2 space-y-2 border-l border-zinc-800 pl-3`}>
       {origin ? (
-        <div className="text-[12px] text-zinc-400">
+        showOrigin && <div className="text-[12px] text-zinc-400">
           Proposed by <RefLink value={`Procedure:${origin.procedure}`} /> in run <RefLink value={origin.run} short />
         </div>
       ) : (

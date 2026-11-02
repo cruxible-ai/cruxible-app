@@ -20,10 +20,20 @@ const ITEM_COUNT = /^\s*\d+ items?; each item's reason is recorded with the Clai
 /** A reason's text with core's run boilerplate taken out; null when nothing else is left. */
 export function reasonWords(reason: Reason): string | null {
   if (!reason) return null;
-  const raw = reason.kind === "change_set" ? reason.text : reason.reason;
-  const text = raw.replace(PROPOSED_BY, "").replace(ITEM_COUNT, "").trim();
+  return proposalWords(reason.kind === "change_set" ? reason.text : reason.reason, reason.truncated ?? false);
+}
+
+/** A proposal's own words (a generation's `because`) with core's run boilerplate taken out; null when nothing else is left. */
+export function proposalWords(raw: string | null | undefined, truncated = false): string | null {
+  const text = (raw ?? "").replace(PROPOSED_BY, "").replace(ITEM_COUNT, "").trim();
   if (text === "") return null;
-  return `${text}${reason.truncated ? "…" : ""}`;
+  return `${text}${truncated ? "…" : ""}`;
+}
+
+/** The run (and its Procedure) core's proposal text names, if it is a Procedure's proposal. */
+export function proposalRun(raw: string | null | undefined): { run: string; procedure: string } | null {
+  const match = PROPOSED_BY.exec(raw ?? "");
+  return match ? { run: match[2]!, procedure: `Procedure:${match[1]!}` } : null;
 }
 
 /** The run (and its Procedure) a change set came from: an item's reason names it, or core's proposal text does. */
@@ -33,8 +43,8 @@ export function changeSetRun(events: readonly SubjectHistoryEvent[]): { run: str
   }
   for (const event of events) {
     if (event.reason?.kind !== "change_set") continue;
-    const match = PROPOSED_BY.exec(event.reason.text);
-    if (match) return { run: match[2]!, procedure: `Procedure:${match[1]!}` };
+    const run = proposalRun(event.reason.text);
+    if (run) return run;
   }
   return null;
 }

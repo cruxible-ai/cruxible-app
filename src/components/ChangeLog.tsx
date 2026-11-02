@@ -27,7 +27,7 @@ import { parseRef } from "@/lib/cruxible-ref";
  */
 export function ChangeLog({ children, label }: { children: ReactNode; label?: string }) {
   return (
-    <div className="divide-y divide-zinc-800/70" aria-label={label}>
+    <div className="divide-y divide-zinc-800/70" role="list" aria-label={label}>
       {children}
     </div>
   );
@@ -63,7 +63,7 @@ export function ChangeEntry({
   children?: ReactNode;
 }) {
   return (
-    <div className="py-4 text-[13px] first:pt-0 last:pb-0">
+    <div className="py-4 text-[13px] first:pt-0 last:pb-0" role="listitem">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-zinc-400">{header}</div>
       {notes.map((text) => (
         <div key={text} className="mt-1">
