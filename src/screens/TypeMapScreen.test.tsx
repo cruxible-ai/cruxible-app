@@ -30,6 +30,19 @@ describe("Type map", () => {
     expect(panel.getByText("assessment")).toBeInTheDocument(); // pointed at by (namespace dropped)
   });
 
+  it("toggles to only kinds that hold Subjects, linkable from the URL", async () => {
+    renderApp("/i/inst_fixture/map");
+    const toggle = await screen.findByRole("button", { name: "Only kinds with Subjects" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(toggle);
+    expect(await screen.findByRole("button", { name: "Only kinds with Subjects", pressed: true })).toBeInTheDocument();
+    // every fixture kind holds Subjects, so nothing drops and the count reads as all kinds
+    expect(screen.queryByText(/^of \d+ kinds$/)).toBeNull();
+    cleanup();
+    renderApp("/i/inst_fixture/map?populated=1");
+    expect(await screen.findByRole("button", { name: "Only kinds with Subjects", pressed: true })).toBeInTheDocument();
+  });
+
   it("names the focus in a chip at the top of the graph; the chip and Esc clear it", async () => {
     renderApp("/i/inst_fixture/map?kind=security.vulnerability");
     const chip = await screen.findByRole("button", { name: "Clear: Focused on vulnerability" });

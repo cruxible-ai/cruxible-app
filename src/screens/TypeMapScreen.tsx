@@ -111,7 +111,18 @@ export function TypeMapScreen() {
   const [params, setParams] = useSearchParams();
   usePageTitle("Type map");
 
-  const fullGraph = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
+  const allKinds = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
+  // ?populated=1 keeps only kinds that hold Subjects (and the links between them).
+  const populatedOnly = params.get("populated") === "1";
+  const fullGraph = useMemo(() => {
+    if (!populatedOnly) return allKinds;
+    const held = new Set((kinds.data?.kinds ?? []).filter((k) => k.subjects > 0).map((k) => k.kind));
+    return {
+      ...allKinds,
+      nodes: allKinds.nodes.filter((n) => held.has(n.kind)),
+      edges: allKinds.edges.filter((e) => held.has(e.source) && held.has(e.target)),
+    };
+  }, [allKinds, populatedOnly, kinds.data]);
   // ?focus=<kind> keeps that kind and the kinds one link away (either direction).
   const focus = params.get("focus");
   const graph = useMemo(() => {
@@ -301,13 +312,31 @@ export function TypeMapScreen() {
             />
           }
         >
-          <Stat n={graph.nodes.length} label={graph.nodes.length === 1 ? "kind" : "kinds"} />
+          <Stat
+            n={graph.nodes.length}
+            label={
+              populatedOnly && !focus && allKinds.nodes.length > graph.nodes.length
+                ? `of ${allKinds.nodes.length} kinds`
+                : graph.nodes.length === 1
+                  ? "kind"
+                  : "kinds"
+            }
+          />
           <Stat n={graph.edges.length} label={graph.edges.length === 1 ? "link" : "links"} />
           {names.prefix && (
             <span>
               Names under <span className="font-mono text-zinc-300">{names.prefix}</span>
             </span>
           )}
+          <button
+            type="button"
+            aria-pressed={populatedOnly}
+            onClick={() => setParam("populated", populatedOnly ? null : "1")}
+            title="Show only the kinds that hold at least one Subject"
+            className={`border px-2 py-0.5 text-[12px] ${populatedOnly ? "border-zinc-500 bg-zinc-800 text-zinc-100" : "border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}
+          >
+            Only kinds with Subjects
+          </button>
         </StatsRow>
         <MapLegend undeclared={graph.nodes.some((n) => n.referencedOnly)} />
       </header>
