@@ -18,15 +18,19 @@ import { ChevronDown, ChevronRight } from "lucide-react";
  *   <FieldList expandable>{rows.map((r) => <FieldRow key=… label=… value=… toggle=… detail=… />)}</FieldList>
  */
 
-/** How wide the label column is; `compact` suits a narrow side panel. */
+/** How wide the label column is: `regular` a fixed 9–15rem; `compact` as wide as its labels (up to 12rem), for a side panel or a nested record. */
 export type FieldListDensity = "regular" | "compact";
+
+/** Labels that are field names read in mono (the default); labels in words read in the body face. */
+export type FieldLabels = "names" | "words";
 
 interface ListShape {
   expandable: boolean;
   density: FieldListDensity;
+  labels: FieldLabels;
 }
 
-const ListContext = createContext<ListShape>({ expandable: false, density: "regular" });
+const ListContext = createContext<ListShape>({ expandable: false, density: "regular", labels: "names" });
 
 /** A field as data, for the simple case (`fields`). */
 export interface FieldItem {
@@ -48,6 +52,7 @@ export function FieldList({
   children,
   expandable = false,
   density = "regular",
+  labels = "names",
   className = "",
   label,
 }: {
@@ -56,13 +61,19 @@ export function FieldList({
   /** Rows carry a leading disclosure column (each row's `toggle`). */
   expandable?: boolean;
   density?: FieldListDensity;
+  labels?: FieldLabels;
   className?: string;
   /** The list's name for assistive tech. */
   label?: string;
 }) {
   return (
-    <ListContext.Provider value={{ expandable, density }}>
-      <div className={`divide-y divide-zinc-800/70 ${className}`} role="list" aria-label={label}>
+    <ListContext.Provider value={{ expandable, density, labels }}>
+      {/* compact: one grid for the list (rows are subgrids), so a label column as wide as its labels still aligns */}
+      <div
+        className={`divide-y divide-zinc-800/70 ${density === "compact" ? `grid gap-x-4 ${expandable ? GRID.compact.expandable : GRID.compact.plain}` : ""} ${className}`}
+        role="list"
+        aria-label={label}
+      >
         {fields?.map(({ key, ...field }) => (
           <FieldRow key={key} {...field} />
         ))}
@@ -80,8 +91,8 @@ const GRID: Record<FieldListDensity, { plain: string; expandable: string; text: 
     row: "py-2",
   },
   compact: {
-    plain: "grid-cols-[minmax(5rem,8rem)_minmax(0,1fr)_minmax(0,max-content)]",
-    expandable: "grid-cols-[1rem_minmax(5rem,8rem)_minmax(0,1fr)_minmax(0,max-content)]",
+    plain: "grid-cols-[fit-content(12rem)_minmax(0,1fr)_minmax(0,max-content)]",
+    expandable: "grid-cols-[1rem_fit-content(12rem)_minmax(0,1fr)_minmax(0,max-content)]",
     text: "text-[12px]",
     row: "py-1.5",
   },
@@ -108,12 +119,18 @@ export function FieldRow({
   highlighted?: boolean;
   ref?: Ref<HTMLDivElement>;
 }) {
-  const { expandable, density } = useContext(ListContext);
+  const { expandable, density, labels } = useContext(ListContext);
   const grid = GRID[density];
-  const labelClass = "truncate font-mono text-[12px] text-zinc-400";
+  const labelClass = `truncate ${labels === "names" ? "font-mono" : ""} text-[12px] text-zinc-400`;
   return (
-    <div ref={ref} role="listitem" className={`${grid.row} first:pt-0 last:pb-0 ${highlighted ? "bg-zinc-900/40" : ""}`}>
-      <div className={`grid ${expandable ? grid.expandable : grid.plain} items-baseline gap-x-4 ${grid.text}`}>
+    <div
+      ref={ref}
+      role="listitem"
+      className={`${grid.row} first:pt-0 last:pb-0 ${density === "compact" ? "col-span-full grid grid-cols-subgrid" : ""} ${highlighted ? "bg-zinc-900/40" : ""}`}
+    >
+      <div
+        className={`grid ${density === "compact" ? "col-span-full grid-cols-subgrid" : expandable ? grid.expandable : grid.plain} items-baseline gap-x-4 ${grid.text}`}
+      >
         {expandable &&
           (toggle ? (
             <button
@@ -136,13 +153,14 @@ export function FieldRow({
             {label}
           </span>
         )}
-        <div className="min-w-0">
+        {/* a row without a status lets its value run to the end */}
+        <div className={`min-w-0 ${status == null ? "col-span-2" : ""}`}>
           {value}
           {provenance && <div className="mt-0.5 space-y-0.5 text-[12px] text-zinc-500">{provenance}</div>}
         </div>
-        <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5">{status}</div>
+        {status != null && <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5">{status}</div>}
       </div>
-      {toggle?.open && detail && <div className="ml-8 mt-2 space-y-2">{detail}</div>}
+      {toggle?.open && detail && <div className="col-span-full ml-8 mt-2 space-y-2">{detail}</div>}
     </div>
   );
 }

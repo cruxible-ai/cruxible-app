@@ -11,6 +11,7 @@ import { CitedBy } from "@/components/CitedBy";
 import { formatSize } from "@/lib/capture-body";
 import { Chip } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
+import { FieldList } from "@/components/FieldList";
 import { term } from "@/lib/vocabulary";
 import { RefLink } from "@/components/RefLink";
 import { formatRef, getRefOf, parseRef, refKindLabel } from "@/lib/cruxible-ref";
@@ -116,19 +117,24 @@ function rest(card: Record<string, unknown>, omit: readonly string[]): Record<st
   return Object.fromEntries(Object.entries(card).filter(([key]) => !omit.includes(key)));
 }
 
+/** A card's fields as the shared field list: one row per field, the name, the value; nested records list inside, compact. */
 function Fields({ value, depth, path }: { value: Record<string, unknown>; depth: number; path: string }) {
   const entries = Object.entries(value).filter(([, v]) => v !== null && v !== undefined);
   return (
-    <dl className="grid grid-cols-[minmax(7rem,max-content)_minmax(0,1fr)] gap-x-6 gap-y-2 text-[13px] leading-5">
-      {entries.map(([key, v]) => (
-        <div key={key} className="contents">
-          <dt className="text-zinc-500">{humanize(key)}</dt>
-          <dd className="min-w-0 break-words text-zinc-300">
+    <FieldList
+      density={depth === 0 ? "regular" : "compact"}
+      label={path ? humanize(path.split(".").pop() ?? path) : "Card"}
+      fields={entries.map(([key, v]) => ({
+        key,
+        label: key,
+        labelTitle: humanize(key),
+        value: (
+          <div className="break-words text-zinc-300">
             <Value value={v} depth={depth + 1} path={path ? `${path}.${key}` : key} />
-          </dd>
-        </div>
-      ))}
-    </dl>
+          </div>
+        ),
+      }))}
+    />
   );
 }
 

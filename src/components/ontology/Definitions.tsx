@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useInstanceId, useInterfaces } from "@/api/hooks";
 import { SignalDot } from "@/components/Chip";
 import { Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
-import { Table, Td, Th, trClass } from "@/components/Table";
+import { DataTable, type Column } from "@/components/DataTable";
+import { FieldList, type FieldItem } from "@/components/FieldList";
 import { useAtLink } from "@/lib/at";
 import {
   interfaceBase,
@@ -18,6 +19,8 @@ import {
   type Retention,
   type StepView,
 } from "@/lib/definitions";
+
+type Slot = ReturnType<typeof procedureSlots>[number];
 import { providerName } from "@/lib/ontology";
 import { term } from "@/lib/vocabulary";
 import { cronWords } from "@/lib/procedure-graph";
@@ -99,9 +102,67 @@ export function ProcedureDefinition({
     if (selectedStep === null) return;
     rows.current.get(selectedStep)?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }, [selectedStep]);
-  const builds = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, (row.providers ?? []).map((p) => p.provider)] as const));
+  const builds = useMemo(
+    () => new Map((interfaces.data?.rows ?? []).map((row) => [row.name, (row.providers ?? []).map((p) => p.provider)] as const)),
+    [interfaces.data],
+  );
   const contracts = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, row.operation_contract ?? null] as const));
   const slots = procedureSlots(spec);
+  const slotColumns = useMemo<Column<Slot>[]>(
+    () => [
+      {
+        id: "slot",
+        header: "Slot",
+        title: "A slot is a Provider seat a step calls through; it takes an interface at a major version",
+        className: "font-mono text-zinc-200",
+        cell: (row) => row.slot,
+      },
+      {
+        id: "interface",
+        header: "Interface",
+        cell: (row) => (
+          <RefLink value={slotInterfaceRef(row.interface)}>
+            <span className="font-mono text-[12px]">{row.interface}</span>
+          </RefLink>
+        ),
+      },
+      {
+        id: "binds",
+        header: "Binds",
+        title: "A Line binds a slot explicitly, or the slot binds by fit to the installed build of its interface",
+        className: "text-[12px] text-zinc-400",
+        cell: ({ slot, interface: iface }) => {
+          const explicit = line?.bindings[slot];
+          const installed = builds.get(interfaceBase(iface)) ?? [];
+          return explicit ? (
+            <span>
+              Line binds{" "}
+              <RefLink value={`Provider:${explicit}`}>
+                <span className="font-mono text-[12px]" title={explicit}>{providerName(explicit)}</span>
+              </RefLink>
+            </span>
+          ) : installed.length === 1 ? (
+            <span title="No explicit binding: the slot binds by fit to the one installed build of its interface">
+              By fit:{" "}
+              <RefLink value={installed[0]!.startsWith("Provider:") ? installed[0]! : `Provider:${installed[0]}`}>
+                <span className="font-mono text-[12px]" title={installed[0]}>{providerName(installed[0]!)}</span>
+              </RefLink>
+            </span>
+          ) : installed.length > 1 ? (
+            <span title={installed.join("\n")}>By fit: one of {installed.length} installed builds</span>
+          ) : interfaces.isPending ? (
+            "…"
+          ) : (
+            <span className="inline-flex items-baseline gap-1.5">
+              <SignalDot signal="wrong" title="No installed build fits this slot: install a Provider for its interface" />
+              No installed build
+            </span>
+          );
+        },
+      },
+    ],
+    [line, builds, interfaces.isPending],
+  );
   const steps = spec.steps.map(stepView);
   const inputs = Object.entries(spec.input ?? {});
   return (
@@ -121,57 +182,14 @@ export function ProcedureDefinition({
         </div>
       )}
       {slots.length > 0 && (
-        <Table>
-          <thead>
-            <tr>
-              <Th title="A slot is a Provider seat a step calls through; it takes an interface at a major version">Slot</Th>
-              <Th>Interface</Th>
-              <Th title="A Line binds a slot explicitly, or the slot binds by fit to the installed build of its interface">Binds</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {slots.map(({ slot, interface: iface }) => {
-              const explicit = line?.bindings[slot];
-              const installed = builds.get(interfaceBase(iface)) ?? [];
-              return (
-                <tr key={slot} className={trClass}>
-                  <Td className="font-mono text-zinc-200">{slot}</Td>
-                  <Td>
-                    <RefLink value={slotInterfaceRef(iface)}>
-                      <span className="font-mono text-[12px]">{iface}</span>
-                    </RefLink>
-                  </Td>
-                  <Td className="text-[12px] text-zinc-400">
-                    {explicit ? (
-                      <span>
-                        Line binds{" "}
-                        <RefLink value={`Provider:${explicit}`}>
-                          <span className="font-mono text-[12px]" title={explicit}>{providerName(explicit)}</span>
-                        </RefLink>
-                      </span>
-                    ) : installed.length === 1 ? (
-                      <span title="No explicit binding: the slot binds by fit to the one installed build of its interface">
-                        By fit:{" "}
-                        <RefLink value={installed[0]!.startsWith("Provider:") ? installed[0]! : `Provider:${installed[0]}`}>
-                          <span className="font-mono text-[12px]" title={installed[0]}>{providerName(installed[0]!)}</span>
-                        </RefLink>
-                      </span>
-                    ) : installed.length > 1 ? (
-                      <span title={installed.join("\n")}>By fit: one of {installed.length} installed builds</span>
-                    ) : interfaces.isPending ? (
-                      "…"
-                    ) : (
-                      <span className="inline-flex items-baseline gap-1.5">
-                        <SignalDot signal="wrong" title="No installed build fits this slot: install a Provider for its interface" />
-                        No installed build
-                      </span>
-                    )}
-                  </Td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
+        <DataTable
+          rows={slots}
+          columns={slotColumns}
+          rowKey={(row) => row.slot}
+          label="Slots"
+          toolbar={false}
+          maxHeight="none"
+        />
       )}
       <ol className="mt-3 space-y-1 text-[12px]">
         {steps.map((step) => (
@@ -331,42 +349,47 @@ export function TriggerDefinition({ schedule, target }: { schedule: Record<strin
   const cron = typeof s.expression === "string" ? s.expression : typeof s.cron === "string" ? s.cron : null;
   const instanceId = useInstanceId();
   const link = useAtLink();
+  const fields: FieldItem[] = [
+    { key: "fires", label: "Fires", value: <span className="text-zinc-300">{typeof s.kind === "string" ? sentence(s.kind.replaceAll("_", " ")) : "—"}</span> },
+    ...(contract
+      ? [
+          { key: "contract", label: "On a landing under", value: <NamedRef kind="contract" name={contract} /> },
+          {
+            key: "sources",
+            label: "Logical sources",
+            labelTitle: "The logical sources whose landings fire it; none: any landing under the contract",
+            value: <span className="font-mono text-zinc-200">{sources.length ? sources.join(", ") : <span className="font-sans text-zinc-500">Any</span>}</span>,
+          },
+        ]
+      : []),
+    ...(cron !== null
+      ? [
+          {
+            key: "schedule",
+            label: "Schedule",
+            value: (
+              <span className="text-zinc-300">
+                {sentence(cronWords(cron))} <span className="font-mono text-zinc-500">({cron})</span>
+              </span>
+            ),
+          },
+        ]
+      : []),
+    {
+      key: "starts",
+      label: "Starts",
+      value: target.startsWith("Line:") ? (
+        <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(target.slice(5))}`)} className="font-mono text-zinc-200 hover:underline">
+          {target.slice(5)}
+        </Link>
+      ) : (
+        <span className="font-mono text-zinc-300">{target}</span>
+      ),
+    },
+  ];
   return (
     <Panel title="Definition">
-      <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-[13px]">
-        <dt className="text-zinc-500">Fires</dt>
-        <dd className="text-zinc-300">{typeof s.kind === "string" ? sentence(s.kind.replaceAll("_", " ")) : "—"}</dd>
-        {contract && (
-          <>
-            <dt className="text-zinc-500">On a landing under</dt>
-            <dd>
-              <NamedRef kind="contract" name={contract} />
-            </dd>
-            <dt className="text-zinc-500" title="The logical sources whose landings fire it; none: any landing under the contract">
-              Logical sources
-            </dt>
-            <dd className="font-mono text-zinc-200">{sources.length ? sources.join(", ") : <span className="font-sans text-zinc-500">Any</span>}</dd>
-          </>
-        )}
-        {cron !== null && (
-          <>
-            <dt className="text-zinc-500">Schedule</dt>
-            <dd className="text-zinc-300">
-              {sentence(cronWords(cron))} <span className="font-mono text-zinc-500">({cron})</span>
-            </dd>
-          </>
-        )}
-        <dt className="text-zinc-500">Starts</dt>
-        <dd>
-          {target.startsWith("Line:") ? (
-            <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(target.slice(5))}`)} className="font-mono text-zinc-200 hover:underline">
-              {target.slice(5)}
-            </Link>
-          ) : (
-            <span className="font-mono text-zinc-300">{target}</span>
-          )}
-        </dd>
-      </dl>
+      <FieldList labels="words" label="Definition" fields={fields} />
     </Panel>
   );
 }
