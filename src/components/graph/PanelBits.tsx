@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { Edge } from "@xyflow/react";
 import type { GraphPanelApi } from "./GraphCanvas";
-import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
 
 /** Kicker + title header for the graph context panel. */
 export function PanelHeading({ kicker, title }: { kicker: string; title: string }) {
@@ -75,57 +74,5 @@ export function ConnectionList({
         );
       })}
     </div>
-  );
-}
-
-const LONG_TEXT_CUTOFF = 140;
-
-/**
- * Compact property readout for a selected instance node. Long prose truncates
- * — the panel is a glance surface; "Open entity" is one click away for the
- * full record. Null/empty values are omitted.
- */
-export function PropertyList({
-  properties,
-  omit = [],
-}: {
-  properties: Record<string, unknown>;
-  /** Keys already shown elsewhere in the panel (heading title, status chip). */
-  omit?: string[];
-}) {
-  const entries = Object.entries(properties).filter(
-    ([k, v]) => v !== null && v !== undefined && v !== "" && !omit.includes(k),
-  );
-  if (entries.length === 0) {
-    return <div className="text-[13px] text-zinc-600">No properties set.</div>;
-  }
-  return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-[12px]">
-      {entries.map(([k, v]) => {
-        const isStatusLike = (k === "status" || k.endsWith("_status")) && typeof v === "string";
-        const text = looksLikeDateTime(v)
-          ? formatDateTime(v)
-          : typeof v === "object"
-            ? JSON.stringify(v)
-            : String(v);
-        return (
-          <div key={k} className="contents">
-            <dt className="text-zinc-600">{humanize(k)}</dt>
-            <dd
-              className="min-w-0 break-words text-zinc-300"
-              title={looksLikeDateTime(v) ? String(v) : undefined}
-            >
-              {isStatusLike ? (
-                humanize(v as string)
-              ) : text.length > LONG_TEXT_CUTOFF ? (
-                `${text.slice(0, LONG_TEXT_CUTOFF)}…`
-              ) : (
-                text
-              )}
-            </dd>
-          </div>
-        );
-      })}
-    </dl>
   );
 }

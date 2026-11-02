@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useCard, useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { ShownValue } from "@/components/ShownValue";
-import { toggleChipClass } from "@/components/Chip";
+import { Chip, toggleChipClass } from "@/components/Chip";
+import { FieldList } from "@/components/FieldList";
 import { LoadState } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { CosmosDots, type GlDotEdge, type GlDotNode } from "@/components/graph/CosmosDots";
@@ -304,29 +305,39 @@ function SubjectPanel({
         {card.isPending && <div className="text-zinc-600">Reading…</div>}
         {card.error && <div className="text-zinc-500">Could not read this Subject.</div>}
         {data && literal.length === 0 && <div className="text-zinc-600">No literal values; its links are below.</div>}
-        <div className="space-y-0.5">
-          {literal.map((c) => (
-            <div key={`${c.predicate}-${c.qualifier ?? ""}`} className="flex items-baseline gap-1.5">
-              <span className="shrink-0 text-zinc-500">
-                {c.predicate.slice(c.predicate.lastIndexOf(".") + 1)}
-                {c.qualifier ? `[${c.qualifier}]` : ""}
-              </span>
-              <span className="min-w-0 break-words text-zinc-200">
-                {Array.isArray(c.value) && c.value.length > PANEL_LIST_CAP ? (
+        {literal.length > 0 && (
+          <FieldList
+            density="compact"
+            label="Claims"
+            fields={literal.map((c) => ({
+              key: `${c.predicate}-${c.qualifier ?? ""}`,
+              label: `${c.predicate.slice(c.predicate.lastIndexOf(".") + 1)}${c.qualifier ? `[${c.qualifier}]` : ""}`,
+              labelTitle: c.predicate,
+              value: (
+                <span className="break-words text-zinc-200">
+                  {Array.isArray(c.value) && c.value.length > PANEL_LIST_CAP ? (
+                    <>
+                      <ShownValue value={c.value.slice(0, PANEL_LIST_CAP) as typeof c.value} />
+                      <Link to={openHref} className="block text-zinc-500 hover:text-zinc-300">
+                        +{c.value.length - PANEL_LIST_CAP} more
+                      </Link>
+                    </>
+                  ) : (
+                    <ShownValue value={c.value} />
+                  )}
+                </span>
+              ),
+              status:
+                (c.flags ?? []).length > 0 ? (
                   <>
-                    <ShownValue value={c.value.slice(0, PANEL_LIST_CAP) as typeof c.value} />
-                    <Link to={openHref} className="block text-zinc-500 hover:text-zinc-300">
-                      +{c.value.length - PANEL_LIST_CAP} more
-                    </Link>
+                    {(c.flags ?? []).map((flag) => (
+                      <Chip key={flag} concept="claim" value={flag} />
+                    ))}
                   </>
-                ) : (
-                  <ShownValue value={c.value} />
-                )}
-              </span>
-              {(c.flags ?? []).length > 0 && <span className="shrink-0 text-amber-400">{(c.flags ?? []).join(", ")}</span>}
-            </div>
-          ))}
-        </div>
+                ) : undefined,
+            }))}
+          />
+        )}
       </PanelSection>
       <PanelSection title="Links">
         <ConnectionList nodeId={subject} edges={edges as never} api={api} labelFor={labelFor} />
