@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
-import { ArrowUpRight, ChevronDown, ChevronRight, Waypoints } from "lucide-react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Waypoints } from "lucide-react";
 import {
   useAdmissionAccounts,
   useCard,
@@ -8,7 +8,6 @@ import {
   useClaimRevisions,
   useGetBatch,
   useInstanceId,
-  useLatestRevision,
   useOntologyKinds,
   useRunAuthor,
   useSubjectHistory,
@@ -34,11 +33,24 @@ import { Disclosure, EmptyState, LoadState, Panel, SubSection } from "@/componen
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { Table, Td, Th, trClass } from "@/components/Table";
+import { ChangeAuthor } from "@/components/ChangeAuthor";
+import {
+  ChangeEntry,
+  ChangeLog,
+  ChangeValue,
+  GenerationLink,
+  HeaderDot as Dot,
+  HeaderLabel,
+  sharedReason,
+  sharedReasonText,
+  type ChangeItem,
+} from "@/components/ChangeLog";
+import { FieldList, FieldRow, KeyMark } from "@/components/FieldList";
 import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { IncomingList } from "@/components/IncomingList";
 import { useAtLink, withAt } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
-import { lineName, runId } from "@/lib/lines";
+import { lineName } from "@/lib/lines";
 import { contractName } from "@/lib/ontology";
 import {
   admissionTally,
@@ -216,7 +228,7 @@ export function SubjectScreen() {
           {subject.claims.length === 0 && <EmptyState>No live Claims.</EmptyState>}
           {verdicts.error && <LoadState error={verdicts.error} />}
           {admission.error && <LoadState error={admission.error} />}
-          <div className="divide-y divide-zinc-800/70">
+          <FieldList expandable label="Fields">
             {subject.claims.map((entry) => (
               <ClaimRow
                 key={`${entry.predicate}\n${entry.qualifier ?? ""}`}
@@ -230,7 +242,7 @@ export function SubjectScreen() {
                 provenance={provenance}
               />
             ))}
-          </div>
+          </FieldList>
         </Panel>
 
         <ConnectionsPanel subject={subject} />
@@ -267,18 +279,6 @@ function ClaimsTally({ cards }: { cards: GetClaimCard[] }) {
           );
         })
       )}
-    </span>
-  );
-}
-
-/** The `key` mark: a field that is part of the SubjectKind's key (the id spells it; no evidence asked). */
-function KeyMark({ kind }: { kind: string | null }) {
-  return (
-    <span
-      className="border border-zinc-800 px-1 font-mono text-[11px] leading-4 text-zinc-500"
-      title={`Part of the ${kind ?? "Subject's"} key: it names the Subject, so no evidence is asked of it`}
-    >
-      key
     </span>
   );
 }
@@ -343,29 +343,22 @@ function ClaimRow({
   const predicate = descriptor?.predicate ?? entry.predicate;
   const need: EvidenceNeed = isKey ? "none" : evidenceNeed(descriptor);
   return (
-    <div ref={rowRef} className={`py-2 first:pt-0 last:pb-0 ${focused ? "bg-zinc-900/40" : ""}`}>
-      <div className="grid grid-cols-[1rem_minmax(9rem,15rem)_minmax(0,1fr)_minmax(0,max-content)] items-baseline gap-x-4 text-[13px]">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          aria-label={`${open ? "Collapse" : "Expand"} ${entry.predicate}`}
-          aria-expanded={open}
-          className="relative top-[2px] text-zinc-500 hover:text-zinc-200"
-        >
-          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-        </button>
-        <Link
-          to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)}
-          className="truncate font-mono text-[12px] text-zinc-400 hover:text-zinc-200 hover:underline"
-          title={`${predicate}${descriptor ? ` · ${descriptor.cardinality} · ${descriptor.type}` : ""}${need === "none" ? " · no evidence required" : ""}`}
-        >
+    <FieldRow
+      ref={rowRef}
+      highlighted={focused}
+      toggle={{ open, onToggle: () => setOpen((v) => !v), name: entry.predicate }}
+      labelHref={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)}
+      labelTitle={`${predicate}${descriptor ? ` · ${descriptor.cardinality} · ${descriptor.type}` : ""}${need === "none" ? " · no evidence required" : ""}`}
+      label={
+        <>
           {entry.predicate}
           {entry.qualifier && <span className="text-zinc-500">[{entry.qualifier}]</span>}
-        </Link>
-        <div className="min-w-0">
-          <FieldValue value={entry.value} />
-          {origin && <FieldProvenance event={origin} siblings={origins} isKey={isKey} />}
-        </div>
-        <div className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5">
+        </>
+      }
+      value={<FieldValue value={entry.value} />}
+      provenance={origin && <FieldProvenance event={origin} siblings={origins} isKey={isKey} />}
+      status={
+        <>
           {flags.map((flag) => (
             <Chip key={flag} concept="claim" value={flag} />
           ))}
@@ -374,16 +367,12 @@ function ClaimRow({
             <Chip key={verdict} concept="claim" value={verdict} />
           ))}
           {isKey ? <KeyMark kind={kind} /> : <AdmissionSummary need={need} accounts={ids.flatMap((id) => accounts.get(id) ?? [])} />}
-        </div>
-      </div>
-      {open && (
-        <div className="ml-8 mt-2 space-y-2">
-          {ids.map((id) => (
-            <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} need={need} isKey={isKey} />
-          ))}
-        </div>
-      )}
-    </div>
+        </>
+      }
+      detail={ids.map((id) => (
+        <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} need={need} isKey={isKey} />
+      ))}
+    />
   );
 }
 
@@ -653,16 +642,6 @@ function corroboration(attestations: GetAttestationEvidence[]): CorroborationSum
   };
 }
 
-/** "view state then": the generation link keeps the current path. */
-function GenerationLink({ sequence }: { sequence: number }) {
-  const { pathname } = useLocation();
-  return (
-    <Link to={withAt(pathname, String(sequence))} className="font-mono text-zinc-200 hover:underline" title="View state at this generation">
-      g{sequence}
-    </Link>
-  );
-}
-
 type Reason = SubjectHistoryEvent["reason"] | GetRevision["reason"];
 
 function ReasonSource({ reason }: { reason: Reason }) {
@@ -695,7 +674,6 @@ function RevisionLine({ revision }: { revision: GetRevision }) {
   );
 }
 
-/** The Subject's field history, newest first, a page at a time (O(page)). */
 /**
  * Where a field's current value came from, under the value: since which
  * generation, by which Line (as of then), and the item's own reason when it
@@ -706,11 +684,10 @@ function FieldProvenance({ event, siblings, isKey }: { event: SubjectHistoryEven
   const source = changeSetRun([event]);
   const run = useRunAuthor(source?.run ?? null);
   const line = run.data?.line ?? null;
-  // A many-valued field's values share one reason sentence: say it once (see groupReason).
-  const said = isKey ? null : groupReason(siblings);
-  const reason = said ? (said.more > 0 ? `${said.text} (+${said.more} more reasons)` : said.text) : null;
+  // A many-valued field's values share one reason sentence: say it once (see sharedReason).
+  const reason = isKey ? null : sharedReasonText(sharedReason(siblings.map(changeItem)));
   return (
-    <div className="mt-0.5 space-y-0.5 text-[12px] text-zinc-500">
+    <>
       <div className="flex flex-wrap items-baseline gap-x-1.5">
         <span>since</span>
         <GenerationLink sequence={event.sequence} />
@@ -730,10 +707,11 @@ function FieldProvenance({ event, siblings, isKey }: { event: SubjectHistoryEven
         )}
       </div>
       {reason && <LongText text={reason} lines={1} className="text-zinc-500" />}
-    </div>
+    </>
   );
 }
 
+/** The Subject's field history, newest first, a page at a time (O(page)). */
 function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: ReadonlySet<string> | undefined }) {
   const [cursors, setCursors] = useState<string[]>([]);
   const cursor = cursors[cursors.length - 1];
@@ -772,11 +750,11 @@ function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: Readonly
         </button>
       )}
       {open ? (
-        <div className="divide-y divide-zinc-800/70">
+        <ChangeLog label="Changes">
           {groups.map((group) => (
             <ChangeSet key={`${group[0]!.sequence}\n${group[0]!.claim}`} events={group} keys={keys} />
           ))}
-        </div>
+        </ChangeLog>
       ) : (
         <div className="space-y-1 text-[13px]">
           {groups.map((group) => (
@@ -822,8 +800,6 @@ function ChangeSummary({ events }: { events: SubjectHistoryEvent[] }) {
   );
 }
 
-const Dot = () => <span className="text-zinc-600">·</span>;
-
 /**
  * One change set: its generation, when, who authored it and who approved it
  * on one line, then one line per field it changed. A proposal's own words
@@ -837,228 +813,38 @@ function ChangeSet({ events, keys }: { events: SubjectHistoryEvent[]; keys: Read
     ...new Set(events.flatMap((event) => (event.reason?.kind === "change_set" ? [reasonWords(event.reason)] : [])).filter((text): text is string => !!text)),
   ];
   return (
-    <div className="py-4 text-[13px] first:pt-0 last:pb-0">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-zinc-400">
-        <HeaderLabel>Generation</HeaderLabel>
-        <GenerationLink sequence={head.sequence} />
-        <Dot />
-        <span className="text-zinc-500" title={head.accepted}>
-          {formatWhen(head.accepted)}
-        </span>
-        <Dot />
-        <ChangeSetAuthor source={source} sequence={head.sequence} actor={head.actor ?? null} approvers={head.approved_by ?? []} />
-      </div>
-      {notes.map((text) => (
-        <div key={text} className="mt-1">
-          <LongText text={text} lines={2} className="text-zinc-200" />
-        </div>
-      ))}
-      <div className="mt-2.5 grid grid-cols-[minmax(9rem,max-content)_minmax(0,1fr)] items-baseline gap-x-5 gap-y-3">
-        {fieldGroups(events).map((group) => (
-          <FieldChangeGroup key={`${group.field}\n${group.change}`} group={group} isKey={isKeyField(keys, group.events[0]!.predicate)} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Who authored a change set. A run's Line, linked as of the change's
- * generation (and to the Line now, when it has been revised since); a run no
- * Line triggered, as its Procedure and the principal who ran it; otherwise
- * the principal. Approvers follow, leaving out the author.
- */
-function ChangeSetAuthor({
-  source,
-  sequence,
-  actor,
-  approvers,
-}: {
-  source: { run: string; procedure: string } | null;
-  sequence: number;
-  actor: string | null;
-  approvers: string[];
-}) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
-  const run = useRunAuthor(source?.run ?? null);
-  const line = run.data?.line ?? null;
-  const latest = useLatestRevision(line);
-  const changedSince = latest.latest !== null && latest.latest.sequence > sequence;
-  const runner = run.data?.actor ?? actor;
-  const author = line ? null : runner;
-  const approved = approvers.filter((principal) => principal !== author);
-  const id = source ? runId(source.run) : null;
-  const runLink = id && (
-    <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(id)}`)} className="font-mono text-zinc-500 hover:text-zinc-200 hover:underline" title={id}>
-      {/^RUN-[0-9a-f]{7,}$/.test(id) ? `${id.slice(4, 10)}…` : id}
-    </Link>
-  );
-  const procedure = (run.data?.procedure ?? source?.procedure ?? "").replace(/^Procedure:/, "");
-  return (
-    <>
-      {source && run.isPending && <span className="t-meta animate-pulse">{procedure}</span>}
-      {line && (
-        <span className="inline-flex flex-wrap items-baseline gap-x-3">
-          <HeaderLabel>Line</HeaderLabel>
-          <Link
-            to={withAt(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`, String(sequence))}
-            className="inline-flex items-baseline gap-0.5 font-mono text-zinc-200 hover:underline"
-            title={`${lineName(line)} as it was at g${sequence}`}
-          >
-            {lineName(line)}
-            <ArrowUpRight className="relative top-[1px] h-3 w-3 self-center text-zinc-500" aria-hidden />
-          </Link>
-          {changedSince && (
-            <Link
-              to={link(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line))}`)}
-              className="t-meta hover:text-zinc-200 hover:underline"
-              title={`The Line was revised at g${latest.latest!.sequence}, after this change`}
-            >
-              changed since
-            </Link>
-          )}
-          <Dot />
-          <HeaderLabel>Run</HeaderLabel>
-          {runLink}
-        </span>
-      )}
-      {source && !line && !run.isPending && (
-        <span className="inline-flex flex-wrap items-baseline gap-x-3">
-          <HeaderLabel>Procedure</HeaderLabel>
-          <RefLink value={`Procedure:${procedure}`} className="font-mono text-[13px]" />
-          <Dot />
-          <HeaderLabel>Run</HeaderLabel>
-          {runLink}
-          {/* a run read refused (pruned, or not recorded) leaves the trigger unknown: the principal alone */}
-          {runner &&
-            (run.data ? (
-              <>
-                <Dot />
-                <HeaderLabel>Direct run by</HeaderLabel>
-                <span className="font-mono text-zinc-300">{runner}</span>
-              </>
-            ) : (
-              <span className="font-mono text-zinc-300">{runner}</span>
-            ))}
-        </span>
-      )}
-      {!source && actor && (
-        <span className="inline-flex items-baseline gap-x-2">
-          <HeaderLabel>Author</HeaderLabel>
-          <span className="font-mono text-zinc-300">{actor}</span>
-        </span>
-      )}
-      {approved.length > 0 && (
+    <ChangeEntry
+      header={
         <>
+          <HeaderLabel>Generation</HeaderLabel>
+          <GenerationLink sequence={head.sequence} />
           <Dot />
-          <HeaderLabel>Approved by</HeaderLabel>
-          <span className="text-zinc-300">{approved.join(", ")}</span>
+          <span className="text-zinc-500" title={head.accepted}>
+            {formatWhen(head.accepted)}
+          </span>
+          <Dot />
+          <ChangeAuthor source={source} sequence={head.sequence} actor={head.actor ?? null} approvers={head.approved_by ?? []} />
         </>
-      )}
-    </>
+      }
+      notes={notes}
+      changes={events.map((event) => ({
+        ...changeItem(event),
+        render: <EventValue event={event} />,
+        mark: isKeyField(keys, event.predicate) ? <KeyMark kind={null} /> : undefined,
+      }))}
+    />
   );
 }
 
-/** A quiet label naming the value after it in a change's header (Line, Run, Approved by …). */
-function HeaderLabel({ children }: { children: string }) {
-  return <span className="-mr-1.5 ml-2 text-[10.5px] uppercase tracking-wider text-zinc-600 first:ml-0">{children}</span>;
-}
-
-/** One field a change set changed: its mark and name (`key` for a key part), the value, and the item's own reason. */
-interface FieldGroup {
-  field: string;
-  change: string;
-  events: SubjectHistoryEvent[];
-}
-
-/** A change set's field changes, one group per (field, change), in first-seen order. */
-function fieldGroups(events: SubjectHistoryEvent[]): FieldGroup[] {
-  const out = new Map<string, FieldGroup>();
-  for (const event of events) {
-    const change = event.change ?? "stated";
-    const key = `${event.field}\n${change}`;
-    let group = out.get(key);
-    if (!group) out.set(key, (group = { field: event.field, change, events: [] }));
-    group.events.push(event);
-  }
-  return [...out.values()];
-}
-
-/** The text a value reads as, to find it inside an item's reason. */
-function valueText(value: unknown): string | null {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  return null;
-}
-
-/**
- * The reasons of a group of changes, said once: when every reason is the same
- * sentence around its own value, the sentence with the value elided;
- * otherwise the first reason and how many more there are.
- */
-function groupReason(events: SubjectHistoryEvent[]): { text: string; more: number } | null {
-  const reasons = events.map((event) => (event.reason?.kind === "procedure_item" ? reasonWords(event.reason) : null));
-  if (reasons.every((r) => !r)) return null;
-  if (events.length === 1) return reasons[0] ? { text: reasons[0], more: 0 } : null;
-  const patterns = events.map((event, i) => {
-    const reason = reasons[i];
-    const value = valueText(event.value);
-    return reason && value ? reason.split(value).join("…").replace(/…\.$/, "…") : reason;
-  });
-  if (patterns.every((p) => p === patterns[0])) return { text: patterns[0]!, more: 0 };
-  const first = reasons.find((r) => !!r)!;
-  return { text: first, more: reasons.filter((r) => !!r).length - 1 };
-}
-
-/** How many values a repeated field shows before "show all". */
-const GROUP_PREVIEW = 3;
-
-function FieldChangeGroup({ group, isKey }: { group: FieldGroup; isKey: boolean }) {
-  const [all, setAll] = useState(false);
-  const count = group.events.length;
-  const shown = all ? group.events : group.events.slice(0, GROUP_PREVIEW);
-  const reason = groupReason(group.events);
-  return (
-    <>
-      <div className="flex items-baseline gap-2 whitespace-nowrap">
-        <ChangeMark change={group.change} />
-        <span className="font-mono text-[12px] text-zinc-400">{group.field}</span>
-        {count > 1 && <span className="text-[12px] text-zinc-600">× {count}</span>}
-      </div>
-      <div className="min-w-0 space-y-0.5">
-        {count === 1 ? (
-          <div className="flex flex-wrap items-baseline gap-x-3">
-            <span className="min-w-0">
-              <EventValue event={group.events[0]!} />
-            </span>
-            {isKey && <KeyMark kind={null} />}
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            {shown.map((event, i) => (
-              <span key={`${event.claim}\n${i}`} className="whitespace-nowrap text-zinc-300">
-                {valueText(event.value) ?? <ShownValue value={event.value} />}
-                {i < shown.length - 1 && <span className="text-zinc-600">,</span>}
-              </span>
-            ))}
-            {count > GROUP_PREVIEW && (
-              <button onClick={() => setAll((v) => !v)} className="ml-1 text-[12px] text-zinc-500 hover:text-zinc-200">
-                {all ? "show fewer" : `… show all ${count}`}
-              </button>
-            )}
-          </div>
-        )}
-        {reason && (
-          <LongText
-            text={reason.more > 0 ? `${reason.text} (+${reason.more} more reasons)` : reason.text}
-            lines={1}
-            className="text-[12px] text-zinc-500"
-          />
-        )}
-      </div>
-    </>
-  );
+/** A field event as a ChangeLog item: its item reason (a proposal's words show once, as the entry's note). */
+function changeItem(event: SubjectHistoryEvent): ChangeItem {
+  return {
+    id: event.claim,
+    field: event.field,
+    change: event.change ?? "stated",
+    value: event.value,
+    reason: event.reason?.kind === "procedure_item" ? reasonWords(event.reason) : null,
+  };
 }
 
 function EventValue({ event }: { event: SubjectHistoryEvent }) {
@@ -1067,7 +853,7 @@ function EventValue({ event }: { event: SubjectHistoryEvent }) {
       <div className="flex flex-wrap items-baseline gap-x-3">
         {event.value !== undefined && (
           <span className="min-w-0 flex-1">
-            <HistoryValue value={event.value} />
+            <ChangeValue value={event.value} />
           </span>
         )}
         {event.change === "retired" && event.retirement && <span className="text-zinc-500">{event.retirement}</span>}
@@ -1076,28 +862,10 @@ function EventValue({ event }: { event: SubjectHistoryEvent }) {
       {event.change === "changed" && event.before !== undefined && (
         <Disclosure label="Previous value" className="mt-0.5">
           <span className="text-zinc-500">
-            <HistoryValue value={event.before} muted />
+            <ChangeValue value={event.before} muted />
           </span>
         </Disclosure>
       )}
     </div>
-  );
-}
-
-function HistoryValue({ value, muted = false }: { value: unknown; muted?: boolean }) {
-  const tone = muted ? "text-zinc-500" : "text-zinc-300";
-  if (typeof value === "string" && !parseRef(value)) return <LongText text={value} lines={1} className={tone} />;
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { truncated?: unknown }).truncated === true &&
-    typeof (value as { preview?: unknown }).preview === "string"
-  ) {
-    return <LongText text={`${(value as { preview: string }).preview}…`} lines={1} className={tone} />;
-  }
-  return (
-    <span className={tone}>
-      <ShownValue value={value} />
-    </span>
   );
 }
