@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Crosshair, Database, FileText, Globe, Inbox as InboxIcon, UserRound, Workflow } from "lucide-react";
+import { Crosshair, Inbox as InboxIcon } from "lucide-react";
 import { useInbox, useInstanceId, useSourceLandings } from "@/api/hooks";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
@@ -15,7 +15,7 @@ import {
   type FlowNode,
   type Placed,
 } from "@/lib/evidence-flow";
-import { AUTHORITY_COLOR, FLOW_COLOR } from "@/lib/palette";
+import { AUTHORITY_COLOR } from "@/lib/palette";
 import { term } from "@/lib/vocabulary";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -32,7 +32,7 @@ import type { Schemas } from "@/api/schemas";
  * when it is fetched, when it last landed; and your own statements) -> the
  * Line that fetches it (its authority as a stripe, its state, its last run)
  * -> the ClaimTypes that Line writes, under their Subject kinds. Source cards
- * are outlined, Line cards filled, each with its kind and icon on top. Reads
+ * and Line cards share one shape, each with its kind on top. Reads
  * are ontology-sized: the claim_types and lines sections, the source model
  * (Procedure cards, Line envelopes, landing Triggers), the Line cards, and
  * one get-batch of ClaimType proofs for what each ClaimType's evidence rules
@@ -308,7 +308,6 @@ function FlowCell({
           dim={dim}
           hover={hover}
           kindLabel="Source"
-          icon={<UserRound className="h-3 w-3" aria-hidden />}
           title={["Your statements", "What people and agents write on their own word, without a source to cite"].join("\n")}
           name={<span className="truncate text-[12.5px] font-medium text-zinc-100">Your statements</span>}
           about="Written by people or agents"
@@ -318,7 +317,6 @@ function FlowCell({
       );
     }
     const tags = (node.contracts ?? []).map(contractName);
-    const Icon = node.arrives === "HTTP fetch" ? Globe : node.arrives === "Workspace file" ? FileText : node.arrives === "Run output" ? Workflow : Database;
     return (
       <FlowCard
         variant="source"
@@ -326,7 +324,6 @@ function FlowCell({
         dim={dim}
         hover={hover}
         kindLabel="Source"
-        icon={<Icon className="h-3 w-3" aria-hidden />}
         title={[
           node.host ?? node.label,
           `Logical source ${node.label}`,
@@ -355,7 +352,6 @@ function FlowCell({
         dim={dim}
         hover={hover}
         kindLabel="Line"
-        icon={<Workflow className="h-3 w-3" aria-hidden />}
         state={<LineStateDot state={node.enablement} running={runningLines.has(node.label)} />}
         title={[
           node.label,
@@ -453,7 +449,7 @@ function lastRunFact(lastRuns: ReadonlyMap<string, RunRow> | null, line: string,
 }
 
 /**
- * A source or Line card: its kind and icon on top (with a Line's state), its
+ * A source or Line card: its kind on top (with a Line's state), its
  * name, what a Line does, and label/value facts pinned to the bottom. A source
  * is outlined; your statements dashed; a Line filled, with its authority as
  * the left stripe.
@@ -465,7 +461,6 @@ function FlowCard({
   dim,
   hover,
   kindLabel,
-  icon,
   state = null,
   title,
   name,
@@ -479,7 +474,6 @@ function FlowCard({
   dim: boolean;
   hover: { onMouseEnter: () => void; onMouseLeave: () => void };
   kindLabel: string;
-  icon: ReactNode;
   state?: ReactNode;
   title: string;
   name: ReactNode;
@@ -487,12 +481,8 @@ function FlowCard({
   focus: ReactNode;
   facts: Fact[];
 }) {
-  const shape =
-    variant === "line"
-      ? "border border-zinc-700 bg-zinc-800"
-      : variant === "statements"
-        ? "rounded-lg border border-dashed border-zinc-600 bg-transparent"
-        : "rounded-lg border border-zinc-600 bg-transparent";
+  // One card shape for every kind: the label on top says what it is.
+  const shape = variant === "statements" ? "border border-dashed border-zinc-700 bg-zinc-900" : "border border-zinc-700 bg-zinc-900";
   return (
     <div
       style={{ ...style, ...(accent ? { borderLeft: `3px solid ${accent}` } : {}) }}
@@ -501,9 +491,6 @@ function FlowCard({
       {...hover}
     >
       <div className="flex min-w-0 items-center gap-1 text-[9.5px] font-semibold uppercase leading-3 tracking-wider text-zinc-500">
-        <span className={variant === "line" ? "text-zinc-400" : ""} style={variant === "source" ? { color: FLOW_COLOR.source } : undefined}>
-          {icon}
-        </span>
         {kindLabel}
         <span className="ml-auto flex shrink-0 items-center gap-1.5 normal-case tracking-normal">
           {state}
