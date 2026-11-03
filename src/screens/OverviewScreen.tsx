@@ -183,7 +183,8 @@ function NeedsYou({
       />
       <Tile
         label="Lines"
-        count={enablements ? enablements.running ?? 0 : null}
+        // orient omits enablements while no Line is enabled: none running.
+        count={enablements?.running ?? 0}
         countWord="running"
         signal={stalled ? "wrong" : stopped ? "waiting" : undefined}
         detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : "None stalled or stopped"}

@@ -220,6 +220,7 @@ export function ProcedureGraph({
           for (const [key, value] of parameters) lines.push({ text: `${key} = ${typeof value === "string" ? value : JSON.stringify(value)}` });
         } else {
           for (const field of node.detail) lines.push({ text: field, tone: "dim" });
+          if (node.detail.length === 0) lines.push({ text: "Given at run", tone: "plain" });
         }
       } else if (v) {
         for (const contract of v.contracts) lines.push({ text: contract, title: `CaptureContract ${contract}`, to: contractRoute(contract) });
