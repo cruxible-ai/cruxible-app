@@ -93,8 +93,7 @@ export function KindScreen() {
         kind="Subject kind"
         title={kind}
         mono
-        info={kindCard?.description ?? undefined}
-        infoLabel={`What ${kind} is`}
+        summary={kindCard?.description ?? undefined}
         actions={
           <Link to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(kind)}`)} className={actionChipClass}>
             On the type map

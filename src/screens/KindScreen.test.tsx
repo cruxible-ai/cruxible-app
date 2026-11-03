@@ -9,9 +9,7 @@ describe("Kind page", () => {
     renderApp("/i/inst_fixture/kinds/security.assessment?view=claim-types");
     expect(await screen.findByRole("heading", { name: "security.assessment" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
-    // the kind's description sits behind the title's ⓘ
-    fireEvent.click(screen.getByRole("button", { name: "What security.assessment is" }));
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Whether one release is affected by one CVE: one per pair.");
+    expect(await main.findByText("Whether one release is affected by one CVE: one per pair.")).toBeInTheDocument();
     expect(main.getByText("release_id")).toBeInTheDocument();
     expect(main.getByText("(unique)")).toBeInTheDocument();
     const status = within(main.getByText("status", { selector: "td > span" }).closest("tr")!);

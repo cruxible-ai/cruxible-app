@@ -85,7 +85,11 @@ Every graph side panel (Type map, State graph, Line steps, …) follows the Type
 - Facts as a compact `FieldList` (name | value), or labelled rows (`Source`, `Line`); never sentences.
 - Every named thing that has a page links to it; internal ids, paths and grammar go in hover titles.
 
-Wording everywhere: terse labels and tables, no explanatory sentences on nodes, rows or panels; every word must justify itself; name things directly (`vulnerability.cve_id`, not "vulnerability's cve id"). A Cruxible concept a newcomer needs explained gets an info button (`src/components/InfoButton.tsx`), not inline prose.
+Wording everywhere: terse labels and tables; every word must justify itself; name things directly (`vulnerability.cve_id`, not "vulnerability's cve id").
+
+- Generated prose from typed fields: no. The console never interprets typed fields into sentences; it shows them as labels, values and tables.
+- Authored prose: shown as written. Text an author or agent wrote as prose is content and stays visible: kind, ClaimType, Query, Procedure, Line and Document descriptions, Claim rationales, proposal words, review notes.
+- The console's own explanations (what a page shows, what a Cruxible concept means) go behind an info button (`src/components/InfoButton.tsx`; beside a page title, `PageHeader`'s `info` or `PageInfo`), not inline prose.
 
 ## Pull Requests
 

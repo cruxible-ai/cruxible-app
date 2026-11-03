@@ -13,9 +13,7 @@ describe("Query page", () => {
   it("leads with the query's name and description, and draws the path it walks with its filters and returns", async () => {
     renderApp(page(KEV_EXPOSURE));
     expect(await screen.findByRole("heading", { name: KEV_EXPOSURE, level: 1 })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "What this query is for" }));
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("KEV-listed vulnerabilities and the releases assessed as affected by them.");
-    fireEvent.click(screen.getByRole("button", { name: "What this query is for" }));
+    expect(screen.getByText("KEV-listed vulnerabilities and the releases assessed as affected by them.")).toBeInTheDocument();
     const asks = section("Asks");
     // one box per kind, each linking to its kind page; the links it follows in words, each ClaimType linked
     expect(hrefs(asks.getAllByRole("link", { name: "vulnerability" }))).toEqual([

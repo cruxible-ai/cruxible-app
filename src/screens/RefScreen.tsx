@@ -61,8 +61,7 @@ export function RefScreen() {
         title={<span title={full}>{title}</span>}
         mono
         id={long ? <ShortId value={full} keep={128} className="text-zinc-500" /> : undefined}
-        info={query?.description ?? undefined}
-        infoLabel="What this query is for"
+        summary={query?.description ?? undefined}
         facts={
           read.data && (
             <>

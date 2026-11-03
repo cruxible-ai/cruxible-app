@@ -18,6 +18,7 @@ import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip, HealthDot, SignalDot } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
+import { LongText } from "@/components/LongText";
 import { CopyButton, ShortId } from "@/components/ShortId";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
@@ -59,7 +60,7 @@ export function LineScreen() {
   const line = lineName(raw);
   const card = useCard(`Line:${line}`);
   const lineCard = cardOf(card.data, "line");
-  // What the Line does, in its Procedure's own words: behind the title's ⓘ.
+  // What the Line does, in its Procedure's own words (authored prose: shown as written).
   const described = cardOf(useCard(lineCard ? lineCard.procedure : null).data, "procedure")?.description ?? null;
   usePageTitle(`Line ${line}`);
   if (card.isPending) return <LoadState />;
@@ -73,8 +74,7 @@ export function LineScreen() {
         kind="Line"
         title={line}
         mono
-        info={described}
-        infoLabel="What this Line does"
+        summary={described ? <LongText text={described} lines={3} className="t-lede" /> : undefined}
         facts={
           <>
             <Fact label="State">

@@ -13,9 +13,10 @@ export function Page({ children, width = "wide" }: { children: ReactNode; width?
 
 /**
  * The standard page header: what this is (kind), the title (with an ⓘ when
- * the page needs explaining), a terse subtitle that carries information
- * (counts, names; never an explanatory sentence), then the key facts as a
- * labelled strip. Detail follows in cards.
+ * the page needs the console's own explanation), a subtitle (counts and
+ * names, or the thing's authored description as written; never prose the
+ * console generates), then the key facts as a labelled strip. Detail follows
+ * in cards.
  */
 export function PageHeader({
   kind,
@@ -39,11 +40,11 @@ export function PageHeader({
   mono?: boolean;
   /** A machine id shown under the title when the title is words (with copy). */
   id?: ReactNode;
-  /** What the page or thing is, in words: shown behind an ⓘ beside the title. */
+  /** The console's own explanation of the page or concept: shown behind an ⓘ beside the title. */
   info?: ReactNode;
   /** The ⓘ's accessible name. */
   infoLabel?: string;
-  /** A terse subtitle that carries information (counts, state, names); never an explanation. */
+  /** The subtitle: counts, state, names, or the author's description as written; never console-generated prose. */
   summary?: ReactNode;
   facts?: ReactNode;
   actions?: ReactNode;
