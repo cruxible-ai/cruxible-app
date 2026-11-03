@@ -1,4 +1,4 @@
-// Recorded from cruxible-core fa36518ad92d9d8a2b453836f138bd1253e1baa7 by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core d6ed45bc0e0eb7ab8fcd492739fbb17bcf1da025 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/proposals b4e922da
 import { defineFixture } from "../fixture";
 
@@ -13,27 +13,13 @@ export default defineFixture({
     "tag": "playbill-proposal-list-v1",
     "coordinate": {
       "tag": "playbill-accepted-coordinate-v1",
-      "git_oid": "f3765015f78f5ec800f959e10b5cfdc2cf0621f3",
-      "semantic_root": "sha256:4925ef69c21f08114e83af8919712034464a7aecd92c059120be0e36244d4121",
-      "generation_root": "sha256:807540b177cbc78e19e1c576c35c87fc2bd5d1c70d57af935cffddc34fe09bfb",
-      "compiler_digest": "sha256:e77d9aaac5116b76aaf7b7060dedde6bca2cdaaeaa909c59c391bd20f3779924"
+      "git_oid": "7f513078c4902b40f5dabc5115cc57b92dbfa84d",
+      "semantic_root": "sha256:c3079d86a55a340d609702f6ae9e03dba310fc3a279540e880a1e190a22af223",
+      "generation_root": "sha256:f76bfce21235f70992ccca80b6af524c2594ff1d4ce4e8410ff96cb3e56a1a61",
+      "compiler_digest": "sha256:a0d23030f719c5467d73ee01b6c0cf9efe1b9da5ea0d2383eced21e370eb5d07"
     },
     "status_filter": "open",
-    "entries": [
-      {
-        "tag": "playbill-proposal-list-entry-v1",
-        "proposal_id": "sha256:4add9d2cb594b38dde43d5b59e1feea01e032d37b8adaee126f4d3339f3a271f",
-        "actor_id": "robertmalone",
-        "target_ref": "refs/proposals/robertmalone/procedure-7e385768b2346793b0904b3a4d4c9fc2b0f4b0347cc69b825cb5d3003acc684d",
-        "admitted_at": "2026-10-26T17:45:39.755641Z",
-        "verdict": "candidate",
-        "candidate_digest": "sha256:f560efadcd04050e5a5d41b764eeea1787d94f49395178363344de5676a94c02",
-        "status": "open",
-        "terminal_reason": null,
-        "incomplete_reasons": [],
-        "withdrawal_present": false
-      }
-    ],
+    "entries": [],
     "truncated": false,
     "next_cursor": null
   }
