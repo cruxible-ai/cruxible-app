@@ -120,6 +120,8 @@ export function TypeMapScreen() {
     const all = kinds.data?.kinds ?? [];
     return all.length > 0 && all.filter((k) => k.subjects === 0).length * 2 > all.length;
   }, [kinds.data]);
+  // The toggle only means something when some declared kind holds no Subjects.
+  const someEmpty = useMemo(() => (kinds.data?.kinds ?? []).some((k) => k.subjects === 0), [kinds.data]);
   const opensOnSomething = params.has("kind") || params.has("focus") || params.has("claim_type");
   const populatedOnly =
     populatedParam === "1" || (populatedParam === null && mostlyEmpty && !opensOnSomething);
@@ -360,6 +362,7 @@ export function TypeMapScreen() {
         // A focus keeps a kind and its neighbors: few enough to label every link.
         revealAll={focus !== null}
         controls={
+          someEmpty ? (
           <button
             type="button"
             aria-pressed={populatedOnly}
@@ -377,6 +380,7 @@ export function TypeMapScreen() {
             />
             Only kinds with Subjects
           </button>
+          ) : undefined
         }
         overlay={coloring.enabled ? <LayerLegend layers={coloring.layers} /> : undefined}
       />
