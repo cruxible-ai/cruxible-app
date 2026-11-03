@@ -28,7 +28,7 @@ describe("Type map", () => {
     // the kind's key reads without its kind prefix; evidence contracts are no longer listed
     expect(panel.getByText("Identified by")).toBeInTheDocument();
     expect(panel.queryByRole("link", { name: "security.kev-http-v1" })).toBeNull();
-    expect(panel.getByText("security", { selector: "span.font-mono" })).toBeInTheDocument(); // owning kit
+    expect(panel.getByText("security", { selector: "span.text-zinc-300" })).toBeInTheDocument(); // owning kit
     expect(panel.getByText("assessment")).toBeInTheDocument(); // pointed at by (namespace dropped)
   });
 

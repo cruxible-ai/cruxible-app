@@ -452,15 +452,11 @@ function KindPanel({
       <div className="text-[13px] text-zinc-400">
         <span className="font-mono text-zinc-200">{subjects}</span> {subjects === 1 ? "Subject" : "Subjects"}
       </div>
-      <div className="mt-0.5 text-[12px] text-zinc-500">
-        {owner.source === "kit" ? (
-          <>
-            kit <span className="font-mono">{owner.layer}</span>
-          </>
-        ) : (
-          "authored in this instance"
-        )}
-      </div>
+      {owner.source === "kit" && (
+        <div className="mt-0.5 text-[12px] text-zinc-500">
+          Kit <span className="text-zinc-300">{owner.layer}</span>
+        </div>
+      )}
       <PanelActions>
         <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`)} className={actionChipClass}>
           Open kind page →
