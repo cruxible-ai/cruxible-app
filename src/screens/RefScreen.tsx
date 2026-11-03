@@ -45,6 +45,7 @@ export function RefScreen() {
   const procedure = cardOf(read.data, "procedure");
   const trigger = cardOf(read.data, "trigger");
   const capture = cardOf(read.data, "capture");
+  const query = cardOf(read.data, "query");
   // ids that fit stay whole; digests and run ids shorten, whole underneath with copy
   const long = full.length > 40;
   // A Capture leads with its handle, where it came from and when; its contents follow.
@@ -94,6 +95,7 @@ export function RefScreen() {
       {read.error && <LoadState error={read.error} />}
       {procedure?.authored && <ProcedureWithGraph spec={procedure.authored} />}
       {trigger && <TriggerDefinition schedule={trigger.schedule} target={trigger.target} />}
+      {query && <QueryReturns definition={rec((query as Record<string, unknown>).definition)} />}
       {capture && <CaptureContents card={capture} />}
       {capture && <CitedBy citing={capture.citing ?? []} total={capture.citing_total ?? capture.citing?.length ?? 0} />}
       {read.data?.card && !capture && (
@@ -256,5 +258,42 @@ function RecordTable({ rows: given, depth, path }: { rows: Record<string, unknow
       toolbar={rows.length > 1}
       maxHeight="28rem"
     />
+  );
+}
+
+const rec = (value: unknown): Record<string, unknown> | null =>
+  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+
+/** What a Query returns: its row Contract (linked) and that Contract's fields, from the card's definition. */
+function QueryReturns({ definition }: { definition: Record<string, unknown> | null }) {
+  const row = typeof definition?.row === "string" ? definition.row : null;
+  const from = rec(definition?.from);
+  const kinds = from ? Object.values(from).filter((v): v is string => typeof v === "string") : [];
+  const contract = useCard(row ? `Contract:${row}` : null);
+  const fields = (rec(contract.data?.card)?.fields as { name: string; type: string; optional?: boolean }[] | undefined) ?? [];
+  if (!row) return null;
+  const per = kinds.length === 1 ? humanize(kinds[0]!.split(".").pop() ?? kinds[0]!) : "result";
+  return (
+    <Panel title="Returns" meta={<RefLink value={`Contract:${row}`} />}>
+      <div className="mb-2 text-[12px] text-zinc-400">
+        One row per {per.toLowerCase()}
+        {fields.length > 0 && <>, with {fields.map((f) => f.name.replace(/_/g, " ")).join(", ")}</>}.
+      </div>
+      {fields.length > 0 && (
+        <FieldList
+          density="compact"
+          fields={fields.map((f) => ({
+            key: f.name,
+            label: f.name,
+            value: (
+              <span className="text-zinc-400">
+                {f.type}
+                {f.optional && <span className="text-zinc-600"> · optional</span>}
+              </span>
+            ),
+          }))}
+        />
+      )}
+    </Panel>
   );
 }
