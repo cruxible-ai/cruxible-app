@@ -32,7 +32,7 @@ import { LongText } from "@/components/LongText";
 import { Fact, Page, PageHeader, WithRail } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel, SubSection } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
-import { ShownValue } from "@/components/ShownValue";
+import { ShownSlot, ShownValue } from "@/components/ShownValue";
 import { DataTable, type Column } from "@/components/DataTable";
 import { ChangeAuthor } from "@/components/ChangeAuthor";
 import {
@@ -70,8 +70,9 @@ import { term, type Term } from "@/lib/vocabulary";
 
 type SubjectClaim = GetSubjectCard["claims"][number];
 
+/** A slot's Claims: those behind its values, then its live nones (inverse Claims). */
 function claimIds(entry: SubjectClaim): string[] {
-  return Array.isArray(entry.claim) ? entry.claim : [entry.claim];
+  return [...(Array.isArray(entry.claim) ? entry.claim : [entry.claim]), ...(entry.nones ?? []).map((none) => none.claim)];
 }
 
 /** Verdicts that need no attention are named once, in the header tally; field rows leave them out. */
@@ -284,8 +285,15 @@ function ClaimsTally({ cards }: { cards: GetClaimCard[] }) {
   );
 }
 
-/** A slot's answer: text clamps to two lines; refs, numbers and structured values as get shows them. */
-function FieldValue({ value }: { value: unknown }) {
+/** A slot's answer: text clamps to two lines; refs, numbers, structured values and nones (`none of <unit>`) as get shows them. */
+function FieldValue({ value, nones }: { value: unknown; nones?: SubjectClaim["nones"] }) {
+  if ((nones ?? []).length > 0) {
+    return (
+      <span className="text-zinc-100">
+        <ShownSlot value={value} nones={nones} />
+      </span>
+    );
+  }
   if (typeof value === "string" && !parseRef(value)) return <LongText text={value} lines={2} className="text-zinc-100" />;
   if (
     typeof value === "object" &&
@@ -340,7 +348,7 @@ function ClaimRow({
   useEffect(() => {
     if (focused) rowRef.current?.scrollIntoView?.({ block: "center" });
   }, [focused]);
-  const flags: readonly string[] = entry.flags ?? [];
+  const flags: readonly string[] = [...new Set([...(entry.flags ?? []), ...(entry.nones ?? []).flatMap((none) => none.flags ?? [])])];
   const predicate = descriptor?.predicate ?? entry.predicate;
   const need: EvidenceNeed = isKey ? "none" : evidenceNeed(descriptor);
   return (
@@ -361,7 +369,7 @@ function ClaimRow({
           {entry.qualifier && <span className="text-zinc-500">[{entry.qualifier}]</span>}
         </>
       }
-      value={<FieldValue value={entry.value} />}
+      value={<FieldValue value={entry.value} nones={entry.nones} />}
       provenance={origin && <FieldProvenance event={origin} siblings={origins} isKey={isKey} />}
       status={
         <>

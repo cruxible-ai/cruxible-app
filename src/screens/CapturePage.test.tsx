@@ -2,6 +2,11 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { ADVISORY, CITING_CLAIM, FETCHED, PRIVATE, RUNBOOK } from "@/fixtures/authored/captures";
+import { AUTHORED } from "@/fixtures/handlers";
+import { defineFixture } from "@/fixtures/fixture";
+import { getBatchBody } from "@/api/requests";
+import type { GetResult } from "@/api/schemas";
+import { AT, COORDINATE, NOW } from "@/fixtures/authored/world";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -39,6 +44,42 @@ describe("Capture page", () => {
     expect(cited.getByRole("link", { name: new RegExp(CITING_CLAIM.slice(0, 10)) })).toBeInTheDocument();
     // the bare card is gone: its fields are the header, Contents and Cited by
     expect(screen.queryByText("Card")).not.toBeInTheDocument();
+  });
+
+  it("reads a citing inverse Claim's value as none of its Subject, not JSON", async () => {
+    // A Claim card serves an inverse's object as stored: a none of a Subject by its artifact address.
+    const digest = "sha256:" + "ab".repeat(32);
+    const claim = "CLM-" + "d1".repeat(16);
+    const result = (ref: string, kind: GetResult["kind"], card: NonNullable<GetResult["card"]>): GetResult => ({
+      tag: "playbill-get-result-v1", ref, kind, detail: "summary", coordinate: AT, accepted_coordinate: COORDINATE, evaluation_time: NOW, card,
+    });
+    const batch = (r: GetResult) =>
+      defineFixture({
+        method: "post",
+        path: "/api/v1/{instance_id}/get-batch",
+        body: getBatchBody([r.ref], COORDINATE),
+        response: { tag: "playbill-get-batch-result-v1", coordinate: COORDINATE, results: [r] },
+      });
+    const capture = result(`Capture:${digest}`, "capture", {
+      capture: `CAP-${digest.slice(7, 19)}`, digest, contract: "CaptureContract:security.kev-catalog", version: 1,
+      source: "cisa.kev.catalog", observed_at: "2026-10-19T10:17:00Z", status: "available", subjects: [], citing: [claim], citing_total: 1,
+    });
+    const inverse = result(`Claim:${claim}`, "claim", {
+      claim, subject: "security.vulnerability/cve-2024-3094", predicate: "listed_in", predicate_full: "security.vulnerability.listed_in",
+      value: {
+        object: {
+          kind: "none",
+          of: { kind: "subject", address: { tag: "playbill-semantic-address-v1", artifact_path: "subjects/security.catalog/cisa-kev.json", selector: { scheme: "artifact-v1", value: "" } } },
+        },
+      },
+      verdict: "supported", status: "accepted", revision: 1,
+    });
+    renderApp(page(digest), [...AUTHORED, batch(capture), batch(inverse)]);
+    const cited = within((await screen.findByText("Cited by")).closest("section")!);
+    expect(await cited.findByText("security.vulnerability.listed_in")).toBeInTheDocument();
+    const row = cited.getByRole("link", { name: "security.catalog/cisa-kev" }).closest("tr")!;
+    expect(row).toHaveTextContent(/none of\s*security\.catalog\/cisa-kev/);
+    expect(row).not.toHaveTextContent("{");
   });
 
   it("says when the token can't read bodies and gives the CLI read", async () => {

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCard, useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
-import { cardOf } from "@/api/schemas";
-import { ShownValue } from "@/components/ShownValue";
+import { cardOf, type Schemas } from "@/api/schemas";
+import { ShownSlot } from "@/components/ShownValue";
 import { actionChipClass, Chip, toggleChipClass } from "@/components/Chip";
 import { FieldList } from "@/components/FieldList";
 import { LoadState } from "@/components/Panel";
@@ -286,13 +286,19 @@ function SubjectRef({ subject, kind }: { subject: string; kind: string }) {
   );
 }
 
+/** A slot's read flags with its nones' (each once). */
+function slotFlags(claim: Schemas["GetSubjectClaim"]): string[] {
+  return [...new Set([...(claim.flags ?? []), ...(claim.nones ?? []).flatMap((none) => none.flags ?? [])])];
+}
+
 /** A many-valued field shows this many values in the panel; the rest are on the Subject's page. */
 const PANEL_LIST_CAP = 6;
 
 /**
  * A selected Subject, in the Type map's panel style: kind and id, the way to
- * its page, then its literal Claims (field | value, each field linking its
- * ClaimType, flags kept) and its links in this view (a click walks there).
+ * its page, then its Claims (field | value, each field linking its ClaimType,
+ * a Subject value linked by its id, a none as `none of <unit>`, flags kept)
+ * and its links in this view (a click walks there).
  */
 function SubjectPanel({
   subject,
@@ -313,8 +319,7 @@ function SubjectPanel({
   const data = cardOf(card.data, "subject");
   const kind = subject.split("/", 1)[0]!;
   const id = subject.slice(kind.length + 1);
-  // Subject-valued Claims are already drawn as links; list the literal-valued ones.
-  const literal = (data?.claims ?? []).filter((c) => !(typeof c.value === "string" && /^[a-z0-9_.-]+\/[^\s]+$/.test(c.value)));
+  const claims = data?.claims ?? [];
   return (
     <div className="text-[12px]">
       <PanelHeading kicker={kind.slice(kind.lastIndexOf(".") + 1)} title={id} />
@@ -326,12 +331,12 @@ function SubjectPanel({
       <PanelGroup title="Claims">
         {card.isPending && <div className="text-zinc-600">…</div>}
         {card.error && <div className="text-zinc-500" title={card.error.message}>unreadable</div>}
-        {data && literal.length === 0 && <div className="text-zinc-600">none</div>}
-        {literal.length > 0 && (
+        {data && claims.length === 0 && <div className="text-zinc-600">none</div>}
+        {claims.length > 0 && (
           <FieldList
             density="compact"
             label="Claims"
-            fields={literal.map((c) => ({
+            fields={claims.map((c) => ({
               key: `${c.predicate}-${c.qualifier ?? ""}`,
               label: `${c.predicate.slice(c.predicate.lastIndexOf(".") + 1)}${c.qualifier ? `[${c.qualifier}]` : ""}`,
               labelHref: link(`/i/${instanceId}/claim-types/${encodeURIComponent(c.predicate)}`),
@@ -340,20 +345,20 @@ function SubjectPanel({
                 <span className="break-words text-zinc-200">
                   {Array.isArray(c.value) && c.value.length > PANEL_LIST_CAP ? (
                     <>
-                      <ShownValue value={c.value.slice(0, PANEL_LIST_CAP) as typeof c.value} />
+                      <ShownSlot value={c.value.slice(0, PANEL_LIST_CAP)} nones={c.nones} subject="id" />
                       <Link to={openHref} className="block text-zinc-500 hover:text-zinc-300">
                         +{c.value.length - PANEL_LIST_CAP}
                       </Link>
                     </>
                   ) : (
-                    <ShownValue value={c.value} />
+                    <ShownSlot value={c.value} nones={c.nones} subject="id" />
                   )}
                 </span>
               ),
               status:
-                (c.flags ?? []).length > 0 ? (
+                slotFlags(c).length > 0 ? (
                   <>
-                    {(c.flags ?? []).map((flag) => (
+                    {slotFlags(c).map((flag) => (
                       <Chip key={flag} concept="claim" value={flag} />
                     ))}
                   </>

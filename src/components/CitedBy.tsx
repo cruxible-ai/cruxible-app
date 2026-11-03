@@ -5,6 +5,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { Chip } from "@/components/Chip";
+import { claimValueText } from "@/lib/claim-value";
 
 interface CitingClaim {
   claim: string;
@@ -59,7 +60,7 @@ export function CitedBy({ citing, total }: { citing: readonly string[]; total: n
       {
         id: "value",
         header: "Value",
-        sortValue: (c) => (typeof c.value === "string" ? c.value : JSON.stringify(c.value)),
+        sortValue: (c) => claimValueText(c.value),
         cell: (c) => <ShownValue value={c.value} />,
       },
       {

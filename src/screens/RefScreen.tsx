@@ -15,6 +15,8 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { FieldList } from "@/components/FieldList";
 import { term } from "@/lib/vocabulary";
 import { RefLink } from "@/components/RefLink";
+import { ShownValue } from "@/components/ShownValue";
+import { claimValueText, isClaimObject } from "@/lib/claim-value";
 import { formatRef, getRefOf, parseRef, refKindLabel } from "@/lib/cruxible-ref";
 import { formatDateTime, humanize, looksLikeDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -164,6 +166,10 @@ function Value({ value, depth, path = "" }: { value: unknown; depth: number; pat
     return <ValueList items={value} depth={depth} />;
   }
   if (isRecord(value)) {
+    // A Claim's value (a Claim card's, or one in a list of them): a none or a typed object reads as get shows Claim values.
+    if (/(^|\.)value$/.test(path) && isClaimObject(value)) {
+      return <ShownValue value={value} />;
+    }
     return depth <= MAX_DEPTH ? (
       <Fields value={value} depth={depth} path={path} />
     ) : (
@@ -201,7 +207,7 @@ function ValueList({ items, depth }: { items: unknown[]; depth: number }) {
 function cellText(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
-  return JSON.stringify(value);
+  return claimValueText(value);
 }
 
 /**
