@@ -22,12 +22,14 @@ const recursive = [];
 const lines = source.split("\n");
 const out = [];
 for (let i = 0; i < lines.length; i += 1) {
-  const match = /^( {8})(\w+): (.*)$/.exec(lines[i]);
+  // Member names are bare identifiers or quoted (`"Template-Input": ...`).
+  const match = /^( {8})(\w+|"[\w-]+"): (.*)$/.exec(lines[i]);
   if (!match) {
     out.push(lines[i]);
     continue;
   }
-  const [, indent, name] = match;
+  const [, indent, key] = match;
+  const name = key.replaceAll('"', "");
   // A member spans lines until its own indent closes it with `;`.
   let end = i;
   while (end < lines.length - 1 && !(end === i ? lines[end].endsWith(";") : lines[end].startsWith(`${indent}}`) && lines[end].endsWith(";"))) {
@@ -35,14 +37,14 @@ for (let i = 0; i < lines.length; i += 1) {
   }
   const member = lines.slice(i, end + 1).join("\n");
   const self = `components["schemas"]["${name}"]`;
-  const rhs = member.slice(`${indent}${name}: `.length, -1);
+  const rhs = member.slice(`${indent}${key}: `.length, -1);
   // Object members may reference themselves; only a bare union cannot.
   if (!member.includes(self) || rhs.startsWith("{")) {
     out.push(...lines.slice(i, end + 1));
   } else {
-    const alias = `Recursive${name}`;
+    const alias = `Recursive${name.replaceAll("-", "")}`;
     recursive.push(`export type ${alias} = ${rhs.replaceAll(self, alias)};`);
-    out.push(`${indent}${name}: ${alias};`);
+    out.push(`${indent}${key}: ${alias};`);
   }
   i = end;
 }

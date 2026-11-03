@@ -21803,12 +21803,8 @@ export interface components {
             /** Subject Kinds */
             subject_kinds: string[];
         };
-        "Template-Input": components["schemas"]["Ref"] | {
-            [key: string]: components["schemas"]["Template-Input"];
-        } | components["schemas"]["Template-Input"][] | string | boolean | number | null;
-        "Template-Output": components["schemas"]["Ref"] | {
-            [key: string]: components["schemas"]["Template-Output"];
-        } | components["schemas"]["Template-Output"][] | string | boolean | number | null;
+        "Template-Input": RecursiveTemplateInput;
+        "Template-Output": RecursiveTemplateOutput;
         /** TerminalSettlementEvidence */
         TerminalSettlementEvidence: {
             /**
@@ -32515,3 +32511,9 @@ export type RecursiveQueryCell = components["schemas"]["TruncatedText"] | compon
             [key: string]: components["schemas"]["QueryNone"][];
         } | null;
 export type RecursiveShownValue = components["schemas"]["TruncatedText"] | components["schemas"]["ShownObject"] | string | boolean | number | RecursiveShownValue[] | null;
+export type RecursiveTemplateInput = components["schemas"]["Ref"] | {
+            [key: string]: RecursiveTemplateInput;
+        } | RecursiveTemplateInput[] | string | boolean | number | null;
+export type RecursiveTemplateOutput = components["schemas"]["Ref"] | {
+            [key: string]: RecursiveTemplateOutput;
+        } | RecursiveTemplateOutput[] | string | boolean | number | null;
