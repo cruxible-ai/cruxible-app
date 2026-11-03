@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OrientKindSummary, OrientPredicate } from "@/api/schemas";
-import { buildTypeGraph, edgeForPredicate, objectKinds, ontologyKinds, summaryFieldCount } from "./type-graph";
+import { buildTypeGraph, edgeForPredicate, objectKinds, ontologyKinds, summaryFieldCount, valueTypeWords } from "./type-graph";
 
 // Orient's default map (counts, first fields) and its claim_types section,
 // joined the way the app joins them.
@@ -77,5 +77,16 @@ describe("type graph", () => {
     ]);
     expect(edgeForPredicate(graph.edges, "a.assessment.vuln")?.target).toBe("a.vuln");
     expect(edgeForPredicate(graph.edges, "a.assessment.status")).toBeUndefined();
+  });
+});
+
+
+describe("valueTypeWords", () => {
+  it("reads core's value types in plain words, whole", () => {
+    expect(valueTypeWords("subject<security.catalog>")).toBe("→ security.catalog");
+    expect(valueTypeWords('enum["Known", "Unknown"]')).toBe("one of Known, Unknown");
+    expect(valueTypeWords("decimal{0..1}")).toBe("decimal 0–1");
+    expect(valueTypeWords('string{pattern: "^CVE-[0-9]{4}-[0-9]{4,}$", max_len: 32}')).toBe("text · pattern CVE-[0-9]{4}-[0-9]{4,} · ≤32 chars");
+    expect(valueTypeWords("date")).toBe("date");
   });
 });

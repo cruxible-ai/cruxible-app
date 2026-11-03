@@ -14,7 +14,7 @@ beforeAll(() => {
 });
 
 describe("Type map", () => {
-  it("opens on ?kind= with identity, kit, ClaimType links into the kind page and incoming kinds", async () => {
+  it("opens on ?kind= with its key, kit, ClaimType links into the kind page and incoming kinds", async () => {
     renderApp("/i/inst_fixture/map?kind=security.vulnerability");
 
     expect(await screen.findByRole("heading", { name: "Type map" })).toBeInTheDocument();
@@ -25,7 +25,9 @@ describe("Type map", () => {
       "href",
       "/i/inst_fixture/kinds/security.vulnerability?claim_type=security.vulnerability.kev_listed",
     );
-    expect(panel.getByRole("link", { name: "security.kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
+    // the kind's key reads without its kind prefix; evidence contracts are no longer listed
+    expect(panel.getByText("Key")).toBeInTheDocument();
+    expect(panel.queryByRole("link", { name: "security.kev-http-v1" })).toBeNull();
     expect(panel.getByText("security", { selector: "span.font-mono" })).toBeInTheDocument(); // owning kit
     expect(panel.getByText("assessment")).toBeInTheDocument(); // pointed at by (namespace dropped)
   });

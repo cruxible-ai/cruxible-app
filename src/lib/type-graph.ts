@@ -124,3 +124,32 @@ export function buildTypeGraph(kinds: readonly OntologyKind[]): {
 export function edgeForPredicate(edges: readonly TypeGraphEdge[], predicate: string): TypeGraphEdge | undefined {
   return edges.find((edge) => edge.predicates.some((item) => item.predicate === predicate));
 }
+
+/**
+ * A ClaimType's value type in plain words, whole (no truncation): `subject<a>`
+ * reads `→ a`, `enum["x", "y"]` reads `one of x, y`, `decimal{0..1}` reads
+ * `decimal 0–1`, `string{pattern: "^X$", max_len: 32}` reads
+ * `text · pattern X · ≤32 chars`. Anything else reads as core spells it.
+ */
+export function valueTypeWords(type: string, label: (kind: string) => string = (kind) => kind): string {
+  const t = type.trim();
+  if (isSubjectValued(t)) return `→ ${objectKinds(t).map(label).join(", ") || "any kind"}`;
+  const enumMatch = /^enum\[(.*)\]$/s.exec(t);
+  if (enumMatch) {
+    const members = [...enumMatch[1]!.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]!);
+    return `one of ${members.join(", ")}`;
+  }
+  const range = /^(decimal|int|integer|number)\{\s*([^.\s]*)\s*\.\.\s*([^}\s]*)\s*\}$/.exec(t);
+  if (range) return `${range[1] === "integer" ? "int" : range[1]} ${range[2] || "…"}–${range[3] || "…"}`;
+  const text = /^string\{(.*)\}$/s.exec(t);
+  if (text) {
+    const parts = ["text"];
+    const pattern = /pattern:\s*"((?:[^"\\]|\\.)*)"/.exec(text[1]!);
+    if (pattern) parts.push(`pattern ${pattern[1]!.replace(/^\^/, "").replace(/\$$/, "")}`);
+    const maxLen = /max_len:\s*(\d+)/.exec(text[1]!);
+    if (maxLen) parts.push(`≤${maxLen[1]} chars`);
+    return parts.join(" · ");
+  }
+  if (t === "string") return "text";
+  return t;
+}

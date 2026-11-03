@@ -410,3 +410,36 @@ export function urlWords(parameters: Record<string, unknown> | undefined): strin
     return null;
   }
 }
+
+/** A Line that writes a ClaimType, and the logical sources its Procedure's calls read. */
+export interface ClaimTypeWriter {
+  line: string;
+  sources: string[];
+}
+
+/**
+ * Who writes each ClaimType: for every Line, the ClaimTypes its Procedure's
+ * claims steps name, with the logical sources its calls read (resolved
+ * against the Line's parameters). predicate -> writers, Lines in name order.
+ */
+export function claimTypeWriters(
+  specs: ReadonlyMap<string, ProcedureSpec>,
+  lines: readonly LineDefinition[],
+): Map<string, ClaimTypeWriter[]> {
+  const out = new Map<string, ClaimTypeWriter[]>();
+  for (const line of [...lines].sort((a, b) => (a.line < b.line ? -1 : a.line > b.line ? 1 : 0))) {
+    const spec = specs.get(line.procedure);
+    if (!spec) continue;
+    const views = spec.steps.map((step, index) => stepView(step, index));
+    const sources = [
+      ...new Set(views.flatMap((view) => {
+        const source = resolvedSource(view.logicalSource, line.parameters);
+        return source ? [source] : [];
+      })),
+    ];
+    for (const predicate of new Set(views.flatMap((view) => (view.kind === "claims" ? view.claimTypes : [])))) {
+      out.set(predicate, [...(out.get(predicate) ?? []), { line: line.line, sources }]);
+    }
+  }
+  return out;
+}
