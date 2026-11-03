@@ -492,16 +492,15 @@ function KindPanel({
       {groupByWriter(predicates.filter((p) => !(rule?.keys ?? []).includes(p.predicate)), writers).map((group) => (
         <div key={group.title} className="mt-4 border-t border-zinc-800 pt-3">
           {group.line ? (
-            <div className="mb-1.5">
-              <div className="text-[12px] text-zinc-300">
-                From {group.hosts.length > 0 ? <span className="font-medium text-zinc-100">{group.hosts.join(", ")}</span> : "its source"}
-              </div>
-              <div className="text-[11px] text-zinc-500">
-                kept up to date by the Line{" "}
-                <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(group.line)}`)} className="font-mono text-zinc-300 hover:underline" title={group.sources.length > 0 ? `reads ${group.sources.join(", ")}` : undefined}>
-                  {group.line}
-                </Link>
-              </div>
+            <div className="mb-1.5 grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[12px]">
+              <span className="text-zinc-500">Source</span>
+              <span className="text-zinc-100" title={group.sources.length > 0 ? `reads ${group.sources.join(", ")}` : undefined}>
+                {group.hosts.length > 0 ? group.hosts.join(", ") : group.sources.join(", ") || "—"}
+              </span>
+              <span className="text-zinc-500">Line</span>
+              <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(group.line)}`)} className="font-mono text-zinc-300 hover:underline">
+                {group.line}
+              </Link>
             </div>
           ) : (
             <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">{group.title}</div>
