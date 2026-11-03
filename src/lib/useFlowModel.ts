@@ -52,7 +52,7 @@ export function useFlowModel() {
     }
     const { specs, lines: lineDefinitions, retentions: allRetentions } = sources.data;
     const lineOf = new Map(lineDefinitions.map((line) => [line.line, line] as const));
-    // What a source is: a fetch Line's URL, else its retaining Procedure's description; how it arrives: that step's interface.
+    // What a source is: a fetch Line's URL, else its retaining Procedure's description; how it arrives: the Contract its call's slot takes in.
     const describeSource = (retainedBy: readonly Retention[]) => {
       const retention = retainedBy.find((r) => urlWords(r.line ? lineOf.get(r.line)?.parameters : undefined)) ?? retainedBy[0];
       if (!retention) return { about: null, arrives: null };
@@ -60,7 +60,7 @@ export function useFlowModel() {
       return {
         about: urlWords(retention.line ? lineOf.get(retention.line)?.parameters : undefined) ?? gist(spec?.description),
         // the step that retains this source (a Procedure may fetch several under one contract)
-        arrives: arrivalWords({ interface: retention.interface, emitted: retention.emitted }),
+        arrives: arrivalWords({ slotIn: retention.slotIn, emitted: retention.emitted }),
       };
     };
     // Where sources come from: a Line that fetches them, or a direct run of the Procedure that retains them.

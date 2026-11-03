@@ -5,7 +5,6 @@ import {
   useGet,
   useGetBatch,
   useInbox,
-  useInterfaces,
   useInboxItem,
   useInstanceId,
   useLineRuns,
@@ -27,7 +26,7 @@ import { ShownValue } from "@/components/ShownValue";
 import { NextTable } from "@/components/next/NextTable";
 import { LineDefinitionPanel } from "@/components/ontology/Definitions";
 import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
-import { interfaceBase, readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
+import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
 import { buildProcedureGraph, cronWords, INPUT_NODE } from "@/lib/procedure-graph";
 import { runMarks } from "@/lib/run-marks";
 import { useAtLink } from "@/lib/at";
@@ -119,7 +118,7 @@ export function LineScreen() {
       />
       <LineNextPanel line={line} />
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <MandatesPanel procedure={procedure} />
+        <MandatesPanel line={line} />
         <ProcedurePanel procedure={procedure} />
       </div>
     </Page>
@@ -188,13 +187,7 @@ function DefinitionPanels({
     const utc = t.fires.includes("UTC") ? " UTC" : "";
     return { name, words: cron ? `${cronWords(cron)}${utc}` : t.fires, landing: false };
   });
-  const interfaces = useInterfaces();
-  // A step whose Provider names its source takes the names its interface declares it produces.
-  const produced = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, row.produces ?? []] as const));
-  const retains =
-    definition && spec
-      ? retentions(sourceSteps(procedure, spec), [definition], (iface) => produced.get(interfaceBase(iface)) ?? []).filter((r) => r.line === line)
-      : [];
+  const retains = definition && spec ? retentions(sourceSteps(procedure, spec), [definition]).filter((r) => r.line === line) : [];
   if (!definition && !spec && proof.error) return <LoadState error={proof.error} />;
   return (
     <>
@@ -210,7 +203,7 @@ function DefinitionPanels({
         <LineGraphPanel
           line={line}
           spec={spec}
-          context={{ definition, maxAuthority: definition?.maxAuthority ?? card.authority, triggers: graphTriggers }}
+          context={{ definition, triggers: graphTriggers }}
           runsTotal={card.runs_total ?? 0}
         />
       )}
@@ -251,8 +244,8 @@ function LineGraphPanel({
   const marks = useMemo(() => {
     if (!picked || !runCard) return null;
     const ids = model.nodes.filter((n) => n.id !== INPUT_NODE).map((n) => n.id);
-    // A pending input names the source step that reads it (its alias or id).
-    const inputStep = (name: string) => model.nodes.find((n) => n.view?.kind === "source" && (n.view.name === name || n.id === name))?.id ?? null;
+    // A pending input names the call that reads it (its name or id).
+    const inputStep = (name: string) => model.nodes.find((n) => n.view?.kind === "call" && (n.view.name === name || n.id === name))?.id ?? null;
     return runMarks(ids, runCard, runState.data ?? null, inputStep);
   }, [picked, runCard, runState.data, model]);
   return (
@@ -644,13 +637,13 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
   );
 }
 
-function MandatesPanel({ procedure }: { procedure: string }) {
+function MandatesPanel({ line }: { line: string }) {
   const mandates = useMandates();
-  const rows = (mandates.data?.rows ?? []).filter((m) => m.procedure.replace(/^Procedure:/, "") === procedure);
+  const rows = (mandates.data?.rows ?? []).filter((m) => lineName(m.line) === line);
   return (
     <Panel title="Mandates" meta={<span>{rows.length}</span>}>
       {mandates.isPending && <LoadState />}
-      {mandates.data && rows.length === 0 && <EmptyState>No mandate binds this Procedure: its runs can at most propose.</EmptyState>}
+      {mandates.data && rows.length === 0 && <EmptyState>No mandate binds this Line: its runs can at most propose.</EmptyState>}
       <div className="space-y-2">
         {rows.map((mandate) => (
           <MandateDetail key={mandate.mandate} mandate={mandate} />
@@ -658,6 +651,15 @@ function MandatesPanel({ procedure }: { procedure: string }) {
       </div>
     </Panel>
   );
+}
+
+/** A Mandate scope's changes: each change it permits, with the bases it accepts (`create (extracted, measured)`). */
+function scopeChanges(changes: Schemas["MandateChanges"]): string {
+  const parts = (["create", "revise", "retire"] as const).flatMap((change) => {
+    const permitted = changes[change];
+    return permitted ? [`${change} (${permitted.basis.join(", ")})`] : [];
+  });
+  return parts.join(", ") || "no changes";
 }
 
 function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
@@ -685,13 +687,17 @@ function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
             {(card.scope ?? []).length === 0 && <span className="text-zinc-600">—</span>}
             {(card.scope ?? []).map((scope) => (
               <div key={scope.claim_type}>
-                <RefLink value={scope.claim_type} /> <span className="text-zinc-500">{scope.change_kinds.join(", ")} · binds {scope.binds}</span>
+                <RefLink value={scope.claim_type} /> <span className="text-zinc-500">{scopeChanges(scope.changes)} · binds {scope.binds}</span>
               </div>
             ))}
           </dd>
           <dt className="text-zinc-600">Subjects</dt>
           <dd className="text-zinc-400">
-            {card.subject_scope == null ? "Any in scope" : card.subject_scope.map((path) => <RefLink key={path} value={path} />)}
+            {card.subjects === "expected"
+              ? "The run's expected Subjects"
+              : card.subject_scope == null
+                ? "Any in scope"
+                : card.subject_scope.map((path) => <RefLink key={path} value={path} />)}
           </dd>
           <dt className="text-zinc-600">Condition</dt>
           <dd className="text-zinc-400">

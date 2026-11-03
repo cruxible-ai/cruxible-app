@@ -72,10 +72,10 @@ export function LinesScreen() {
     return byLine;
   }, [cards.results, listed]);
   const inProgress = rows.filter((row) => lastRun.get(lineName(row.line))?.status === "running").length;
-  const mandatesByProcedure = useMemo(() => {
+  const mandatesByLine = useMemo(() => {
     const out = new Map<string, Mandate[]>();
     for (const mandate of mandates.data?.rows ?? []) {
-      const key = mandate.procedure.replace(/^Procedure:/, "");
+      const key = lineName(mandate.line);
       out.set(key, [...(out.get(key) ?? []), mandate]);
     }
     return out;
@@ -87,7 +87,7 @@ export function LinesScreen() {
   const columns = useMemo<Column<LineRow>[]>(() => {
     const nameOf = (row: LineRow) => lineName(row.line);
     const procedureOf = (row: LineRow) => row.procedure.replace(/^Procedure:/, "");
-    const mandatesOf = (row: LineRow) => mandatesByProcedure.get(procedureOf(row)) ?? [];
+    const mandatesOf = (row: LineRow) => mandatesByLine.get(nameOf(row)) ?? [];
     // "Line not enabled" is the Enabled column's word already.
     const nextOf = (row: LineRow) => (nextByLine.get(nameOf(row)) ?? []).filter((item) => item.reason !== "line_not_enabled");
     const fromFirstPage = nextPartial ? `\nFrom the first page of next (${NEXT_PAGE} rows); later pages are not read here` : "";
@@ -288,7 +288,7 @@ export function LinesScreen() {
       },
     ];
     return columns.filter((column): column is Column<LineRow> => column !== null);
-  }, [cards.isPending, ends, flow.error, instanceId, lastRun, link, mandatesByProcedure, nextByLine, nextPartial, rows, short, triggersOf]);
+  }, [cards.isPending, ends, flow.error, instanceId, lastRun, link, mandatesByLine, nextByLine, nextPartial, rows, short, triggersOf]);
   const [state] = useTableState(columns);
   // a sort or filter on the next-derived columns reads only the first next page
   const byNext = nextPartial && (state.sort?.column === "needs" || Boolean(state.filters["needs"]));

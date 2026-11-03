@@ -1,20 +1,19 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
-import { stepKind, stepView, type ProcedureSpec, type ProcedureStep, type StepKind, type StepView } from "./definitions.ts";
+import { stepAlias, stepView, templateRef, type ProcedureSpec, type StepKind, type StepView } from "./definitions.ts";
 
 /**
  * A Procedure as a graph, read straight off its authored form: one node per
  * step, and an edge wherever a step names another. Nothing is inferred:
  *
- * - a `$step.field` reference anywhere in a step (its request, input, params,
- *   fields, what it proposes or settles, nested to any depth) is a data edge
- *   from the step it names, labelled with the field;
- * - `$input` and `$input.field` come from the Procedure's input (a Line's
- *   parameters, on a Line page);
- * - a guard's (or a repeat's `until`) condition names steps as `step.field`
- *   (`parse.changed > 0`): those are data edges too;
- * - a select step's `sources` name steps by alias;
- * - a guard's `then` and `else` (a step it hands over to, or `halt(code)`
- *   under its `else_id`) and a step's `next` are control edges;
+ * - a `{$ref: step, step, path}` reference anywhere in a step (its input,
+ *   fields, claims, guard predicate, nested to any depth), a `$steps.<name>.…`
+ *   string, or a `{$steps.<name>.…}` interpolation in a rationale is a data
+ *   edge from the step it names, labelled with the path;
+ * - `{$ref: input}` and `{$ref: param}` come from the Procedure's input and
+ *   parameters (a Line's parameters, on a Line page);
+ * - a select step's `sources` name steps by output name;
+ * - a guard's `then`/`else` (`goto` a step, or `halt` under the action's id)
+ *   and a step's `next` are control edges;
  * - `returns` is its own node (the run's summary, id `summary` unless the
  *   Procedure names another), fed by the fields it returns.
  *
@@ -23,18 +22,16 @@ import { stepKind, stepView, type ProcedureSpec, type ProcedureStep, type StepKi
  * with no edge.
  */
 
-export type StepRole = "input" | "trigger" | "source" | "tap" | "call" | "invoke" | "guard" | "shape" | "terminal";
+export type StepRole = "input" | "trigger" | "call" | "read" | "invoke" | "guard" | "shape" | "terminal";
 
 /** The role each step kind plays, one visual per role. */
 export function roleOf(kind: StepKind | "returns"): StepRole {
   switch (kind) {
-    case "source":
-      return "source";
-    case "tap":
-    case "claim":
-      return "tap";
     case "call":
       return "call";
+    case "read":
+    case "extract":
+      return "read";
     case "invoke":
       return "invoke";
     case "guard":
@@ -43,69 +40,64 @@ export function roleOf(kind: StepKind | "returns"): StepRole {
     case "transform":
     case "select":
     case "repeat":
-    case "explicit":
       return "shape";
     default:
-      // propose, settle, emit, inbox, halt, returns
+      // claims, emit, inbox, halt, returns
       return "terminal";
   }
 }
 
-/** One `$name.field` reference as authored, and where in the step it sits. */
+/** One step reference as authored, and where in the step it sits. */
 export interface StepRef {
-  /** The name referenced: a step id or alias, `input`, or the returns id. */
+  /** The name referenced: a step's output name, `input` (run input or Line parameters), or the returns id. */
   name: string;
-  /** The field path after the name (`retrieved.body_base64`); null for the whole value. */
+  /** The member path after the name (`capture`, `header.catalog_version`); null for the whole value. */
   field: string | null;
-  /** Where in the step: `input.catalog_base64`, `guard`, `sources[0]`. */
+  /** Where in the step: `input.url`, `claims[0].value`, `sources[0]`. */
   at: string;
 }
 
-const REF = /^\$([A-Za-z_][A-Za-z0-9_]*)((?:\.[^.\s]+)*)$/;
+const STEPS_STRING = /^\$steps\.([A-Za-z_][A-Za-z0-9_]*)((?:\.[^.\s]+)*)$/;
+const INTERPOLATION = /\{\$(steps|input|params)\.([^}\s]+)\}/g;
 
-/** Every `$name.field` string in a value, at any depth, with the key path it sits at. */
+function joinPath(path: readonly string[] | undefined): string | null {
+  return path && path.length > 0 ? path.join(".") : null;
+}
+
+/** Every step, input and parameter reference in a value, at any depth, with the key path it sits at. */
 export function collectRefs(value: unknown, at = ""): StepRef[] {
   if (typeof value === "string") {
-    const match = REF.exec(value);
-    return match ? [{ name: match[1]!, field: match[2] ? match[2].slice(1) : null, at }] : [];
+    const whole = STEPS_STRING.exec(value);
+    if (whole) return [{ name: whole[1]!, field: whole[2] ? whole[2].slice(1) : null, at }];
+    const out: StepRef[] = [];
+    for (const match of value.matchAll(INTERPOLATION)) {
+      const [, root, rest] = match;
+      if (root === "steps") {
+        const [name, ...path] = rest!.split(".");
+        out.push({ name: name!, field: path.length ? path.join(".") : null, at });
+      } else {
+        out.push({ name: "input", field: rest!, at });
+      }
+    }
+    return out;
   }
   if (Array.isArray(value)) return value.flatMap((item, i) => collectRefs(item, `${at}[${i}]`));
+  const ref = templateRef(value);
+  if (ref) {
+    if (ref.$ref === "step" && ref.step) return [{ name: ref.step, field: joinPath(ref.path), at }];
+    if (ref.$ref === "input" || ref.$ref === "param") return [{ name: "input", field: joinPath(ref.path), at }];
+    return [];
+  }
   if (typeof value === "object" && value !== null) {
     return Object.entries(value as Record<string, unknown>).flatMap(([key, item]) => collectRefs(item, at ? `${at}.${key}` : key));
   }
   return [];
 }
 
-/** `name.field` mentions in a condition (`parse.changed > 0`), for the names given. */
-export function conditionRefs(expression: string, names: ReadonlySet<string>, at: string): StepRef[] {
-  const out: StepRef[] = [];
-  const seen = new Set<string>();
-  // Strip string literals so a quoted "a.b" is not read as a reference.
-  const bare = expression.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
-  for (const match of bare.matchAll(/(?<![\w.$])([a-z_][a-z0-9_]*)\.([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*)/g)) {
-    const [, name, field] = match;
-    if (!names.has(name!) || seen.has(`${name}.${field}`)) continue;
-    seen.add(`${name}.${field}`);
-    out.push({ name: name!, field: field!, at });
-  }
-  return out;
-}
-
-const str = (value: unknown): string | null => (typeof value === "string" && value !== "" ? value : null);
-
-/** The step's own name (source/tap/call/… alias, invoke's `as`), which references may use instead of its id. */
-function aliasOf(step: ProcedureStep): string | null {
-  const s = step as Record<string, unknown>;
-  const kind = stepKind(step);
-  if (kind === "invoke") return str(s.as);
-  if (["source", "tap", "call", "claim", "project", "transform", "select", "repeat"].includes(kind)) return str(s[kind]);
-  return null;
-}
-
 export interface GraphNode {
   id: string;
   role: StepRole;
-  /** The step kind, or `returns`, `halt` (a guard's else), `input`. */
+  /** The step kind, or `returns`, `halt` (a guard's halt action), `input`. */
   kind: StepKind | "returns" | "input";
   /** The authored step, with what it names; null for returns, a guard's halt and the input. */
   view: StepView | null;
@@ -115,7 +107,7 @@ export interface GraphNode {
   unresolved: StepRef[];
   /** halt: its code; returns: its field names; input: its field names. */
   detail: string[];
-  /** The id is the graph's own (a guard's halt with no else_id), not a name the definition gives. */
+  /** The id is the graph's own (a guard's halt with no id), not a name the definition gives. */
   unnamed?: boolean;
 }
 
@@ -136,7 +128,7 @@ export interface ProcedureGraphModel {
 /** The id the input node takes (a step may not be named `$input`). */
 export const INPUT_NODE = "$input";
 
-const HALT_CALL = /^halt\(\s*([A-Za-z0-9_.-]+)\s*\)$/;
+const CONTROL_KEYS = ["id", "next", "then", "else"];
 
 export function buildProcedureGraph(spec: ProcedureSpec): ProcedureGraphModel {
   const nodes: GraphNode[] = [];
@@ -145,25 +137,17 @@ export function buildProcedureGraph(spec: ProcedureSpec): ProcedureGraphModel {
     const view = stepView(step, index);
     nodes.push({ id: view.id, role: roleOf(view.kind), kind: view.kind, view, index, unresolved: [], detail: [] });
   });
-  // Ids win over aliases; an alias only names a step no id already claims.
+  // Ids win over output names; a name only names a step no id already claims.
   for (const node of nodes) byName.set(node.id, node.id);
   spec.steps.forEach((step, index) => {
-    const alias = aliasOf(step);
-    if (alias && !byName.has(alias)) byName.set(alias, nodes[index]!.id);
+    const alias = stepAlias(step, index);
+    if (!byName.has(alias)) byName.set(alias, nodes[index]!.id);
   });
 
   const returns = spec.returns;
-  const returnsId =
-    returns && typeof returns === "object" && typeof (returns as { id?: unknown }).id === "string"
-      ? (returns as { id: string }).id
-      : "summary";
+  const returnsId = returns && typeof returns === "object" ? (returns.id ?? "summary") : "summary";
   if (returns !== null && returns !== undefined && !byName.has(returnsId)) {
-    const fields =
-      typeof returns === "string"
-        ? []
-        : "fields" in returns
-          ? Object.keys(returns.fields ?? {})
-          : [];
+    const fields = typeof returns === "object" && "fields" in returns ? Object.keys(returns.fields ?? {}) : [];
     nodes.push({ id: returnsId, role: "terminal", kind: "returns", view: null, index: null, unresolved: [], detail: fields });
     byName.set(returnsId, returnsId);
   }
@@ -180,7 +164,6 @@ export function buildProcedureGraph(spec: ProcedureSpec): ProcedureGraphModel {
     if (field !== null && !edge.fields.includes(field)) edge.fields.push(field);
   };
   let inputRead = false;
-  const conditionNames = () => new Set([...byName.keys(), "input"]);
   const halts: GraphNode[] = [];
 
   const resolve = (node: GraphNode, refs: StepRef[]) => {
@@ -199,38 +182,40 @@ export function buildProcedureGraph(spec: ProcedureSpec): ProcedureGraphModel {
   spec.steps.forEach((step, index) => {
     const node = nodes[index]!;
     const s = step as Record<string, unknown>;
-    const CONTROL_KEYS = ["id", "next", "then", "else", "else_id"];
     resolve(node, collectRefs(Object.fromEntries(Object.entries(s).filter(([key]) => !CONTROL_KEYS.includes(key)))));
-    const { next, then, else: elseValue, else_id: elseId } = s;
-    const kind = node.kind;
-    if (kind === "guard" && typeof s.guard === "string") resolve(node, conditionRefs(s.guard, conditionNames(), "guard"));
-    if (kind === "repeat" && typeof s.until === "string") resolve(node, conditionRefs(s.until, conditionNames(), "until"));
-    if (kind === "select" && Array.isArray(s.sources)) {
-      resolve(
-        node,
-        s.sources.filter((x): x is string => typeof x === "string").map((name, i) => ({ name, field: null, at: `sources[${i}]` })),
-      );
+    if ("select" in step) {
+      resolve(node, step.sources.map((name, i) => ({ name, field: null, at: `sources[${i}]` })));
     }
-    const control = (value: unknown, word: string) => {
-      const name = str(value);
+    const control = (name: string | null | undefined, word: string) => {
       const target = name ? byName.get(name) : undefined;
       if (target) addEdge(node.id, target, "control", word);
     };
-    control(next, "next");
-    if (kind === "guard") {
-      control(then, "then");
-      const otherwise = str(elseValue);
-      const halt = otherwise ? HALT_CALL.exec(otherwise) : null;
-      if (halt) {
-        const haltId = str(elseId) ?? `${node.id}.else`;
-        if (!byName.has(haltId)) {
-          const haltNode: GraphNode = { id: haltId, role: "terminal", kind: "halt", view: null, index: null, unresolved: [], detail: [halt[1]!], ...(str(elseId) ? {} : { unnamed: true }) };
-          halts.push(haltNode);
-          byName.set(haltId, haltId);
+    control(step.next, "next");
+    if ("guard" in step) {
+      for (const [word, action] of [
+        ["then", step.then],
+        ["else", step.else],
+      ] as const) {
+        if (!action) continue;
+        if ("goto" in action) control(action.goto, word);
+        else if ("halt" in action) {
+          const haltId = action.id ?? `${node.id}.${word}`;
+          if (!byName.has(haltId)) {
+            const haltNode: GraphNode = {
+              id: haltId,
+              role: "terminal",
+              kind: "halt",
+              view: null,
+              index: null,
+              unresolved: [],
+              detail: action.halt ? [action.halt] : [],
+              ...(action.id ? {} : { unnamed: true }),
+            };
+            halts.push(haltNode);
+            byName.set(haltId, haltId);
+          }
+          addEdge(node.id, byName.get(haltId)!, "control", word);
         }
-        addEdge(node.id, byName.get(haltId)!, "control", "else");
-      } else {
-        control(elseValue, "else");
       }
     }
   });
@@ -244,7 +229,7 @@ export function buildProcedureGraph(spec: ProcedureSpec): ProcedureGraphModel {
   }
 
   if (inputRead) {
-    const fields = Object.keys(spec.input ?? {}).sort();
+    const fields = [...Object.keys(spec.input ?? {}), ...Object.keys(spec.params ?? {})].sort();
     nodes.unshift({ id: INPUT_NODE, role: "input", kind: "input", view: null, index: null, unresolved: [], detail: fields });
   }
   return { nodes, edges: [...edges.values()] };

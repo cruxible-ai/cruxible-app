@@ -47,7 +47,6 @@ import { useSettings } from "@/lib/settings";
 import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
 import { ontologyKinds } from "@/lib/type-graph";
 import {
-  interfaceBase,
   logicalSources,
   readLineEnvelope,
   retentions,
@@ -272,7 +271,7 @@ export function useOntologyKinds() {
 
 /** All rows of one paged orient section, following next_cursor. */
 function useOrientSectionAll<
-  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins" | "procedures" | "interfaces" | "documents",
+  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins" | "procedures" | "documents",
 >(
   section: K,
   enabled = true,
@@ -338,11 +337,6 @@ export function useDocuments(enabled = true) {
   return useOrientSectionAll("documents", enabled);
 }
 
-/** Every ProviderInterface with its installed Provider builds. */
-export function useInterfaces(enabled = true) {
-  return useOrientSectionAll("interfaces", enabled);
-}
-
 /** Every Line (lifecycle, procedure, authority, trigger, enablement). */
 export function useLines(enabled = true) {
   return useOrientSectionAll("lines", enabled);
@@ -379,7 +373,7 @@ const cellText = (value: unknown) => (typeof value === "string" ? value : "");
 const cellList = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
 
 /**
- * Where evidence comes from (compiler revision 36): every Procedure's authored
+ * Where evidence comes from: every Procedure's authored
  * form (one get-batch per 64 Procedures), every Line's envelope (get-batch
  * detail=proof: parameters, trigger input, bindings), and the capture-landing
  * Triggers with the logical sources they select, joined into retentions and
@@ -388,13 +382,12 @@ const cellList = (value: unknown) => (Array.isArray(value) ? value.filter((item)
  */
 export function useSourceModel(enabled = true) {
   const procedures = useProcedures(enabled);
-  const interfaces = useInterfaces(enabled);
   const lines = useLines(enabled);
   const triggers = useStateQuery(enabled ? LANDING_TRIGGERS_QUERY : null);
   const procedureCards = useGetBatch((procedures.data?.rows ?? []).map((row) => `Procedure:${row.name.replace(/^Procedure:/, "")}`));
   const lineProofs = useGetBatch((lines.data?.rows ?? []).map((row) => `Line:${lineName(row.line)}`), "proof");
   const pending =
-    procedures.isPending || lines.isPending || triggers.isPending || interfaces.isPending || procedureCards.isPending || lineProofs.isPending;
+    procedures.isPending || lines.isPending || triggers.isPending || procedureCards.isPending || lineProofs.isPending;
   const data = useMemo(() => {
     if (pending || !procedures.data || !lines.data || !triggers.data) return undefined;
     const specs = new Map<string, ProcedureSpec>();
@@ -413,11 +406,9 @@ export function useSourceModel(enabled = true) {
       logicalSources: cellList(row.logical_sources),
     }));
     const runnable = new Map(procedures.data.rows.map((row) => [row.name.replace(/^Procedure:/, ""), row.runnable] as const));
-    const produced = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, row.produces ?? []] as const));
     const all = retentions(
       [...specs].flatMap(([name, spec]) => sourceSteps(name, spec)),
       lineDefinitions,
-      (iface) => produced.get(interfaceBase(iface)) ?? [],
       (procedure) => runnable.get(procedure) !== "line",
     );
     return {
@@ -429,10 +420,10 @@ export function useSourceModel(enabled = true) {
       truncated:
         procedures.data.truncated || lines.data.truncated || (triggers.data.capped?.length ?? 0) > 0 || triggers.data.truncated === true,
     };
-  }, [pending, procedures.data, lines.data, triggers.data, interfaces.data, procedureCards.results, lineProofs.results]);
+  }, [pending, procedures.data, lines.data, triggers.data, procedureCards.results, lineProofs.results]);
   return {
     isPending: pending,
-    error: procedures.error ?? lines.error ?? triggers.error ?? interfaces.error ?? procedureCards.error ?? lineProofs.error,
+    error: procedures.error ?? lines.error ?? triggers.error ?? procedureCards.error ?? lineProofs.error,
     data,
   };
 }
@@ -581,13 +572,17 @@ export function useReview(proposalId: string | null, itemReasonsAfter?: string) 
     queryKey: ["review", instanceId, proposalId, itemReasonsAfter ?? null],
     enabled: proposalId !== null,
     staleTime: 15_000,
-    queryFn: async () =>
-      unwrap(
+    queryFn: async () => {
+      const review = unwrap(
         await client.POST("/api/v1/{instance_id}/proposals/{proposal_id}/review", {
           params: { path: { instance_id: instanceId, proposal_id: proposalId! } },
           body: reviewBody(itemReasonsAfter),
         }),
-      ),
+      );
+      // reviewBody asks for the detailed review; the summary form has no members.
+      if (review.tag !== "playbill-proposal-review-v1") throw new Error(`review of ${proposalId} came back as a summary`);
+      return review;
+    },
   });
 }
 

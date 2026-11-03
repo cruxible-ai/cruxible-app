@@ -188,7 +188,7 @@ export function settleMandates(mandates: readonly Mandate[]): Mandate[] {
 
 /**
  * Who may settle a ClaimType: live settle Mandates whose typed scope covers
- * it, mapped to the live Lines running their Procedure. A Line capped at
+ * it, each on the Line it binds (when that Line is live). A Line capped at
  * propose only proposes (design Q5); a suspended Mandate settles nothing
  * while its kill switch is on. No match means changes go to review.
  */
@@ -197,7 +197,7 @@ export function settlersFor(predicate: string, mandates: readonly Mandate[], lin
   for (const mandate of settleMandates(mandates)) {
     if (!(mandate.scope ?? []).some((scope) => bare(scope.claim_type) === predicate)) continue;
     for (const line of lines) {
-      if (line.lifecycle !== "live" || bare(line.procedure) !== bare(mandate.procedure)) continue;
+      if (line.lifecycle !== "live" || bare(line.line) !== bare(mandate.line)) continue;
       out.push({
         kind: mandate.suspended ? "suspended" : line.authority === "settle" ? "settles" : "capped",
         line: bare(line.line),

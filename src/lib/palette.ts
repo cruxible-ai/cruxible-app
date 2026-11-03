@@ -25,8 +25,7 @@ export const PALETTE = {
 export type StepRoleColor =
   | "input"
   | "trigger"
-  | "source"
-  | "tap"
+  | "read"
   | "call"
   | "invoke"
   | "guard"
@@ -37,13 +36,12 @@ export type StepRoleColor =
 export const ROLE_COLOR: Record<StepRoleColor, { color: string; legend: string }> = {
   trigger: { color: PALETTE.sky, legend: "What starts it" },
   input: { color: PALETTE.indigo, legend: "Input and parameters" },
-  source: { color: PALETTE.blue, legend: "Retains evidence" },
-  tap: { color: PALETTE.violet, legend: "Reads state" },
-  call: { color: PALETTE.stone, legend: "Calls a Provider" },
+  read: { color: PALETTE.violet, legend: "Reads state or a Capture" },
+  call: { color: PALETTE.blue, legend: "Calls a Provider" },
   invoke: { color: PALETTE.fuchsia, legend: "Runs a Procedure" },
   guard: { color: PALETTE.zinc, legend: "Checks a condition" },
   shape: { color: PALETTE.slate, legend: "Reshapes data" },
-  terminal: { color: PALETTE.emerald, legend: "Writes or returns" },
+  terminal: { color: PALETTE.emerald, legend: "Writes, posts or returns" },
 };
 
 /** The evidence flow's columns. */

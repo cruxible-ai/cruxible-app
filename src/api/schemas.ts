@@ -47,7 +47,6 @@ export type CardByKind = AssertEveryKind<{
   claim_type: Schemas["GetClaimTypeCard"];
   document: Schemas["GetDocumentCard"];
   procedure: Schemas["GetProcedureCard"];
-  blueprint: Schemas["GetBlueprintCard"];
   query: Schemas["GetQueryCard"];
   capture_contract: Schemas["GetCaptureContractCard"];
   trigger: Schemas["GetTriggerCard"];
@@ -61,9 +60,8 @@ export type CardByKind = AssertEveryKind<{
   principal: Schemas["GetPrincipalCard"];
   approval_policy: Schemas["GetApprovalPolicyCard"];
   procedure_runtime_policy: Schemas["GetProcedureRuntimePolicyCard"];
-  source_acquisition_policy: Schemas["GetSourceAcquisitionPolicyCard"];
-  provider_interface: Schemas["GetProviderInterfaceCard"];
   provider: Schemas["GetProviderCard"];
+  contract: Schemas["GetContractCard"];
 }>;
 
 /** The typed card of a get result when it is of `kind`; null otherwise. */

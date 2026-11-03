@@ -37,12 +37,12 @@ const TYPED_PREFIXES: Readonly<Record<string, GetRefKind>> = {
   Document: "document",
   document: "document",
   Procedure: "procedure",
-  Blueprint: "blueprint",
   QueryDefinition: "query",
   query: "query",
   CaptureContract: "capture_contract",
   Trigger: "trigger",
   SubjectKind: "subject_kind",
+  Contract: "contract",
   Proposal: "proposal",
   Line: "line",
   Capture: "capture",
@@ -53,8 +53,6 @@ const TYPED_PREFIXES: Readonly<Record<string, GetRefKind>> = {
   Principal: "principal",
   ApprovalPolicy: "approval_policy",
   ProcedureRuntimePolicy: "procedure_runtime_policy",
-  SourceAcquisitionPolicy: "source_acquisition_policy",
-  ProviderInterface: "provider_interface",
   Provider: "provider",
 };
 
@@ -63,7 +61,6 @@ export const DISPLAY_PREFIX: Readonly<Record<NamedRefKind, string>> = {
   claim_type: "ClaimType",
   document: "Document",
   procedure: "Procedure",
-  blueprint: "Blueprint",
   query: "query",
   capture_contract: "CaptureContract",
   trigger: "Trigger",
@@ -74,9 +71,8 @@ export const DISPLAY_PREFIX: Readonly<Record<NamedRefKind, string>> = {
   principal: "Principal",
   approval_policy: "ApprovalPolicy",
   procedure_runtime_policy: "ProcedureRuntimePolicy",
-  source_acquisition_policy: "SourceAcquisitionPolicy",
-  provider_interface: "ProviderInterface",
   provider: "Provider",
+  contract: "Contract",
 };
 
 // Subject kind and id grammar (cruxible_client contracts/subjects.py).

@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useInstanceId, useInterfaces } from "@/api/hooks";
-import { SignalDot } from "@/components/Chip";
+import { useInstanceId } from "@/api/hooks";
 import { Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { DataTable, type Column } from "@/components/DataTable";
 import { FieldList, type FieldItem } from "@/components/FieldList";
 import { useAtLink } from "@/lib/at";
 import {
-  interfaceBase,
+  contractRefText,
+  logicalSourceText,
   procedureSlots,
-  slotInterfaceRef,
-  producedFields,
   stepView,
   type LandingTrigger,
   type LineDefinition,
@@ -28,14 +26,14 @@ import { sentence } from "@/lib/text";
 import { ProcedureGraph } from "@/components/graph/ProcedureGraph";
 
 /**
- * Definitions as authored (compiler revision 36): a slotted Procedure's
- * slots (slot -> interface, the build that binds it) and steps, each naming
- * the contracts, interfaces, queries and ClaimTypes it uses by name; a Line's
+ * Definitions as authored: a slotted Procedure's slots (slot -> the Contracts
+ * it takes in and gives out, the build a Line binds it to) and steps, each
+ * naming the contracts, queries, ClaimTypes and Procedures it uses; a Line's
  * parameters, trigger input and bindings; a landing Trigger's contract and
  * logical sources. Every named reference is a link.
  */
 
-function NamedRef({ kind, name }: { kind: "contract" | "query" | "interface" | "claim_type" | "procedure"; name: string }) {
+function NamedRef({ kind, name }: { kind: "contract" | "query" | "claim_type" | "procedure"; name: string }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   if (kind === "contract") {
@@ -48,11 +46,9 @@ function NamedRef({ kind, name }: { kind: "contract" | "query" | "interface" | "
   const ref =
     kind === "query"
       ? `QueryDefinition:${name}`
-      : kind === "interface"
-        ? `ProviderInterface:${name}`
-        : kind === "claim_type"
-          ? `ClaimType:${name}`
-          : `Procedure:${name}`;
+      : kind === "claim_type"
+        ? `ClaimType:${name}`
+        : `Procedure:${name}`;
   return (
     <RefLink value={ref}>
       <span className="font-mono text-[12px]">{name}</span>
@@ -64,10 +60,10 @@ function LogicalSourceText({ view, parameters }: { view: StepView; parameters?: 
   const ref = view.logicalSource;
   if (!ref) return null;
   if ("literal" in ref) return <span className="font-mono text-zinc-200">{ref.literal}</span>;
-  const value = parameters?.[ref.input];
+  const value = "param" in ref ? parameters?.[ref.param] : undefined;
   return (
     <span>
-      <span className="font-mono text-zinc-400">$input.{ref.input}</span>
+      <span className="font-mono text-zinc-400">{logicalSourceText(ref)}</span>
       {typeof value === "string" ? (
         <span>
           {" "}
@@ -81,9 +77,8 @@ function LogicalSourceText({ view, parameters }: { view: StepView; parameters?: 
 }
 
 /**
- * A Procedure's authored form: slots and the build each binds (a Line's
- * explicit binding, else the installed builds of the interface: one binds by
- * fit), and its steps with what each names.
+ * A Procedure's authored form: slots (the Contracts each takes in and gives
+ * out, and the build a Line binds it to), and its steps with what each names.
  */
 export function ProcedureDefinition({
   spec,
@@ -96,72 +91,57 @@ export function ProcedureDefinition({
   /** The step picked on the graph: highlighted and scrolled into view. */
   selectedStep?: string | null | undefined;
 }) {
-  const interfaces = useInterfaces();
   const rows = useRef(new Map<string, HTMLLIElement>());
   useEffect(() => {
     if (selectedStep === null) return;
     rows.current.get(selectedStep)?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }, [selectedStep]);
-  const builds = useMemo(
-    () => new Map((interfaces.data?.rows ?? []).map((row) => [row.name, (row.providers ?? []).map((p) => p.provider)] as const)),
-    [interfaces.data],
-  );
-  const contracts = new Map((interfaces.data?.rows ?? []).map((row) => [row.name, row.operation_contract ?? null] as const));
   const slots = procedureSlots(spec);
   const slotColumns = useMemo<Column<Slot>[]>(
     () => [
       {
         id: "slot",
         header: "Slot",
-        title: "A slot is a Provider seat a step calls through; it takes an interface at a major version",
+        title: "A slot is a Provider seat a call goes through: a Contract in, a Contract out",
         className: "font-mono text-zinc-200",
         cell: (row) => row.slot,
       },
       {
-        id: "interface",
-        header: "Interface",
-        cell: (row) => (
-          <RefLink value={slotInterfaceRef(row.interface)}>
-            <span className="font-mono text-[12px]">{row.interface}</span>
-          </RefLink>
-        ),
+        id: "in",
+        header: "Takes",
+        title: "The Contract the slot's Provider is given",
+        cell: (row) => <span className="font-mono text-[12px] text-zinc-300">{contractRefText(row.in)}</span>,
+      },
+      {
+        id: "out",
+        header: "Gives",
+        title: "The Contract the slot's Provider returns",
+        cell: (row) => <span className="font-mono text-[12px] text-zinc-300">{contractRefText(row.out)}</span>,
+      },
+      {
+        id: "effect",
+        header: "Effect",
+        className: "text-[12px] text-zinc-400",
+        cell: (row) => row.effect.replaceAll("_", " "),
       },
       {
         id: "binds",
         header: "Binds",
-        title: "A Line binds a slot explicitly, or the slot binds by fit to the installed build of its interface",
+        title: "The Provider build the Line binds the slot to",
         className: "text-[12px] text-zinc-400",
-        cell: ({ slot, interface: iface }) => {
+        cell: ({ slot }) => {
           const explicit = line?.bindings[slot];
-          const installed = builds.get(interfaceBase(iface)) ?? [];
           return explicit ? (
-            <span>
-              Line binds{" "}
-              <RefLink value={`Provider:${explicit}`}>
-                <span className="font-mono text-[12px]" title={explicit}>{providerName(explicit)}</span>
-              </RefLink>
-            </span>
-          ) : installed.length === 1 ? (
-            <span title="No explicit binding: the slot binds by fit to the one installed build of its interface">
-              By fit:{" "}
-              <RefLink value={installed[0]!.startsWith("Provider:") ? installed[0]! : `Provider:${installed[0]}`}>
-                <span className="font-mono text-[12px]" title={installed[0]}>{providerName(installed[0]!)}</span>
-              </RefLink>
-            </span>
-          ) : installed.length > 1 ? (
-            <span title={installed.join("\n")}>By fit: one of {installed.length} installed builds</span>
-          ) : interfaces.isPending ? (
-            "…"
+            <RefLink value={`Provider:${explicit}`}>
+              <span className="font-mono text-[12px]" title={explicit}>{providerName(explicit)}</span>
+            </RefLink>
           ) : (
-            <span className="inline-flex items-baseline gap-1.5">
-              <SignalDot signal="wrong" title="No installed build fits this slot: install a Provider for its interface" />
-              No installed build
-            </span>
+            <span className="text-zinc-600">—</span>
           );
         },
       },
     ],
-    [line, builds, interfaces.isPending],
+    [line],
   );
   const steps = spec.steps.map(stepView);
   const inputs = Object.entries(spec.input ?? {});
@@ -174,9 +154,7 @@ export function ProcedureDefinition({
             <span key={name}>
               {i > 0 && ", "}
               <span className="font-mono text-zinc-300">{name}</span>
-              {typeof (field as { type?: unknown })?.type === "string" && (
-                <span className="text-zinc-500">: {(field as { type: string }).type}</span>
-              )}
+              <span className="text-zinc-500">: {field.type.kind}</span>
             </span>
           ))}
         </div>
@@ -211,28 +189,26 @@ export function ProcedureDefinition({
             <span className="w-14 shrink-0 text-zinc-400" title={term("stepKind", step.kind).meaning}>
               {term("stepKind", step.kind).word}
             </span>
-            {step.kind === "source" && line?.triggerInput === step.name && (
+            {step.kind === "call" && line?.triggerInput === (step.name ?? step.id) && (
               <span className="text-zinc-300" title="This Line's trigger input: the step reads the Capture whose landing started the run">
                 reads the landing
               </span>
             )}
-            {step.contract && <NamedRef kind="contract" name={step.contract} />}
+            {step.contracts.map((contract) => (
+              <NamedRef key={contract} kind="contract" name={contract} />
+            ))}
             {step.logicalSource && (
               <span className="text-zinc-500">
                 from <LogicalSourceText view={step} parameters={line?.parameters} />
               </span>
             )}
-            {step.interface && (
-              <span className="text-zinc-500">
-                via <NamedRef kind="interface" name={step.interface} />
-                {step.slot && <span> (slot {step.slot})</span>}
-              </span>
-            )}
+            {step.slot && <span className="text-zinc-500">slot <span className="font-mono">{step.slot}</span></span>}
             {step.query && <NamedRef kind="query" name={step.query} />}
-            {step.claimType && <NamedRef kind="claim_type" name={step.claimType} />}
+            {step.claimTypes.map((claimType) => (
+              <NamedRef key={claimType} kind="claim_type" name={claimType} />
+            ))}
             {step.procedure && <NamedRef kind="procedure" name={step.procedure} />}
             {step.detail && <span className="font-mono text-zinc-400">{step.detail}</span>}
-            {step.interface && <Produces fields={producedFields(contracts.get(interfaceBase(step.interface)))} />}
           </li>
         ))}
       </ol>
@@ -240,7 +216,7 @@ export function ProcedureDefinition({
   );
 }
 
-/** A Line as authored: parameters, trigger input, bindings, acquisition policy; what it retains and reads. */
+/** A Line as authored: parameters, trigger input, bindings; what it retains and reads. */
 export function LineDefinitionPanel({
   line,
   retains,
@@ -265,7 +241,7 @@ export function LineDefinitionPanel({
             </div>
           ))}
         </dd>
-        <dt className="text-zinc-500" title="The source step that reads the Capture whose landing started the run">
+        <dt className="text-zinc-500" title="The call that reads the Capture whose landing started the run">
           Trigger input
         </dt>
         <dd className="text-zinc-300">
@@ -286,7 +262,7 @@ export function LineDefinitionPanel({
         <dt className="text-zinc-500">Bindings</dt>
         <dd className="text-zinc-300">
           {bindings.length === 0 ? (
-            <span className="text-zinc-500">None: every slot binds by fit</span>
+            <span className="text-zinc-600">None</span>
           ) : (
             bindings.map(([slot, provider]) => (
               <div key={slot}>
@@ -298,18 +274,12 @@ export function LineDefinitionPanel({
             ))
           )}
         </dd>
-        {line.acquisitionPolicy && (
-          <>
-            <dt className="text-zinc-500">Acquisition policy</dt>
-            <dd className="font-mono text-zinc-300">{line.acquisitionPolicy}</dd>
-          </>
-        )}
         <dt className="text-zinc-500">Retains</dt>
         <dd className="text-zinc-300">
           {retains.length === 0 && <span className="text-zinc-600">Nothing</span>}
           {retains.map((r, i) => (
             <div key={i}>
-              {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : <span className="text-zinc-500">{r.emitted ? "Its output" : "A source named at run time"}</span>}{" "}
+              {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : <span className="text-zinc-500">{r.emitted ? "Its output" : r.given ? `The source given as ${r.given}` : "A Capture naming no logical source"}</span>}{" "}
               <span className="text-zinc-500">under</span> <NamedRef kind="contract" name={r.contract} />
             </div>
           ))}
@@ -407,22 +377,5 @@ export function ProcedureWithGraph({ spec }: { spec: ProcedureSpec }) {
       </Panel>
       <ProcedureDefinition spec={spec} selectedStep={selected} />
     </>
-  );
-}
-
-/** What a step through an interface produces (its material or typed output), on its own line under the step. */
-function Produces({ fields }: { fields: { name: string; type: string }[] | null }) {
-  if (!fields?.length) return null;
-  return (
-    <div className="basis-full pl-[8.5rem] text-[11.5px] text-zinc-500">
-      produces{" "}
-      {fields.map((f, i) => (
-        <span key={f.name}>
-          {i > 0 && " · "}
-          <span className="font-mono text-zinc-300">{f.name}</span>
-          <span className="text-zinc-600">: {f.type}</span>
-        </span>
-      ))}
-    </div>
   );
 }

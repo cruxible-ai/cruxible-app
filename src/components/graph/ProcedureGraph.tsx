@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { ArrowRightLeft, ArrowUpDown, Clock, Cpu, CornerDownRight, Database, Download, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
-import { useInstanceId, useInterfaces } from "@/api/hooks";
+import { ArrowRightLeft, ArrowUpDown, Clock, Cpu, CornerDownRight, Database, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { useInstanceId } from "@/api/hooks";
 import { SignalDot } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
 import { CONTROL_CLASS, GraphCanvas, type GraphSelection } from "@/components/graph/GraphCanvas";
@@ -10,7 +10,7 @@ import { RefLink } from "@/components/RefLink";
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { parseRef, refRoute } from "@/lib/cruxible-ref";
-import { interfaceBase, producedFields, slotBinding, slotInterfaceRef, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
+import { type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
 import { providerName } from "@/lib/ontology";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
@@ -22,11 +22,11 @@ import { sentence } from "@/lib/text";
 /**
  * A Procedure as a left-to-right graph: one node per step, typed by its role
  * with one visual per role (an icon and a border), edges wherever a step
- * names another (`$step.field`, labelled with the field when short; a
- * guard's else as a dashed edge). On a Line page the graph is wrapped by the
- * Line: its Triggers and parameters on the left, its max authority on the
- * terminals, and a run's marks (what happened at each step) when one is
- * picked. Clicking a step focuses everything upstream and downstream of it
+ * names another (a `{$ref: step}` reference, labelled with its path when
+ * short; a guard's then/else as a dashed edge). Each node shows its id and
+ * kind and the definitions its step names. On a Line page the graph is
+ * wrapped by the Line: its Triggers and parameters on the left, and a run's
+ * marks (what happened at each step) when one is picked. Clicking a step focuses everything upstream and downstream of it
  * (the focus chip and Esc clear it) and tells the page which step it is.
  */
 
@@ -39,15 +39,13 @@ export interface GraphTrigger {
 
 export interface LineGraphContext {
   definition: LineDefinition | null;
-  maxAuthority: string;
   triggers: GraphTrigger[];
 }
 
 const ROLE_ICON: Record<StepRole, LucideIcon> = {
   input: SlidersHorizontal,
   trigger: Clock,
-  source: Download,
-  tap: Database,
+  read: Database,
   call: Cpu,
   invoke: CornerDownRight,
   guard: Funnel,
@@ -59,8 +57,7 @@ const ROLE_ICON: Record<StepRole, LucideIcon> = {
 const ROLE_BOX: Record<StepRole, string> = {
   input: "border-dashed border-zinc-700 bg-zinc-950",
   trigger: "border-dashed border-zinc-700 bg-zinc-950",
-  source: "border-zinc-600 border-l-[3px] border-l-zinc-400 bg-zinc-900",
-  tap: "border-zinc-700 bg-zinc-900",
+  read: "border-zinc-700 bg-zinc-900",
   call: "border-zinc-500 bg-zinc-900",
   invoke: "border-zinc-500 border-double border-[3px] bg-zinc-900",
   guard: "border-dashed border-zinc-500 bg-zinc-900",
@@ -176,11 +173,6 @@ export function ProcedureGraph({
 }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  const interfaces = useInterfaces();
-  const builds = useMemo(
-    () => new Map((interfaces.data?.rows ?? []).map((row) => [row.name, (row.providers ?? []).map((p) => p.provider)] as const)),
-    [interfaces.data],
-  );
   const model = useMemo(() => buildProcedureGraph(spec), [spec]);
   const definition = line?.definition ?? null;
 
@@ -197,35 +189,22 @@ export function ProcedureGraph({
     [instanceId, link],
   );
 
-  // Every node's words, from the definition (and the Line, and the run).
+  // Every node's id and kind, and what its step names (the Line's binding and the run's marks when given).
   const display = useMemo(() => {
     const out = new Map<string, NodeDisplay>();
-    const bindingLine = (slot: string | null, step: string, mark: StepMark | null): NodeLine[] => {
-      if (!slot) return [];
-      const iface = spec.slots?.[slot] ?? null;
-      const lines: NodeLine[] = [
+    const bindingLine = (slot: string, mark: StepMark | null): NodeLine[] => {
+      const provider = mark?.provider ?? definition?.bindings[slot] ?? null;
+      if (!provider) return [{ text: `slot ${slot}`, tone: "dim" }];
+      const pinned = Boolean(mark?.provider);
+      return [
         {
-          // The slot is usually named after its step: then only the interface it takes.
-          text: slot === step ? `via ${iface ?? "?"}` : `slot ${slot} → ${iface ?? "?"}`,
-          title: iface ? `Slot ${slot} takes ${iface}` : `Slot ${slot} (no interface declared)`,
-          to: iface ? routeOf(slotInterfaceRef(iface)) : null,
+          text: `slot ${slot} → ${providerName(provider)}`,
+          title: pinned ? `This run's receipt pins ${provider}` : `The Line binds slot ${slot} to ${provider}`,
+          to: routeOf(`Provider:${provider}`),
+          tone: "plain",
         },
       ];
-      if (mark?.provider) {
-        lines.push({ text: `Pinned ${providerName(mark.provider)}`, title: `This run's receipt pins ${mark.provider}`, tone: "plain" });
-        return lines;
-      }
-      const binding = slotBinding(iface, definition?.bindings[slot], builds);
-      if (binding.kind === "line") lines.push({ text: `Line binds ${providerName(binding.provider)}`, title: binding.provider, to: routeOf(`Provider:${binding.provider}`), tone: "plain" });
-      else if (binding.kind === "fit") lines.push({ text: `By fit: ${providerName(binding.provider)}`, title: `No explicit binding: binds by fit to the one installed build, ${binding.provider}`, to: routeOf(`Provider:${binding.provider}`), tone: "plain" });
-      else if (binding.kind === "fit_many") lines.push({ text: `By fit: one of ${binding.providers.length} builds`, title: binding.providers.join("\n"), tone: "plain" });
-      else if (!interfaces.isPending) lines.push({ text: "No installed build", title: "No installed build fits this slot: install a Provider for its interface", tone: "plain", signal: "wrong" });
-      return lines;
     };
-    const authority = (kind: string): NodeLine[] =>
-      line && ["propose", "settle", "emit", "inbox"].includes(kind)
-        ? [{ text: `Max authority ${term("authority", line.maxAuthority).word}`, title: term("authority", line.maxAuthority).meaning, tone: "plain" }]
-        : [];
 
     for (const node of model.nodes) {
       const mark = run?.marks.get(node.id) ?? null;
@@ -235,73 +214,29 @@ export function ProcedureGraph({
       const v = node.view;
       if (node.kind === "input") {
         const parameters = Object.entries(definition?.parameters ?? {});
+        name = null;
         if (line && parameters.length > 0) {
           kind = "parameters";
-          name = null;
           for (const [key, value] of parameters) lines.push({ text: `${key} = ${typeof value === "string" ? value : JSON.stringify(value)}` });
         } else {
-          name = null;
           for (const field of node.detail) lines.push({ text: field, tone: "dim" });
-          if (node.detail.length === 0) lines.push({ text: "Given at run", tone: "plain" });
         }
-      } else if (v && node.kind === "source") {
-        if (v.contract) lines.push({ text: v.contract, title: `Retains a Capture under ${v.contract}`, to: contractRoute(v.contract) });
-        if (definition?.triggerInput && definition.triggerInput === v.name) {
-          lines.push({ text: "Reads the landing", title: "This Line's trigger input: the step reads the Capture whose landing started the run", tone: "plain" });
-        } else if (v.logicalSource && "literal" in v.logicalSource) {
-          lines.push({ text: `from ${v.logicalSource.literal}`, title: `Logical source ${v.logicalSource.literal}` });
-        } else if (v.logicalSource) {
-          const given = definition?.parameters[v.logicalSource.input];
-          lines.push(
-            typeof given === "string"
-              ? { text: `from ${given}`, title: `Logical source $input.${v.logicalSource.input} = ${given}` }
-              : { text: `from $input.${v.logicalSource.input}`, title: "Logical source given at run", tone: "dim" },
-          );
-        } else {
-          lines.push({ text: "Source named at run time", title: "The request names no logical source; the Provider picks it when it runs", tone: "plain" });
-        }
-        lines.push(...bindingLine(v.slot, node.id, mark));
-      } else if (v && node.kind === "tap") {
+      } else if (v) {
+        for (const contract of v.contracts) lines.push({ text: contract, title: `CaptureContract ${contract}`, to: contractRoute(contract) });
+        if (v.slot) lines.push(...bindingLine(v.slot, mark));
         if (v.query) lines.push({ text: v.query, title: `Query ${v.query}`, to: routeOf(`QueryDefinition:${v.query}`) });
-      } else if (v && node.kind === "claim") {
-        if (v.claimType) lines.push({ text: v.claimType, to: routeOf(`ClaimType:${v.claimType}`) });
-      } else if (v && node.kind === "call") {
-        lines.push(...bindingLine(v.slot, node.id, mark));
-      } else if (v && node.kind === "invoke") {
-        if (v.procedure) lines.push({ text: v.procedure, title: `Runs Procedure ${v.procedure}`, to: routeOf(`Procedure:${v.procedure}`) });
-        if (v.name) lines.push({ text: `as ${v.name}`, tone: "dim" });
-      } else if (v && node.kind === "guard" && node.index !== null) {
-        const step = spec.steps[node.index] as Record<string, unknown>;
-        const condition = typeof step.guard === "string" ? step.guard : "";
-        lines.push({ text: condition, title: condition });
-        const otherwise = typeof step.else === "string" ? step.else : null;
-        const refusal = typeof step.refusal_code === "string" ? step.refusal_code : null;
-        const handsTo = model.edges.find((e) => e.kind === "control" && e.source === node.id && e.fields.includes("else"));
-        if (handsTo) {
-          const target = model.nodes.find((n) => n.id === handsTo.target);
-          lines.push({ text: target?.kind === "halt" ? `Else halt ${target.detail[0] ?? ""}` : `Else ${handsTo.target}`, tone: "plain" });
-        } else if (otherwise?.startsWith("abort") || refusal) {
-          lines.push({ text: `Else refuses ${refusal ?? "guard_refused"}`, tone: "plain" });
+        if (v.procedure) lines.push({ text: v.procedure, title: `Procedure ${v.procedure}`, to: routeOf(`Procedure:${v.procedure}`) });
+        if (v.detail) lines.push({ text: v.detail });
+        if (definition?.triggerInput && definition.triggerInput === (v.name ?? v.id)) {
+          lines.push({ text: "Reads the landing", title: "This Line's trigger input: the step reads the Capture whose landing started the run", tone: "plain" });
         }
-      } else if (v && (node.kind === "propose" || node.kind === "settle")) {
-        if (v.detail) lines.push({ text: v.detail, title: `${node.kind === "settle" ? "Settles" : "Proposes"} ${v.detail}` });
-        lines.push(...authority(node.kind));
-      } else if (v && node.kind === "emit") {
-        if (v.contract) lines.push({ text: v.contract, title: `Retains the output under ${v.contract}`, to: contractRoute(v.contract) });
-        lines.push(...authority(node.kind));
-      } else if (v && node.kind === "inbox" && node.index !== null) {
-        const max = (spec.steps[node.index] as { max_items?: unknown }).max_items;
-        if (typeof max === "number") lines.push({ text: `At most ${max} items`, tone: "plain" });
-        lines.push(...authority(node.kind));
       } else if (node.kind === "halt") {
-        lines.push({ text: node.detail[0] ?? "", title: `Halts with ${node.detail[0] ?? "a code"}` });
+        if (node.detail[0]) lines.push({ text: node.detail[0] });
       } else if (node.kind === "returns") {
         lines.push({ text: `${node.detail.length} ${node.detail.length === 1 ? "field" : "fields"}`, title: node.detail.join(", "), tone: "plain" });
-      } else if (v && (node.kind === "project" || node.kind === "transform" || node.kind === "select" || node.kind === "repeat")) {
-        if (v.contract) lines.push({ text: v.contract, title: `Contract ${v.contract}` });
       }
       if (node.unresolved.length > 0) {
-        const names = [...new Set(node.unresolved.map((r) => `$${r.name}`))];
+        const names = [...new Set(node.unresolved.map((r) => r.name))];
         lines.push({ text: `names ${names.join(", ")}`, title: `${names.join(", ")}: no step of this Procedure declares ${names.length === 1 ? "it" : "them"}`, tone: "dim" });
       }
       const word = term("stepKind", kind);
@@ -322,12 +257,14 @@ export function ProcedureGraph({
       });
     }
     return out;
-  }, [model, spec, line, definition, run, builds, interfaces.isPending, routeOf, contractRoute]);
+  }, [model, line, definition, run, routeOf, contractRoute]);
 
   // The edges: the definition's, plus a landing Trigger into the step that reads the landing.
   const edges = useMemo(() => {
     const out = model.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, control: e.kind === "control", label: e.kind === "control" ? e.fields.join(", ") : edgeLabel(e) }));
-    const inputStep = definition?.triggerInput ? model.nodes.find((n) => n.view?.kind === "source" && n.view.name === definition.triggerInput) : undefined;
+    const inputStep = definition?.triggerInput
+      ? model.nodes.find((n) => n.view?.kind === "call" && (n.view.name ?? n.view.id) === definition.triggerInput)
+      : undefined;
     for (const trigger of line?.triggers ?? []) {
       if (trigger.landing && inputStep) {
         out.push({ id: `landing:${trigger.name}`, source: `${TRIGGER_PREFIX}${trigger.name}`, target: inputStep.id, control: false, label: "lands" });
@@ -454,13 +391,7 @@ export function ProcedureGraph({
         renderPanel={(selection) => {
           if (selection.kind !== "node") return null;
           const view = model.nodes.find((n) => n.id === selection.id)?.view;
-          return view ? (
-            <StepPanel
-              view={view}
-              produced={view.interface ? producedFields(interfaces.data?.rows.find((r) => r.name === interfaceBase(view.interface!))?.operation_contract) : null}
-              binding={bindingWords(view, definition, builds)}
-            />
-          ) : null;
+          return view ? <StepPanel view={view} binding={view.slot ? (definition?.bindings[view.slot] ?? null) : null} /> : null;
         }}
         className=""
         height={canvasHeight}
@@ -488,7 +419,7 @@ export function ProcedureGraph({
 
 /** The colors of the roles this graph uses, in reading order. */
 function RoleLegend({ roles }: { roles: StepRole[] }) {
-  const order: StepRole[] = ["trigger", "input", "source", "tap", "call", "invoke", "guard", "shape", "terminal"];
+  const order: StepRole[] = ["trigger", "input", "read", "call", "invoke", "guard", "shape", "terminal"];
   const present = order.filter((r) => roles.includes(r));
   return (
     <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 border border-zinc-800 bg-zinc-950/90 px-2 py-0.5 text-[11px] text-zinc-400">
@@ -502,18 +433,8 @@ function RoleLegend({ roles }: { roles: StepRole[] }) {
   );
 }
 
-/** How a step's slot binds: the Line's explicit binding, else the one installed build that fits, else why not. */
-function bindingWords(view: StepView, definition: LineDefinition | null, builds: ReadonlyMap<string, string[]>): string | null {
-  if (!view.slot || !view.interface) return null;
-  const explicit = definition?.bindings[view.slot];
-  if (explicit) return `Line binds ${providerName(explicit)}`;
-  const installed = builds.get(interfaceBase(view.interface)) ?? [];
-  if (installed.length === 1) return `By fit: ${providerName(installed[0]!)}`;
-  return installed.length > 1 ? `By fit: one of ${installed.length} installed builds` : "No installed build fits this slot";
-}
-
-/** A clicked step: what it is, what it names (linked), how its slot binds, and what it produces. */
-function StepPanel({ view, produced, binding }: { view: StepView; produced: { name: string; type: string }[] | null; binding: string | null }) {
+/** A clicked step: what it is, what it names (linked), and the build the Line binds its slot to. */
+function StepPanel({ view, binding }: { view: StepView; binding: string | null }) {
   const row = (label: string, value: ReactNode) => (
     <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2">
       <dt className="text-zinc-500">{label}</dt>
@@ -529,28 +450,18 @@ function StepPanel({ view, produced, binding }: { view: StepView; produced: { na
       </div>
       <dl className="space-y-1">
         {view.name && view.name !== view.id && row("Name", <span className="font-mono">{view.name}</span>)}
-        {view.contract && row("Contract", <RefLink value={`CaptureContract:${view.contract}`} />)}
+        {view.contracts.map((contract) => (
+          <div key={contract}>{row("Contract", <RefLink value={`CaptureContract:${contract}`} />)}</div>
+        ))}
         {view.query && row("Query", <RefLink value={`query:${view.query}`} />)}
-        {view.claimType && row("ClaimType", <RefLink value={`ClaimType:${view.claimType}`} />)}
+        {view.claimTypes.map((claimType) => (
+          <div key={claimType}>{row("ClaimType", <RefLink value={`ClaimType:${claimType}`} />)}</div>
+        ))}
         {view.procedure && row("Procedure", <RefLink value={`Procedure:${view.procedure}`} />)}
-        {view.interface && row("Interface", <RefLink value={slotInterfaceRef(view.interface)} />)}
         {view.slot && row("Slot", <span className="font-mono">{view.slot}</span>)}
-        {binding && row("Binds", binding)}
+        {binding && row("Binds", <RefLink value={`Provider:${binding}`}>{providerName(binding)}</RefLink>)}
         {view.detail && row("Detail", <span className="font-mono">{view.detail}</span>)}
       </dl>
-      {produced && produced.length > 0 && (
-        <div>
-          <div className="t-meta mb-0.5">Produces</div>
-          <ul className="space-y-0.5">
-            {produced.map((f) => (
-              <li key={f.name}>
-                <span className="font-mono text-zinc-200">{f.name}</span>
-                <span className="text-zinc-600">: {f.type}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

@@ -266,7 +266,8 @@ export function proposalsQuery(
 export function reviewBody(
   itemReasonsAfter?: string,
 ): RequestBody<"/api/v1/{instance_id}/proposals/{proposal_id}/review", "post"> {
-  return itemReasonsAfter !== undefined ? { item_reasons_after: itemReasonsAfter } : {};
+  // detail: the full review (members, attestations); without it the daemon answers the summary form.
+  return itemReasonsAfter !== undefined ? { detail: true, item_reasons_after: itemReasonsAfter } : { detail: true };
 }
 
 export function inboxQuery(

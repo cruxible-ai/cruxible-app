@@ -172,7 +172,7 @@ if (args.only === "graph") {
 // every Mandate card with its condition query's card (settlers, Line pages).
 if (!args.only || args.only === "ontology") {
   const all = async (
-    section: "subject_kinds" | "claim_types" | "capture_contracts" | "mandates" | "lines" | "pins" | "procedures" | "interfaces",
+    section: "subject_kinds" | "claim_types" | "capture_contracts" | "mandates" | "lines" | "pins" | "procedures",
   ) => {
     const rows: Record<string, unknown>[] = [];
     let cursor: string | undefined;
@@ -225,7 +225,6 @@ if (!args.only || args.only === "ontology") {
   for (let i = 0; i < lineProofRefs.length; i += GET_BATCH_MAX) {
     await call("post", `${P}/get-batch`, { body: getBatchBody(lineProofRefs.slice(i, i + GET_BATCH_MAX), C, "proof") });
   }
-  await all("interfaces");
   if (args.only === "ontology") {
     writeRecordings(false);
     process.exit(0);
@@ -375,7 +374,7 @@ for (const line of lines) {
   const procedure = line.procedure.replace(/^Procedure:/, "");
   await fetchCards([`Procedure:${procedure}`]).catch(() => null);
   await call("post", `${P}/procedures/{name}/readings`, { pathParams: { name: procedure }, body: readingsBody(C, 50) });
-  for (const mandate of mandates.filter((m) => m.procedure.replace(/^Procedure:/, "") === procedure)) {
+  for (const mandate of mandates.filter((m) => lineName(m.line) === name)) {
     await recordMandate(mandate.mandate);
   }
   const inbox = await call<{ entries: { item: { item_id: string } }[] }>("get", `${P}/inbox`, {
