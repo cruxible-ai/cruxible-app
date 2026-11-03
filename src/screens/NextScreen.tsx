@@ -1,4 +1,5 @@
 import type { NextSeverity } from "@/api/schemas";
+import { InfoButton } from "@/components/InfoButton";
 import { SignalDot } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { NextTable } from "@/components/next/NextTable";
@@ -55,7 +56,19 @@ export function NextScreen() {
       {page.isPending && <LoadState />}
       {page.error && <LoadState error={page.error} />}
       {page.data && items.length > 0 && (
-        <Panel title="Items" meta={<span>{items.length} on this page</span>}>
+        <Panel
+          title="Items"
+          meta={
+            <span className="inline-flex items-center gap-2">
+              {items.length} on this page
+              {page.data.unobserved_domains.length > 0 && (
+                <InfoButton label="What the console does not check">
+                  Not checked from the console: {page.data.unobserved_domains.map(humanize).join(", ")}. Items that need the workspace (drifted citations, edited projections) appear only from the CLI or MCP.
+                </InfoButton>
+              )}
+            </span>
+          }
+        >
           <NextTable
             items={items}
             partial={more ? `${index === 0 ? "the first" : "this page of"} ${items.length} of ${page.data.total_items}` : null}
@@ -63,13 +76,6 @@ export function NextScreen() {
         </Panel>
       )}
       {page.data && items.length === 0 && page.data.total_items > 0 && <EmptyState>Nothing on this page.</EmptyState>}
-      {page.data && page.data.unobserved_domains.length > 0 && (
-        <div className="t-meta measure">
-          Not observed from the console: {page.data.unobserved_domains.map(humanize).join(", ")}. Rows that
-          need a workspace observation (drifted citations, edited projections) appear only for callers that send
-          one.
-        </div>
-      )}
     </Page>
   );
 }

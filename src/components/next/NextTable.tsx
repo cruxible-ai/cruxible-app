@@ -70,15 +70,21 @@ export function NextTable({
   label?: string;
   empty?: string;
 }) {
+  // plain rows, ordered by item type, then severity
   const ordered = useMemo(
-    () => [...items].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]),
+    () =>
+      [...items].sort(
+        (a, b) =>
+          reasonMeta(a.reason).label.localeCompare(reasonMeta(b.reason).label) || SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity],
+      ),
     [items],
   );
   const shares = useMemo(() => reasonShares(items), [items]);
   // the columns depend on whether rows are grouped (no sort); read the sort first
   const probe = useMemo(() => nextColumns({ grouped: false, shares, family, items }), [shares, family, items]);
   const [state] = useTableState(probe, urlKey);
-  const grouped = state.sort === null;
+  // rows are not grouped: every row carries its own type, severity, since and repair
+  const grouped = false && state.sort === null;
   const columns = useMemo(() => nextColumns({ grouped, shares, family, items }), [grouped, shares, family, items]);
   return (
     <DataTable
@@ -89,36 +95,10 @@ export function NextTable({
       label={label}
       partial={partial}
       empty={empty}
-      group={{
-        key: (item) => `${item.severity}\n${item.reason}`,
-        header: (rows) => <GroupLine rows={rows} share={shares.get(rows[0]!.reason)} />,
-      }}
     />
   );
 }
 
-function GroupLine({ rows, share }: { rows: NextItem[]; share: ReasonShare | undefined }) {
-  const first = rows[0]!;
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-3">
-      <Chip concept="severity" value={first.severity} />
-      <span className="text-[13px] font-semibold text-zinc-100" title={first.reason}>
-        {reasonMeta(first.reason).label}
-      </span>
-      <span className="font-mono text-[12px] text-zinc-500">{rows.length}</span>
-      {(share?.common ?? []).map(({ spec, value }) => (
-        <span key={spec.key} className="inline-flex items-baseline gap-1.5 text-[12px]">
-          {spec.label && <span className="text-zinc-500">{spec.label}</span>}
-          <span className="text-zinc-300">
-            <FieldValue spec={spec} value={value} />
-          </span>
-        </span>
-      ))}
-      {share?.sharedSince && first.since && <Since iso={first.since} />}
-      {share?.sharedRepair && <RepairText item={first} />}
-    </div>
-  );
-}
 
 /**
  * The columns a page needs. Grouped (no sort), the group line carries severity,
@@ -144,20 +124,8 @@ function nextColumns({
   const anyRepair = items.some((item) => (item.repair || item.repair_requires) && !(grouped && shares.get(item.reason)?.sharedRepair));
   const columns: (Column<NextItem> | null)[] = [
     {
-      id: "severity",
-      header: "Severity",
-      sortValue: (item) => SEVERITY_RANK[item.severity],
-      filter: { kind: "enum", values: (item) => [item.severity] },
-      options: ["blocking", "repair", "warning", "setup"],
-      optionLabel: (value) => term("severity", value).word,
-      className: "whitespace-nowrap",
-      // grouped: the group line says it
-      defaultHidden: grouped,
-      cell: (item) => (grouped ? null : <Chip concept="severity" value={item.severity} />),
-    },
-    {
       id: "reason",
-      header: "Reason",
+      header: "Item",
       sortValue: (item) => reasonMeta(item.reason).label,
       filter: { kind: "enum", values: (item) => [item.reason] },
       optionLabel: (value) => reasonMeta(value as NextItem["reason"]).label,
@@ -169,6 +137,18 @@ function nextColumns({
             {reasonMeta(item.reason).label}
           </span>
         ),
+    },
+    {
+      id: "severity",
+      header: "Severity",
+      sortValue: (item) => SEVERITY_RANK[item.severity],
+      filter: { kind: "enum", values: (item) => [item.severity] },
+      options: ["blocking", "repair", "warning", "setup"],
+      optionLabel: (value) => term("severity", value).word,
+      className: "whitespace-nowrap",
+      // grouped: the group line says it
+      defaultHidden: grouped,
+      cell: (item) => (grouped ? null : <Chip concept="severity" value={item.severity} />),
     },
     family
       ? {
@@ -184,13 +164,27 @@ function nextColumns({
       : null,
     {
       id: "about",
-      header: "Subject",
-      title: "The Subject, Claim, Line or proposal the row is about",
+      header: "About",
+      title: "The Subject, Claim, Line or proposal the item is about",
       hideable: false,
       sortValue: (item) => item.subject_identity,
       filter: { kind: "text", text: (item) => [item.subject_identity, ...(item.related_identities ?? [])].join(" ") },
       className: "min-w-[15rem] max-w-[24rem] break-words",
-      cell: (item) => <RefLink value={item.subject_identity} short />,
+      cell: (item) => {
+        // "Line:security.kev-triage" reads as the name, linked, with its kind beside it
+        const colon = item.subject_identity.indexOf(":");
+        const prefix = colon > 0 ? item.subject_identity.slice(0, colon) : null;
+        // a Claim id reads as itself; definitions (Line, Proposal, …) name their kind
+        const kind = prefix && prefix !== "Claim" && prefix !== "sha256" ? prefix : null;
+        return (
+          <span className="inline-flex items-baseline gap-2">
+            <RefLink value={item.subject_identity} short className="hover:underline">
+              {kind ? item.subject_identity.slice(colon + 1) : undefined}
+            </RefLink>
+            {kind && <span className="text-[11px] text-zinc-500">{kind}</span>}
+          </span>
+        );
+      },
     },
     anyRelated
       ? {

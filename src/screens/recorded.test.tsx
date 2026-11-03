@@ -91,6 +91,9 @@ describe("recorded reference world", () => {
     // two Lines accepted but never enabled
     const notEnabled = await m.findByText("Line not enabled");
     expect(notEnabled.nextElementSibling).toHaveTextContent("2");
+    // the group's explanation sits behind its info button, not on the line
+    expect(m.queryByText("accepted but never enabled; enable it to run on its Triggers")).toBeNull();
+    fireEvent.click(m.getByRole("button", { name: "About these items" }));
     expect(m.getByText("accepted but never enabled; enable it to run on its Triggers")).toBeInTheDocument();
   });
 

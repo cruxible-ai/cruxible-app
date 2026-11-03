@@ -1,5 +1,6 @@
 /** How a `next` row's detail fields and repair read (the Next table's cells and group lines). */
 import type { NextItem } from "@/api/schemas";
+import { InfoButton } from "@/components/InfoButton";
 import { RefLink } from "@/components/RefLink";
 import { parseRef } from "@/lib/cruxible-ref";
 import { captureHandle, type FieldSpec } from "@/lib/next-reasons";
@@ -67,25 +68,24 @@ export function FieldValue({ spec, value }: { spec: FieldSpec; value: unknown })
 export function RepairText({ item }: { item: NextItem }) {
   if (!item.repair && !item.repair_requires) return null;
   return (
-    <div className="t-meta">
-      {item.repair && (
+    <span className="inline-flex items-center gap-1.5 text-[12px]">
+      {item.repair?.command ? (
+        <code className="font-mono text-[11px] text-zinc-300" title="Run from the CLI or MCP; the console is read-only">
+          {item.repair.command}
+        </code>
+      ) : (
+        item.repair && <span className="font-mono text-zinc-400">{item.repair.operation}</span>
+      )}
+      {item.repair?.required_change && <InfoButton label="What the repair changes">{item.repair.required_change}</InfoButton>}
+      {item.repair_requires && (
         <>
-          <span className="font-mono text-zinc-400">{item.repair.operation}</span> {item.repair.required_change}
-          {item.repair.command && (
-            <code className="ml-2 font-mono text-[11px] text-zinc-400" title="Run from the CLI; the console is read-only">
-              {item.repair.command}
-            </code>
-          )}
+          <span className="text-zinc-500">needs {item.repair_requires.tier}</span>
+          <InfoButton label="Why the repair is not shown">
+            The repair needs a {item.repair_requires.tier} token ({item.repair_requires.because.join(", ")}). The console reads without one.
+          </InfoButton>
         </>
       )}
-      {item.repair_requires && (
-        <span className={item.repair ? "ml-2" : undefined}>
-          {item.repair
-            ? `Needs a ${item.repair_requires.tier} token (${item.repair_requires.because.join(", ")})`
-            : `The repair needs a ${item.repair_requires.tier} token (${item.repair_requires.because.join(", ")}); this console reads without one, so next leaves it out`}
-        </span>
-      )}
-    </div>
+    </span>
   );
 }
 
