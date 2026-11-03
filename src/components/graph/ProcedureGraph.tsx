@@ -508,11 +508,19 @@ function StepPanel({ view, sections, mark }: { view: StepView; sections: DetailS
       {sections.map((section) =>
         section.columns && section.cells ? (
           <PanelGroup key={section.title} title={section.title}>
-            <table className="w-full text-[12px]" aria-label={section.title}>
+            <table className="w-full table-fixed text-[12px]" aria-label={section.title}>
+              <colgroup>
+                <col />
+                {section.columns.slice(1).map((column) => (
+                  <col key={column.header} className="w-[7.5rem]" />
+                ))}
+              </colgroup>
               <thead>
                 <tr className="text-left text-[11px] text-zinc-500">
-                  <th className="py-1 pr-3 font-normal">ClaimType</th>
-                  {section.columns.map((column) => (
+                  <th className="py-1 pr-2 font-normal">
+                    ClaimType <span className="text-zinc-600">· {section.columns[0]?.header.toLowerCase()}</span>
+                  </th>
+                  {section.columns.slice(1).map((column) => (
                     <th key={column.header} className="py-1 pr-3 font-normal">
                       <span className="inline-flex items-center gap-1">
                         {column.header}
@@ -524,18 +532,24 @@ function StepPanel({ view, sections, mark }: { view: StepView; sections: DetailS
               </thead>
               <tbody>
                 {section.rows.map((row, i) => (
-                  <tr key={`${row.label}:${i}`} className="border-t border-zinc-800 align-baseline">
-                    <td className="py-1.5 pr-3 font-mono text-zinc-200" title={row.title}>
-                      {route(row.ref) ? (
-                        <Link to={route(row.ref)!} className="hover:underline">
-                          {row.label}
-                        </Link>
-                      ) : (
-                        row.label
-                      )}
+                  <tr key={`${row.label}:${i}`} className="border-t border-zinc-800 align-top">
+                    {/* the name, and what fills it beneath: two columns fit the panel */}
+                    <td className="min-w-0 py-1.5 pr-2">
+                      <div className="break-all font-mono text-zinc-200" title={row.title}>
+                        {route(row.ref) ? (
+                          <Link to={route(row.ref)!} className="hover:underline">
+                            {row.label}
+                          </Link>
+                        ) : (
+                          row.label
+                        )}
+                      </div>
+                      <div className="break-all text-[11px] text-zinc-500">
+                        <Parts parts={section.cells![i]?.[0] ?? []} />
+                      </div>
                     </td>
-                    {(section.cells![i] ?? []).map((cell, j) => (
-                      <td key={j} className="break-words py-1.5 pr-3 text-zinc-300">
+                    {(section.cells![i] ?? []).slice(1).map((cell, j) => (
+                      <td key={j} className="whitespace-nowrap py-1.5 text-zinc-300">
                         <Parts parts={cell} />
                       </td>
                     ))}
