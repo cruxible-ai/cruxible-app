@@ -352,7 +352,12 @@ function ClaimRow({
       labelTitle={`${predicate}${descriptor ? ` · ${descriptor.cardinality} · ${descriptor.type}` : ""}${need === "none" ? " · no evidence required" : ""}`}
       label={
         <>
-          {entry.predicate}
+          {/* core's built-in identity fields read in words */}
+          {entry.predicate === "alias" || predicate === "semantic.alias"
+            ? "also known as"
+            : entry.predicate === "distinct_from" || predicate === "semantic.distinct_from"
+              ? "not the same as"
+              : entry.predicate}
           {entry.qualifier && <span className="text-zinc-500">[{entry.qualifier}]</span>}
         </>
       }

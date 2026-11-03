@@ -4,6 +4,7 @@ import { cardOf, type Schemas } from "@/api/schemas";
 import { arrivalWords, gist, hostOf, lineFlows, lineGist, type Retention } from "@/lib/definitions";
 import { buildFlow, readClaimTypeAccepts, type AcceptedEvidence, type FlowModel } from "@/lib/evidence-flow";
 import { lineName } from "@/lib/lines";
+import { isCoreIdentity } from "@/lib/ontology";
 import { wakeOf } from "@/lib/schedule";
 import { sentence } from "@/lib/text";
 
@@ -108,7 +109,7 @@ export function useFlowModel() {
           postsInbox: flow?.inbox ?? false,
         };
       }),
-      claimTypes: claimTypes.data.rows,
+      claimTypes: claimTypes.data.rows.filter((row) => !isCoreIdentity(row.predicate)),
       accepts,
       keys: new Set((subjectKinds.data?.rows ?? []).flatMap((kind) => kind.keys ?? [])),
     });

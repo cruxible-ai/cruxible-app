@@ -237,3 +237,11 @@ export function sourceKindLabel(kind: string): string {
 export function contractName(value: string): string {
   return value.replace(/^CaptureContract:/, "");
 }
+
+/**
+ * Core's built-in identity ClaimTypes (`semantic.alias`, `semantic.distinct_from`)
+ * and their placeholder kind (`semantic.subject`, "a Subject of any kind"):
+ * identity upkeep on individual Subjects, not part of the instance's model.
+ * The Type map and Evidence flow leave them out; a Subject page shows an alias.
+ */
+export const isCoreIdentity = (name: string) => name === "semantic.subject" || name.startsWith("semantic.");

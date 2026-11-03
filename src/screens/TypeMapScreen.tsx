@@ -23,6 +23,7 @@ import { layoutTypeGraph, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { claimTypeWriters, type ClaimTypeWriter } from "@/lib/definitions";
+import { isCoreIdentity } from "@/lib/ontology";
 import { shortNames } from "@/lib/evidence-flow";
 import { placeLabels } from "@/lib/route";
 import { LegendRow, SearchBox, Stat, StatsRow } from "@/components/StatsRow";
@@ -116,23 +117,31 @@ export function TypeMapScreen() {
   const [params, setParams] = useSearchParams();
   usePageTitle("Type map");
 
-  const allKinds = useMemo(() => buildTypeGraph(kinds.data?.kinds ?? []), [kinds.data]);
+  // The instance's own model: core's built-in identity kind and ClaimTypes are left out.
+  const modelKinds = useMemo(
+    () =>
+      (kinds.data?.kinds ?? [])
+        .filter((k) => !isCoreIdentity(k.kind))
+        .map((k) => ({ ...k, predicates: k.predicates.filter((p) => !isCoreIdentity(p.predicate)) })),
+    [kinds.data],
+  );
+  const allKinds = useMemo(() => buildTypeGraph(modelKinds), [modelKinds]);
   // ?populated=1 keeps only kinds that hold Subjects (and the links between them);
   // ?populated=0 shows every kind. Unset, it starts on when most declared kinds are
   // empty (a fresh or partly loaded instance), unless the URL opens on a kind or field.
   const populatedParam = params.get("populated");
   const mostlyEmpty = useMemo(() => {
-    const all = kinds.data?.kinds ?? [];
+    const all = modelKinds;
     return all.length > 0 && all.filter((k) => k.subjects === 0).length * 2 > all.length;
   }, [kinds.data]);
   // The toggle only means something when some declared kind holds no Subjects.
-  const someEmpty = useMemo(() => (kinds.data?.kinds ?? []).some((k) => k.subjects === 0), [kinds.data]);
+  const someEmpty = useMemo(() => modelKinds.some((k) => k.subjects === 0), [modelKinds]);
   const opensOnSomething = params.has("kind") || params.has("focus") || params.has("claim_type");
   const populatedOnly =
     populatedParam === "1" || (populatedParam === null && mostlyEmpty && !opensOnSomething);
   const fullGraph = useMemo(() => {
     if (!populatedOnly) return allKinds;
-    const held = new Set((kinds.data?.kinds ?? []).filter((k) => k.subjects > 0).map((k) => k.kind));
+    const held = new Set(modelKinds.filter((k) => k.subjects > 0).map((k) => k.kind));
     return {
       ...allKinds,
       nodes: allKinds.nodes.filter((n) => held.has(n.kind)),
@@ -274,7 +283,7 @@ export function TypeMapScreen() {
     if (claimTypeParam) {
       const edge = edgeForPredicate(graph.edges, claimTypeParam);
       if (edge) return { id: edge.id, kind: "edge" as const, nonce };
-      const owner = (kinds.data?.kinds ?? []).find((k) =>
+      const owner = modelKinds.find((k) =>
         k.predicates.some((p) => p.predicate === claimTypeParam),
       );
       if (owner) return { id: owner.kind, nonce };
@@ -288,7 +297,7 @@ export function TypeMapScreen() {
 
   function renderPanel(selection: GraphSelection, api: GraphPanelApi) {
     if (selection.kind === "node") {
-      const kind = (kinds.data?.kinds ?? []).find((k) => k.kind === selection.id);
+      const kind = modelKinds.find((k) => k.kind === selection.id);
       return (
         <KindPanel
           kind={selection.id}
