@@ -492,7 +492,9 @@ function KindPanel({
       {groupByWriter(predicates.filter((p) => !(rule?.keys ?? []).includes(p.predicate)), writers).map((group) => (
         <div key={group.title} className="mt-4 border-t border-zinc-800 pt-3">
           {group.line ? (
-            <div className="mb-1.5 grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[12px]">
+            <>
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Produced by</div>
+            <div className="mb-3 grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[12px]">
               <span className="text-zinc-500">Source</span>
               <span className="text-zinc-100" title={group.sources.length > 0 ? `reads ${group.sources.join(", ")}` : undefined}>
                 {group.hosts.length > 0 ? group.hosts.join(", ") : group.sources.join(", ") || "—"}
@@ -502,6 +504,7 @@ function KindPanel({
                 {group.line}
               </Link>
             </div>
+            </>
           ) : (
             <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">{group.title}</div>
           )}
