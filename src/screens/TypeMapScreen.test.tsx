@@ -30,20 +30,17 @@ describe("Type map", () => {
     expect(panel.getByText("assessment")).toBeInTheDocument(); // pointed at by (namespace dropped)
   });
 
-  it("toggles to only kinds that hold Subjects, linkable from the URL", async () => {
+  it("offers the Subjects-only toggle only when some kind holds no Subjects", async () => {
+    // every fixture kind holds Subjects, so the toggle could change nothing and is not shown
     renderApp("/i/inst_fixture/map");
-    const toggle = await screen.findByRole("button", { name: "Only kinds with Subjects" });
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(toggle);
-    expect(await screen.findByRole("button", { name: "Only kinds with Subjects", pressed: true })).toBeInTheDocument();
-    // every fixture kind holds Subjects, so nothing drops and the count reads as all kinds
-    expect(screen.queryByText(/^of \d+ kinds$/)).toBeNull();
+    await screen.findAllByText(/vulnerability/);
+    expect(screen.queryByRole("button", { name: "Only kinds with Subjects" })).toBeNull();
     cleanup();
+    // nor does an explicit ?populated=1 hide any kind
     renderApp("/i/inst_fixture/map?populated=1");
-    const on = await screen.findByRole("button", { name: "Only kinds with Subjects", pressed: true });
-    // switching it off is explicit in the URL, so a mostly empty map can still show every kind
-    fireEvent.click(on);
-    expect(await screen.findByRole("button", { name: "Only kinds with Subjects", pressed: false })).toBeInTheDocument();
+    await screen.findAllByText(/vulnerability/);
+    expect(screen.queryByRole("button", { name: "Only kinds with Subjects" })).toBeNull();
+    expect(screen.queryByText(/^of \d+ kinds$/)).toBeNull();
   });
 
   it("names the focus in a chip at the top of the graph; the chip and Esc clear it", async () => {
