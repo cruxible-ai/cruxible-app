@@ -295,7 +295,7 @@ export default [
         procedures: 3,
         documents: 1,
         queries: 4,
-        interfaces: 2,
+        operations: 2,
         lines: 2,
         captures: 9,
         capture_contracts: 2,

@@ -104,22 +104,20 @@ describe("Line definitions", () => {
     const line = within((await main.findByText("Trigger input")).closest("section")!);
     expect(await line.findByText("catalog")).toBeInTheDocument(); // trigger input step
     expect(line.getByText("security.kev-http-v1")).toBeInTheDocument();
-    expect(line.getByText("security-analysis-provider")).toBeInTheDocument(); // explicit binding
-    // the Procedure as authored is on the steps graph: a clicked step names its contract, interface, binding and query
+    expect(line.getByText("cruxible-provider-web")).toBeInTheDocument(); // the build the Line binds
+    // the Procedure as authored is on the steps graph: a clicked step names its contract, slot, binding and query
     const node = async (id: string) => {
       await waitFor(() => expect(document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`)).not.toBeNull(), { timeout: 8000 });
       return document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`) as HTMLElement;
     };
     fireEvent.click(await node("catalog"));
-    let panel = within(await screen.findByText("Binds", { selector: "dt" }).then((dt) => dt.closest("dl")!.parentElement!));
+    const panel = within(await screen.findByText("Binds", { selector: "dt" }).then((dt) => dt.closest("dl")!.parentElement!));
     expect(panel.getByRole("link", { name: /security\.kev-http-v1/ })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
-    expect(await panel.findByText("By fit: cruxible-provider-web", { selector: "dd" })).toBeInTheDocument();
-    fireEvent.click(await node("parse"));
-    panel = within(await screen.findByText(/^Line binds /, { selector: "dd" }).then((el) => el.closest("dl")!.parentElement!));
-    expect(panel.getByText("Line binds security-analysis-provider", { exact: false })).toBeInTheDocument();
+    expect(panel.getByText("fetch", { selector: "dd span" })).toBeInTheDocument();
+    expect(panel.getByRole("link", { name: "cruxible-provider-web" })).toBeInTheDocument();
     fireEvent.click(await node("watched"));
-    panel = within(await screen.findByText("Query", { selector: "dt" }).then((dt) => dt.closest("dl")!.parentElement!));
-    expect(panel.getByRole("link", { name: /security\.kev_exposure/ })).toHaveAttribute(
+    const query = within(await screen.findByText("Query", { selector: "dt" }).then((dt) => dt.closest("dl")!.parentElement!));
+    expect(query.getByRole("link", { name: /security\.kev_exposure/ })).toHaveAttribute(
       "href",
       `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`,
     );

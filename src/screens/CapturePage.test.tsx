@@ -13,15 +13,18 @@ beforeAll(() => {
 const page = (digest: string) => `/i/inst_fixture/ref/${encodeURIComponent(`Capture:${digest}`)}`;
 
 describe("Capture page", () => {
-  it("leads with the handle, source and time, and shows the fetched body unwrapped with a download", async () => {
+  it("leads with the handle, source and time, shows the source's coordinate, and the body as stored with a download", async () => {
     renderApp(page(FETCHED));
     expect(await screen.findByRole("heading", { name: `CAP-${FETCHED.slice(7, 19)}` })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
     expect(main.getByText("cisa.kev.catalog")).toBeInTheDocument();
-    // the response the server sent, pretty-printed, not core's wrapper
+    // the body is the payload as stored, pretty-printed
     expect(await main.findByText(/"title": "CISA Catalog of Known Exploited Vulnerabilities"/)).toBeInTheDocument();
-    expect(main.queryByText(/body_base64/)).not.toBeInTheDocument();
-    expect(main.getByRole("link", { name: "https://www.cisa.gov/kev.json" })).toBeInTheDocument();
+    // the typed coordinate, field by field
+    const coordinate = within((await main.findByText("http-response-v1")).closest("section")!);
+    expect(coordinate.getAllByText("https://www.cisa.gov/kev.json")).toHaveLength(2);
+    expect(coordinate.getByText("application/json")).toBeInTheDocument();
+    expect(coordinate.getByText("200")).toBeInTheDocument();
     expect(main.getByRole("link", { name: /Download/ })).toHaveAttribute("download", "cisa.kev.catalog.json");
     // the SDK call the card names as next is not shown
     expect(main.queryByText(/client\.read_capture/)).not.toBeInTheDocument();

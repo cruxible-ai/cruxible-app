@@ -198,9 +198,7 @@ describe("Contract page", () => {
     renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
     const main = within(await screen.findByRole("main"));
     const panel = within((await main.findByText("Captured under it by")).closest("section")!);
-    // Blueprints are folded into slotted Procedures: a Procedure pins the interfaces its slots take.
     expect(await panel.findByRole("link", { name: "Procedure:security.osv-acquire" })).toBeInTheDocument();
-    expect(panel.getAllByRole("link", { name: "security.osv-query/v1" }).length).toBeGreaterThan(0);
     expect(await panel.findAllByText("retains Captures under it")).toHaveLength(1);
     // cve-applicability's Line starts on this contract's landings: it reads them
     expect(panel.getByRole("link", { name: "Procedure:security.cve-applicability" })).toBeInTheDocument();

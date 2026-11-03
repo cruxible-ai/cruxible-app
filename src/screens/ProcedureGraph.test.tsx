@@ -13,7 +13,7 @@ beforeAll(() => {
   } as unknown as typeof ResizeObserver;
 });
 
-// Generous waits: under load the graph's layout and the interfaces read outlast the 1 s defaults.
+// Generous waits: under load the graph's layout outlasts the 1 s defaults.
 const SLOW = { timeout: 8000 };
 const graph = async () => within(await screen.findByTestId("procedure-graph", {}, SLOW));
 const node = (id: string) => document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`) as HTMLElement;
@@ -21,18 +21,20 @@ const node = (id: string) => document.querySelector(`[data-testid="procedure-gra
 describe("Procedure graph", () => {
   it("draws a Procedure's steps on its page; a click focuses the step's lineage and marks its row; Esc clears both", async () => {
     renderApp("/i/inst_fixture/ref/Procedure%3Asecurity.kev-triage");
-    const g = await graph();
-    await waitFor(() => expect(node("parse")).not.toBeNull(), SLOW);
-    for (const id of ["catalog", "watched", "parse", "changed", "settle"]) expect(node(id)).not.toBeNull();
+    await graph();
+    await waitFor(() => expect(node("entries")).not.toBeNull(), SLOW);
+    // each step is a node with its id and kind
+    const kinds = { catalog: "Call", watched: "Read", entries: "Extract", changed: "Guard", settle: "Claims" };
+    for (const [id, kind] of Object.entries(kinds)) expect(within(node(id)).getByText(kind)).toBeInTheDocument();
     // the guard's else halts under no id: the graph names it after the guard
-    expect(node("changed.else")).not.toBeNull();
-    expect(g.getByText("from cisa.kev.catalog")).toBeInTheDocument();
-    expect(await g.findByText("By fit: security-analysis-provider", {}, SLOW)).toBeInTheDocument();
+    expect(within(node("changed.else")).getByText("no_change")).toBeInTheDocument();
+    expect(within(node("catalog")).getByText("security.kev-http-v1")).toBeInTheDocument();
+    expect(within(node("catalog")).getByText("slot fetch")).toBeInTheDocument();
 
-    fireEvent.click(node("parse"));
-    expect(await screen.findByRole("button", { name: "Clear: Focused on parse" }, SLOW)).toBeInTheDocument();
-    expect(document.querySelector('[data-step="parse"]')).toHaveAttribute("aria-current", "step");
-    // upstream and downstream stay lit; nothing here is off the lineage of parse
+    fireEvent.click(node("entries"));
+    expect(await screen.findByRole("button", { name: "Clear: Focused on entries" }, SLOW)).toBeInTheDocument();
+    expect(document.querySelector('[data-step="entries"]')).toHaveAttribute("aria-current", "step");
+    // upstream and downstream stay lit
     expect(node("catalog").style.opacity).toBe("1");
     expect(node("settle").style.opacity).toBe("1");
 
@@ -45,13 +47,12 @@ describe("Procedure graph", () => {
     expect(document.querySelector('[data-step="watched"]')).not.toHaveAttribute("aria-current");
   });
 
-  it("wraps the graph in the Line: its Trigger, its max authority on the terminal, and a picked run's marks", async () => {
+  it("wraps the graph in the Line: its Trigger, the build its slot binds, and a picked run's marks", async () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const g = await graph();
     await waitFor(() => expect(node("trigger:security.kev-daily")).not.toBeNull(), SLOW);
     expect(g.getByText("Daily at 06:00 UTC")).toBeInTheDocument();
-    expect(within(node("settle")).getByText("Max authority Settle")).toBeInTheDocument();
-    await waitFor(() => expect(within(node("parse")).getByText("Line binds security-analysis-provider")).toBeInTheDocument(), SLOW);
+    await waitFor(() => expect(within(node("catalog")).getByText("slot fetch → cruxible-provider-web")).toBeInTheDocument(), SLOW);
 
     const picker = await screen.findByRole("combobox", { name: "Mark the steps with a run" }, SLOW);
     await waitFor(() => expect(within(picker).getAllByRole("option").length).toBeGreaterThan(1), SLOW);

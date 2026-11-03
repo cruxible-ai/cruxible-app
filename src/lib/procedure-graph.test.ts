@@ -1,105 +1,121 @@
 import { describe, expect, it } from "vitest";
-import type { ProcedureSpec } from "./definitions";
-import { buildProcedureGraph, collectRefs, conditionRefs, cronWords, edgeLabel, INPUT_NODE, lineage } from "./procedure-graph";
+import type { ProcedureSlot, ProcedureSpec } from "./definitions";
+import { buildProcedureGraph, collectRefs, cronWords, edgeLabel, INPUT_NODE, lineage } from "./procedure-graph";
 
 const edgesOf = (spec: ProcedureSpec) =>
   buildProcedureGraph(spec)
     .edges.map((e) => `${e.kind} ${e.source}->${e.target} ${e.fields.join(",")}`.trim())
     .sort();
 
+const FETCH_SLOT: ProcedureSlot = { in: { name: "web.fetch.request", version: 1 }, out: { name: "web.fetch.result", version: 1 }, effect: "external_read" };
+const param = (name: string) => ({ $ref: "param" as const, path: [name] });
+const input = (...path: string[]) => ({ $ref: "input" as const, path });
+const step = (name: string, ...path: string[]) => ({ $ref: "step" as const, step: name, path });
+const item = (...path: string[]) => ({ $ref: "item" as const, path });
+
 /** security.kev-triage as the kit authors it. */
 const KEV_TRIAGE: ProcedureSpec = {
   procedure: "security.kev-triage",
-  input: {},
-  returns: { fields: { changed: "$parse.changed", listed: "$parse.listed" } },
-  slots: { catalog: "web.fetch@3", parse: "security.kev-catalog@2" },
+  returns: { fields: { listed: step("entries", "records"), version: step("entries", "header", "catalog_version") } },
+  slots: { fetch: FETCH_SLOT },
   steps: [
     {
-      id: "catalog",
-      source: "catalog",
-      contract: "security.fetched-v1",
-      interface: "web.fetch/v3",
-      provider: "catalog",
-      request: { logical_source: "cisa.kev.catalog", url: "https://example.invalid/kev.json" },
+      call: "catalog",
+      slot: "fetch",
+      input: { logical_source: param("logical_source"), url: param("url"), expected_format: "json" },
+      captures: { capture: "security.kev-catalog" },
     },
-    { id: "watched", tap: "watched", query: "security.watched_vulnerabilities" },
+    { read: "watched", query: "security.watched_vulnerabilities" },
     {
-      id: "parse",
-      call: "parse",
-      interface: "security.kev-catalog/v2",
-      provider: "parse",
-      input: { catalog_base64: "$catalog.retrieved.body_base64", watched: "$watched.result.rows" },
+      extract: "entries",
+      capture: step("catalog", "capture"),
+      records: "/vulnerabilities/*",
+      row: "security.kev-record@1",
+      fields: { date_added: { at: "dateAdded", parse: "date" } },
+      key: { cve_id: { at: "cveID" } },
+      header: { catalog_version: { at: "/catalogVersion" } },
     },
-    { id: "changed", guard: "parse.changed > 0", refusal_code: "no_change", else_id: "nochange", else: "halt(no_change)" },
-    { id: "settle", settle: "$parse.items", result: "$summary" },
+    { id: "listed", guard: { op: "present", of: step("entries", "records") }, else: { halt: "no_change", id: "nochange" } },
+    {
+      id: "write",
+      claims: [
+        {
+          type: "security.vulnerability.kev_date_added",
+          value: item("fields", "date_added"),
+          rationale: "CISA KEV catalog {$steps.entries.header.catalog_version}: dateAdded {$item.fields.date_added}.",
+        },
+      ],
+      for_each: step("entries", "records"),
+      subject: { kind: "security.vulnerability", key: { cve_id: item("key", "cve_id") }, within: step("watched", "rows") },
+    },
   ],
 };
 
 describe("references", () => {
-  it("collects $name.field strings at any depth, with where they sit", () => {
+  it("collects typed step, input and parameter refs, $steps strings and {$steps…} interpolations at any depth, with where they sit", () => {
     expect(
-      collectRefs({ input: { a: "$parse.items", nested: { truncated: ["$audits.truncated", "plain", "$input"] } }, n: 3 }),
+      collectRefs({
+        input: { a: step("parse", "items"), nested: { truncated: [step("audits", "truncated"), "plain", input()] } },
+        p: param("url"),
+        each: item("key"),
+        legacy: "$steps.fetch.capture",
+        rationale: "Version {$steps.entries.header.catalog_version} of {$item.key.cve_id}",
+        n: 3,
+      }),
     ).toEqual([
       { name: "parse", field: "items", at: "input.a" },
       { name: "audits", field: "truncated", at: "input.nested.truncated[0]" },
       { name: "input", field: null, at: "input.nested.truncated[2]" },
+      { name: "input", field: "url", at: "p" },
+      { name: "fetch", field: "capture", at: "legacy" },
+      { name: "entries", field: "header.catalog_version", at: "rationale" },
     ]);
-  });
-
-  it("reads step.field mentions in a condition, skipping names no step declares and quoted text", () => {
-    const names = new Set(["parse", "registry", "input"]);
-    expect(conditionRefs('registry.project == input.project && other.x > 0 && note == "parse.items"', names, "guard")).toEqual([
-      { name: "registry", field: "project", at: "guard" },
-      { name: "input", field: "project", at: "guard" },
-    ]);
-    expect(conditionRefs("parse.changed > 0", names, "guard")).toEqual([{ name: "parse", field: "changed", at: "guard" }]);
   });
 });
 
 describe("procedure graph", () => {
-  it("draws kev-triage from its references: sources and taps feed the call, the call feeds the guard, the terminal and returns", () => {
+  it("draws kev-triage from its references: the call feeds the extract, the extract feeds the guard, the Claims and returns, the read scopes the Claims", () => {
     const graph = buildProcedureGraph(KEV_TRIAGE);
-    expect(graph.nodes.map((n) => `${n.id}:${n.role}`)).toEqual([
-      "catalog:source",
-      "watched:tap",
-      "parse:call",
-      "changed:guard",
-      "settle:terminal",
-      "summary:terminal",
-      "nochange:terminal",
+    expect(graph.nodes.map((n) => `${n.id}:${n.kind}:${n.role}`)).toEqual([
+      `${INPUT_NODE}:input:input`,
+      "catalog:call:call",
+      "watched:read:read",
+      "entries:extract:read",
+      "listed:guard:guard",
+      "write:claims:terminal",
+      "summary:returns:terminal",
+      "nochange:halt:terminal",
     ]);
     expect(edgesOf(KEV_TRIAGE)).toEqual([
-      "control changed->nochange else",
-      "data catalog->parse retrieved.body_base64",
-      "data parse->changed changed",
-      "data parse->settle items",
-      "data parse->summary changed,listed",
-      "data summary->settle",
-      "data watched->parse result.rows",
+      "control listed->nochange else",
+      `data ${INPUT_NODE}->catalog logical_source,url`,
+      "data catalog->entries capture",
+      "data entries->listed records",
+      "data entries->summary records,header.catalog_version",
+      "data entries->write header.catalog_version,records",
+      "data watched->write rows",
     ]);
     expect(graph.nodes.find((n) => n.id === "nochange")).toMatchObject({ kind: "halt", detail: ["no_change"] });
-    expect(graph.nodes.find((n) => n.id === "summary")).toMatchObject({ kind: "returns", detail: ["changed", "listed"] });
+    expect(graph.nodes.find((n) => n.id === "summary")).toMatchObject({ kind: "returns", detail: ["listed", "version"] });
   });
 
   it("reads nested inputs and the whole input: one edge per step pair, every field on it", () => {
     const spec: ProcedureSpec = {
       procedure: "security.respond",
-      input: { incident: { type: "string" }, log_pull: { type: "string" } },
+      input: { incident: { type: { kind: "string" } }, log_pull: { type: { kind: "string" } } },
       steps: [
-        { id: "exposure", tap: "exposure", query: "q.exposure", params: { incident: "$input.incident" } },
-        { id: "audits", tap: "audits", query: "q.audits" },
+        { read: "exposure", query: "q.exposure", params: { incident: input("incident") } },
+        { read: "audits", query: "q.audits" },
         {
-          id: "classify",
-          call: "classify",
-          interface: "security.respond/v1",
-          input: {
-            audits: "$audits.result.rows",
-            exposure: "$exposure.result.rows",
-            params: "$input",
-            truncated: { audits: "$audits.truncated", exposure: "$exposure.truncated" },
+          project: "classify",
+          fields: {
+            audits: step("audits", "rows"),
+            exposure: step("exposure", "rows"),
+            params: input(),
+            truncated: { audits: step("audits", "truncated"), exposure: step("exposure", "truncated") },
           },
         },
-        { id: "post", inbox: { items: "$classify.items" } },
+        { inbox: "post", fields: { items: step("classify", "items") } },
       ],
     };
     const graph = buildProcedureGraph(spec);
@@ -107,26 +123,21 @@ describe("procedure graph", () => {
     expect(edgesOf(spec)).toEqual([
       `data ${INPUT_NODE}->classify`,
       `data ${INPUT_NODE}->exposure incident`,
-      "data audits->classify result.rows,truncated",
-      "data classify->post items",
-      "data exposure->classify result.rows,truncated",
+      "data audits->classify rows,truncated",
+      "data classify->step_4 items",
+      "data exposure->classify rows,truncated",
     ]);
   });
 
-  it("feeds $input.* in a source request (a logical source a Line gives) and in a condition from the input", () => {
+  it("feeds a call's parameter refs (a logical source a Line gives) and a guard's predicate refs", () => {
     const spec: ProcedureSpec = {
       procedure: "security.registry-parse",
-      input: { project: { type: "string" }, source: { type: "string" } },
+      params: { project: { type: { kind: "string" } }, source: { type: { kind: "string" } } },
+      slots: { registry: FETCH_SLOT },
       steps: [
-        {
-          id: "registry",
-          source: "registry",
-          contract: "security.fetched-v1",
-          interface: "security.pypi-release/v1",
-          request: { project: "$input.project", logical_source: "$input.source" },
-        },
-        { id: "mine", guard: "registry.project == input.project", else_id: "other", else: "halt(other_source)" },
-        { id: "parse", call: "parse", interface: "x/v1", input: { release: "$registry" } },
+        { call: "registry", slot: "registry", input: { project: param("project"), logical_source: param("source") }, captures: { capture: "security.fetched-v1" } },
+        { id: "mine", guard: { op: "eq", left: step("registry", "project"), right: param("project") }, else: { halt: "other_source", id: "other" } },
+        { project: "parse", fields: { release: step("registry") } },
       ],
     };
     expect(edgesOf(spec)).toEqual([
@@ -141,11 +152,12 @@ describe("procedure graph", () => {
   it("links an invoke to its child Procedure, feeds it from its input, and resolves later references through its alias", () => {
     const spec: ProcedureSpec = {
       procedure: "parent",
-      input: { release: { type: "string" } },
+      input: { release: { type: { kind: "string" } } },
+      slots: { fetch: FETCH_SLOT },
       steps: [
-        { id: "fetch", source: "fetch", contract: "c-v1", interface: "web.fetch/v3", request: { url: "$input.release" } },
-        { id: "child_step", invoke: "security.child", as: "judged", input: { body: "$fetch.retrieved", release: "$input.release" } },
-        { id: "propose", propose: "$judged.items" },
+        { call: "fetch", slot: "fetch", input: { url: input("release") }, captures: { capture: "c-v1" } },
+        { id: "child_step", invoke: "security.child", as: "judged", input: { body: step("fetch", "capture"), release: input("release") } },
+        { inbox: "post", fields: { items: step("judged", "items") } },
       ],
     };
     const graph = buildProcedureGraph(spec);
@@ -153,34 +165,34 @@ describe("procedure graph", () => {
     expect(edgesOf(spec)).toEqual([
       `data ${INPUT_NODE}->child_step release`,
       `data ${INPUT_NODE}->fetch release`,
-      "data child_step->propose items",
-      "data fetch->child_step retrieved",
+      "data child_step->step_3 items",
+      "data fetch->child_step capture",
     ]);
   });
 
-  it("draws a guard's else that hands over to a step, select sources, and keeps unknown names on the step", () => {
+  it("draws a guard's goto to a step, select sources, and keeps unknown names on the step", () => {
     const spec: ProcedureSpec = {
       procedure: "p",
-      input: {},
       steps: [
-        { id: "a", tap: "a", query: "q.a" },
-        { id: "b", tap: "b", query: "q.b" },
-        { id: "pick", select: "pick", sources: ["a", "b"] },
-        { id: "allowed", guard: "pick.posted == 0", else: "post" },
-        { id: "propose", propose: "$pick.items", result: "$nowhere.x" },
-        { id: "post", inbox: { items: "$pick.inbox" } },
+        { read: "a", query: "q.a" },
+        { read: "b", query: "q.b" },
+        { select: "pick", sources: ["a", "b"] },
+        { id: "allowed", guard: { op: "eq", left: step("pick", "posted"), right: { literal: 0 } }, then: { goto: "write" }, else: { goto: "post" } },
+        { id: "write", inbox: "proposed", fields: { items: step("pick", "items"), result: step("nowhere", "x") } },
+        { id: "post", inbox: "posted", fields: { items: step("pick", "inbox") } },
       ],
     };
     const graph = buildProcedureGraph(spec);
     expect(edgesOf(spec)).toEqual([
       "control allowed->post else",
+      "control allowed->write then",
       "data a->pick",
       "data b->pick",
       "data pick->allowed posted",
       "data pick->post inbox",
-      "data pick->propose items",
+      "data pick->write items",
     ]);
-    expect(graph.nodes.find((n) => n.id === "propose")!.unresolved).toEqual([{ name: "nowhere", field: "x", at: "result" }]);
+    expect(graph.nodes.find((n) => n.id === "write")!.unresolved).toEqual([{ name: "nowhere", field: "x", at: "fields.result" }]);
   });
 
   it("labels an edge with its fields while they are short", () => {
@@ -198,12 +210,12 @@ describe("procedure graph", () => {
 
   it("focuses a step's whole lineage: everything upstream and downstream, not its siblings' other branches", () => {
     const { edges } = buildProcedureGraph(KEV_TRIAGE);
-    const focus = lineage("watched", edges);
-    expect([...focus.nodes].sort()).toEqual(["changed", "nochange", "parse", "settle", "summary", "watched"]);
-    expect(focus.edges.has("data:catalog->parse")).toBe(false);
-    expect(focus.edges.has("data:watched->parse")).toBe(true);
-    const up = lineage("changed", edges);
-    expect([...up.nodes].sort()).toEqual(["catalog", "changed", "nochange", "parse", "watched"]);
+    const focus = lineage("entries", edges);
+    expect([...focus.nodes].sort()).toEqual([INPUT_NODE, "catalog", "entries", "listed", "nochange", "summary", "write"].sort());
+    expect(focus.edges.has("data:watched->write")).toBe(false);
+    expect(focus.edges.has("data:catalog->entries")).toBe(true);
+    const up = lineage("listed", edges);
+    expect([...up.nodes].sort()).toEqual([INPUT_NODE, "catalog", "entries", "listed", "nochange"].sort());
   });
 });
 

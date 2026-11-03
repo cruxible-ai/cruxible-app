@@ -117,9 +117,9 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   await page.goto("/i/inst_fixture/ref/Procedure%3Asecurity.kev-triage");
   const steps = page.getByTestId("procedure-graph");
   await expect(steps.locator(".react-flow__node")).toHaveCount(6);
-  await steps.locator('.react-flow__node[data-id="parse"]').click({ position: { x: 12, y: 8 } });
-  await expect(page.getByRole("button", { name: "Clear: Focused on parse" })).toBeVisible();
-  await expect(page.locator('[data-step="parse"]')).toHaveAttribute("aria-current", "step");
+  await steps.locator('.react-flow__node[data-id="entries"]').click({ position: { x: 12, y: 8 } });
+  await expect(page.getByRole("button", { name: "Clear: Focused on entries" })).toBeVisible();
+  await expect(page.locator('[data-step="entries"]')).toHaveAttribute("aria-current", "step");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: /^Clear: Focused on/ })).toHaveCount(0);
 

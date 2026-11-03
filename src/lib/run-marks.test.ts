@@ -15,7 +15,7 @@ const card = (extra: Partial<Card>): Card => ({
   ...extra,
 });
 
-const IDS = ["catalog", "watched", "parse", "changed", "settle", "summary", "nochange"];
+const IDS = ["catalog", "watched", "entries", "changed", "settle", "summary", "nochange"];
 const bySource = (name: string) => (name === "catalog" ? "catalog" : null);
 
 describe("run marks", () => {
@@ -26,9 +26,9 @@ describe("run marks", () => {
         status: "node_refused",
         nodes_done: 4,
         nodes: [
-          { node: "catalog", kind: "source", verdict: "succeeded", sequence: 1 },
-          { node: "watched", kind: "state_tap", verdict: "succeeded", sequence: 2 },
-          { node: "parse", kind: "call", verdict: "succeeded", sequence: 3 },
+          { node: "catalog", kind: "call", verdict: "succeeded", sequence: 1 },
+          { node: "watched", kind: "read", verdict: "succeeded", sequence: 2 },
+          { node: "entries", kind: "extract", verdict: "succeeded", sequence: 3 },
           { node: "changed", kind: "guard", verdict: "refused", sequence: 4 },
         ],
         terminal: {
@@ -59,7 +59,7 @@ describe("run marks", () => {
       source_observations: [{ occurrence_path: "captures/x.json", node_id: "catalog" }],
       receipt: {
         node_pin_sets: [
-          { node_id: "parse", pins: [{ role: "provider", target: { kind: "Provider", name: "security-analysis-provider/abc" } }] },
+          { node_id: "entries", pins: [{ role: "provider", target: { kind: "Provider", name: "security-analysis-provider/abc" } }] },
           { node_id: "catalog", pins: [{ role: "capture-contract", target: { kind: "CaptureContract", name: "c" } }] },
         ],
       },
@@ -69,19 +69,17 @@ describe("run marks", () => {
       card({
         nodes_done: 6,
         nodes: [
-          { node: "parse", kind: "call", verdict: "succeeded", sequence: 7 },
-          { node: "settle", kind: "settle_change_set", verdict: "succeeded", sequence: 50 },
+          { node: "entries", kind: "extract", verdict: "succeeded", sequence: 7 },
+          { node: "settle", kind: "claims", verdict: "succeeded", sequence: 50 },
         ],
-        terminal_egress: [
-          { node_id: "settle", kind: "settle_change_set", verdict: "delivered", required_authority: "settle", effective_authority: "propose" } as Schemas["ProcedureTerminalEgress"],
-        ],
+        terminal_egress: [{ node_id: "settle", kind: "claims", verdict: "delivered", required_authority: "settle", effective_authority: "propose" }],
       }),
       state,
       bySource,
     );
     expect(partial).toBe(true);
     expect(marks.get("catalog")).toMatchObject({ term: { word: "Ran" }, notes: ["read 1 Capture"], provider: null });
-    expect(marks.get("parse")).toMatchObject({ term: { word: "Succeeded" }, provider: "security-analysis-provider/abc" });
+    expect(marks.get("entries")).toMatchObject({ term: { word: "Succeeded" }, provider: "security-analysis-provider/abc" });
     expect(marks.get("settle")).toMatchObject({ term: { word: "Succeeded" }, notes: ["delivered"], hints: ["Delivered: needs settle, had propose"] });
     expect(others.map((o) => `${o.node} ${o.term.word}`)).toEqual(["project_1 Ran"]);
     expect(marks.has("project_1")).toBe(false);

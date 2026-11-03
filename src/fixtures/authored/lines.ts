@@ -117,11 +117,11 @@ export default [
       mandates: [
         {
           mandate: `ProcedureMandate:${MANDATE}`,
-          procedure: `Procedure:${PROCEDURE}`,
+          line: `Line:${KEV}`,
           grants: "settle",
           state: "active",
           expires_at: "2027-01-01T00:00:00Z",
-          scope: [{ claim_type: "ClaimType:security.assessment.status", change_kinds: ["create", "retire"], binds: "subject" }],
+          scope: [{ claim_type: "ClaimType:security.assessment.status", changes: { create: { basis: ["extracted"] }, retire: { basis: ["absence"] } }, binds: "subject" }],
           condition_query: QUERY,
         },
       ],
@@ -183,14 +183,14 @@ export default [
     [
       result(`Mandate:${MANDATE}`, "mandate", {
         mandate: MANDATE,
-        procedure: `Procedure:${PROCEDURE}`,
+        line: `Line:${KEV}`,
         grants: "settle",
         lifecycle: "live",
         state: "active",
         valid_from: "2026-10-01T00:00:00Z",
         expires_at: "2027-01-01T00:00:00Z",
         namespace: ["claims"],
-        scope: [{ claim_type: "ClaimType:security.assessment.status", change_kinds: ["create", "retire"], binds: "subject" }],
+        scope: [{ claim_type: "ClaimType:security.assessment.status", changes: { create: { basis: ["extracted"] }, retire: { basis: ["absence"] } }, binds: "subject" }],
         condition: {
           query: QUERY,
           binding_parameter: "assessment",
@@ -347,9 +347,16 @@ export default [
         elapsed_us: 8_400_000,
         elapsed_basis: "measured_wall_clock",
         nodes: [
-          { node: "catalog", kind: "source", verdict: "ok", sequence: 1, duration_us: 1_200_000 },
-          { node: "watched", kind: "state_tap", verdict: "ok", sequence: 2, duration_us: 400_000 },
-          { node: "parse", kind: "call", verdict: "ok", sequence: 3, duration_us: 6_100_000 },
+          { node: "catalog", kind: "call", verdict: "ok", sequence: 1, duration_us: 1_200_000, summary: { kind: "call", captures: 1 } },
+          { node: "watched", kind: "read", verdict: "ok", sequence: 2, duration_us: 400_000, summary: { kind: "read", rows: 3 } },
+          {
+            node: "entries",
+            kind: "extract",
+            verdict: "ok",
+            sequence: 3,
+            duration_us: 6_100_000,
+            summary: { kind: "extract", records: 1766, invalid_records: 0, duplicates: 0, invalid_fields: 0, complete: true },
+          },
           { node: "changed", kind: "guard", verdict: "refused", sequence: 4, duration_us: 2_000 },
         ],
         triggered_by: { line: `Line:${KEV}`, occurrence: "occ-2026-10-18", enablement: "enb-1", principal_kind: "runtime_credential", enabled_by_withheld: true },
@@ -364,7 +371,7 @@ export default [
         terminal_egress: [
           {
             node_id: "settle",
-            kind: "propose_change_set",
+            kind: "claims",
             verdict: "delivered",
             required_authority: "propose",
             effective_authority: "settle",

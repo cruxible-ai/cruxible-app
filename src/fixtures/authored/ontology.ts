@@ -46,10 +46,8 @@ const pin = (source: string, role: string, target: string, current: boolean | nu
 });
 const OSV = "CaptureContract:security.osv-applicability-v1";
 const KEV = "CaptureContract:security.kev-http-v1";
-const FETCH = "ProviderInterface:web.fetch/v3";
-const OSV_QUERY = "ProviderInterface:security.osv-query/v1";
-const DECIDE = "ProviderInterface:security.cve-applicability/v1";
-const KEV_PARSE = "ProviderInterface:security.kev-catalog/v2";
+const FETCH = "Contract:web.fetch.request/v1";
+const OSV_QUERY = "Contract:security.osv-query.request/v1";
 
 const OSV_CARD: Schemas["GetCaptureContractCard"] = {
   contract: OSV,
@@ -67,9 +65,9 @@ const KEV_CARD: Schemas["GetCaptureContractCard"] = {
 };
 
 /**
- * Definition pins, by source as the section pages them (compiler revision 36:
- * Lines and Triggers pin the contract they name under `capture-contract`,
- * Procedures pin the interfaces their slots take under `provider-interface`).
+ * Definition pins, by source as the section pages them (Lines and Triggers
+ * pin the contract they name under `capture-contract`, Procedures pin the
+ * Contracts their slots take under `contract`).
  */
 export const PINS: Schemas["OrientPin"][] = [
   pin("Line:cve-applicability", "capture-contract", OSV),
@@ -77,17 +75,15 @@ export const PINS: Schemas["OrientPin"][] = [
   pin("Line:kev-triage", "capture-contract", KEV),
   pin("Line:kev-triage", "procedure", "Procedure:security.kev-triage"),
   pin("Procedure:security.cve-applicability", "capture-contract", OSV),
-  pin("Procedure:security.cve-applicability", "provider-interface", DECIDE),
-  pin("Procedure:security.cve-applicability", "provider-interface", OSV_QUERY),
+  pin("Procedure:security.cve-applicability", "contract", OSV_QUERY),
   pin("Procedure:security.kev-acquire", "capture-contract", KEV),
-  pin("Procedure:security.kev-acquire", "provider-interface", FETCH),
+  pin("Procedure:security.kev-acquire", "contract", FETCH),
   pin("Procedure:security.kev-triage", "capture-contract", KEV),
-  pin("Procedure:security.kev-triage", "provider-interface", FETCH),
-  pin("Procedure:security.kev-triage", "provider-interface", KEV_PARSE),
+  pin("Procedure:security.kev-triage", "contract", FETCH),
   pin("Procedure:security.osv-acquire", "capture-contract", OSV),
-  pin("Procedure:security.osv-acquire", "provider-interface", OSV_QUERY),
+  pin("Procedure:security.osv-acquire", "contract", OSV_QUERY),
   pin("ProcedureMandate:security.kev-settle", "claim-type", "ClaimType:security.assessment.status"),
-  pin("ProcedureMandate:security.kev-settle", "procedure", "Procedure:security.kev-triage"),
+  pin("ProcedureMandate:security.kev-settle", "line", "Line:kev-triage"),
   pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.assessment.status"),
   pin("QueryDefinition:security.kev_exposure", "claim-type", "ClaimType:security.vulnerability.kev_listed", false),
   pin("Trigger:security.kev-landed", "capture-contract", KEV),

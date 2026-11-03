@@ -2,64 +2,83 @@ import { describe, expect, it } from "vitest";
 import {
   arrivalWords,
   gist,
-  interfaceBase,
   lineGist,
   logicalSources,
   procedureSlots,
-  producedFields,
   readLineEnvelope,
   urlWords,
   retainedByWords,
   retentions,
-  slotInterfaceRef,
   sourceSteps,
   stepView,
+  type ProcedureSlot,
   type ProcedureSpec,
 } from "./definitions";
 
-// Shapes as cruxible-core fa36518ad serves them (security kit 1.3.0).
+// Shapes as cruxible-core d6ed45bc0 serves them (the Claim-authority core).
+const slot = (input: string, output: string, effect: ProcedureSlot["effect"]): ProcedureSlot => ({
+  in: { name: input, version: 1 },
+  out: { name: output, version: 1 },
+  effect,
+});
+const param = (name: string) => ({ $ref: "param" as const, path: [name] });
+const step = (name: string, ...path: string[]) => ({ $ref: "step" as const, step: name, path });
+const item = (...path: string[]) => ({ $ref: "item" as const, path });
+
 const FETCH: ProcedureSpec = {
   procedure: "sec.fetch-observed",
-  input: { logical_source: { type: "string" }, url: { type: "string" } },
-  slots: { fetch: "web.fetch@3" },
+  slots: { fetch: slot("web.fetch.request", "web.fetch.result", "external_read") },
   steps: [
-    { id: "fetch", source: "fetch", contract: "sec.fetched-v1", interface: "web.fetch/v3", provider: "fetch", request: { logical_source: "$input.logical_source", url: "$input.url" } },
-    { id: "step_2", emit: "sec.observation-output-v1", input: "$summary", result: "$summary" },
+    { call: "fetch", slot: "fetch", input: { logical_source: param("logical_source"), url: param("url") }, captures: { capture: "sec.fetched-v1" } },
+    { emit: "sec.observation-output-v1", input: step("fetch"), result: step("fetch") },
   ],
 };
 const TRIAGE: ProcedureSpec = {
   procedure: "sec.kev-triage",
-  input: {},
-  slots: { parse: "sec.kev-catalog@2", catalog: "web.fetch@3" },
+  slots: { parse: slot("sec.kev-catalog.request", "sec.kev-catalog.result", "pure"), catalog: slot("web.fetch.request", "web.fetch.result", "external_read") },
   steps: [
-    { id: "catalog", source: "catalog", contract: "sec.fetched-v1", interface: "web.fetch/v3", provider: "catalog", request: { logical_source: "cisa.kev.catalog" } },
-    { id: "watched", tap: "watched", query: "sec.watched_vulnerabilities" },
-    { id: "parse", call: "parse", interface: "sec.kev-catalog/v2", provider: "parse", input: {} },
-    { id: "changed", guard: "parse.changed > 0", refusal_code: "no_change", else: "halt(no_change)" },
-    { id: "settle", settle: "$parse.items", result: "$summary" },
+    { call: "catalog", slot: "catalog", input: { logical_source: "cisa.kev.catalog" }, captures: { capture: "sec.fetched-v1" } },
+    { read: "watched", query: "sec.watched_vulnerabilities" },
+    {
+      extract: "entries",
+      capture: step("catalog", "capture"),
+      records: "/vulnerabilities/*",
+      row: "sec.kev-record@1",
+      fields: { date_added: { at: "dateAdded" } },
+      key: { cve_id: { at: "cveID" } },
+    },
+    { id: "changed", guard: { op: "present", of: step("entries", "records") }, else: { halt: "no_change" } },
+    {
+      id: "write",
+      claims: [
+        { type: "sec.vulnerability.kev_date_added", value: item("fields", "date_added") },
+        { type: "sec.vulnerability.listed_in", value: { kind: "sec.catalog", key: { catalog_id: "cisa-kev" } } },
+      ],
+      for_each: step("entries", "records"),
+      subject: { kind: "sec.vulnerability", key: { cve_id: item("key", "cve_id") } },
+    },
+    { halt: "no_change" },
   ],
 };
 const SBOM: ProcedureSpec = {
   procedure: "sec.sbom-acquire",
-  input: { relative_path: { type: "string" } },
-  slots: { sbom: "workspace.file" },
-  steps: [{ id: "sbom", source: "sbom", contract: "sec.file-v1", interface: "workspace.file", provider: "sbom", request: { logical_source: "cyclonedx.sbom" } }],
+  slots: { sbom: slot("workspace.file.request", "workspace.file.result", "external_read") },
+  steps: [{ call: "sbom", slot: "sbom", input: { logical_source: "cyclonedx.sbom" }, captures: { capture: "sec.file-v1" } }],
 };
 const EPSS: ProcedureSpec = {
   procedure: "sec.epss-acquire",
-  input: {},
-  steps: [{ id: "epss", source: "epss", contract: "sec.fetched-v1", interface: "sec.epss-daily/v1", request: {} }],
+  slots: { epss: slot("sec.epss-daily.request", "sec.epss-daily.result", "external_read") },
+  steps: [{ call: "epss", slot: "epss", input: {}, captures: { capture: "sec.fetched-v1" } }],
 };
 
 const envelope = (name: string, procedure: string, extra: Record<string, unknown> = {}) => ({
   path: `lines/${name}.json`,
   envelope: {
-    artifact_format: "cruxible-line-v7",
+    artifact_format: "cruxible-line-v8",
     identity: { kind: "Line", name },
     occurrence_epoch: 1,
     procedure: { target: { kind: "Procedure", name: procedure } },
     parameters: {},
-    acquisition_policy: null,
     max_authority: "observe",
     trigger_input: null,
     ...extra,
@@ -73,13 +92,13 @@ const LINES = [
       trigger_input: "catalog",
       max_authority: "propose",
       trigger_event: { capture_contract_identity: { kind: "CaptureContract", name: "sec.fetched-v1" } },
-      bindings: { parse: { target: { kind: "Provider", name: "sec-analysis/abc" } } },
+      bindings: { parse: { build: { role: "provider", target: { kind: "Provider", name: "sec-analysis/abc" } }, operation: "sec.kev-catalog" } },
     }),
   )!,
 ];
 
 describe("definitions", () => {
-  it("reads a Line envelope: parameters, trigger input, its contract and explicit bindings", () => {
+  it("reads a Line envelope: parameters, trigger input, its contract and the build each slot binds", () => {
     expect(LINES[0]).toMatchObject({ line: "kev-daily", procedure: "sec.fetch-observed", triggerInput: null, bindings: {} });
     expect(LINES[1]).toMatchObject({
       triggerInput: "catalog",
@@ -91,37 +110,43 @@ describe("definitions", () => {
     expect(readLineEnvelope(null)).toBeNull();
   });
 
-  it("names each step's kind and the definitions it references by name", () => {
+  it("names each step's id and kind and the definitions it references by name", () => {
     const views = TRIAGE.steps.map(stepView);
-    expect(views.map((v) => v.kind)).toEqual(["source", "tap", "call", "guard", "settle"]);
-    expect(views[0]).toMatchObject({ contract: "sec.fetched-v1", interface: "web.fetch/v3", slot: "catalog", logicalSource: { literal: "cisa.kev.catalog" } });
-    expect(views[1]).toMatchObject({ query: "sec.watched_vulnerabilities" });
-    expect(views[2]).toMatchObject({ interface: "sec.kev-catalog/v2", slot: "parse" });
-    expect(views[3]!.detail).toBe("parse.changed > 0 · refuses no_change");
-    expect(stepView(FETCH.steps[0]!, 0).logicalSource).toEqual({ input: "logical_source" });
-    expect(stepView(FETCH.steps[1]!, 1)).toMatchObject({ kind: "emit", contract: "sec.observation-output-v1" });
-  });
-
-  it("lists slots by name and the interface ref each names", () => {
-    expect(procedureSlots(TRIAGE)).toEqual([
-      { slot: "catalog", interface: "web.fetch@3" },
-      { slot: "parse", interface: "sec.kev-catalog@2" },
+    expect(views.map((v) => [v.id, v.kind])).toEqual([
+      ["catalog", "call"],
+      ["watched", "read"],
+      ["entries", "extract"],
+      ["changed", "guard"],
+      ["write", "claims"],
+      ["step_6", "halt"],
     ]);
-    expect(slotInterfaceRef("web.fetch@3")).toBe("ProviderInterface:web.fetch/v3");
-    expect(slotInterfaceRef("workspace.file")).toBe("ProviderInterface:workspace.file");
+    expect(views[0]).toMatchObject({ contracts: ["sec.fetched-v1"], slot: "catalog", logicalSource: { literal: "cisa.kev.catalog" } });
+    expect(views[1]).toMatchObject({ query: "sec.watched_vulnerabilities" });
+    expect(views[4]!.claimTypes).toEqual(["sec.vulnerability.kev_date_added", "sec.vulnerability.listed_in"]);
+    expect(views[5]!.detail).toBe("no_change");
+    expect(stepView(FETCH.steps[0]!, 0).logicalSource).toEqual({ param: "logical_source" });
+    expect(stepView(FETCH.steps[1]!, 1)).toMatchObject({ id: "step_2", kind: "emit", contracts: ["sec.observation-output-v1"] });
   });
 
-  it("retains through Lines (resolving $input. by parameters), skips a Line's trigger input, keeps direct runs", () => {
+  it("lists slots by name with the Contracts each takes and gives", () => {
+    expect(procedureSlots(TRIAGE).map((s) => [s.slot, s.in.name, s.out.name, s.effect])).toEqual([
+      ["catalog", "web.fetch.request", "web.fetch.result", "external_read"],
+      ["parse", "sec.kev-catalog.request", "sec.kev-catalog.result", "pure"],
+    ]);
+  });
+
+  it("retains through Lines (resolving a param logical source by parameters), skips a Line's trigger input, keeps direct runs", () => {
     const steps = [FETCH, TRIAGE, SBOM, EPSS].flatMap((spec) => sourceSteps(spec.procedure, spec));
     const all = retentions(steps, LINES);
-    expect(all.map(({ interface: _, ...rest }) => rest)).toEqual([
+    expect(all.map(({ slotIn: _, ...rest }) => rest)).toEqual([
       { contract: "sec.fetched-v1", source: "cisa.kev.catalog", procedure: "sec.fetch-observed", line: "kev-daily", emitted: false, given: null },
       { contract: "sec.observation-output-v1", source: null, procedure: "sec.fetch-observed", line: "kev-daily", emitted: true, given: null },
       // kev-triage reads its catalog from the landing: no retention
       { contract: "sec.file-v1", source: "cyclonedx.sbom", procedure: "sec.sbom-acquire", line: null, emitted: false, given: null },
-      // the Provider names the EPSS source: not served, so no source
+      // the call names no logical source: none here
       { contract: "sec.fetched-v1", source: null, procedure: "sec.epss-acquire", line: null, emitted: false, given: null },
     ]);
+    expect(all[0]!.slotIn).toBe("web.fetch.request");
     // A Procedure no Line runs is given its logical source at the direct run.
     expect(retentions(sourceSteps(FETCH.procedure, FETCH), []).find((r) => !r.emitted)).toMatchObject({ source: null, given: "logical_source", line: null });
   });
@@ -171,74 +196,19 @@ describe("gists", () => {
   });
 
   it("say how a source arrives and from where", () => {
-    expect(arrivalWords({ interface: "web.fetch@3", emitted: false })).toBe("HTTP fetch");
-    expect(arrivalWords({ interface: "workspace.file", emitted: false })).toBe("Workspace file");
-    expect(arrivalWords({ interface: "security.release-asset/v1", emitted: false })).toBe("release-asset");
-    expect(arrivalWords({ interface: null, emitted: true })).toBe("Run output");
+    expect(arrivalWords({ slotIn: "web.fetch.request", emitted: false })).toBe("HTTP fetch");
+    expect(arrivalWords({ slotIn: "workspace.file.request", emitted: false })).toBe("Workspace file");
+    expect(arrivalWords({ slotIn: "security.release-asset.request", emitted: false })).toBe("release-asset");
+    expect(arrivalWords({ slotIn: null, emitted: true })).toBe("Run output");
     expect(urlWords({ url: "https://www.cisa.gov/sites/default/files/feeds/kev.json" })).toBe("From www.cisa.gov");
     expect(urlWords({})).toBeNull();
   });
 });
 
-describe("provider-named sources", () => {
-  const step = (procedure: string, iface: string | null, logicalSource: { literal: string } | null = null) => ({
-    procedure,
-    alias: "pull",
-    contract: "fetched-v1",
-    interface: iface,
-    logicalSource,
-    emitted: false,
-  });
-  const line = (name: string, procedure: string) => ({
-    line: name,
-    procedure,
-    parameters: {},
-    triggerInput: null,
-    triggerContract: null,
-    bindings: {},
-    acquisitionPolicy: null,
-    maxAuthority: null,
-    occurrenceEpoch: null,
-  });
-
-  it("take the source names a step's interface declares it produces when its request names none", () => {
-    const produces = (iface: string) => (iface.startsWith("security.pypi-release") ? ["pypi.release"] : []);
-    const out = retentions(
-      [step("registry-acquire", "security.pypi-release/v2"), step("fetch", "web.fetch/v3", { literal: "cisa.kev" }), step("asset", "security.other/v1")],
-      [line("registry-pull.cruxible", "registry-acquire")],
-      produces,
-    );
-    expect(out.find((r) => r.procedure === "registry-acquire")).toMatchObject({ source: "pypi.release", line: "registry-pull.cruxible" });
-    // a request that names its source keeps it; an interface that declares nothing leaves it unnamed
-    expect(out.find((r) => r.procedure === "fetch")!.source).toBe("cisa.kev");
-    expect(out.find((r) => r.procedure === "asset")!.source).toBeNull();
-  });
-
-  it("match interfaces by name across version spellings", () => {
-    expect(interfaceBase("web.fetch@3")).toBe("web.fetch");
-    expect(interfaceBase("security.pypi-release/v2")).toBe("security.pypi-release");
-    expect(interfaceBase("workspace.file")).toBe("workspace.file");
-  });
-});
-
 describe("Procedures that run only as Lines", () => {
   it("retain nothing until a Line runs them", () => {
-    const step = { procedure: "log-import", alias: "log", contract: "file-v1", interface: "workspace.file", logicalSource: { literal: "log-read" }, emitted: false };
-    expect(retentions([step], [], () => [], (procedure) => procedure !== "log-import")).toEqual([]);
-    expect(retentions([step], [], () => [], () => true)).toHaveLength(1);
-  });
-});
-
-describe("what an interface's step produces", () => {
-  it("reads a source step's material, or a call step's typed output, and nothing for the shared capture format", () => {
-    const field = (type: string, optional = false) => ({ type, optional }) as never;
-    expect(
-      producedFields({ input: { fields: {} }, output: "playbill-provider-result-to-external-capture-v1", material: { fields: { project: field("string"), versions: field("json", true) } } } as never),
-    ).toEqual([
-      { name: "project", type: "string" },
-      { name: "versions?", type: "json" },
-    ]);
-    expect(producedFields({ input: { fields: {} }, output: { fields: { rows: field("list") } }, material: null } as never)).toEqual([{ name: "rows", type: "list" }]);
-    expect(producedFields({ input: { fields: {} }, output: "playbill-provider-result-to-external-capture-v1", material: null } as never)).toBeNull();
+    const call = { procedure: "log-import", alias: "log", contract: "file-v1", slotIn: "workspace.file.request", logicalSource: { literal: "log-read" }, emitted: false };
+    expect(retentions([call], [], (procedure) => procedure !== "log-import")).toEqual([]);
+    expect(retentions([call], [], () => true)).toHaveLength(1);
   });
 });
