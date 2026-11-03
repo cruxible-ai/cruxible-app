@@ -16,6 +16,7 @@ import type { RunMarks, StepMark } from "@/lib/run-marks";
 import { flowWords, partsText, queryShape, stepBrief, stepSections, summaryWords, type DetailSection, type Part, type QueryShape } from "@/lib/step-words";
 import { FieldList } from "@/components/FieldList";
 import { PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
+import { InfoButton } from "@/components/InfoButton";
 import { Parts } from "@/components/Parts";
 import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
@@ -504,7 +505,46 @@ function StepPanel({ view, sections, mark }: { view: StepView; sections: DetailS
           {words && !mark.term.signal ? words.text : [mark.term.word, ...mark.notes].join(" · ")}
         </div>
       )}
-      {sections.map((section) => (
+      {sections.map((section) =>
+        section.columns && section.cells ? (
+          <PanelGroup key={section.title} title={section.title}>
+            <table className="w-full text-[12px]" aria-label={section.title}>
+              <thead>
+                <tr className="text-left text-[11px] text-zinc-500">
+                  <th className="py-1 pr-3 font-normal">ClaimType</th>
+                  {section.columns.map((column) => (
+                    <th key={column.header} className="py-1 pr-3 font-normal">
+                      <span className="inline-flex items-center gap-1">
+                        {column.header}
+                        {column.info && <InfoButton label={column.header}>{column.info}</InfoButton>}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {section.rows.map((row, i) => (
+                  <tr key={`${row.label}:${i}`} className="border-t border-zinc-800 align-baseline">
+                    <td className="py-1.5 pr-3 font-mono text-zinc-200" title={row.title}>
+                      {route(row.ref) ? (
+                        <Link to={route(row.ref)!} className="hover:underline">
+                          {row.label}
+                        </Link>
+                      ) : (
+                        row.label
+                      )}
+                    </td>
+                    {(section.cells![i] ?? []).map((cell, j) => (
+                      <td key={j} className="break-words py-1.5 pr-3 text-zinc-300">
+                        <Parts parts={cell} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </PanelGroup>
+        ) : (
         <PanelGroup key={section.title} title={section.title}>
           <FieldList
             density="compact"
@@ -523,7 +563,8 @@ function StepPanel({ view, sections, mark }: { view: StepView; sections: DetailS
             }))}
           />
         </PanelGroup>
-      ))}
+        ),
+      )}
     </div>
   );
 }

@@ -38,7 +38,7 @@ const KEV: ProcedureSpec = {
     {
       id: "write",
       claims: [
-        { type: "security.vulnerability.listed_in", value: { key: { catalog_id: "cisa-kev" }, kind: "security.catalog" }, when_absent: "inverse" },
+        { type: "security.vulnerability.listed_in", value: { key: { catalog_id: "cisa-kev" }, kind: "security.catalog" }, effective_from: { $ref: "item", path: ["fields", "listed_from"] }, when_absent: "inverse" },
         { type: "security.vulnerability.kev_date_added", value: item("fields", "date_added"), when_absent: "mirror" },
         { type: "security.vulnerability.kev_due_date", value: item("fields", "due_date"), when_absent: "mirror" },
         { type: "security.vulnerability.kev_ransomware_use", value: item("fields", "ransomware_use") },
@@ -114,8 +114,18 @@ describe("step labels", () => {
     ]);
     expect(sections(3)).toEqual([
       ["Writes on", ["Subject: vulnerability", "For each: entries.records", "Within: watched.rows", "Expect: watched.rows"]],
-      ["ClaimTypes", ["listed_in: absent: record absent", "kev_date_added: absent: retire", "kev_due_date: absent: retire", "kev_ransomware_use: absent: flag"]],
+      ["ClaimTypes", ["listed_in: cisa-kev (fixed)", "kev_date_added: dateAdded", "kev_due_date: dueDate", "kev_ransomware_use: knownRansomwareCampaignUse"]],
     ]);
+  });
+
+  it("the claims panel traces each ClaimType to its payload field and says what happens when it goes missing", () => {
+    const index = KEV.steps.findIndex((step) => "claims" in step);
+    const claims = stepSections(KEV, index, { parameters: PARAMETERS, queries: QUERIES }).find((section) => section.title === "ClaimTypes")!;
+    expect(claims.columns?.map((c) => c.header)).toEqual(["From", "If missing"]);
+    const cells = claims.cells!.map((row) => row.map((cell) => cell.map((part) => part.text).join("")));
+    expect(cells[0]).toEqual(["cisa-kev (fixed) · since dateAdded", 'record "not listed"']);
+    expect(cells[1]).toEqual(["dateAdded", "retire"]);
+    expect(cells[3]).toEqual(["knownRansomwareCampaignUse", "flag for review"]);
   });
 
   it("the other kinds: one short label", () => {

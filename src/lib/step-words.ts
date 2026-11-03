@@ -226,9 +226,12 @@ export interface DetailRow {
 export interface DetailSection {
   title: string;
   rows: DetailRow[];
+  /** A section set as a table: its column headers and, per row, a cell per column after the label. */
+  columns?: { header: string; info?: string }[];
+  cells?: Part[][][];
 }
 
-const WHEN_ABSENT: Record<string, string> = { keep: "keep", surface: "flag", mirror: "retire", inverse: "record absent" };
+const WHEN_ABSENT: Record<string, string> = { keep: "keep", surface: "flag for review", mirror: "retire", inverse: 'record "not listed"' };
 
 /** Every field of a step, in titled groups for its side panel: paths, ClaimTypes, row Contract, provider, limits. */
 export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsContext = {}): DetailSection[] {
@@ -295,14 +298,37 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
     add("For each", refText(step.for_each));
     add("Within", refText(step.subject.within));
     add("Expect", refText(step.expect));
+    // Each ClaimType with what fills it, traced to the payload: template value -> extract field -> its path.
+    const extractFields = extractFieldsOf(spec, step.for_each);
+    const fromItem = (value: unknown): Part[] | null => {
+      const ref = templateRef(value);
+      if (ref?.$ref !== "item") return null;
+      const path = ref.path ?? [];
+      const field = path[0] === "fields" ? path[1] : path[0] === "key" ? path[1] : undefined;
+      if (typeof field !== "string") return null;
+      const at = extractFields.get(field);
+      return [code(at ?? field)];
+    };
+    const fixed = (value: unknown): Part[] => {
+      const obj = value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+      if (obj && typeof obj.kind === "string" && obj.key && typeof obj.key === "object") {
+        const id = Object.values(obj.key as Record<string, unknown>).map(String).join("/");
+        return [{ text: id, ref: `Subject:${obj.kind}/${id}`, title: `${obj.kind}/${id}` }, { text: " (fixed)" }];
+      }
+      return [{ text: typeof value === "string" ? value : JSON.stringify(value) }, { text: " (fixed)" }];
+    };
     section("ClaimTypes");
+    current!.columns = [{ header: "From" }, ...(step.expect ? [{ header: "If missing", info: "When a complete read of the source no longer has a watched Subject's value." }] : [])];
+    current!.cells = [];
     for (const claim of step.claims) {
-      const absent = step.expect ? WHEN_ABSENT[claim.when_absent ?? "surface"] ?? claim.when_absent ?? "flag" : null;
-      add(lastSegment(claim.type), absent ? [{ text: `absent: ${absent}`, title: `when_absent ${claim.when_absent ?? "surface"}` }] : [{ text: "—" }], {
-        name: true,
-        ref: `ClaimType:${claim.type}`,
-        title: claim.type,
-      });
+      const from = fromItem(claim.value) ?? fixed(claim.value);
+      const since = fromItem((claim as { effective_from?: unknown }).effective_from);
+      const missing = step.expect ? WHEN_ABSENT[claim.when_absent ?? "surface"] ?? claim.when_absent ?? "flag for review" : null;
+      current!.rows.push({ label: lastSegment(claim.type), name: true, ref: `ClaimType:${claim.type}`, title: claim.type, value: from });
+      current!.cells.push([
+        since ? [...from, { text: " · since " }, ...since] : from,
+        ...(missing ? [[{ text: missing, title: `when_absent ${claim.when_absent ?? "surface"}` }]] : []),
+      ]);
     }
   } else if ("transform" in step) {
     section("Transform");
@@ -444,4 +470,20 @@ export function runChangedWords(nodes: readonly Schemas["GetRunNode"][] | null |
   const posted = posts.reduce((a, s) => a + s.emitted, 0);
   if (posted > 0) words.push(`${count(posted)} posted`);
   return words.length > 0 ? words.join(" · ") : "no change";
+}
+
+/** The extract a claims step iterates (its for_each names `$steps.<extract>.records`): field name -> payload path. */
+function extractFieldsOf(spec: ProcedureSpec, forEach: unknown): Map<string, string> {
+  const ref = templateRef(forEach);
+  const out = new Map<string, string>();
+  if (ref?.$ref !== "step" || !ref.step) return out;
+  const extract = spec.steps.find((step, i) => "extract" in step && stepAlias(step, i) === ref.step);
+  if (!extract || !("extract" in extract)) return out;
+  for (const [name, field] of Object.entries((extract as { fields?: Record<string, { at?: string }> }).fields ?? {})) {
+    if (field?.at) out.set(name, field.at);
+  }
+  for (const [name, key] of Object.entries((extract as { key?: Record<string, { at?: string }> }).key ?? {})) {
+    if (key?.at && !out.has(name)) out.set(name, key.at);
+  }
+  return out;
 }
