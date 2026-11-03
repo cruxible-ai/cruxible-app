@@ -336,7 +336,16 @@ function FlowCell({
           .filter(Boolean)
           .join("\n")}
         name={
-          <span className={`truncate text-[12.5px] font-medium text-zinc-100 ${node.host ? "" : "font-mono"}`}>{node.host ?? node.label}</span>
+          node.contracts?.length === 1 ? (
+            <Link
+              to={link(`/i/${instanceId}/contracts/${encodeURIComponent(node.contracts[0]!)}`)}
+              className={`truncate text-[12.5px] font-medium text-zinc-100 hover:underline ${node.host ? "" : "font-mono"}`}
+            >
+              {node.host ?? node.label}
+            </Link>
+          ) : (
+            <span className={`truncate text-[12.5px] font-medium text-zinc-100 ${node.host ? "" : "font-mono"}`}>{node.host ?? node.label}</span>
+          )
         }
         focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} />}
         facts={[["Fetched", node.when ?? "not on a schedule"], landedFact(landingsOf, node.label, instanceId, link)]}
