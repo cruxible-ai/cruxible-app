@@ -6,15 +6,16 @@ import { REASONS } from "@/lib/next-reasons";
 afterEach(cleanup);
 
 describe("Next", () => {
-  it("groups the page by severity and renders each reason's named detail", async () => {
+  it("lists one row per item, ordered by item type, and renders each reason's named detail", async () => {
     renderApp("/i/inst_fixture/next");
     expect(await screen.findByRole("heading", { name: "Next" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
-    // grouped by severity, then reason: each group line names its severity in the glossary word
-    const groupLines = () => main.getAllByRole("cell").filter((td) => td.getAttribute("colspan"));
-    await main.findAllByText("Blocking");
-    expect(groupLines().some((td) => within(td).queryByText("Blocking"))).toBe(true);
-    expect(groupLines().some((td) => within(td).queryByText("Repair"))).toBe(true);
+    // plain rows (no group lines), each saying its own type and severity
+    const table = within(await main.findByRole("table", { name: "Next" }));
+    await table.findAllByText("Blocking");
+    expect(table.getAllByRole("cell").filter((td) => td.getAttribute("colspan"))).toHaveLength(0);
+    const types = table.getAllByRole("row").filter((row) => row.closest("tbody")).map((row) => within(row).getAllByRole("cell")[0]!.textContent);
+    expect(types).toEqual([...types].sort((a, b) => a!.localeCompare(b!)));
     // claim_stale_evidence: expired capture rendered as a Capture link, Subject path as a Subject link
     expect(main.getByText(REASONS.claim_stale_evidence.label)).toBeInTheDocument();
     expect(main.getByRole("link", { name: "CAP-9e1b3d5f7a9c" })).toHaveAttribute("href", "/i/inst_fixture/ref/CAP-9e1b3d5f7a9c");
@@ -35,13 +36,13 @@ describe("Next", () => {
     );
   });
 
-  it("a sort flattens the groups: each row then says its own severity and reason", async () => {
+  it("a sort by item type keeps one row per item", async () => {
     renderApp("/i/inst_fixture/next?sort=reason");
     const main = within(await screen.findByRole("main"));
     const table = within(await main.findByRole("table", { name: "Next" }));
     await table.findAllByText(REASONS.claim_stale_evidence.label);
     expect(table.getAllByRole("cell").filter((td) => td.getAttribute("colspan"))).toHaveLength(0);
-    const labels = table.getAllByRole("row").filter((row) => row.closest("tbody")).map((row) => within(row).getAllByRole("cell")[1]!.textContent);
+    const labels = table.getAllByRole("row").filter((row) => row.closest("tbody")).map((row) => within(row).getAllByRole("cell")[0]!.textContent);
     expect(labels).toEqual([...labels].sort((a, b) => a!.localeCompare(b!)));
   });
 
