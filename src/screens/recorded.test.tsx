@@ -85,16 +85,12 @@ describe("recorded reference world", () => {
     expect(m.getByText("11 on this page")).toBeInTheDocument();
   });
 
-  it("next: rows rendered by reason", async () => {
+  it("next: one row per item, its type first", async () => {
     renderApp(`${I}/next`, RECORDED);
     const m = await main();
-    // two Lines accepted but never enabled
-    const notEnabled = await m.findByText("Line not enabled");
-    expect(notEnabled.nextElementSibling).toHaveTextContent("2");
-    // the group's explanation sits behind its info button, not on the line
-    expect(m.queryByText("accepted but never enabled; enable it to run on its Triggers")).toBeNull();
-    fireEvent.click(m.getByRole("button", { name: "About these items" }));
-    expect(m.getByText("accepted but never enabled; enable it to run on its Triggers")).toBeInTheDocument();
+    // two Lines accepted but never enabled: two rows of that type, each naming its Line
+    expect(await m.findAllByText("Line not enabled")).toHaveLength(2);
+    expect(m.getByRole("link", { name: "security.kev-triage" })).toBeInTheDocument();
   });
 
   it("Lines index and a Line page with its runs, its definition and its Procedure's steps", async () => {
