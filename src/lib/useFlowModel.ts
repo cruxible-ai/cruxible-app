@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useClaimTypes, useGetBatch, useLines, useSourceModel } from "@/api/hooks";
+import { useClaimTypes, useGetBatch, useLines, useSourceModel, useSubjectKinds } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { arrivalWords, gist, hostOf, lineFlows, lineGist, type Retention } from "@/lib/definitions";
 import { buildFlow, readClaimTypeAccepts, type AcceptedEvidence, type FlowModel } from "@/lib/evidence-flow";
@@ -17,6 +17,7 @@ type RunRow = Schemas["RunRow"];
  * one get-batch of ClaimType proofs.
  */
 export function useFlowModel() {
+  const subjectKinds = useSubjectKinds();
   const claimTypes = useClaimTypes();
   const lines = useLines();
   const sources = useSourceModel();
@@ -109,8 +110,9 @@ export function useFlowModel() {
       }),
       claimTypes: claimTypes.data.rows,
       accepts,
+      keys: new Set((subjectKinds.data?.rows ?? []).flatMap((kind) => kind.keys ?? [])),
     });
-  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords]);
+  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords, subjectKinds.data]);
 
   const error = claimTypes.error ?? lines.error ?? sources.error;
   const capped = Boolean(sources.data?.truncated || claimTypes.data?.truncated);

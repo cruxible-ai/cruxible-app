@@ -189,7 +189,7 @@ describe("recorded reference world", () => {
       `${I}/kinds/security.vulnerability?view=claim-types&claim_type=security.vulnerability.listed_in`,
     );
     // own-word statements go straight to the ClaimTypes that accept them
-    expect(flow.getByText("Your statements")).toBeInTheDocument();
+    expect(flow.getByText("Entered directly")).toBeInTheDocument();
   });
 
   it("proposals and a review", async () => {

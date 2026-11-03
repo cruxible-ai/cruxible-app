@@ -4,7 +4,7 @@ import type { OrientPredicate } from "../api/schemas.ts";
  * The evidence-flow view's model and layout: how evidence moves.
  *
  *   Source ──► the Line that fetches (or reads) it ──► the ClaimTypes that Line writes
- *   Your statements ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄► ClaimTypes that take own-word statements
+ *   Entered directly ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄► ClaimTypes that take own-word statements
  *
  * A source is a logical source: where data comes from (a web host, a
  * workspace file, a run's output), when it is fetched and when it last
@@ -14,7 +14,7 @@ import type { OrientPredicate } from "../api/schemas.ts";
  * ClaimType (a Line capped at observe writes no Claims), Line → inbox where
  * its Procedure posts items.
  *
- * The pseudo source "Your statements" is for what people and agents write on
+ * The pseudo source "Entered directly" is for what people and agents write on
  * their own word: it links to the ClaimTypes whose evidence rules accept a
  * self-source contract. A ClaimType no Line writes but whose rules accept a
  * source links straight from that source (an agent writes it, citing it).
@@ -46,6 +46,8 @@ export interface FlowNode {
   contracts?: string[];
   /** source: the pseudo source for statements on their author's own word. */
   ownWord?: boolean;
+  /** claim_type: a Subject's identity key (no source writes it). */
+  key?: boolean;
   /** line: its max authority; claim_type: the highest of the Lines that write it (absent: no Line writes it). */
   authority?: Authority;
   /** line: whether the Line is enabled (null: never enabled). */
@@ -124,6 +126,8 @@ export interface FlowInputs {
    * falls back to its `evidence` contracts with any source.
    */
   accepts?: ReadonlyMap<string, readonly AcceptedEvidence[]>;
+  /** Identity-key predicates: a Subject's id, shown as its key with no source. */
+  keys?: ReadonlySet<string>;
 }
 
 const bareContract = (value: string) => value.replace(/^CaptureContract:/, "");
@@ -188,8 +192,8 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     nodes.set(OWN_WORD, {
       id: OWN_WORD,
       kind: "source",
-      label: "Your statements",
-      detail: "Written by people or agents on their own word",
+      label: "Entered directly",
+      detail: "Facts people or agents enter directly, on their own word",
       contracts: selfContracts,
       ownWord: true,
     });
@@ -230,6 +234,11 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     });
   for (const row of [...inputs.claimTypes, ...unlisted].sort((a, b) => byText(a.predicate, b.predicate))) {
     const id = nodeId.claimType(row.predicate);
+    if (inputs.keys?.has(row.predicate)) {
+      // A Subject's id: it identifies the Subject, nothing writes it as a fact.
+      nodes.set(id, { id, kind: "claim_type", label: row.name, detail: row.predicate, key: true, group: [...(row.subject_kinds ?? [])].sort(byText)[0] ?? "", required: false });
+      continue;
+    }
     const required = row.evidence_requirement === "captured";
     const before = edges.length;
     let strongest: Authority | undefined;

@@ -308,10 +308,10 @@ function FlowCell({
           dim={dim}
           hover={hover}
           kindLabel="Source"
-          title={["Your statements", "What people and agents write on their own word, without a source to cite"].join("\n")}
-          name={<span className="truncate text-[12.5px] font-medium text-zinc-100">Your statements</span>}
-          about="Written by people or agents"
-          focus={<FocusButton id={node.id} label="Your statements" onFocus={onFocus} />}
+          title={["Entered directly", "Facts people or agents enter directly, on their own word, without a source to cite"].join("\n")}
+          name={<span className="truncate text-[12.5px] font-medium text-zinc-100">Entered directly</span>}
+          about="by people or agents"
+          focus={<FocusButton id={node.id} label="Entered directly" onFocus={onFocus} always />}
           facts={[]}
         />
       );
@@ -337,7 +337,7 @@ function FlowCell({
         name={
           <span className={`truncate text-[12.5px] font-medium text-zinc-100 ${node.host ? "" : "font-mono"}`}>{node.host ?? node.label}</span>
         }
-        focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} />}
+        focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} always />}
         facts={[["Fetched", node.when ?? "not on a schedule"], landedFact(landingsOf, node.label, instanceId, link)]}
       />
     );
@@ -352,12 +352,7 @@ function FlowCell({
         dim={dim}
         hover={hover}
         kindLabel="Line"
-        state={
-          <>
-            <LineStateDot state={node.enablement} running={runningLines.has(node.label)} />
-            {runningLines.has(node.label) ? "Running" : node.enablement ? term("line", node.enablement).word : "Not enabled"}
-          </>
-        }
+        state={<LineStateDot state={node.enablement} running={runningLines.has(node.label)} />}
         title={[
           node.label,
           node.authority ? `At most ${node.authority}: ${term("authority", node.authority).meaning}` : null,
@@ -372,7 +367,7 @@ function FlowCell({
           </Link>
         }
         about={node.about ?? null}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
         facts={[lastRunFact(lastRuns, node.label, instanceId, link)]}
       />
     );
@@ -383,7 +378,7 @@ function FlowCell({
     <div
       style={{ ...style, borderLeft: `2px solid ${authorityColor(node.authority)}` }}
       className={`${base} pl-3 text-[12px]`}
-      title={[node.detail, node.about, node.authority ? `Written by Lines that may ${node.authority}` : "Written by people or agents"].filter(Boolean).join("\n")}
+      title={[node.detail, node.about, node.key ? "Identifies the Subject; no source writes it" : node.authority ? `Written by Lines that may ${node.authority}` : "Entered directly by people or agents"].filter(Boolean).join("\n")}
       {...hover}
     >
       <Link
@@ -392,7 +387,12 @@ function FlowCell({
       >
         {node.label}
       </Link>
-      {node.required && (
+      {node.key && (
+        <span className="shrink-0 text-[10px] text-zinc-500" title="Identifies the Subject">
+          id
+        </span>
+      )}
+      {node.required && !node.key && (
         <span className="shrink-0 text-[10px] text-zinc-500" title="A Capture is required">
           Captured
         </span>
@@ -497,21 +497,21 @@ function FlowCard({
     >
       <div className="flex min-w-0 items-center gap-1 text-[9.5px] font-semibold uppercase leading-3 tracking-wider text-zinc-500">
         {kindLabel}
-        <span className="ml-auto flex shrink-0 items-center normal-case tracking-normal">{focus}</span>
+        {state && <span className="ml-auto flex shrink-0 items-center normal-case tracking-normal">{state}</span>}
       </div>
-      <div className="mt-1 flex min-w-0 items-center gap-2 leading-4">
-        <span className="min-w-0 flex-1 truncate">{name}</span>
-        {state && <span className="flex shrink-0 items-center gap-1 text-[10.5px] text-zinc-400">{state}</span>}
-      </div>
+      <div className="mt-1 flex min-w-0 items-center leading-4">{name}</div>
       {about && <div className="mt-0.5 truncate text-[11px] leading-4 text-zinc-400">{about}</div>}
-      <dl className="mt-auto flex min-w-0 flex-col whitespace-nowrap text-[10.5px] leading-4">
-        {facts.map(([label, value]) => (
-          <div key={label} className="flex min-w-0 gap-1">
-            <dt className="shrink-0 uppercase tracking-wide text-zinc-600">{label}</dt>
-            <dd className="min-w-0 truncate text-zinc-400">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="mt-auto flex min-w-0 items-end gap-2">
+        <dl className="flex min-w-0 flex-1 flex-col whitespace-nowrap text-[10.5px] leading-4">
+          {facts.map(([label, value]) => (
+            <div key={label} className="flex min-w-0 gap-1">
+              <dt className="shrink-0 uppercase tracking-wide text-zinc-600">{label}</dt>
+              <dd className="min-w-0 truncate text-zinc-400">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <span className="shrink-0">{focus}</span>
+      </div>
     </div>
   );
 }
