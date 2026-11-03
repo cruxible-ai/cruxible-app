@@ -30,7 +30,7 @@ describe("Jump palette", () => {
     fireEvent.change(input, { target: { value: "security.vulnerability/cve-2024-3094" } });
     expect(await screen.findByRole("button", { name: /cve-2024-3094.*resolved/ })).toBeInTheDocument();
     fireEvent.change(input, { target: { value: "security.vulnerability/cve-1999-0001" } });
-    expect(await screen.findByText(/No accepted Subject security.vulnerability\/cve-1999-0001/)).toBeInTheDocument();
+    expect(await screen.findByText(/Not found: Subject security.vulnerability\/cve-1999-0001/)).toBeInTheDocument();
   });
 
   it("finds Lines, Procedures and ClaimTypes by plain text", async () => {

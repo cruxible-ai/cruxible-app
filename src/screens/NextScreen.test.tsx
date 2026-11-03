@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { REASONS } from "@/lib/next-reasons";
 
@@ -80,12 +80,15 @@ describe("Beliefs", () => {
     // the row citing a Capture names it and carries no such mark
     expect(main.getByRole("link", { name: "CAP-7c1e9a3b5d7f" })).toBeInTheDocument();
     expect(main.getAllByText("Doesn't count")).toHaveLength(1);
-    expect(main.getByText(/counts toward the verdict only once accepted citing a Capture/)).toBeInTheDocument();
+    // what the tab means sits behind the title's ⓘ
+    fireEvent.click(screen.getByRole("button", { name: "About contested beliefs" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/counts toward the verdict only once accepted citing a Capture/);
   });
 
   it("explains why the drifted tab is empty for a console with no workspace", async () => {
     renderApp("/i/inst_fixture/beliefs?tab=drifted");
-    expect(await screen.findByText(/Drift is observed from a workspace/)).toBeInTheDocument();
-    expect(await screen.findByText("None on this page.")).toBeInTheDocument();
+    expect(await screen.findByText("None on this page")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "About drifted citations" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/Drift is observed from a workspace/);
   });
 });

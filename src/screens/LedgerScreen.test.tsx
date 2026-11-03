@@ -70,7 +70,7 @@ describe("Proposals and review", () => {
     expect(main.getByText(/independent-principal ×1/)).toBeInTheDocument();
     expect(main.getByText("security-lead")).toBeInTheDocument();
     expect(main.getByText(/submitted by release-owner/)).toBeInTheDocument();
-    expect(main.getByText(/needs a body-reading credential/)).toBeInTheDocument();
+    expect(main.getByText(/^Withheld:/)).toHaveAttribute("title", "Needs a body-reading credential");
     expect(main.queryByRole("button", { name: /approve|activate|reject|withdraw|readmit/i })).toBeNull();
     cleanup();
     renderApp(`/i/inst_fixture/p/${encodeURIComponent(OPEN)}`);

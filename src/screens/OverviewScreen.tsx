@@ -164,21 +164,21 @@ function NeedsYou({
         label="Waiting for review"
         count={proposals}
         signal={proposals ? "waiting" : undefined}
-        detail={proposals ? "Approve or reject on the CLI or MCP" : "No open proposals"}
+        detail={proposals ? "Review on CLI or MCP" : "None open"}
         to={link(`/i/${instanceId}/proposals?status=open`)}
       />
       <Tile
         label="Unread inbox"
         count={next ? unread : null}
         signal={unread ? "waiting" : undefined}
-        detail={unread ? "Items Lines posted for you" : "Nothing posted"}
+        detail={unread ? "Posted by Lines" : "None posted"}
         to={link(`/i/${instanceId}/lines`)}
       />
       <Tile
         label="Next"
         count={next ? next.total_items : null}
         signal={nextSignal}
-        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : "Nothing needs attention") : undefined}
+        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : next.total_items ? "None urgent" : "None") : undefined}
         to={link(`/i/${instanceId}/next`)}
       />
       <Tile
@@ -318,7 +318,7 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
     >
       {pending && <LoadState />}
       {error && <LoadState error={error} />}
-      {rows && on.length === 0 && <EmptyState>No Line is enabled, so nothing runs on its own.</EmptyState>}
+      {rows && on.length === 0 && <EmptyState>None enabled</EmptyState>}
       {chains.length > 0 && (
         <div className="divide-y divide-zinc-800/60">
           {chains.map((chain) => (
@@ -590,7 +590,7 @@ function HealthPanel({ next, pending, error }: { next: NextResult | undefined; p
           </dl>
         )}
         {next && next.unobserved_domains.length > 0 && (
-          <div className="t-meta mt-2">Not observed from here: {next.unobserved_domains.map(humanize).join(", ")}</div>
+          <div className="t-meta mt-2">Not observed: {next.unobserved_domains.map(humanize).join(", ")}</div>
         )}
       </Panel>
     </div>
@@ -604,7 +604,7 @@ function KitsPanel() {
     <Panel title="Kits" meta={kits.data ? <span>{rows.length} installed</span> : undefined}>
       {kits.isPending && <LoadState />}
       {kits.error && <LoadState error={kits.error} />}
-      {kits.data && rows.length === 0 && <EmptyState>No kits installed.</EmptyState>}
+      {kits.data && rows.length === 0 && <EmptyState>None</EmptyState>}
       <div className="divide-y divide-zinc-800/60">
         {rows.map((kit) => (
           <div key={kit.kit_id} className="py-1 text-[13px]">

@@ -18,7 +18,6 @@ import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip, HealthDot, SignalDot } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
-import { LongText } from "@/components/LongText";
 import { CopyButton, ShortId } from "@/components/ShortId";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
@@ -60,6 +59,8 @@ export function LineScreen() {
   const line = lineName(raw);
   const card = useCard(`Line:${line}`);
   const lineCard = cardOf(card.data, "line");
+  // What the Line does, in its Procedure's own words: behind the title's ⓘ.
+  const described = cardOf(useCard(lineCard ? lineCard.procedure : null).data, "procedure")?.description ?? null;
   usePageTitle(`Line ${line}`);
   if (card.isPending) return <LoadState />;
   if (card.error) return <LoadState error={card.error} />;
@@ -72,7 +73,8 @@ export function LineScreen() {
         kind="Line"
         title={line}
         mono
-        summary={<LineSummary procedure={procedure} />}
+        info={described}
+        infoLabel="What this Line does"
         facts={
           <>
             <Fact label="State">
@@ -315,14 +317,6 @@ function LineGraphPanel({
   );
 }
 
-/** What the Line does, in its Procedure's own words. */
-function LineSummary({ procedure }: { procedure: string }) {
-  const read = useCard(`Procedure:${procedure}`);
-  const card = cardOf(read.data, "procedure");
-  if (!card?.description) return null;
-  return <LongText text={card.description} lines={3} className="t-lede" />;
-}
-
 type LineCard = Schemas["GetLineCard"];
 type RunRow = Schemas["RunRow"];
 type InboxEntry = Schemas["InboxListEntry"];
@@ -337,15 +331,18 @@ export function DueCount({ due, scheduled }: { due: number; scheduled: number })
   );
 }
 
-/** Shown while a Line was never enabled: it runs on nothing until someone enables it. */
+/** Shown while a Line was never enabled: the state, the command that enables it, and why it matters behind an ⓘ. */
 function NotEnabledBanner({ line }: { line: string }) {
   const command = `cruxible line enable ${line}`;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[13px] text-zinc-300">
-      <HealthDot tone="off" title="Not enabled" />
-      <span>Not enabled: none of its Triggers start runs until it is.</span>
+      <span className="inline-flex items-center gap-1.5">
+        <HealthDot tone="off" title="Not enabled" />
+        <Chip concept="line" value="not_enabled" />
+      </span>
       <code className="font-mono text-[12px] text-zinc-400">{command}</code>
       <CopyButton value={command} label="Copy" />
+      <InfoButton label="What enabling does">Until the Line is enabled, none of its Triggers start runs; it runs only when started by hand.</InfoButton>
     </div>
   );
 }
@@ -420,7 +417,10 @@ function TriggersPanel({ card }: { card: LineCard }) {
   return (
       <Panel title="Triggers" meta={<span id="triggers">{card.due ?? 0} due · {card.waiting ?? 0} scheduled</span>}>
         {(card.triggers ?? []).length === 0 ? (
-          <div className="text-[13px] text-zinc-600">No Triggers aimed at this Line: it runs only when started by hand.</div>
+          <div className="flex items-center gap-1.5 text-[13px] text-zinc-600">
+            None
+            <InfoButton label="Without Triggers">No Trigger is aimed at this Line: it runs only when started by hand.</InfoButton>
+          </div>
         ) : (
           <DataTable
             rows={card.triggers ?? []}
@@ -582,7 +582,7 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
           urlKey="runs"
           label="Runs"
           partial={total > runs.length ? `${cursors.length === 0 ? "the newest" : "this page of"} ${runs.length} of ${total} runs` : null}
-          empty="No runs yet."
+          empty="None"
         />
       )}
     </Panel>
@@ -628,7 +628,7 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
         <div className="space-y-3 text-[13px]">
           <div>
             <h3 className="mb-0.5 text-[12px] font-semibold text-zinc-300">Track record</h3>
-            {(card.track_record ?? []).length === 0 && <div className="text-zinc-500">No promoted record yet.</div>}
+            {(card.track_record ?? []).length === 0 && <div className="text-zinc-500">None</div>}
             {(card.track_record ?? []).map((record) => (
               <div key={record.promotion_digest} className="flex flex-wrap items-baseline gap-x-3">
                 <span className="font-mono text-zinc-300">{record.promotion}</span>
@@ -643,7 +643,7 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
           </div>
           <div>
             <h3 className="mb-0.5 text-[12px] font-semibold text-zinc-300">Measurement reviews</h3>
-            {(card.measurement_reviews ?? []).length === 0 && <div className="text-zinc-500">No measurements declared.</div>}
+            {(card.measurement_reviews ?? []).length === 0 && <div className="text-zinc-500">None declared</div>}
             {(card.measurement_reviews ?? []).map((review) => (
               <div key={review.measurement_name} className="border-t border-zinc-800/70 py-1 first:border-t-0">
                 <div className="flex flex-wrap items-baseline gap-x-3">
@@ -700,7 +700,14 @@ function MandatesPanel({ line, procedure }: { line: string; procedure: string })
       meta={<span>{rows.length}</span>}
     >
       {mandates.isPending && <LoadState />}
-      {mandates.data && rows.length === 0 && <EmptyState>None: runs at most propose.</EmptyState>}
+      {mandates.data && rows.length === 0 && (
+        <EmptyState>
+          <span className="inline-flex items-center gap-1.5">
+            None
+            <InfoButton label="Without Mandates">Without a Mandate, its runs at most propose.</InfoButton>
+          </span>
+        </EmptyState>
+      )}
       <div className="space-y-3">
         {rows.map((mandate) => (
           <MandateDetail key={mandate.mandate} mandate={mandate} ctx={ctx} restToReview={restToReview} />
@@ -900,7 +907,7 @@ function Readings({ procedure }: { procedure: string }) {
               <span className="text-zinc-500">{contract.reading_count} readings</span>
             </div>
           ))}
-          {data.readings.length === 0 && <div className="text-zinc-500">No readings on this page.</div>}
+          {data.readings.length === 0 && <div className="text-zinc-500">None on this page</div>}
           {data.readings.length > 0 && (
             <DataTable
               rows={data.readings}
@@ -912,7 +919,7 @@ function Readings({ procedure }: { procedure: string }) {
             />
           )}
           {(data.unavailable_reading_count ?? 0) > 0 && (
-            <div className="text-zinc-500">{data.unavailable_reading_count} readings' payloads are unavailable.</div>
+            <div className="text-zinc-500">{data.unavailable_reading_count} payloads unavailable</div>
           )}
         </div>
       )}
@@ -1045,7 +1052,7 @@ function InboxPanel({ line }: { line: string }) {
               )}
             </div>
           )}
-          empty="Inbox is empty."
+          empty="None"
         />
       )}
     </Panel>

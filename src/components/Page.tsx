@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { InfoButton } from "@/components/InfoButton";
 
 /**
  * The page frame every screen uses: the full content width up to a wide cap
@@ -11,9 +12,10 @@ export function Page({ children, width = "wide" }: { children: ReactNode; width?
 }
 
 /**
- * The standard page header: what this is (kind), the title, a one-line
- * summary, then the key facts as a labelled strip. Everything a reader
- * needs before any detail; detail follows in cards.
+ * The standard page header: what this is (kind), the title (with an ⓘ when
+ * the page needs explaining), a terse subtitle that carries information
+ * (counts, names; never an explanatory sentence), then the key facts as a
+ * labelled strip. Detail follows in cards.
  */
 export function PageHeader({
   kind,
@@ -21,6 +23,8 @@ export function PageHeader({
   title,
   mono = false,
   id,
+  info,
+  infoLabel,
   summary,
   facts,
   actions,
@@ -35,7 +39,11 @@ export function PageHeader({
   mono?: boolean;
   /** A machine id shown under the title when the title is words (with copy). */
   id?: ReactNode;
-  /** One line: what this is and its state, in words. */
+  /** What the page or thing is, in words: shown behind an ⓘ beside the title. */
+  info?: ReactNode;
+  /** The ⓘ's accessible name. */
+  infoLabel?: string;
+  /** A terse subtitle that carries information (counts, state, names); never an explanation. */
   summary?: ReactNode;
   facts?: ReactNode;
   actions?: ReactNode;
@@ -56,12 +64,28 @@ export function PageHeader({
           {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
         </div>
       )}
-      <h1 className={`${mono ? "t-title-mono" : "t-title"} break-words`}>{title}</h1>
+      {info ? (
+        <div className="flex items-center">
+          <h1 className={`${mono ? "t-title-mono" : "t-title"} min-w-0 break-words`}>{title}</h1>
+          <PageInfo label={infoLabel}>{info}</PageInfo>
+        </div>
+      ) : (
+        <h1 className={`${mono ? "t-title-mono" : "t-title"} break-words`}>{title}</h1>
+      )}
       {id && <div className="mt-0.5">{id}</div>}
       {summary && <div className="t-lede measure mt-1.5">{summary}</div>}
       {facts && <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">{facts}</dl>}
       {children}
     </header>
+  );
+}
+
+/** The ⓘ beside a page title (PageHeader's, or a hand-built header's `<h1>`): a sibling, so the heading's name stays the title. */
+export function PageInfo({ children, label = "About this page" }: { children: ReactNode; label?: string | undefined }) {
+  return (
+    <span className="ml-2 inline-flex shrink-0 font-sans">
+      <InfoButton label={label}>{children}</InfoButton>
+    </span>
   );
 }
 

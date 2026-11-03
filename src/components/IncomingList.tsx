@@ -31,7 +31,7 @@ export function IncomingList({
     <div className="text-[12px]">
       {read.isPending && <div className="animate-pulse text-zinc-600">Reading…</div>}
       {read.error && <div className="text-red-400/80">{read.error.message}</div>}
-      {read.data && claims.length === 0 && <div className="text-zinc-600">Nothing points here.</div>}
+      {read.data && claims.length === 0 && <div className="text-zinc-600">None</div>}
       {summaries ? (
         <SummarizedClaims claims={claims} />
       ) : (

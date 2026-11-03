@@ -64,13 +64,13 @@ function ActivityPage({
   if (page.error) {
     // A daemon older than the feed refuses the section as an invalid request: say so plainly.
     if (page.error instanceof ApiError && page.error.errorCode === "request.invalid" && JSON.stringify(page.error.envelope).includes("query.section"))
-      return <EmptyState>This daemon predates the activity feed. It arrives with core 0.5.</EmptyState>;
+      return <EmptyState>Needs core 0.5</EmptyState>;
     return <LoadState error={page.error} />;
   }
   const now = new Date();
   return (
     <>
-      {rows.length === 0 && cursor === undefined && <EmptyState>Nothing has happened yet.</EmptyState>}
+      {rows.length === 0 && cursor === undefined && <EmptyState>None</EmptyState>}
       <ol className="divide-y divide-zinc-800/60">
         {rows.map((row, i) => (
           <li key={row.key}>

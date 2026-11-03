@@ -46,7 +46,7 @@ export function QueryPage({ card }: { card: Schemas["GetQueryCard"] }) {
   if (!view) {
     return (
       <Panel title="Definition">
-        <EmptyState>This card's definition is not one this page reads; it is shown as served.</EmptyState>
+        <EmptyState>As served</EmptyState>
         {raw}
       </Panel>
     );
@@ -481,7 +481,7 @@ function UsedBy({ query }: { query: string }) {
   let body: ReactNode;
   if (model.error) body = <LoadState error={model.error} />;
   else if (!model.data) body = <LoadState />;
-  else if (readers.length === 0) body = <EmptyState>No Procedure reads it</EmptyState>;
+  else if (readers.length === 0) body = <EmptyState>None</EmptyState>;
   else
     body = (
       <DataTable rows={readers} columns={READER_COLUMNS} rowKey={(row) => row.procedure} urlKey="readers" label="Procedures that read it" toolbar={false} maxHeight="none" />

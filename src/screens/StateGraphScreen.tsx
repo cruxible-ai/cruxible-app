@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCard, useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
+import { PageInfo } from "@/components/Page";
+import { InfoButton } from "@/components/InfoButton";
 import { ShownSlot } from "@/components/ShownValue";
 import { actionChipClass, Chip, toggleChipClass } from "@/components/Chip";
 import { FieldList } from "@/components/FieldList";
@@ -116,11 +118,13 @@ export function StateGraphScreen() {
   return (
     <div className="flex h-full min-h-[85vh] flex-col">
       <header className="mb-2">
-        <h1 className="t-title">State graph</h1>
-        <p className="t-lede measure mt-1">
-          Every Subject and the Claims that link them; a dot's color is its kind. Click a dot to read it here, hover a line for
-          its ClaimType.
-        </p>
+        <div className="flex items-center">
+          <h1 className="t-title">State graph</h1>
+          <PageInfo label="About the state graph">
+            Every Subject and the Claims that link them; a dot's color is its kind. Click a dot to read it here, hover a line for
+            its ClaimType.
+          </PageInfo>
+        </div>
         {graph.data && (
           <StatsRow
             search={
@@ -157,18 +161,22 @@ export function StateGraphScreen() {
       {first.error && <LoadState error={first.error} />}
       {tooMany && (
         <div className="max-w-2xl border border-zinc-800 bg-zinc-900/30 p-4 text-[13px] text-zinc-400">
-          <div className="text-zinc-200">
-            This instance holds <span className="font-mono">{subjects!.toLocaleString()}</span> live Subjects, more than
-            the {GRAPH_SUBJECT_CAP.toLocaleString()} the console draws at once.
+          <div className="flex items-center gap-1.5 text-zinc-200">
+            <span>
+              <span className="font-mono">{subjects!.toLocaleString()}</span> live Subjects · draw cap{" "}
+              <span className="font-mono">{GRAPH_SUBJECT_CAP.toLocaleString()}</span>
+            </span>
+            <InfoButton label="Over the draw cap">
+              More Subjects than the console draws at once. A Subject's neighborhood (open any Subject, then Neighborhood, or jump to one
+              with ⌘K) shows its links.
+            </InfoButton>
           </div>
-          <p className="mt-2">
-            Use the{" "}
+          <div className="mt-2">
+            Instead:{" "}
             <Link to={link(`/i/${instanceId}/map`)} className="text-zinc-200 underline decoration-zinc-600">
-              type map
-            </Link>{" "}
-            for the shape of the ontology, and a Subject's neighborhood (open any Subject, then Neighborhood, or jump
-            to one with ⌘K) for its links.
-          </p>
+              Type map
+            </Link>
+          </div>
         </div>
       )}
       {!tooMany && subjects !== undefined && graph.isPending && (

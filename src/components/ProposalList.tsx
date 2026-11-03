@@ -95,7 +95,7 @@ export function ProposalList({ entries, partial = null }: { entries: Entry[]; pa
       label="Proposals"
       partial={partial}
       expanded={(entry) => <ProposalPeek id={entry.proposal_id} indent="ml-0" />}
-      empty="None."
+      empty="None"
     />
   );
 }

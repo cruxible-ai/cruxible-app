@@ -105,7 +105,7 @@ export function RunScreen() {
               )}
               {(runCard.nodes?.length ?? 0) < runCard.nodes_done && (
                 <div className="text-zinc-600">
-                  The card lists the latest {runCard.nodes?.length ?? 0} nodes; the full node list is not served (gap G6).
+                  Latest {runCard.nodes?.length ?? 0} nodes only (gap G6)
                 </div>
               )}
               {(runCard.pending_inputs ?? []).map((input) => (
@@ -117,7 +117,7 @@ export function RunScreen() {
             </div>
           </Panel>
           <Panel title="Outcome">
-            {runCard.terminal ? <TerminalView terminal={runCard.terminal} /> : <div className="text-[13px] text-zinc-500">No refusal or failure.</div>}
+            {runCard.terminal ? <TerminalView terminal={runCard.terminal} /> : <div className="text-[13px] text-zinc-500">No refusal or failure</div>}
             {(runCard.terminal_egress ?? []).length > 0 && (
               <div className="mt-2 space-y-1.5">
                 {runCard.terminal_egress!.map((egress, i) => (
@@ -139,7 +139,7 @@ export function RunScreen() {
         {state.error && <LoadState error={state.error} />}
         {state.data && (
           <div className="space-y-1 text-[13px]">
-            {(state.data.source_observations ?? []).length === 0 && <div className="text-zinc-500">This run read no Captures.</div>}
+            {(state.data.source_observations ?? []).length === 0 && <div className="text-zinc-500">None</div>}
             {(state.data.source_observations ?? []).map((observation) => (
               <div key={observation.occurrence_path} className="flex flex-wrap items-baseline gap-x-3">
                 {observation.capture_digest ? (
@@ -170,7 +170,7 @@ export function RunScreen() {
                   {"actor_id" in state.data.attribution ? (
                     <span className="font-mono">{state.data.attribution.actor_id}</span>
                   ) : (
-                    <span className="text-zinc-500">Attribution withheld (names the enabling credential)</span>
+                    <span className="text-zinc-500" title="It names the enabling credential">Withheld</span>
                   )}
                 </Fact>
               )}

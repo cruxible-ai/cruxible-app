@@ -253,7 +253,7 @@ function GenerationList({
       >
         <span className="text-zinc-100">Head</span>
         {head !== undefined && <span className="font-mono text-zinc-400"> · generation {head}</span>}
-        <div className="text-[11px] text-zinc-500">Follow new generations as they are accepted</div>
+        <div className="text-[11px] text-zinc-500">Follows new generations</div>
       </button>
       <div className="max-h-80 overflow-y-auto">
         {recent.isPending && <div className="animate-pulse px-2.5 py-1.5 text-zinc-500">Reading the ledger…</div>}

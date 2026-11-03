@@ -85,7 +85,8 @@ describe("Capture page", () => {
   it("says when the token can't read bodies and gives the CLI read", async () => {
     renderApp(page(PRIVATE));
     const main = within(await screen.findByRole("main"));
-    expect(await main.findByText(/can't read Capture contents: that takes governed_write/)).toBeInTheDocument();
+    expect(await main.findByText("governed_write")).toBeInTheDocument();
+    expect(main.getByRole("button", { name: "Why the contents are not shown" })).toBeInTheDocument();
     expect(main.getByText(`cruxible capture read CAP-${PRIVATE.slice(7, 19)}`)).toBeInTheDocument();
   });
 

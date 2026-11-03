@@ -173,7 +173,7 @@ export function SubjectScreen() {
         }
         summary={
           ids.length === 0 ? (
-            <span>No live Claims.</span>
+            <span>No live Claims</span>
           ) : verdicts.isPending ? (
             <span className="t-meta animate-pulse">Reading verdicts…</span>
           ) : (
@@ -227,7 +227,7 @@ export function SubjectScreen() {
         <Panel
           title="Fields"
         >
-          {subject.claims.length === 0 && <EmptyState>No live Claims.</EmptyState>}
+          {subject.claims.length === 0 && <EmptyState>None</EmptyState>}
           {verdicts.error && <LoadState error={verdicts.error} />}
           {admission.error && <LoadState error={admission.error} />}
           <FieldList expandable label="Fields">
@@ -486,7 +486,7 @@ function ClaimDetail({
             </SubSection>
           )}
           <SubSection title="Captures" meta={ev.captures.length}>
-            {ev.captures.length === 0 && <div className="text-zinc-500">No cited Captures.</div>}
+            {ev.captures.length === 0 && <div className="text-zinc-500">None</div>}
             {ev.captures.length > 0 && (
               <CapturesTable captures={ev.captures} need={need} />
             )}
@@ -754,7 +754,7 @@ function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: Readonly
     >
       {read.isPending && <LoadState />}
       {read.error && <LoadState error={read.error} />}
-      {read.data && events.length === 0 && <EmptyState>No field events.</EmptyState>}
+      {read.data && events.length === 0 && <EmptyState>None</EmptyState>}
       {groups.length > 0 && (
         <button onClick={() => setExpanded(!open)} className="mb-2 text-[12px] text-zinc-500 hover:text-zinc-200">
           {open ? "Show as a list" : "Show each change's fields"}

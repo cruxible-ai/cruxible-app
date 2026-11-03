@@ -5,6 +5,9 @@ import { useDocumentBody, useDocuments, useGetBatch, type DocumentBody } from "@
 import { ApiError } from "@/api/data-source";
 import { DOCUMENT_READ_MAX_BYTES } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
+import { FieldList } from "@/components/FieldList";
+import { InfoButton } from "@/components/InfoButton";
+import { PageInfo } from "@/components/Page";
 import { BodyView } from "@/components/BodyView";
 import { Disclosure, LoadState, Panel } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
@@ -72,11 +75,13 @@ export function DocsScreen() {
   return (
     <div className="w-full max-w-[1760px]">
       <header className="mb-4">
-        <h1 className="t-title">Docs</h1>
-        <p className="t-lede measure mt-1">
-          The Documents this instance holds: design notes, runbooks and references accepted into state, each at its revision at this
-          generation. Pick one to read it.
-        </p>
+        <div className="flex items-center">
+          <h1 className="t-title">Docs</h1>
+          <PageInfo label="About Docs">
+            The Documents this instance holds: design notes, runbooks and references accepted into state, each at its revision at this
+            generation.
+          </PageInfo>
+        </div>
         {documents.data && (
           <StatsRow
             search={
@@ -105,7 +110,7 @@ export function DocsScreen() {
       {documents.error && <LoadState error={documents.error} />}
       {documents.data &&
         (rows.length === 0 ? (
-          <p className="text-[14px] text-zinc-400">No Documents at this generation.</p>
+          <p className="text-[14px] text-zinc-400">None at this generation</p>
         ) : (
           <div className={`grid grid-cols-1 items-start gap-5 ${listHidden ? "" : "lg:grid-cols-[20rem_minmax(0,1fr)]"}`}>
             {!listHidden && (
@@ -122,7 +127,7 @@ export function DocsScreen() {
                     </li>
                   ))}
                 </ul>
-                {shown.length === 0 && <p className="text-[13px] text-zinc-500">No Document matches.</p>}
+                {shown.length === 0 && <p className="text-[13px] text-zinc-500">No match</p>}
               </Panel>
             )}
             {open ? (
@@ -146,7 +151,7 @@ export function DocsScreen() {
               />
             ) : (
               <p className="text-[14px] text-zinc-400">
-                No Document named <span className="font-mono text-zinc-300">{asked}</span> at this generation.
+                Not found: <span className="font-mono text-zinc-300">{asked}</span>
               </p>
             )}
           </div>
@@ -334,14 +339,17 @@ function DocumentReader({
   ) : read.error ? (
     read.error instanceof ApiError && read.error.status === 403 ? (
       <Note cli={cliRead(row.name)}>
-        This console's token can't read Document bodies: that takes governed_write. Read it from a terminal:
+        <span className="inline-flex items-center gap-1.5">
+          Needs <span className="font-mono">governed_write</span>
+          <InfoButton label="Why the body is not shown">This console's token can't read Document bodies; read it from a terminal.</InfoButton>
+        </span>
       </Note>
     ) : (
       <LoadState error={read.error} />
     )
   ) : read.data?.status === "too_large" ? (
     <Note cli={`${cliRead(row.name)} --output ${row.name}`}>
-      {formatSize(read.data.size)}: larger than the {formatSize(DOCUMENT_READ_MAX_BYTES)} the page reads. Save it from a terminal:
+      {formatSize(read.data.size)}: over the {formatSize(DOCUMENT_READ_MAX_BYTES)} page limit
     </Note>
   ) : body && decoded && format ? (
     <BodyView
@@ -421,8 +429,8 @@ function Note({ children, cli }: { children: ReactNode; cli: string }) {
 
 /**
  * How a file becomes a Document here: name it in the file catalog as a
- * Document, then propose it. Said in plain words, as the two commands, and as
- * the sentence to give an agent.
+ * Document, then propose it. The two commands and the request to give an
+ * agent, as labelled rows; what a Document is behind an ⓘ.
  */
 function AddDocumentHint() {
   const commands = [
@@ -431,26 +439,47 @@ function AddDocumentHint() {
   ];
   const ask = 'Add docs/report.md to Cruxible as a Document titled "Q3 report", and propose it.';
   return (
-    <div className="measure space-y-2 text-[13px] text-zinc-400">
-      <p>
-        A Document is a file whose exact wording is kept in state: every revision is reviewed and accepted like any change, and Next flags
-        the file when it is edited until the new revision is proposed. Put the file in the workspace, then:
-      </p>
-      <div className="space-y-1">
-        {commands.map((command) => (
-          <div key={command} className="flex items-start gap-2">
-            <code className="min-w-0 break-all font-mono text-[12px] text-zinc-300">{command}</code>
-            <CopyButton value={command} label="Copy" />
-          </div>
-        ))}
-      </div>
-      <p className="flex items-start gap-2">
-        <span>
-          Or tell your agent: <span className="text-zinc-200">“{ask}”</span>
-        </span>
-        <CopyButton value={ask} label="Copy" />
-      </p>
-      <p className="text-[12px] text-zinc-500">It shows here once the proposal is accepted under your approval policy.</p>
+    <div className="measure text-[13px] text-zinc-400">
+      <FieldList
+        labels="words"
+        density="compact"
+        label="How to add a document"
+        fields={[
+          {
+            key: "cli",
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                CLI
+                <InfoButton label="What a Document is">
+                  A Document is a file whose exact wording is kept in state: every revision is reviewed and accepted like any change, and
+                  Next flags the file when it is edited until the new revision is proposed. Put the file in the workspace first; it shows
+                  here once the proposal is accepted under your approval policy.
+                </InfoButton>
+              </span>
+            ),
+            value: (
+              <div className="space-y-1">
+                {commands.map((command) => (
+                  <div key={command} className="flex items-start gap-2">
+                    <code className="min-w-0 break-all font-mono text-[12px] text-zinc-300">{command}</code>
+                    <CopyButton value={command} label="Copy" />
+                  </div>
+                ))}
+              </div>
+            ),
+          },
+          {
+            key: "agent",
+            label: "Agent",
+            value: (
+              <span className="flex items-start gap-2">
+                <span className="text-zinc-200">“{ask}”</span>
+                <CopyButton value={ask} label="Copy" />
+              </span>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

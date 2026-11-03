@@ -103,7 +103,7 @@ describe("Run page", () => {
       `/i/inst_fixture/p/sha256%3A${"a".repeat(64)}`,
     );
     expect(await main.findByRole("link", { name: "CAP-9e1b3d5f7a9c" })).toBeInTheDocument();
-    expect(main.getByText(/Attribution withheld/)).toBeInTheDocument();
+    expect(main.getByTitle("It names the enabling credential")).toHaveTextContent("Withheld");
     expect(main.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
   });
 });

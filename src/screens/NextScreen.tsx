@@ -35,11 +35,9 @@ export function NextScreen() {
         summary={
           page.data ? (
             page.data.total_items === 0 ? (
-              "Nothing needs attention."
+              "None"
             ) : (
               <>
-                What needs a person, worst first: problems with the repair to run, then setup choices that are yours to make.
-                Repairs are shown as text; run them from the CLI or MCP.
                 <StatsRow>
                   <Stat n={page.data.total_items} label={page.data.total_items === 1 ? "item" : "items"} />
                   {counts.map(([severity, n]) => (
@@ -51,6 +49,8 @@ export function NextScreen() {
             )
           ) : undefined
         }
+        info="What needs a person, worst first: problems with the repair to run, then setup choices that are yours to make. Repairs are shown as text; run them from the CLI or MCP."
+        infoLabel="About Next"
         actions={<PageNav index={index} total={page.data?.total_items} newer={newer} older={older} />}
       />
       {page.isPending && <LoadState />}
@@ -75,7 +75,7 @@ export function NextScreen() {
           />
         </Panel>
       )}
-      {page.data && items.length === 0 && page.data.total_items > 0 && <EmptyState>Nothing on this page.</EmptyState>}
+      {page.data && items.length === 0 && page.data.total_items > 0 && <EmptyState>None on this page</EmptyState>}
     </Page>
   );
 }

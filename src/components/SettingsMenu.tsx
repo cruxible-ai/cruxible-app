@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Settings } from "lucide-react";
+import { InfoButton } from "@/components/InfoButton";
 import { useSettings } from "@/lib/settings";
 
 /**
@@ -51,10 +52,11 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
               className="mt-0.5 accent-zinc-400"
             />
             <span>
-              <span className="block text-[14px] text-zinc-200">Follow the head</span>
-              <span className="block text-[12px] leading-snug text-zinc-500">
-                Move every screen to each newly accepted generation. Off: a
-                page keeps the generation it opened on and offers the newer one.
+              <span className="flex items-center gap-1.5 text-[14px] text-zinc-200">
+                Follow the head
+                <InfoButton label="What following the head does">
+                  Moves every screen to each newly accepted generation. Off: a page keeps the generation it opened on and offers the newer one.
+                </InfoButton>
               </span>
             </span>
           </label>

@@ -206,7 +206,7 @@ export function JumpPalette() {
   const refusal =
     exact && resolved.error
       ? resolved.error instanceof ApiError && resolved.error.errorCode === "cruxible.get.ref_not_found"
-        ? `No accepted ${exact.kind === "subject" ? "Subject" : refKindLabel(exact)} ${formatRef(exact)} at this generation.`
+        ? `Not found: ${exact.kind === "subject" ? "Subject" : refKindLabel(exact)} ${formatRef(exact)}`
         : resolved.error.message
       : null;
 
@@ -257,7 +257,7 @@ export function JumpPalette() {
           )}
           {refusal && <div className="px-3 py-2 text-[13px] text-red-400/80">{refusal}</div>}
           {query !== "" && items.length === 0 && !refusal && !(exact && resolved.isPending) && (
-            <div className="px-3 py-2 text-[13px] text-zinc-500">No matching kind or reference.</div>
+            <div className="px-3 py-2 text-[13px] text-zinc-500">No match</div>
           )}
           {items.map((item, i) => (
             <button

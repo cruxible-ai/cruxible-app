@@ -165,12 +165,6 @@ const SHAPE: Record<ContractShape, string> = {
   coordinator_self_source: "A proposer's own words",
 };
 
-/** What a provenance rule means: who obtained the bytes. Unknown rules are named as they are. */
-const PROVENANCE: Record<string, string> = {
-  "playbill.external.daemon-fetched-v1": "Cruxible obtains itself",
-  "playbill.coordinator-proposer-observed-v1": "recorded as the proposer wrote them",
-};
-
 /** Who obtained the bytes, terse (the Obtained term). */
 const OBTAINED: Record<string, string> = {
   "playbill.external.daemon-fetched-v1": "fetched by Cruxible",
@@ -265,22 +259,4 @@ export function termRows(terms: ContractTerms): TermRow[] {
   }
   if (terms.grade) rows.push({ label: "Grade", words: terms.grade[0]!.toUpperCase() + terms.grade.slice(1), raw: `epistemic grade ${terms.grade}` });
   return rows;
-}
-
-/** "A web response body Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased." */
-export function contractSentence(terms: ContractTerms): string | null {
-  if (!terms.shape) return null;
-  const provenance = terms.provenanceRule ? PROVENANCE[terms.provenanceRule] : undefined;
-  let head = SHAPE[terms.shape];
-  if (provenance) head += ` ${provenance}`;
-  const tail: string[] = [];
-  for (const s of terms.selectors) if (SELECTOR[s]) tail.push(SELECTOR[s]);
-  if (terms.maxBytes !== null) tail.push(`up to ${formatBytes(terms.maxBytes)}`);
-  if (terms.bodyRetention === "never_materialize") tail.push("body never stored");
-  else if (terms.bodyRetention === "optional") tail.push("body kept optionally");
-  else if (terms.bodyRetention === "required_for_duration" && terms.minimumRetentionUs !== null)
-    tail.push(`for at least ${formatDuration(terms.minimumRetentionUs)}`);
-  if (terms.erasure === "prohibited") tail.push("never erased");
-  else if (terms.erasure === "authorized_by_rule") tail.push("erasable under its rule");
-  return `${[head, ...tail].join(", ")}.`;
 }

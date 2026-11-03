@@ -47,8 +47,9 @@ describe("recorded reference world", () => {
     const m = await main();
     const strip = within(await m.findByRole("region", { name: "Needs you" }));
     expect(await strip.findByRole("link", { name: /Next 2/ })).toBeInTheDocument();
-    expect(await m.findByText("No Line is enabled, so nothing runs on its own.")).toBeInTheDocument();
-    expect(await m.findByText("No kits installed.")).toBeInTheDocument();
+    const panel = (title: string) => within(m.getByRole("heading", { name: title }).closest("section")!);
+    expect(await m.findByText("None enabled")).toBeInTheDocument();
+    expect(await panel("Kits").findByText("None")).toBeInTheDocument();
   });
 
   it("type map: a kind with its ClaimTypes, authored in this instance", async () => {
@@ -103,7 +104,10 @@ describe("recorded reference world", () => {
     renderApp(`${I}/lines/security.kev-triage`, RECORDED);
     m = await main();
     expect(await m.findByText("Page 1 · 2 in all")).toBeInTheDocument();
-    expect(await m.findByText(/Read the CISA KEV catalog and write each watched CVE/)).toBeInTheDocument();
+    // what the Line does sits behind the title's ⓘ
+    fireEvent.click(await m.findByRole("button", { name: "What this Line does" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/Read the CISA KEV catalog and write each watched CVE/);
+    fireEvent.click(m.getByRole("button", { name: "What this Line does" }));
     const line = within((await m.findByText("Line definition")).closest("section")!);
     expect(await line.findByText("cruxible-provider-web")).toBeInTheDocument(); // the build slot fetch binds
     // where it gets its source: host (URL on hover, outside link), limit, the CaptureKind it keeps (linked), its Provider
@@ -143,7 +147,9 @@ describe("recorded reference world", () => {
     renderApp(`${I}/kinds/security.vulnerability?view=claim-types`, RECORDED);
     expect(await screen.findByRole("heading", { name: "security.vulnerability" })).toBeInTheDocument();
     const m = within(screen.getByRole("main"));
-    expect(await m.findByText(/A CVE, named by its id/)).toBeInTheDocument();
+    fireEvent.click(m.getByRole("button", { name: "What security.vulnerability is" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/A CVE, named by its id/);
+    fireEvent.click(m.getByRole("button", { name: "What security.vulnerability is" }));
     expect(m.getByRole("heading", { name: "ClaimTypes (8)" })).toBeInTheDocument();
     const listed = within(m.getByText("listed_in", { selector: "td > span" }).closest("tr")!);
     expect(listed.getByRole("link", { name: "security.kev-catalog" })).toHaveAttribute("href", `${I}/contracts/security.kev-catalog`);

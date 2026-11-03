@@ -103,9 +103,9 @@ export function KindTable({
     mode === "client" ? null : (
       <>
         {narrowed
-          ? `${pushed!.orderBy.length > 0 ? "Sorted" : ""}${pushed!.orderBy.length > 0 && pushed!.where.length > 0 ? " and filtered" : pushed!.where.length > 0 ? "Filtered" : ""} by the daemon across the whole kind.`
-          : `More than one page of ${KIND_PAGE}: sorting and filtering go to the daemon.`}
-        {capped && ` The daemon stopped this answer at its cap of ${ANSWER_CAP} rows, so it is ${narrowed ? "sorted and filtered" : "listed"} within the first ${ANSWER_CAP} only.`}
+          ? `${pushed!.orderBy.length > 0 ? "Sorted" : ""}${pushed!.orderBy.length > 0 && pushed!.where.length > 0 ? " and filtered" : pushed!.where.length > 0 ? "Filtered" : ""} by the daemon, whole kind`
+          : `Over ${KIND_PAGE}: sort and filter by the daemon`}
+        {capped && ` · capped at ${ANSWER_CAP} rows`}
       </>
     );
 
@@ -113,7 +113,7 @@ export function KindTable({
     <div className="space-y-1.5">
       {left.length > 0 && (
         <div className="t-meta">
-          One query selects at most {select.length} fields; left out: <span className="font-mono">{left.join(", ")}</span>.
+          Max {select.length} fields per query; left out: <span className="font-mono">{left.join(", ")}</span>
         </div>
       )}
       {(current?.notes ?? []).map((text) => (
@@ -149,7 +149,7 @@ export function KindTable({
                 ? "No Subjects"
                 : `Subjects ${first + 1}–${first + rows.length}${total !== null ? ` of ${total}${capped ? "+" : ""}` : ""}`
           }
-          empty={mode === "server" && isActive(state) ? "No Subject matches the filters." : "No live Subjects of this kind at this generation."}
+          empty={mode === "server" && isActive(state) ? "No match" : "None at this generation"}
         />
       )}
     </div>

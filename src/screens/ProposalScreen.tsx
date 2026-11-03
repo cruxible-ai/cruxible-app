@@ -218,7 +218,7 @@ function ReviewNotes({ review }: { review: Review }) {
   return (
     <div className="mt-3 space-y-0.5 text-[12px]">
       {review.redactions.length > 0 && (
-        <div className="text-zinc-500">Withheld from this credential: {review.redactions.join(", ")} (needs a body-reading credential).</div>
+        <div className="text-zinc-500" title="Needs a body-reading credential">Withheld: {review.redactions.join(", ")}</div>
       )}
       {review.projection_advisory && <div className="text-zinc-400">{review.projection_advisory.message}</div>}
     </div>
@@ -254,7 +254,7 @@ function ChangeSetPanel({ proposal }: { proposal: ProposalCard }) {
 function MembersPanel({ review }: { review: Review }) {
   return (
     <Panel title="Each change, field by field" meta={<span>{review.members.length} {review.members.length === 1 ? "change" : "changes"}</span>}>
-      {review.members.length === 0 && <EmptyState>No changes.</EmptyState>}
+      {review.members.length === 0 && <EmptyState>None</EmptyState>}
       <div className="divide-y divide-zinc-800/70">
         {review.members.map((member) => (
           <MemberRow key={member.path} member={member} />

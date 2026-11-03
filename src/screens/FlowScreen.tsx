@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } fr
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair, Inbox as InboxIcon } from "lucide-react";
 import { useInbox, useInstanceId, useSourceLandings } from "@/api/hooks";
+import { PageInfo } from "@/components/Page";
+import { InfoButton } from "@/components/InfoButton";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
@@ -97,12 +99,13 @@ export function FlowScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <h1 className="t-title">Evidence flow</h1>
-        <p className="t-lede measure mt-1">
-          Where your evidence comes from and what it turns into. A Line fetches each source on its schedule, reads what
-          arrives and writes facts (or posts items for review); people and agents add their own statements. Hover a card
-          to trace its path.
-        </p>
+        <div className="flex items-center">
+          <h1 className="t-title">Evidence flow</h1>
+          <PageInfo label="About the evidence flow">
+            Where evidence comes from and what it turns into. A Line fetches each source on its schedule, reads what arrives and
+            writes facts (or posts items for review); people and agents add their own statements. Hover a card to trace its path.
+          </PageInfo>
+        </div>
         <StatsRow
           search={
             <SearchBox
@@ -125,10 +128,13 @@ export function FlowScreen() {
           )}
         </StatsRow>
         <AuthorityLegend />
-        {capped && <div className="mt-1 text-[12px] text-zinc-500">A listing stopped at its page cap: the flow may be incomplete.</div>}
+        {capped && <div className="mt-1 text-[12px] text-zinc-500">Partial: listing page cap</div>}
         {proofs.error && (
-          <div className="mt-1 text-[12px] text-zinc-500">
-            The ClaimTypes' evidence rules couldn't be read, so what people and agents may write is matched by contract alone.
+          <div className="mt-1 flex items-center gap-1.5 text-[12px] text-zinc-500">
+            Evidence rules unread
+            <InfoButton label="Evidence rules unread">
+              The ClaimTypes' evidence rules couldn't be read, so what people and agents may write is matched by contract alone.
+            </InfoButton>
           </div>
         )}
       </header>
@@ -144,7 +150,7 @@ export function FlowScreen() {
       )}
 
       {shown.nodes.length === 0 ? (
-        <EmptyState>No evidence flows at this generation.</EmptyState>
+        <EmptyState>None at this generation</EmptyState>
       ) : (
         <div className="overflow-x-auto">
           <div

@@ -297,10 +297,11 @@ export function LinesScreen() {
     <Page>
       <PageHeader
         title="Lines"
+        info="What starts each Line, what it ends in, and how its last run went."
+        infoLabel="About Lines"
         summary={
           lines.data ? (
             <>
-              What starts each Line, what it ends in, and how its last run went.
               <StatsRow>
                 <Stat n={rows.length} label={rows.length === 1 ? "Line" : "Lines"} />
                 {STATE_ORDER.map((state) => {
@@ -331,10 +332,10 @@ export function LinesScreen() {
             partial={lines.data.truncated ? `the first ${rows.length} Lines the daemon listed` : null}
             note={
               byNext
-                ? `Inbox and Next come from the first page of next (${NEXT_PAGE} rows), so this order or filter covers only what that page says.`
+                ? `Inbox and Next: first page of next (${NEXT_PAGE} rows) only`
                 : undefined
             }
-            empty="No Lines."
+            empty="None"
           />
         </Panel>
       )}

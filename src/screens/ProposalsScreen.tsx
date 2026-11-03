@@ -59,7 +59,8 @@ export function ProposalsScreen() {
     <Page>
       <PageHeader
         title="Proposals"
-        summary="Changes submitted for acceptance, by status. Approving, activating and rejecting stay on the CLI and MCP."
+        info="Changes submitted for acceptance, by status. Approving, activating and rejecting stay on the CLI and MCP."
+        infoLabel="About proposals"
         actions={<Pager index={index} older={older} newer={newer} />}
       >
         <div className="mt-3 flex gap-1.5">
@@ -87,7 +88,7 @@ export function ProposalsScreen() {
       {list.data && (
         <Panel title={term("proposal", status).word} meta={<span>{list.data.entries.length} on this page</span>}>
           {list.data.entries.length === 0 ? (
-            <EmptyState>None {status === "settled" ? "settled" : status === "open" ? "waiting for review" : "incomplete"}.</EmptyState>
+            <EmptyState>None {status === "settled" ? "settled" : status === "open" ? "waiting for review" : "incomplete"}</EmptyState>
           ) : (
             <ProposalList
               entries={list.data.entries}

@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import { useCaptureRead } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
 import type { Schemas } from "@/api/schemas";
+import { InfoButton } from "@/components/InfoButton";
 import { Panel, LoadState } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
 import { CAPTURE_READ_MAX_BYTES } from "@/api/requests";
@@ -45,21 +46,27 @@ export function CaptureContents({ card }: { card: Schemas["GetCaptureCard"] }) {
         {erased ? (
           <Note>
             Erased{erased.by ? ` by ${erased.by}` : ""} {formatDateTime(erased.at)}
-            {erased.because ? `: ${erased.because}` : ""}. The envelope and its citations stay; the bytes are gone.
+            {erased.because ? `: ${erased.because}` : ""}{" "}
+            <InfoButton label="What erasure keeps">The envelope and its citations stay; the bytes are gone.</InfoButton>
           </Note>
         ) : read.isPending ? (
           <LoadState />
         ) : read.error ? (
           read.error instanceof ApiError && read.error.status === 403 ? (
-            <Note cli={cli}>This console's token can't read Capture contents: that takes governed_write. Read it from a terminal:</Note>
+            <Note cli={cli}>
+              <span className="inline-flex items-center gap-1.5">
+                Needs <span className="font-mono">governed_write</span>
+                <InfoButton label="Why the contents are not shown">This console's token can't read Capture contents; read it from a terminal.</InfoButton>
+              </span>
+            </Note>
           ) : (
             <LoadState error={read.error} />
           )
         ) : read.data?.status === "unavailable" ? (
-          <Note cli={cli}>The body is unavailable{read.data.reason ? ` (${read.data.reason.replace(/_/g, " ")})` : ""}.</Note>
+          <Note cli={cli}>Unavailable{read.data.reason ? ` (${read.data.reason.replace(/_/g, " ")})` : ""}</Note>
         ) : material?.coverage.reason_codes?.includes("resource_budget_exceeded") ? (
           <Note cli={`${cli} --max-bytes ${card.size ?? CAPTURE_READ_MAX_BYTES * 4}`}>
-            Larger than the {formatSize(CAPTURE_READ_MAX_BYTES)} the page reads. Read it from a terminal:
+            Over the {formatSize(CAPTURE_READ_MAX_BYTES)} page limit
           </Note>
         ) : body ? (
           <BodyView
@@ -70,7 +77,7 @@ export function CaptureContents({ card }: { card: Schemas["GetCaptureCard"] }) {
             title={`Contents of ${card.capture}`}
           />
         ) : (
-          <Note cli={cli}>The daemon returned no body for this Capture{material ? ` (${material.status.replace(/_/g, " ")})` : ""}.</Note>
+          <Note cli={cli}>No body{material ? ` (${material.status.replace(/_/g, " ")})` : ""}</Note>
         )}
       </Panel>
     </>

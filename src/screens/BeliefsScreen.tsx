@@ -46,7 +46,8 @@ export function BeliefsScreen() {
     <Page>
       <PageHeader
         title="Beliefs"
-        summary={TAB_NOTE[tab]}
+        info={TAB_NOTE[tab]}
+        infoLabel={`About ${FAMILY_LABEL[tab].toLowerCase()}`}
         actions={<PageNav index={index} total={page.data?.total_items} newer={newer} older={older} />}
       >
         <div className="mt-3 flex flex-wrap items-baseline gap-1.5">
@@ -55,7 +56,7 @@ export function BeliefsScreen() {
               {FAMILY_LABEL[name]} ({items.filter((item) => familyOf(item.reason) === name).length})
             </button>
           ))}
-          <span className="t-meta ml-2">Reasons: {reasons.join(", ")}.</span>
+          <span className="t-meta ml-2">Reasons: {reasons.join(", ")}</span>
         </div>
       </PageHeader>
       {page.isPending && <LoadState />}
@@ -63,7 +64,7 @@ export function BeliefsScreen() {
       {page.data && (
         <Panel title={FAMILY_LABEL[tab]} meta={<span>{rows.length} on this page of {items.length}</span>}>
           {rows.length === 0 ? (
-            <EmptyState>None on this page.</EmptyState>
+            <EmptyState>None on this page</EmptyState>
           ) : (
             <NextTable
               items={rows}

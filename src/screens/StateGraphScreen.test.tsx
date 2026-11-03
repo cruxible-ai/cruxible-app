@@ -107,8 +107,8 @@ describe("State graph", () => {
     });
     renderApp("/i/inst_fixture/graph", [...AUTHORED.filter((f) => f.key !== big.key), big]);
     const pages = countGraphPages();
-    expect(await screen.findByText(/holds/)).toHaveTextContent("12,345 live Subjects");
-    expect(screen.getByRole("link", { name: "type map" })).toHaveAttribute("href", "/i/inst_fixture/map");
+    expect(await screen.findByText(/live Subjects · draw cap/)).toHaveTextContent("12,345 live Subjects");
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Type map" })).toHaveAttribute("href", "/i/inst_fixture/map");
     expect(screen.queryByTestId("dots")).toBeNull();
     expect(pages.count).toBe(1);
   });

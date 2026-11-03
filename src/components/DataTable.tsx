@@ -89,7 +89,7 @@ export function DataTable<T>({
   open,
   onToggle,
   group,
-  empty = "Nothing to show.",
+  empty = "None",
   rowClassName,
   label,
   maxHeight = "calc(100vh - 9rem)",
@@ -297,7 +297,7 @@ export function DataTable<T>({
           </tbody>
         </table>
         {shown.length === 0 && (
-          <div className="py-2 text-[13px] text-zinc-500">{rows.length === 0 || apply === "external" ? empty : "No row matches the filters."}</div>
+          <div className="py-2 text-[13px] text-zinc-500">{rows.length === 0 || apply === "external" ? empty : "No match"}</div>
         )}
       </div>
     </div>
@@ -458,7 +458,7 @@ function EnumPicker({
       </button>
       {open && (
         <div id={id} role="group" aria-label={`${label} values`} className={popoverClass}>
-          {options.length === 0 && <div className="px-1 text-[12px] text-zinc-500">No values.</div>}
+          {options.length === 0 && <div className="px-1 text-[12px] text-zinc-500">None</div>}
           {options.map((option) => (
             <label key={option.value} className="flex cursor-pointer items-baseline gap-2 px-1 py-0.5 text-[12px] font-normal text-zinc-300 hover:bg-zinc-900">
               <input

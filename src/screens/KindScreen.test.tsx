@@ -9,7 +9,9 @@ describe("Kind page", () => {
     renderApp("/i/inst_fixture/kinds/security.assessment?view=claim-types");
     expect(await screen.findByRole("heading", { name: "security.assessment" })).toBeInTheDocument();
     const main = within(screen.getByRole("main"));
-    expect(await main.findByText("Whether one release is affected by one CVE: one per pair.")).toBeInTheDocument();
+    // the kind's description sits behind the title's ⓘ
+    fireEvent.click(screen.getByRole("button", { name: "What security.assessment is" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Whether one release is affected by one CVE: one per pair.");
     expect(main.getByText("release_id")).toBeInTheDocument();
     expect(main.getByText("(unique)")).toBeInTheDocument();
     const status = within(main.getByText("status", { selector: "td > span" }).closest("tr")!);
@@ -131,13 +133,13 @@ describe("Kind as a table", () => {
     renderApp(`${I}/kinds/security.package`);
     const main = within(await screen.findByRole("main"));
     expect(await main.findByText("Subjects 1–100 of 130")).toBeInTheDocument();
-    expect(main.getByText("More than one page of 100: sorting and filtering go to the daemon.")).toBeInTheDocument();
+    expect(main.getByText("Over 100: sort and filter by the daemon")).toBeInTheDocument();
     const table = within(main.getByRole("table", { name: "security.package Subjects" }));
     // the daemon orders by one-valued fields only: the many-valued column has no sort, and says why
     expect(table.queryByRole("button", { name: "Sort by advisories" })).toBeNull();
     expect(table.getByRole("columnheader", { name: "advisories" })).toHaveAttribute("title", expect.stringMatching(/orders by one-valued fields only/));
     fireEvent.click(table.getByRole("button", { name: "Sort by weekly_downloads" }));
-    expect(await main.findByText("Sorted by the daemon across the whole kind.")).toBeInTheDocument();
+    expect(await main.findByText("Sorted by the daemon, whole kind")).toBeInTheDocument();
     // the smallest of all 130, not of the first page
     const firstRow = within(main.getByRole("table", { name: "security.package Subjects" })).getAllByRole("row")[1]!;
     expect(within(firstRow).getByRole("link", { name: "17" })).toBeInTheDocument();
@@ -148,7 +150,7 @@ describe("Kind as a table", () => {
   it("filters a kind past one page through the daemon's where", async () => {
     renderApp(`${I}/kinds/security.package?f.ecosystem=pypi&sort=-weekly_downloads`);
     const main = within(await screen.findByRole("main"));
-    expect(await main.findByText("Sorted and filtered by the daemon across the whole kind.")).toBeInTheDocument();
+    expect(await main.findByText("Sorted and filtered by the daemon, whole kind")).toBeInTheDocument();
     const table = within(main.getByRole("table", { name: "security.package Subjects" }));
     expect(table.getAllByRole("link", { name: "pypi" }).length).toBeGreaterThan(20);
     expect(table.queryByRole("link", { name: "npm" })).toBeNull();
@@ -179,14 +181,14 @@ describe("Contract page", () => {
     expect(main.getByText("Required")).toBeInTheDocument();
   });
 
-  it("says what the contract is, in plain words from the stored contract, between its input and its output", async () => {
+  it("says what the contract is, in terse terms from the stored contract, between its input and its output", async () => {
     renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
     const main = within(await screen.findByRole("main"));
-    expect(
-      await main.findByText("A web response body Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased."),
-    ).toBeInTheDocument();
+    // no explanatory lede: what a Capture contract is sits behind the title's ⓘ
+    expect(await main.findByRole("button", { name: "What a Capture contract is" })).toBeInTheDocument();
+    expect(main.queryByText(/A web response body Cruxible obtains itself/)).toBeNull();
     // the terms, terse; the stored value on hover; what a term means behind its ⓘ
-    expect(main.getByText("≥ 30 days")).toHaveAttribute("title", "body retention required_for_duration · minimum 2592000000000 µs");
+    expect(await main.findByText("≥ 30 days")).toHaveAttribute("title", "body retention required_for_duration · minimum 2592000000000 µs");
     expect(main.getByText("never")).toBeInTheDocument();
     expect(main.getByText("attested")).toBeInTheDocument();
     expect(main.getByText("web response body + URL, status, content type")).toBeInTheDocument();

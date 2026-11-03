@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair } from "lucide-react";
+import { PageInfo } from "@/components/Page";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId, useOntologyKinds, useSourceModel, useSubjectKinds } from "@/api/hooks";
@@ -320,11 +321,13 @@ export function TypeMapScreen() {
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
       <header className="mb-3">
-        <h1 className="t-title">Type map</h1>
-        <p className="t-lede measure mt-1">
-          The kinds of Subject this instance knows about, and how they point at each other: an arrow means a field on one
-          kind names a Subject of another. Click a kind or an arrow for its ClaimTypes.
-        </p>
+        <div className="flex items-center">
+          <h1 className="t-title">Type map</h1>
+          <PageInfo label="About the type map">
+            The kinds of Subject this instance knows about, and how they point at each other: an arrow means a field on one kind
+            names a Subject of another. Click a kind or an arrow for its ClaimTypes.
+          </PageInfo>
+        </div>
         <StatsRow
           search={
             <SearchBox
@@ -558,7 +561,7 @@ function EdgePanel({ edge, api, label }: { edge: TypeGraphEdge; api: GraphPanelA
 function ClaimTypeLinks({ predicates, kind, label }: { predicates: OrientPredicate[]; kind: string; label: (kind: string) => string }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  if (predicates.length === 0) return <div className="text-[12px] text-zinc-600">None.</div>;
+  if (predicates.length === 0) return <div className="text-[12px] text-zinc-600">None</div>;
   return (
     <FieldList
       density="compact"

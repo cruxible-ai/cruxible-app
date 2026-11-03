@@ -36,7 +36,8 @@ export function LedgerScreen() {
     <Page>
       <PageHeader
         title="Ledger"
-        summary="Accepted generations, newest first. Open a generation to read the instance as it stood there."
+        info="Accepted generations, newest first. Open a generation to read the instance as it stood there."
+        infoLabel="About the ledger"
         actions={
           <Pager
             index={cursors.length}
@@ -49,7 +50,7 @@ export function LedgerScreen() {
       {page.error && <LoadState error={page.error} />}
       {page.data && (
         <Panel title="Generations" meta={<span>{rows.length} on this page</span>}>
-          {rows.length === 0 && <EmptyState>No accepted generations.</EmptyState>}
+          {rows.length === 0 && <EmptyState>None</EmptyState>}
           <ChangeLog label="Generations">
             {rows.map((row) => (
               <GenerationEntry key={row.sequence} row={row} />

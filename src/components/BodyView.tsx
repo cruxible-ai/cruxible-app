@@ -118,7 +118,7 @@ function HtmlFrame({ html, title, fill }: { html: string; title: string; fill: b
         referrerPolicy="no-referrer"
         className={`${fill ? "h-[calc(100vh-10rem)]" : "h-[70vh]"} w-full resize-y border border-zinc-800 bg-white`}
       />
-      <div className="mt-1 text-[12px] text-zinc-500">Shown sandboxed: scripts don't run and nothing remote loads.</div>
+      <div className="mt-1 text-[12px] text-zinc-500" title="Scripts don't run; nothing remote loads">Sandboxed</div>
     </div>
   );
 }

@@ -15,7 +15,7 @@ import { contractReadings, retainedByWords, type ContractReading, type LandingTr
 import { contractName, contractProducers, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
 import { formatDateTime, formatRelative, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { contractSentence, readContractTerms, termRows } from "@/lib/contract-terms";
+import { readContractTerms, termRows } from "@/lib/contract-terms";
 import { roleWord, term } from "@/lib/vocabulary";
 
 /** Retentions whose step names no logical source, by why: the definitions do not say which source it is. */
@@ -52,7 +52,6 @@ export function ContractScreen() {
   // The terms are in the stored contract (the proof envelope); the card carries only grade and source kinds.
   const proof = useGet(`CaptureContract:${name}`, "proof");
   const terms = readContractTerms(proof.data?.proof);
-  const summaryLine = terms ? contractSentence(terms) : null;
   const claimTypes = useClaimTypes();
   const lines = useLines();
   const pins = usePins();
@@ -90,7 +89,8 @@ export function ContractScreen() {
         kind="Capture contract"
         title={name}
         mono
-        summary={summaryLine ?? undefined}
+        info={CONTRACT_INFO}
+        infoLabel="What a Capture contract is"
         facts={
           <>
             <Fact label="State">
@@ -106,17 +106,17 @@ export function ContractScreen() {
         }
       />
 
-      <FlowHeading step="Input" words="Where Captures under it come from" />
+      <FlowHeading step="Input" info="Where Captures under this contract come from: the logical sources they land under and the Procedures that retain them." />
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
-        <Panel title="Logical sources" meta={<span title="A Capture is retained under a contract and a logical source: what was read. The steps that name it retain it; a landing Trigger selects it.">{sources.length}</span>}>
+        <Panel title="Logical sources" meta={<span title="A Capture is retained under a contract and a logical source (what was read); steps that name the source retain it, a landing Trigger selects it">{sources.length}</span>}>
           <div className="mb-1.5 text-[12px] text-zinc-500">
             Source: <span className="text-zinc-300">{definition.sourceKinds.map(sourceKindLabel).join(", ") || "—"}</span>
           </div>
           {model.isPending && <LoadState />}
           {model.error && <LoadState error={model.error} />}
           {model.data && sources.length === 0 && unnamed.length === 0 && (
-            <div className="text-[12px] text-zinc-600">No definition names a logical source under this contract.</div>
+            <div className="text-[12px] text-zinc-600">None</div>
           )}
           {sources.length > 0 && <SourcesTable sources={sources} contract={name} />}
           {UNNAMED.map(({ test, words, title }) => {
@@ -130,22 +130,22 @@ export function ContractScreen() {
         </Panel>
         <Panel
           title="Captured under it by"
-          meta={<span title="Procedures with a source or emit step naming this contract. Pins are at Procedure grain.">{producers?.length ?? "…"}</span>}
+          meta={<span title="Procedures with a source or emit step naming this contract (pins are at Procedure grain)">{producers?.length ?? "…"}</span>}
         >
           {pins.isPending && <LoadState />}
           {pins.error && <LoadState error={pins.error} />}
-          {producers && producers.length === 0 && <EmptyState>No Procedure pins this contract.</EmptyState>}
+          {producers && producers.length === 0 && <EmptyState>None</EmptyState>}
           {producers && producers.length > 0 && <ProducersTable producers={producers} retaining={retaining} />}
-          {pins.data?.truncated && <div className="mt-1 text-[12px] text-zinc-500">The pins listing stopped at its page cap.</div>}
+          {pins.data?.truncated && <div className="mt-1 text-[12px] text-zinc-500">Partial: pins page cap</div>}
         </Panel>
       </div>
 
-      <FlowHeading step="Contract" words="What a Capture under it is" />
+      <FlowHeading step="Contract" info="What a Capture under this contract is: its shape, provenance, size and retention terms." />
       <Panel title="Terms" meta={terms?.format ? <span className="font-mono">{terms.format}</span> : undefined}>
         {proof.isPending && <LoadState />}
         {!proof.isPending && !terms && (
           <div className="text-[12px] text-zinc-500">
-            The stored contract was not served{proof.error ? `: ${proof.error.message}` : ""}.
+            Not served{proof.error ? `: ${proof.error.message}` : ""}
           </div>
         )}
         {terms && (
@@ -168,25 +168,25 @@ export function ContractScreen() {
 
       <Panel title="Read as" meta={<span>{readings.length}</span>}>
         {model.isPending && <LoadState />}
-        {model.data && readings.length === 0 && <EmptyState>No Procedure reads fields out of it.</EmptyState>}
+        {model.data && readings.length === 0 && <EmptyState>None</EmptyState>}
         {readings.length > 0 && <ReadingsList readings={readings} />}
       </Panel>
 
       <Panel title="Captures" meta={<span>{held.length}</span>}>
         {captures.isPending && <LoadState />}
         {captures.error && <LoadState error={captures.error} />}
-        {captures.data && held.length === 0 && <EmptyState>None held yet.</EmptyState>}
+        {captures.data && held.length === 0 && <EmptyState>None</EmptyState>}
         {held.length > 0 && <CapturesTable rows={held} />}
       </Panel>
 
-      <FlowHeading step="Output" words="What its landings start, and the ClaimTypes that admit it as evidence" />
+      <FlowHeading step="Output" info="What its landings start, and the ClaimTypes that admit it as evidence." />
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
       <Panel title="Triggers on its landings" meta={<span>{firing.length}</span>}>
         {model.isPending && <LoadState />}
-        {model.data && firing.length === 0 && <EmptyState>No Trigger fires when a Capture under this contract lands.</EmptyState>}
+        {model.data && firing.length === 0 && <EmptyState>None</EmptyState>}
         {firing.length > 0 && <TriggersTable triggers={firing} lines={lineByName} />}
         {model.data?.truncated && (
-          <div className="mt-1 text-[12px] text-zinc-500">A definition listing stopped at its cap.</div>
+          <div className="mt-1 text-[12px] text-zinc-500">Partial: definition listing cap</div>
         )}
       </Panel>
 
@@ -449,7 +449,7 @@ function AdmittingTable({ admitting }: { admitting: Admitting[] }) {
       rowKey={(a) => a.predicate}
       urlKey="ct"
       label="ClaimTypes that admit it"
-      empty="No ClaimType admits Captures under this contract."
+      empty="None"
     />
   );
 }
@@ -458,15 +458,18 @@ function evidenceWord(row: Schemas["OrientPredicate"] | undefined): string {
   return row?.evidence_requirement === "captured" ? "Required" : "Admitted";
 }
 
-/** A step of the page's Input → Contract → Output reading order. */
-function FlowHeading({ step, words }: { step: string; words: string }) {
+/** A step of the page's Input → Contract → Output reading order; what the step holds behind an ⓘ. */
+function FlowHeading({ step, info }: { step: string; info: string }) {
   return (
-    <div className="flex items-baseline gap-2 border-b border-zinc-800/70 pb-1 pt-2">
+    <div className="flex items-center gap-1.5 border-b border-zinc-800/70 pb-1 pt-2">
       <h2 className="text-[13px] font-semibold text-zinc-200">{step}</h2>
-      <span className="text-[12px] text-zinc-500">{words}</span>
+      <InfoButton label={`What ${step} holds`}>{info}</InfoButton>
     </div>
   );
 }
+
+const CONTRACT_INFO =
+  "A Capture contract says what a kind of evidence is: its shape, where it comes from and how long its bytes are kept. Lines retain Captures under it; ClaimTypes admit it as evidence.";
 
 type ContractRow = Schemas["OrientCaptureContract"];
 
@@ -523,7 +526,11 @@ export function ContractsScreen() {
   );
   return (
     <Page width="narrow">
-      <PageHeader title="Capture contracts" summary="What each kind of evidence is, where it comes from, and how many ClaimTypes admit it." />
+      <PageHeader
+        title="Capture contracts"
+        info="What each kind of evidence is, where it comes from, and how many ClaimTypes admit it."
+        infoLabel="About Capture contracts"
+      />
       {contracts.isPending && <LoadState />}
       {contracts.error && <LoadState error={contracts.error} />}
       {contracts.data && (
@@ -534,7 +541,7 @@ export function ContractsScreen() {
             rowKey={(row) => row.contract}
             label="Capture contracts"
             partial={contracts.data.truncated ? `the first ${contracts.data.rows.length} the daemon listed` : null}
-            empty="No capture contracts."
+            empty="None"
           />
         </Panel>
       )}

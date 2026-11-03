@@ -85,7 +85,7 @@ export function KindScreen() {
   if (claimTypes.isPending || subjectKinds.isPending) return <LoadState />;
   if (claimTypes.error) return <LoadState error={claimTypes.error} />;
   const known = rule !== undefined || rows.length > 0;
-  if (!known) return <EmptyState>No Subject kind {kind} at this generation.</EmptyState>;
+  if (!known) return <EmptyState>Not found: Subject kind {kind}</EmptyState>;
 
   return (
     <Page>
@@ -93,7 +93,8 @@ export function KindScreen() {
         kind="Subject kind"
         title={kind}
         mono
-        summary={kindCard?.description ?? undefined}
+        info={kindCard?.description ?? undefined}
+        infoLabel={`What ${kind} is`}
         actions={
           <Link to={link(`/i/${instanceId}/map?kind=${encodeURIComponent(kind)}`)} className={actionChipClass}>
             On the type map
@@ -154,7 +155,7 @@ export function KindScreen() {
       </div>
 
       {view === "subjects" ? (
-        <Panel title="Subjects" meta={<span>One row per Subject, one column per field</span>}>
+        <Panel title="Subjects">
           <KindTable kind={kind} predicates={predicates} keys={rule?.keys ?? EMPTY} />
         </Panel>
       ) : (
@@ -163,7 +164,7 @@ export function KindScreen() {
           meta={detail.error ? <span className="text-red-400/80">Live counts: {detail.error.message}</span> : undefined}
         >
           {rows.length === 0 ? (
-            <EmptyState>No ClaimTypes on this kind.</EmptyState>
+            <EmptyState>None</EmptyState>
           ) : (
             <ClaimTypeTable
               kind={kind}
@@ -182,7 +183,7 @@ export function KindScreen() {
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <Panel title="Pointed at by" meta={<span>{pointing.length}</span>}>
-          {pointing.length === 0 && <EmptyState>No ClaimType points at this kind.</EmptyState>}
+          {pointing.length === 0 && <EmptyState>None</EmptyState>}
           <div className="space-y-1 text-[13px]">
             {pointing.map((row) => {
               const from = (row.subject_kinds ?? [])[0] ?? "";
@@ -198,7 +199,7 @@ export function KindScreen() {
           </div>
         </Panel>
         <Panel title="Evidence contracts" meta={<span>{evidence.length}</span>}>
-          {evidence.length === 0 && <EmptyState>No ClaimType on this kind admits Captures.</EmptyState>}
+          {evidence.length === 0 && <EmptyState>None</EmptyState>}
           <div className="space-y-1 text-[13px]">
             {evidence.map((contract) => {
               const admitting = rows.filter((row) => (row.evidence ?? []).includes(contract));
@@ -230,6 +231,6 @@ export function ClaimTypeRedirect() {
   if (claimTypes.error) return <LoadState error={claimTypes.error} />;
   const row = (claimTypes.data?.rows ?? []).find((r) => r.predicate === predicate);
   const kind = [...(row?.subject_kinds ?? [])].sort()[0];
-  if (!kind) return <EmptyState>No ClaimType {predicate} at this generation.</EmptyState>;
+  if (!kind) return <EmptyState>Not found: ClaimType {predicate}</EmptyState>;
   return <Navigate replace to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)} />;
 }

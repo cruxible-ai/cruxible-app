@@ -309,7 +309,7 @@ export function ClaimTypeTable({
       open={open}
       onToggle={onToggle}
       expanded={(row) => <ClaimTypeDetail descriptor={row} settlers={settlers(row.predicate)} kind={kind} />}
-      empty="No ClaimTypes on this kind."
+      empty="None"
     />
   );
 }

@@ -79,7 +79,8 @@ describe("Docs", () => {
   it("says when the token can't read Document bodies, with the CLI read", async () => {
     renderApp(docs(PRIVATE_DOC));
     const main = within(await screen.findByRole("main"));
-    expect(await main.findByText(/can't read Document bodies: that takes governed_write/)).toBeInTheDocument();
+    expect(await main.findByText("governed_write")).toBeInTheDocument();
+    expect(main.getByRole("button", { name: "Why the body is not shown" })).toBeInTheDocument();
     expect(main.getByText(`cruxible get Document:${PRIVATE_DOC} --detail body`)).toBeInTheDocument();
   });
 
@@ -113,6 +114,6 @@ describe("Docs", () => {
 
   it("says when the named Document is not at this generation", async () => {
     renderApp(docs("gone"));
-    expect(await screen.findByText(/No Document named/)).toHaveTextContent("No Document named gone at this generation.");
+    expect(await screen.findByText(/Not found:/)).toHaveTextContent("Not found: gone");
   });
 });

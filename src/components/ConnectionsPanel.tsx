@@ -117,7 +117,7 @@ export function ConnectionsPanel({ subject }: { subject: Schemas["GetSubjectCard
             renderPanel={() => null}
           />
         ) : (
-          visible && <div className="text-[13px] text-zinc-600">No links to or from this Subject.</div>
+          visible && <div className="text-[13px] text-zinc-600">None</div>
         )}
       </div>
     </Panel>
