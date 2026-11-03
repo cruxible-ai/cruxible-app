@@ -7,10 +7,10 @@ import type { OrientPredicate } from "../api/schemas.ts";
  *                                   └────────────── (no Line reads it) ──────────────┘
  *
  * Where a source comes from: the Lines that fetch it on a schedule and the
- * direct runs that retain it (an agent runs the Procedure), from the source
- * steps that name the logical source in their definitions.
+ * direct runs that retain it (an agent runs the Procedure), from the calls
+ * that name the logical source in their definitions.
  *
- * A source is a logical source the definitions name (from the source steps
+ * A source is a logical source the definitions name (from the calls
  * that retain it and the landing Triggers that select it), plus one pseudo
  * source, "your statements", for what a ClaimType admits on its author's own
  * word. The contract a source is captured under is a tag on the source, not a

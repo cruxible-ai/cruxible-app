@@ -35,7 +35,7 @@ const UNNAMED: { test: (r: Retention) => boolean; words: string; title: string }
 
 /**
  * One CaptureContract: what it captures (grade, source kinds) and the logical
- * sources Captures land under it from (the source steps that retain each and
+ * sources Captures land under it from (the calls that retain each and
  * the Triggers that select it: contracts no longer list sources), the
  * Procedures that capture under it (their pins: Lines), the
  * Triggers that fire on its landings, the logical sources they select and
@@ -197,7 +197,7 @@ function SourcesTable({ sources, contract }: { sources: LogicalSource[]; contrac
       {
         id: "retained",
         header: "Retained by",
-        title: "The source steps that name it under this contract",
+        title: "The calls that name it under this contract",
         className: "text-[12px] text-zinc-400",
         cell: (s) => {
           const own = s.retainedBy.filter((r) => r.contract === contract);

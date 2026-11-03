@@ -182,7 +182,7 @@ export function procedureSlots(spec: ProcedureSpec): ({ slot: string } & Procedu
     .sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : 0));
 }
 
-// -- source steps and retentions ------------------------------------------------
+// -- capturing calls and retentions ------------------------------------------
 
 /** One call that captures under a contract, or an emit. */
 export interface SourceStep {
