@@ -206,6 +206,8 @@ export interface SourceStep {
   url: LogicalSourceRef | null;
   /** The most bytes the call accepts (its input's `max_bytes`, a number or a parameter), as authored. */
   maxBytes: unknown;
+  /** The slot the call binds through (null for an emit). */
+  slot?: string | null;
   emitted: boolean;
 }
 
@@ -223,6 +225,7 @@ export function sourceSteps(procedure: string, spec: ProcedureSpec): SourceStep[
           logicalSource: logicalSourceRef(step.input),
           url: logicalSourceRef(step.input, "url"),
           maxBytes: record(step.input)?.max_bytes ?? null,
+          slot: step.slot,
           emitted: false,
         });
       }
@@ -291,6 +294,8 @@ export interface Retention {
   url: string | null;
   /** The most bytes the call accepts, when its input says (literally or through a Line parameter). */
   maxBytes: number | null;
+  /** The Provider build the Line binds the call's slot to. */
+  provider: string | null;
 }
 
 /**
@@ -324,6 +329,7 @@ export function retentions(
         slotIn: step.slotIn,
         url: resolvedSource(step.url ?? null, line?.parameters),
         maxBytes: resolvedNumber(step.maxBytes, line?.parameters),
+        provider: (step.slot && line?.bindings[step.slot]) || null,
       });
     }
   }
@@ -511,6 +517,10 @@ export interface ContractReading {
   records: string | null;
   /** The fields it reads, by name. */
   fields: string[];
+  /** The payload paths its key reads (`cveID`). */
+  key: string[];
+  /** The payload paths its fields read, distinct, in declared order (`dateAdded`, `dueDate`). */
+  paths: string[];
   /** The row Contract they are typed by (`security.kev-record@1`). */
   row: string | null;
 }
@@ -531,10 +541,14 @@ export function contractReadings(contract: string, specs: ReadonlyMap<string, Pr
       const ref = templateRef(raw.capture);
       const from = ref?.$ref === "step" ? (ref as unknown as { step?: string }).step : str(raw.capture)?.replace(/^\$steps\.([^.]+).*$/, "$1");
       if (!from || !capturing.has(from)) continue;
+      const ats = (value: unknown) => [...new Set(Object.values(record(value) ?? {}).flatMap((f) => str(record(f)?.at) ?? []))];
+      const key = ats(raw.key);
       out.push({
         procedure,
         records: str(raw.records),
         fields: Object.keys(record(raw.fields) ?? {}).sort(),
+        key,
+        paths: ats(raw.fields).filter((at) => !key.includes(at)),
         row: str(raw.row),
       });
     }

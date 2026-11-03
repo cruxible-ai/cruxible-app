@@ -19,7 +19,8 @@ import {
   type Retention,
   type StepView,
 } from "@/lib/definitions";
-import { bytesWords, nameWords } from "@/lib/step-words";
+import { bytesWords, shortName } from "@/lib/step-words";
+import { Parts } from "@/components/Parts";
 
 type Slot = ReturnType<typeof procedureSlots>[number];
 import { providerName } from "@/lib/ontology";
@@ -229,129 +230,102 @@ export function LineDefinitionPanel({
   triggers: readonly LandingTrigger[];
 }) {
   const parameters = Object.entries(line.parameters);
-  const bindings = Object.entries(line.bindings);
+  const bindings = Object.values(line.bindings);
+  // A landing-fed call reads the Capture that landed: it is a source row too.
+  const rows: SourceRow[] = [
+    ...(line.triggerInput && line.triggerContract
+      ? [{ key: "landing", landing: true, url: null, source: null, given: null, emitted: false, maxBytes: null, contract: line.triggerContract, provider: bindings.length === 1 ? bindings[0]! : null }]
+      : []),
+    ...retains.map((r, i) => ({ key: String(i), landing: false, ...r })),
+  ];
   return (
     <Panel title="Line definition">
-      <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-[13px]">
-        <dt className="text-zinc-500">Source</dt>
-        <dd className="text-zinc-300">
-          {retains.length === 0 && <span className="text-zinc-600">Keeps nothing</span>}
-          {retains.map((r, i) => (
-            <div key={i}>
-              <RetentionWords retention={r} />
+      <DataTable rows={rows} columns={SOURCE_COLUMNS} rowKey={(row) => row.key} label="Sources" toolbar={false} maxHeight="none" empty="No source" />
+      {triggers.length > 0 && (
+        <div className="mt-2 space-y-0.5 text-[12px] text-zinc-400">
+          {triggers.map((t) => (
+            <div key={t.name}>
+              <span className="t-meta mr-2">Starts on</span>
+              <RefLink value={`Trigger:${t.name}`}>
+                <span className="font-mono">{t.name}</span>
+              </RefLink>
+              {" · "}
+              <ContractShort name={t.contract} />
+              {" · "}
+              <span className="font-mono">{t.logicalSources.length ? t.logicalSources.join(", ") : "any source"}</span>
             </div>
           ))}
-        </dd>
-        {line.triggerInput && (
-          <>
-            <dt className="text-zinc-500" title="The call that reads the Capture whose landing started the run">
-              Starts from
-            </dt>
-            <dd className="text-zinc-300">
-              <span title={`Trigger input: step ${line.triggerInput}`}>The Capture that landed</span>
-              {line.triggerContract && (
-                <span>
-                  {" "}
-                  as <ContractWords name={line.triggerContract} />
-                </span>
-              )}
-            </dd>
-          </>
-        )}
-        {bindings.length > 0 && (
-          <>
-            <dt className="text-zinc-500" title="The Provider build each slot binds">
-              {bindings.length === 1 ? "Provider" : "Providers"}
-            </dt>
-            <dd className="text-zinc-300">
-              {bindings.map(([slot, provider]) => (
-                <div key={slot} title={`Slot ${slot} binds ${provider}`}>
-                  <RefLink value={`Provider:${provider}`}>
-                    <span className="font-mono text-[12px]">{providerName(provider)}</span>
-                  </RefLink>
-                </div>
-              ))}
-            </dd>
-          </>
-        )}
-        {triggers.length > 0 && (
-          <>
-            <dt className="text-zinc-500">Starts on</dt>
-            <dd className="text-zinc-300">
-              {triggers.map((t) => (
-                <div key={t.name}>
-                  <RefLink value={`Trigger:${t.name}`}>
-                    <span className="font-mono text-[12px]">{t.name}</span>
-                  </RefLink>{" "}
-                  <span className="text-zinc-500">a landing under</span> <NamedRef kind="contract" name={t.contract} />{" "}
-                  <span className="text-zinc-500">{t.logicalSources.length ? `from ${t.logicalSources.join(", ")}` : "from any source"}</span>
-                </div>
-              ))}
-            </dd>
-          </>
-        )}
-        {parameters.length > 0 && (
-          <>
-            <dt className="text-zinc-500">Parameters</dt>
-            <dd className="min-w-0 break-words text-zinc-300">
-              <details>
-                <summary className="cursor-pointer text-[12px] text-zinc-500 hover:text-zinc-300">Show {parameters.length === 1 ? "the parameter" : `the ${parameters.length} parameters`}</summary>
-                {parameters.map(([key, value]) => (
-                  <div key={key}>
-                    <span className="font-mono text-zinc-400">{key}</span> ={" "}
-                    <span className="font-mono text-zinc-200">{typeof value === "string" ? value : JSON.stringify(value)}</span>
-                  </div>
-                ))}
-              </details>
-            </dd>
-          </>
-        )}
-      </dl>
+        </div>
+      )}
+      {parameters.length > 0 && (
+        <details className="mt-2 text-[12px]">
+          <summary className="cursor-pointer text-zinc-500 hover:text-zinc-300">Parameters ({parameters.length})</summary>
+          <dl className="mt-1 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-0.5">
+            {parameters.map(([key, value]) => (
+              <div key={key} className="contents">
+                <dt className="font-mono text-zinc-500">{key}</dt>
+                <dd className="break-all font-mono text-zinc-300">{typeof value === "string" ? value : JSON.stringify(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
     </Panel>
   );
 }
 
-/** A CaptureKind in words ("the kev catalog"), linking its page; its name on hover. */
-function ContractWords({ name }: { name: string }) {
+type SourceRow = Pick<Retention, "url" | "source" | "given" | "emitted" | "maxBytes" | "contract" | "provider"> & { key: string; landing: boolean };
+
+/** A CaptureKind by its short name (`kev-catalog`), linking its page; the full name on hover. */
+function ContractShort({ name }: { name: string }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   const bare = name.replace(/^CaptureContract:/, "");
   return (
-    <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(bare)}`)} title={`CaptureKind ${bare}`} className="text-zinc-200 underline decoration-zinc-600 underline-offset-2 hover:text-white">
-      the {nameWords(bare)}
+    <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(bare)}`)} title={`CaptureKind ${bare}`} className="font-mono text-zinc-200 hover:text-white hover:underline">
+      {shortName(bare)}
     </Link>
   );
 }
 
-/**
- * What a Line keeps, in words: "Fetches cisa.gov · up to 4 MB, kept as the
- * kev catalog" (the URL on hover, the source linking its CaptureKind page,
- * the logical source and contract names on hover).
- */
-function RetentionWords({ retention: r }: { retention: Retention }) {
-  const host = hostOf(r.url);
-  const cap = r.maxBytes !== null ? ` · up to ${bytesWords(r.maxBytes)}` : "";
-  const kept = (
-    <span title={r.source ? `Logical source ${r.source}, retained under CaptureKind ${r.contract}` : `Retained under CaptureKind ${r.contract}`}>
-      <ContractWords name={r.contract} />
-    </span>
-  );
-  if (r.emitted) return <>Keeps its output as {kept}</>;
-  if (host || r.url) {
-    return (
-      <>
-        Fetches <span title={r.url ?? undefined} className="text-zinc-100">{host ?? r.url}</span>
-        {cap}, kept as {kept}
-      </>
-    );
-  }
-  return (
-    <>
-      Keeps {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : r.given ? `the source given as ${r.given}` : "a Capture naming no logical source"}
-      {cap} as {kept}
-    </>
-  );
-}
+const SOURCE_COLUMNS: Column<SourceRow>[] = [
+  {
+    id: "source",
+    header: "Source",
+    cell: (r) => {
+      const host = hostOf(r.url);
+      if (r.landing) return <span title="The Capture whose landing started the run">landing</span>;
+      if (r.emitted) return <span title="The run's own output">output</span>;
+      if (host && r.url) return <Parts parts={[{ text: host, href: r.url, title: r.url }]} />;
+      if (r.source) return <span className="font-mono">{r.source}</span>;
+      return <span className="font-mono text-zinc-500">{r.given ? `$params.${r.given}` : "—"}</span>;
+    },
+  },
+  { id: "limit", header: "Limit", className: "whitespace-nowrap", cell: (r) => (r.maxBytes !== null ? <span title={`${r.maxBytes.toLocaleString()} bytes`}>{bytesWords(r.maxBytes)}</span> : <span className="text-zinc-600">—</span>) },
+  {
+    id: "kept",
+    header: "Kept as",
+    cell: (r) => (
+      <span title={r.source ? `logical source ${r.source}` : undefined}>
+        <ContractShort name={r.contract} />
+      </span>
+    ),
+  },
+  {
+    id: "provider",
+    header: "Provider",
+    cell: (r) =>
+      r.provider ? (
+        <RefLink value={`Provider:${r.provider}`}>
+          <span className="font-mono text-[12px]" title={r.provider}>
+            {providerName(r.provider)}
+          </span>
+        </RefLink>
+      ) : (
+        <span className="text-zinc-600">—</span>
+      ),
+  },
+];
 
 type TriggerSchedule = { kind?: unknown; event?: unknown; cron?: unknown; expression?: unknown; every?: unknown };
 

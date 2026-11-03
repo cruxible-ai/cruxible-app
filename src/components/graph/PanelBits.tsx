@@ -23,6 +23,16 @@ export function PanelSection({ title, children }: { title: string; children: Rea
   );
 }
 
+/** A divided group of a side panel: a hairline above, a short uppercase label, then its rows (the Type map's kind panel groups). */
+export function PanelGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mt-3 border-t border-zinc-800 pt-2">
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">{title}</div>
+      {children}
+    </div>
+  );
+}
+
 export function PanelActions({ children }: { children: ReactNode }) {
   return <div className="mt-3 flex flex-wrap gap-1.5">{children}</div>;
 }
@@ -45,7 +55,7 @@ export function ConnectionList({
 }) {
   const touching = edges.filter((e) => e.source === nodeId || e.target === nodeId);
   if (touching.length === 0) {
-    return <div className="text-[13px] text-zinc-600">No connections in this view.</div>;
+    return <div className="text-[12px] text-zinc-600">none in this view</div>;
   }
   return (
     <div className="space-y-0.5">
@@ -57,16 +67,14 @@ export function ConnectionList({
           <button
             key={e.id}
             onClick={() => api.select(other)}
-            className="flex w-full items-baseline gap-1.5 px-1 py-0.5 text-left text-[12px] hover:bg-zinc-900"
+            className="flex w-full items-baseline gap-1.5 border-b border-zinc-800/70 px-1 py-1 text-left text-[12px] last:border-b-0 hover:bg-zinc-900"
           >
             <span className="shrink-0 font-mono text-zinc-600">{outgoing ? "→" : "←"}</span>
             {/* Full text always — long titles wrap onto extra lines rather
                 than truncating; the panel scrolls, so height is free. */}
             <span className="min-w-0">
-              <span className="text-zinc-500">
-                {String(e.label ?? e.id).replaceAll("_", " ")}
-              </span>{" "}
-              <span className="break-words text-zinc-300">
+              <span className="font-mono text-zinc-500">{String(e.label ?? e.id)}</span>{" "}
+              <span className="break-words font-mono text-zinc-300">
                 {isSelfLoop ? "(self)" : labelFor(other)}
               </span>
             </span>

@@ -106,20 +106,21 @@ describe("recorded reference world", () => {
     expect(await m.findByText(/Read the CISA KEV catalog and write each watched CVE/)).toBeInTheDocument();
     const line = within((await m.findByText("Line definition")).closest("section")!);
     expect(await line.findByText("cruxible-provider-web")).toBeInTheDocument(); // the build slot fetch binds
-    // where it gets its source, in words: the host (the URL on hover), the cap, the CaptureKind it keeps it as (linked)
-    const source = line.getByText("Source").nextElementSibling as HTMLElement;
-    expect(source).toHaveTextContent("Fetches cisa.gov · up to 4 MB, kept as the kev catalog");
-    expect(within(source).getByText("cisa.gov")).toHaveAttribute("title", expect.stringMatching(/^https:\/\/www\.cisa\.gov\//));
-    expect(within(source).getByRole("link", { name: "the kev catalog" })).toHaveAttribute("href", `${I}/contracts/security.kev-catalog`);
-    expect(line.getByText(/^Show the 3 parameters$/)).toBeInTheDocument();
+    // where it gets its source: host (URL on hover, outside link), limit, the CaptureKind it keeps (linked), its Provider
+    const sources = within(line.getByRole("table", { name: "Sources" }));
+    expect(sources.getByText("cisa.gov").closest("a")).toHaveAttribute("href", expect.stringMatching(/^https:\/\/www\.cisa\.gov\//));
+    expect(sources.getByText("4 MB")).toBeInTheDocument();
+    expect(sources.getByRole("link", { name: "kev-catalog" })).toHaveAttribute("href", `${I}/contracts/security.kev-catalog`);
+    expect(line.getByText("Parameters (3)")).toBeInTheDocument();
     // the Procedure as authored is on the steps graph: each node its id and kind
     await waitFor(() => expect(node("write")).not.toBeNull(), { timeout: 8000 });
     const kinds = { catalog: "Call", watched: "Read", entries: "Extract", write: "Claims" };
     for (const [id, kind] of Object.entries(kinds)) expect(within(node(id)!).getByText(kind)).toBeInTheDocument();
     fireEvent.click(node("catalog")!);
-    const panel = within(await screen.findByText("Binds", { selector: "dt" }).then((dt) => dt.closest("dl")!));
-    expect(panel.getByRole("link", { name: /security\.kev-catalog/ })).toBeInTheDocument();
-    expect(panel.getByRole("link", { name: "cruxible-provider-web" })).toBeInTheDocument();
+    // its side panel: the fields in groups, named things linked
+    expect(within(await screen.findByRole("list", { name: "Returns" })).getByRole("link", { name: "kev-catalog" })).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Provider" })).getByRole("link", { name: "cruxible-provider-web" })).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Fetches" })).getByText("4 MB")).toBeInTheDocument();
   });
 
   it("run page: a Line-triggered run", async () => {

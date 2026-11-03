@@ -115,6 +115,18 @@ export function decodingWords(decoding: ContractDecoding): string {
   return `${what}, exactly as received${packed}${limits.length ? ` · read ${limits.join(", ")}` : ""}`;
 }
 
+/** A decoding, terse: "JSON · ≤ 16 MiB · ≤ 100,000 records". */
+export function formatTerse(decoding: ContractDecoding): string {
+  return [
+    FORMAT[decoding.format] ?? decoding.format,
+    decoding.encoding && decoding.encoding !== "identity" ? decoding.encoding : null,
+    decoding.decodedBytes !== null ? `≤ ${formatBytes(decoding.decodedBytes)}` : null,
+    decoding.records !== null ? `≤ ${decoding.records.toLocaleString()} records` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /** 16777216 -> "16 MiB". */
 export function formatBytes(bytes: number): string {
   const units = ["bytes", "KiB", "MiB", "GiB"];
@@ -159,6 +171,12 @@ const PROVENANCE: Record<string, string> = {
   "playbill.coordinator-proposer-observed-v1": "recorded as the proposer wrote them",
 };
 
+/** Who obtained the bytes, terse (the Obtained term). */
+const OBTAINED: Record<string, string> = {
+  "playbill.external.daemon-fetched-v1": "fetched by Cruxible",
+  "playbill.coordinator-proposer-observed-v1": "as the proposer wrote them",
+};
+
 const SELECTOR: Record<string, string> = {
   "whole-response-v1": "kept whole",
 };
@@ -168,6 +186,8 @@ export interface TermRow {
   words: string;
   /** The stored value the words read (hover). */
   raw: string;
+  /** What the term means, for a reader new to it (an ⓘ). */
+  info?: string;
 }
 
 export function termRows(terms: ContractTerms): TermRow[] {
@@ -175,41 +195,42 @@ export function termRows(terms: ContractTerms): TermRow[] {
   if (terms.shape)
     rows.push({
       label: "Holds",
-      words: terms.shape === "http_response" ? "The body of a web response; its address, status and type are recorded with it" : SHAPE[terms.shape],
+      words: terms.shape === "http_response" ? "web response body + URL, status, content type" : SHAPE[terms.shape],
       raw: `shape ${terms.shape}`,
     });
   if (terms.decoding) {
     const d = terms.decoding;
-    rows.push({ label: "Format", words: decodingWords(d), raw: `decoding ${d.format} · ${d.encoding ?? "identity"}${d.depth !== null ? ` · depth ${d.depth}` : ""}` });
+    rows.push({ label: "Format", words: formatTerse(d), raw: `${decodingWords(d)}\ndecoding ${d.format} · ${d.encoding ?? "identity"}${d.depth !== null ? ` · depth ${d.depth}` : ""}` });
   }
   if (terms.provenanceRule) {
-    const words = PROVENANCE[terms.provenanceRule];
+    const words = OBTAINED[terms.provenanceRule];
     rows.push({
       label: "Obtained",
-      words: words ? `${words[0]!.toUpperCase()}${words.slice(1)}` : `Under the provenance rule ${publicName(terms.provenanceRule)}`,
+      words: words ?? publicName(terms.provenanceRule),
       raw: `provenance rule ${terms.provenanceRule}`,
     });
   }
   if (terms.replay) {
     rows.push({
       label: "Replay",
-      words:
+      words: terms.replay,
+      info:
         terms.replay === "exact"
-          ? "Exact: what a Claim cites can be re-derived byte for byte from what is kept"
-          : "Attested: what a Claim cites rests on the recorded fetch",
+          ? "Exact: what a Claim cites can be re-derived byte for byte from what is kept."
+          : "Attested: what a Claim cites rests on the recorded fetch.",
       raw: `replay ${terms.replay}${terms.replayPolicy ? ` · ${terms.replayPolicy}` : ""}`,
     });
   }
   const selection = [
     ...terms.selectors.map((s) => SELECTOR[s] ?? s),
-    terms.maxBytes !== null ? `up to ${formatBytes(terms.maxBytes)}` : null,
-    terms.maxItems !== null && terms.maxItems > 1 ? `at most ${terms.maxItems.toLocaleString()} items` : null,
-    terms.maxRows !== null && terms.maxRows > 1 ? `at most ${terms.maxRows.toLocaleString()} rows` : null,
+    terms.maxBytes !== null ? `≤ ${formatBytes(terms.maxBytes)}` : null,
+    terms.maxItems !== null && terms.maxItems > 1 ? `≤ ${terms.maxItems.toLocaleString()} items` : null,
+    terms.maxRows !== null && terms.maxRows > 1 ? `≤ ${terms.maxRows.toLocaleString()} rows` : null,
   ].filter((part): part is string => part !== null);
   if (selection.length > 0) {
     rows.push({
       label: "Size",
-      words: `${selection.join(", ").replace(/^./, (c) => c.toUpperCase())}`,
+      words: selection.join(" · "),
       raw: `selection budget: max_bytes ${terms.maxBytes ?? "—"}, max_rows ${terms.maxRows ?? "—"}, max_items ${terms.maxItems ?? "—"}${terms.selectors.length ? ` · selectors ${terms.selectors.join(", ")}` : ""}`,
     });
   }
@@ -222,7 +243,7 @@ export function termRows(terms: ContractTerms): TermRow[] {
           : terms.bodyRetention === "optional"
             ? "The body may be kept"
             : terms.minimumRetentionUs !== null
-              ? `For at least ${formatDuration(terms.minimumRetentionUs)}`
+              ? `≥ ${formatDuration(terms.minimumRetentionUs)}`
               : "The body is kept",
       raw: `body retention ${terms.bodyRetention}${terms.minimumRetentionUs !== null ? ` · minimum ${terms.minimumRetentionUs} µs` : ""}`,
     });
@@ -230,14 +251,15 @@ export function termRows(terms: ContractTerms): TermRow[] {
   if (terms.erasure) {
     rows.push({
       label: "Erasure",
-      words: terms.erasure === "prohibited" ? "Never erased" : `Erasable under ${terms.erasureRule ? publicName(terms.erasureRule) : "its erasure rule"}`,
+      words: terms.erasure === "prohibited" ? "never" : `Erasable under ${terms.erasureRule ? publicName(terms.erasureRule) : "its erasure rule"}`,
       raw: `erasure ${terms.erasure}${terms.erasureRule ? ` · ${terms.erasureRule}` : ""}`,
     });
   }
   if (terms.selectorPrivacy) {
     rows.push({
       label: "Selectors",
-      words: terms.selectorPrivacy === "direct_allowed" ? "May name what was read directly" : "Must be pseudonymous",
+      words: terms.selectorPrivacy === "direct_allowed" ? "direct" : "pseudonymous",
+      info: terms.selectorPrivacy === "direct_allowed" ? "A selector may name what was read directly." : "A selector must be pseudonymous.",
       raw: `selector privacy ${terms.selectorPrivacy}`,
     });
   }

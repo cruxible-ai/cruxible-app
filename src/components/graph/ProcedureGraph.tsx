@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { ArrowRightLeft, ArrowUpDown, Clock, Cpu, CornerDownRight, Database, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
@@ -7,15 +7,17 @@ import { cardOf } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
 import { CONTROL_CLASS, GraphCanvas, type GraphSelection } from "@/components/graph/GraphCanvas";
-import { RefLink } from "@/components/RefLink";
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { parseRef, refRoute } from "@/lib/cruxible-ref";
 import { type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
-import { providerName } from "@/lib/ontology";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
-import { flowWords, nameWords, queryShape, stepPurpose, summaryWords, type Phrase, type QueryShape, type RunSummary } from "@/lib/step-words";
+import { flowWords, partsText, queryShape, stepBrief, stepRow, stepSections, summaryWords, type DetailSection, type Part, type QueryShape, type StepRow, type StepWordsContext } from "@/lib/step-words";
+import { DataTable, type Column } from "@/components/DataTable";
+import { FieldList } from "@/components/FieldList";
+import { PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
+import { Parts } from "@/components/Parts";
 import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
 import { ROLE_COLOR } from "@/lib/palette";
@@ -85,8 +87,8 @@ interface NodeDisplay {
   kindWord: string;
   kindMeaning: string;
   name: string | null;
-  /** What the step is for, in words (at most two lines on the node; all of it on hover). */
-  purpose: (Phrase & { routes: (string | null)[] }) | null;
+  /** The step's key fields, one line (`cisa.gov · JSON`); named things linked, all of it on hover. */
+  brief: { parts: Part[]; routes: (string | null)[]; title: string } | null;
   lines: NodeLine[];
   mark: StepMark | null;
   /** The mark's words: the run's counts for the node when its summary gives them. */
@@ -99,11 +101,7 @@ const LINE_HEIGHT = 15;
 const HEAD_HEIGHT = 20;
 const PAD = 12;
 const MIN_WIDTH = 130;
-const MAX_WIDTH = 210;
-/** A node with a purpose may grow wider, so two lines say most of it. */
-const PURPOSE_MAX_WIDTH = 340;
-/** Roboto Flex at 11px runs about this wide per character on average. */
-const SANS_EM = 0.48;
+const MAX_WIDTH = 240;
 
 function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
   const Icon = ROLE_ICON[data.role];
@@ -119,7 +117,7 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
         <span style={{ color: ROLE_COLOR[data.role].color }}>{data.kindWord}</span>
         {data.name && <span className="truncate font-mono text-[12px] text-zinc-100">{data.name}</span>}
       </div>
-      {data.purpose && <PurposeText purpose={data.purpose} />}
+      {data.brief && <BriefLine brief={data.brief} />}
       {data.lines.map((line, i) => (
         <NodeText key={i} line={line} />
       ))}
@@ -146,15 +144,15 @@ function NodeText({ line }: { line: NodeLine }) {
   );
 }
 
-/** A step's purpose: plain words, payload and definition names as code, named things linked; two lines at most, all of it on hover. */
-function PurposeText({ purpose }: { purpose: NonNullable<NodeDisplay["purpose"]> }) {
+/** A step's key fields on one line: payload and definition names as code, named things linked, all of it on hover. */
+function BriefLine({ brief }: { brief: NonNullable<NodeDisplay["brief"]> }) {
   return (
-    <div className="line-clamp-2 break-words text-[11px] leading-[15px] text-zinc-300" title={purpose.title}>
-      {purpose.parts.map((part, i) => {
+    <div className="truncate text-[11px] leading-[15px] text-zinc-300" title={brief.title}>
+      {brief.parts.map((part, i) => {
         const text = part.code ? <code className="font-mono text-[10.5px] text-zinc-200">{part.text}</code> : part.text;
-        const to = purpose.routes[i];
+        const to = brief.routes[i];
         return to ? (
-          <Link key={i} to={to} title={part.title} className="nodrag nopan text-zinc-100 underline decoration-zinc-600 underline-offset-2 hover:text-white hover:decoration-zinc-300" onClick={(e) => e.stopPropagation()}>
+          <Link key={i} to={to} title={part.title} className="nodrag nopan text-zinc-100 hover:text-white hover:underline" onClick={(e) => e.stopPropagation()}>
             {text}
           </Link>
         ) : (
@@ -189,24 +187,18 @@ function MarkLine({ mark, words }: { mark: StepMark; words: NodeDisplay["markWor
 
 const nodeTypes = { step: StepNode };
 
-/** A purpose's width on one line: code in 10.5px mono, the rest in 11px sans. */
-const purposeWidth = (purpose: Phrase) =>
-  Math.ceil(purpose.parts.reduce((w, p) => w + (p.code ? monoWidth(p.text, 10.5) : p.text.length * 11 * SANS_EM), 0));
-
 /**
- * The node box: the widest line in 11px mono (the header in 12px) between the
- * bounds; a purpose widens it up to PURPOSE_MAX_WIDTH and wraps to a second
- * line past that.
+ * The node box: the widest line (11px mono, the header 12px) between the
+ * bounds; longer lines truncate, all of them on hover.
  */
 function boxOf(d: NodeDisplay) {
   const inner = PAD + 6;
   const head = monoWidth(d.name ?? "", 12) + monoWidth(d.kindWord, 11) + 56;
   const body = Math.max(0, ...d.lines.map((l) => monoWidth(l.text, 11) + (l.signal ? 12 : 0)));
   const markWidth = d.mark ? monoWidth(markText(d.mark, d.markWords), 11) + 12 : 0;
-  const purpose = d.purpose ? purposeWidth(d.purpose) : 0;
-  const width = Math.min(d.purpose ? PURPOSE_MAX_WIDTH : MAX_WIDTH, Math.max(MIN_WIDTH, head, body + inner, markWidth + PAD, purpose + inner));
-  const purposeLines = d.purpose ? (purpose + inner > width ? 2 : 1) : 0;
-  const height = HEAD_HEIGHT + (purposeLines + d.lines.length) * LINE_HEIGHT + (d.mark ? LINE_HEIGHT + 3 : 0) + PAD;
+  const brief = d.brief ? Math.ceil(monoWidth(partsText(d.brief.parts), 11) * 0.92) : 0;
+  const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, head, body + inner, markWidth + PAD, brief + inner));
+  const height = HEAD_HEIGHT + ((d.brief ? 1 : 0) + d.lines.length) * LINE_HEIGHT + (d.mark ? LINE_HEIGHT + 3 : 0) + PAD;
   return { width, height };
 }
 
@@ -246,33 +238,12 @@ export function ProcedureGraph({
     [instanceId, link],
   );
 
-  // Every node's id and kind, and what its step names (the Line's binding and the run's marks when given).
-  // The Queries the read steps name, and their row Contracts: what a read returns, in words.
-  const queryNames = useMemo(() => [...new Set(spec.steps.flatMap((step) => ("read" in step && step.query ? [step.query] : [])))].sort(), [spec]);
-  const queryReads = useGetBatch(queryNames.map((name) => `QueryDefinition:${name}`));
-  const queryCards = queryNames.map((_, i) => cardOf(queryReads.results[i], "query"));
-  const rowNames = [...new Set(queryCards.flatMap((card) => queryShape(card, null)?.row ?? []))].sort();
-  const rowReads = useGetBatch(rowNames.map((row) => `Contract:${row}`));
-  const queriesKey = JSON.stringify([queryCards, rowReads.results]);
-  const queries = useMemo(() => {
-    const out = new Map<string, QueryShape>();
-    queryNames.forEach((name, i) => {
-      const card = queryCards[i];
-      const row = queryShape(card, null)?.row;
-      const contract = row ? cardOf(rowReads.results[rowNames.indexOf(row)], "contract") : null;
-      const shape = queryShape(card, contract);
-      if (shape) out.set(name, shape);
-    });
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
-  }, [queriesKey]);
+  const queries = useQueryShapes(spec);
 
-  // Every node's kind and name, what its step is for, and the run's marks and counts when one is picked.
+  // Every node's kind and name, its key fields, and the run's marks and counts when one is picked.
+  const ctx = useMemo(() => ({ parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, bindings: definition?.bindings }), [definition, queries]);
   const display = useMemo(() => {
     const out = new Map<string, NodeDisplay>();
-    const summaries = new Map<string, RunSummary>();
-    for (const [id, m] of run?.marks ?? []) if (m.summary) summaries.set(id, m.summary);
-    const ctx = { parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, summaries };
     const partRoute = (ref: string | undefined) => (ref ? (ref.startsWith("CaptureContract:") ? contractRoute(ref) : routeOf(ref)) : null);
 
     for (const node of model.nodes) {
@@ -280,7 +251,7 @@ export function ProcedureGraph({
       const lines: NodeLine[] = [];
       let kind: string = node.kind;
       let name: string | null = node.unnamed ? null : node.id;
-      let purpose: NodeDisplay["purpose"] = null;
+      let brief: NodeDisplay["brief"] = null;
       const v = node.view;
       if (node.kind === "input") {
         const parameters = Object.entries(definition?.parameters ?? {});
@@ -293,28 +264,25 @@ export function ProcedureGraph({
           if (node.detail.length === 0) lines.push({ text: "Given at run", tone: "plain" });
         }
       } else if (v && node.index !== null) {
-        const words = stepPurpose(spec, node.index, ctx);
-        if (words) {
-          // A call's Provider is named on hover: the run's pinned build, else the Line's binding.
+        const parts = stepBrief(spec, node.index, ctx);
+        if (parts.length) {
+          // A call's Provider is on hover: the run's pinned build, else the Line's binding.
           const provider = v.slot ? (mark?.provider ?? definition?.bindings[v.slot] ?? null) : null;
-          const via = provider ? `\n${mark?.provider ? "This run's receipt pins" : `The Line binds slot ${v.slot} to`} ${providerName(provider)} (${provider})` : "";
-          purpose = { ...words, title: `${words.title}${via}`, routes: words.parts.map((p) => partRoute(p.ref)) };
+          const via = provider ? `\nslot ${v.slot} → ${provider}${mark?.provider ? " (pinned by this run)" : ""}` : "";
+          brief = { parts, title: `${partsText(parts)}${via}`, routes: parts.map((p) => partRoute(p.ref)) };
         }
-        if (v.detail) lines.push({ text: v.detail, title: `Halts with code ${v.detail}` });
       } else if (node.kind === "halt") {
-        purpose = { parts: [{ text: "Stops the run here" }], title: "Stops the run here, with no result", routes: [null] };
-        if (node.detail[0]) lines.push({ text: node.detail[0], title: `Halts with code ${node.detail[0]}` });
+        if (node.detail[0]) brief = { parts: [{ text: node.detail[0], code: true }], title: `halt ${node.detail[0]}`, routes: [null] };
       } else if (node.kind === "returns") {
-        lines.push({ text: `Returns ${node.detail.length} ${node.detail.length === 1 ? "field" : "fields"}`, title: node.detail.join(", "), tone: "plain" });
+        lines.push({ text: `${node.detail.length} ${node.detail.length === 1 ? "field" : "fields"}`, title: node.detail.join(", "), tone: "plain" });
       }
       if (node.unresolved.length > 0) {
         const names = [...new Set(node.unresolved.map((r) => r.name))];
         lines.push({ text: `names ${names.join(", ")}`, title: `${names.join(", ")}: no step of this Procedure declares ${names.length === 1 ? "it" : "them"}`, tone: "dim" });
       }
-      // A read's rows are named after its Query ("10 watched vulnerabilities").
-      const markWords = mark?.summary ? summaryWords(mark.summary, v?.query ? nameWords(v.query) : null) : null;
+      const markWords = mark?.summary ? summaryWords(mark.summary) : null;
       const word = term("stepKind", kind);
-      out.set(node.id, { role: node.role, kindWord: word.word, kindMeaning: word.meaning, name, purpose, lines, mark, markWords });
+      out.set(node.id, { role: node.role, kindWord: word.word, kindMeaning: word.meaning, name, brief, lines, mark, markWords });
     }
     for (const trigger of line?.triggers ?? []) {
       const word = term("stepKind", "trigger");
@@ -323,7 +291,7 @@ export function ProcedureGraph({
         kindWord: word.word,
         kindMeaning: word.meaning,
         name: null,
-        purpose: null,
+        brief: null,
         lines: [
           { text: trigger.name, to: routeOf(`Trigger:${trigger.name}`), title: `Trigger:${trigger.name}` },
           { text: sentence(trigger.words), tone: "plain" },
@@ -333,7 +301,7 @@ export function ProcedureGraph({
       });
     }
     return out;
-  }, [model, spec, line, definition, run, routeOf, contractRoute, queries]);
+  }, [model, spec, line, definition, run, routeOf, contractRoute, ctx]);
 
   // The edges: the definition's, plus a landing Trigger into the step that reads the landing.
   const edges = useMemo(() => {
@@ -471,9 +439,8 @@ export function ProcedureGraph({
         renderPanel={(selection) => {
           if (selection.kind !== "node") return null;
           const view = model.nodes.find((n) => n.id === selection.id)?.view;
-          return view ? (
-            <StepPanel view={view} binding={view.slot ? (definition?.bindings[view.slot] ?? null) : null} purpose={display.get(selection.id)?.purpose?.title ?? null} />
-          ) : null;
+          const index = model.nodes.find((n) => n.id === selection.id)?.index;
+          return view && index != null ? <StepPanel view={view} sections={stepSections(spec, index, ctx)} mark={run?.marks.get(selection.id) ?? null} /> : null;
         }}
         className=""
         height={canvasHeight}
@@ -515,36 +482,118 @@ function RoleLegend({ roles }: { roles: StepRole[] }) {
   );
 }
 
-/** A clicked step: what it is, what it names (linked), and the build the Line binds its slot to. */
-function StepPanel({ view, binding, purpose }: { view: StepView; binding: string | null; purpose: string | null }) {
-  const row = (label: string, value: ReactNode) => (
-    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd className="min-w-0 break-words text-zinc-300">{value}</dd>
-    </div>
-  );
+/**
+ * A clicked step, in the Type map's panel style: kind and id, then its fields
+ * in titled groups (compact name | value rows), named things linked, ids on
+ * hover; with a run picked, that run's counts for it.
+ */
+function StepPanel({ view, sections, mark }: { view: StepView; sections: DetailSection[]; mark: StepMark | null }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const kind = term("stepKind", view.kind);
+  const route = (ref: string | undefined) => {
+    const parsed = ref ? parseRef(ref) : null;
+    const to = parsed ? refRoute(instanceId, parsed) : null;
+    return to ? link(to) : undefined;
+  };
+  const words = mark?.summary ? summaryWords(mark.summary) : null;
   return (
-    <div className="space-y-2 text-[12px]">
-      <div>
-        <div className="t-meta">{term("stepKind", view.kind).word}</div>
-        <div className="font-mono text-[13px] text-zinc-100">{view.id}</div>
-        <div className="mt-0.5 text-zinc-500">{term("stepKind", view.kind).meaning}</div>
-        {purpose && <div className="mt-1 whitespace-pre-line text-zinc-300">{purpose}</div>}
-      </div>
-      <dl className="space-y-1">
-        {view.name && view.name !== view.id && row("Name", <span className="font-mono">{view.name}</span>)}
-        {view.contracts.map((contract) => (
-          <div key={contract}>{row("Contract", <RefLink value={`CaptureContract:${contract}`} />)}</div>
-        ))}
-        {view.query && row("Query", <RefLink value={`query:${view.query}`} />)}
-        {view.claimTypes.map((claimType) => (
-          <div key={claimType}>{row("ClaimType", <RefLink value={`ClaimType:${claimType}`} />)}</div>
-        ))}
-        {view.procedure && row("Procedure", <RefLink value={`Procedure:${view.procedure}`} />)}
-        {view.slot && row("Slot", <span className="font-mono">{view.slot}</span>)}
-        {binding && row("Binds", <RefLink value={`Provider:${binding}`}>{providerName(binding)}</RefLink>)}
-        {view.detail && row("Detail", <span className="font-mono">{view.detail}</span>)}
-      </dl>
+    <div>
+      <PanelHeading kicker={kind.word} title={view.id} />
+      {mark && (
+        <div className="text-[12px] text-zinc-400" title={[mark.term.meaning, words?.title].filter(Boolean).join("\n")}>
+          {words && !mark.term.signal ? words.text : [mark.term.word, ...mark.notes].join(" · ")}
+        </div>
+      )}
+      {sections.map((section) => (
+        <PanelGroup key={section.title} title={section.title}>
+          <FieldList
+            density="compact"
+            labels={section.rows.some((r) => r.name) ? "names" : "words"}
+            label={section.title}
+            fields={section.rows.map((row, i) => ({
+              key: `${row.label}:${i}`,
+              label: row.label,
+              labelHref: route(row.ref),
+              labelTitle: row.title,
+              value: (
+                <span className="break-words text-zinc-300">
+                  <Parts parts={row.value} />
+                </span>
+              ),
+            }))}
+          />
+        </PanelGroup>
+      ))}
     </div>
   );
+}
+
+/** The Queries a Procedure's read steps name, read with their row Contracts: what each read returns. */
+export function useQueryShapes(spec: ProcedureSpec): ReadonlyMap<string, QueryShape> {
+  const queryNames = useMemo(() => [...new Set(spec.steps.flatMap((step) => ("read" in step && step.query ? [step.query] : [])))].sort(), [spec]);
+  const queryReads = useGetBatch(queryNames.map((name) => `QueryDefinition:${name}`));
+  const queryCards = queryNames.map((_, i) => cardOf(queryReads.results[i], "query"));
+  const rowNames = [...new Set(queryCards.flatMap((card) => queryShape(card, null)?.row ?? []))].sort();
+  const rowReads = useGetBatch(rowNames.map((row) => `Contract:${row}`));
+  const key = JSON.stringify([queryCards, rowReads.results]);
+  return useMemo(() => {
+    const out = new Map<string, QueryShape>();
+    queryNames.forEach((name, i) => {
+      const card = queryCards[i];
+      const row = queryShape(card, null)?.row;
+      const contract = row ? cardOf(rowReads.results[rowNames.indexOf(row)], "contract") : null;
+      const shape = queryShape(card, contract);
+      if (shape) out.set(name, shape);
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
+  }, [key]);
+}
+
+/**
+ * The steps as a table under the graph: each step, what it reads, what it
+ * returns and which fields; with a run picked, that run's counts per step.
+ */
+export function StepsTable({ spec, line, run }: { spec: ProcedureSpec; line?: LineGraphContext | null | undefined; run?: RunMarks | null | undefined }) {
+  const queries = useQueryShapes(spec);
+  const definition = line?.definition ?? null;
+  const ctx = useMemo<StepWordsContext>(
+    () => ({ parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, bindings: definition?.bindings }),
+    [definition, queries],
+  );
+  const rows = useMemo(() => spec.steps.map((_, i) => stepRow(spec, i, ctx)), [spec, ctx]);
+  const columns = useMemo<Column<StepRow>[]>(() => {
+    const cell = (pick: (row: StepRow) => Part[]) => (row: StepRow) => <Parts parts={pick(row)} />;
+    const out: Column<StepRow>[] = [
+      {
+        id: "step",
+        header: "Step",
+        hideable: false,
+        cell: (row) => (
+          <span className="whitespace-nowrap" title={term("stepKind", row.kind).meaning}>
+            <span className="font-mono text-zinc-100">{row.id}</span> <span className="text-[11px] text-zinc-500">{term("stepKind", row.kind).word.toLowerCase()}</span>
+          </span>
+        ),
+      },
+      { id: "reads", header: "Reads", className: "text-zinc-300", cell: cell((r) => r.reads) },
+      { id: "returns", header: "Returns", className: "text-zinc-300", cell: cell((r) => r.returns) },
+      { id: "fields", header: "Fields", className: "text-zinc-300", cell: cell((r) => r.fields) },
+    ];
+    if (run) {
+      out.push({
+        id: "run",
+        header: "This run",
+        className: "whitespace-nowrap text-zinc-300",
+        cell: (row) => {
+          const mark = run.marks.get(row.id);
+          if (!mark) return null;
+          const words = mark.summary ? summaryWords(mark.summary) : null;
+          return <span title={[mark.term.meaning, words?.title].filter(Boolean).join("\n")}>{words && !mark.term.signal ? words.text : mark.term.word}</span>;
+        },
+      });
+    }
+    return out;
+  }, [run]);
+  return <DataTable rows={rows} columns={columns} rowKey={(row) => row.id} urlKey="steps" label="Steps" toolbar={false} maxHeight="none" />;
 }

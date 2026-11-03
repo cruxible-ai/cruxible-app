@@ -1,66 +1,57 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
 import type { Schemas } from "../api/schemas.ts";
-import { hostOf, stepAlias, stepId, templateRef, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
+import { hostOf, stepAlias, stepId, stepKind, templateRef, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
 
 /**
- * What each step of a Procedure does, and what a run's node did, in plain
- * words for someone who does not read Procedures: derived from the step as
- * authored (and the Line's parameters, and a Query's row Contract when the
- * page has read it) and from the run card's per-node `summary`. Nothing is
- * invented: a step whose spec says too little reads as its kind's short
- * phrase, and a node with no summary has no run words.
- *
- * Words come as parts so a page can link the named things (a part's `ref` is
- * a typed cruxible ref) and set names a reader may copy as code; `title` is
- * the whole phrase with the internal names, for hover.
+ * A Procedure's steps as terse labels: each step's key fields for its graph
+ * node (`cisa.gov · JSON`, `/vulnerabilities/* · key cveID · 4 fields`,
+ * `4 ClaimTypes → vulnerability`), its row in the steps table (what it
+ * reads, returns and which fields), every field for its side panel, and a
+ * run node's counts (`1,766 records · complete`). Derived from the step as
+ * authored, the Line's parameters, a Query's row Contract and the run card's
+ * node summaries; nothing invented. Things are named directly (`kev-catalog`,
+ * `cve_id`); full ids are on hover; named things link.
  */
 
 export interface Part {
   text: string;
   /** A typed ref the part links to (`ClaimType:…`, `CaptureContract:…`, `QueryDefinition:…`). */
   ref?: string | undefined;
+  /** An outside address the part links to (a fetched URL). */
+  href?: string | undefined;
   /** A name from the payload or the definition, set as code (`cveID`, `/vulnerabilities/*`). */
   code?: boolean | undefined;
-  /** Hover text for this part alone (a full URL, a full name). */
+  /** Hover text (a full id, a full URL). */
   title?: string | undefined;
-}
-
-export interface Phrase {
-  parts: Part[];
-  /** The whole phrase in words, with the internal names a hover may show. */
-  title: string;
 }
 
 export type RunSummary = NonNullable<Schemas["GetRunNode"]["summary"]>;
 
-/** A phrase's text, its parts joined. */
-export const phraseText = (phrase: Phrase) => phrase.parts.map((p) => p.text).join("");
+/** Parts as plain text. */
+export const partsText = (parts: readonly Part[]) => parts.map((p) => p.text).join("");
 
 const record = (value: unknown): Record<string, unknown> | null =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 const str = (value: unknown): string | null => (typeof value === "string" && value !== "" ? value : null);
 
-/** A dotted name in words: its namespace dropped, separators as spaces (`security.watched_vulnerabilities` -> `watched vulnerabilities`). */
-export function nameWords(name: string): string {
-  const bare = name.replace(/@\d+$/, "");
+/** A name without its namespace or version (`security.kev-catalog@1` -> `kev-catalog`, `security.vulnerability` -> `vulnerability`). */
+export function shortName(name: string): string {
+  const bare = name.replace(/^[A-Za-z]+:/, "").replace(/@\d+$/, "");
   const dot = bare.indexOf(".");
-  const tail = dot >= 0 && dot < bare.length - 1 ? bare.slice(dot + 1) : bare;
-  return tail.replace(/[._-]+/g, " ").trim();
+  return dot >= 0 && dot < bare.length - 1 ? bare.slice(dot + 1) : bare;
 }
 
-/** A ClaimType's short name: its last segment (`security.vulnerability.kev_date_added` -> `kev_date_added`). */
-export const claimTypeShort = (predicate: string) => predicate.replace(/^ClaimType:/, "").split(".").at(-1)!;
+/** A ClaimType's or kind's last segment (`security.vulnerability.kev_date_added` -> `kev_date_added`). */
+export const lastSegment = (name: string) => name.replace(/^[A-Za-z]+:/, "").split(".").at(-1)!;
 
-/** A JSON pointer short enough to read on a node: long ones keep their last two segments. */
+/** A JSON pointer short enough for a node: long ones keep their last two segments. */
 export function pointerText(pointer: string, max = 24): string {
   if (pointer.length <= max) return pointer;
-  const segments = pointer.split("/").filter(Boolean);
-  return `…/${segments.slice(-2).join("/")}`;
+  return `…/${pointer.split("/").filter(Boolean).slice(-2).join("/")}`;
 }
 
 /** 1766 -> "1,766". */
 export const count = (n: number) => n.toLocaleString("en-US");
-
 const plural = (n: number, one: string, many: string) => `${count(n)} ${n === 1 ? one : many}`;
 
 /** 4194304 -> "4 MB", 1536 -> "1.5 KB". */
@@ -77,7 +68,7 @@ export function bytesWords(bytes: number): string {
   return `${shown} ${units[unit]}`;
 }
 
-/** A template value with what a Line gives it: a literal as itself, `{$ref: param}` from the parameters; anything else is unknown here. */
+/** A template value as a Line gives it: a literal as itself, `{$ref: param}` from the parameters; unknown otherwise. */
 export function resolveValue(value: unknown, parameters: Record<string, unknown> | undefined): unknown {
   const ref = templateRef(value);
   if (!ref) return value;
@@ -85,33 +76,27 @@ export function resolveValue(value: unknown, parameters: Record<string, unknown>
   return undefined;
 }
 
-/** A Query's result rows, as a read step needs them in words. */
+/** A Query's rows: the kind they are one per, the fields a reader cares about, the row Contract. */
 export interface QueryShape {
-  /** The Subject kind its rows are one per (`security.vulnerability`), when it reads from one kind. */
   kind: string | null;
-  /** The row fields a reader cares about (the Subject's own id and kind columns left out). */
+  /** Row fields, the Subject's own id and kind columns left out. */
   fields: string[];
+  /** A field's type, from the row Contract when read. */
+  types: Record<string, string>;
   description: string | null;
-  /** The row Contract (`security.watched-vulnerability@1`). */
   row: string | null;
 }
 
-/** Row fields that only identify the row's Subject; "one row per vulnerability" already says so. */
 const SUBJECT_COLUMNS = new Set(["subject_id", "subject_kind", "subject"]);
 
-/**
- * A Query's shape from its card (`definition.row`, `definition.from`) and its
- * row Contract's card (`fields`); the definition's own field names when the
- * Contract is not read.
- */
+/** A Query's shape from its card and its row Contract's card (the definition's own field names when the Contract is not read). */
 export function queryShape(
   query: Schemas["GetQueryCard"] | null | undefined,
   rowContract: Schemas["GetContractCard"] | null | undefined,
 ): QueryShape | null {
   if (!query) return null;
   const definition = record(query.definition);
-  const from = record(definition?.from);
-  const kinds = Object.values(from ?? {}).filter((v): v is string => typeof v === "string");
+  const kinds = Object.values(record(definition?.from) ?? {}).filter((v): v is string => typeof v === "string");
   const declared = Array.isArray(definition?.fields)
     ? definition.fields.flatMap((f) => Object.keys(record(f) ?? {}))
     : Object.keys(record(definition?.fields) ?? {});
@@ -119,291 +104,344 @@ export function queryShape(
   return {
     kind: kinds.length === 1 ? kinds[0]! : null,
     fields: names.filter((name) => !SUBJECT_COLUMNS.has(name)),
+    types: Object.fromEntries((rowContract?.fields ?? []).map((f) => [f.name, f.type])),
     description: str(query.description) ?? str(definition?.description),
     row: str(definition?.row),
   };
 }
 
-/** What a step's words may draw on beyond its own spec. */
+/** What a step's labels may draw on beyond its own spec. */
 export interface StepWordsContext {
-  /** The Line's parameter values (a `{$ref: param}` URL resolves through them). */
   parameters?: Record<string, unknown> | undefined;
   /** The call a Line's landing feeds (its name). */
   triggerInput?: string | null | undefined;
   /** Query name -> its shape, for the Queries the page has read. */
   queries?: ReadonlyMap<string, QueryShape> | undefined;
-  /** Node id -> a picked run's summary for it. */
-  summaries?: ReadonlyMap<string, RunSummary> | undefined;
+  /** Slot -> the Provider build the Line binds. */
+  bindings?: Record<string, string> | undefined;
 }
 
-const joinParts = (items: Part[], sep = ", "): Part[] => items.flatMap((item, i) => (i === 0 ? [item] : [{ text: sep }, item]));
+const SEP: Part = { text: " · " };
+const list = (items: Part[], sep = ", "): Part[] => items.flatMap((item, i) => (i === 0 ? [item] : [{ text: sep }, item]));
+const joined = (groups: Part[][]): Part[] => groups.filter((g) => g.length > 0).flatMap((g, i) => (i === 0 ? g : [SEP, ...g]));
 
-const phrase = (parts: Part[], title?: string): Phrase => ({ parts, title: title ?? parts.map((p) => p.text).join("") });
+const contractPart = (name: string): Part => ({ text: shortName(name), ref: `CaptureContract:${name}`, title: `CaptureKind ${name}` });
+const claimTypePart = (name: string): Part => ({ text: lastSegment(name), ref: `ClaimType:${name}`, title: `ClaimType ${name}` });
+const kindPart = (name: string): Part => ({ text: lastSegment(name), ref: `SubjectKind:${name}`, title: `Subject kind ${name}` });
+const queryPart = (name: string): Part => ({ text: shortName(name), ref: `QueryDefinition:${name}`, title: `Query ${name}` });
+const code = (text: string, title?: string): Part => ({ text, code: true, title });
 
-/** The read step another step references by name, for its words ("the watched vulnerabilities"). */
-function stepNamed(spec: ProcedureSpec, name: string): { step: ProcedureStep; id: string } | null {
-  for (const [index, step] of spec.steps.entries()) {
-    const id = stepId(step, index);
-    if (stepAlias(step, index) === name || id === name) return { step, id };
+/** A call's fetch: its URL and host (through the Line's parameters), format and byte cap. */
+function callInput(step: Extract<ProcedureStep, { call: string }>, ctx: StepWordsContext) {
+  const input = record(step.input);
+  const url = str(resolveValue(input?.url, ctx.parameters));
+  const format = str(resolveValue(input?.expected_format, ctx.parameters));
+  const maxBytes = resolveValue(input?.max_bytes, ctx.parameters);
+  return { url, host: hostOf(url), format: format?.toUpperCase() ?? null, maxBytes: typeof maxBytes === "number" ? maxBytes : null };
+}
+
+type ExtractStep = Extract<ProcedureStep, { extract: string }>;
+type ExtractField = { at: string; presence?: string | null };
+/** An extract's payload paths: distinct `at`s, in declared order. */
+const ats = (fields: Record<string, ExtractField> | undefined) => [...new Set(Object.values(fields ?? {}).map((f) => f.at))];
+
+function extractShape(step: ExtractStep) {
+  const keys = ats(step.key);
+  return { keys, fields: ats(step.fields).filter((at) => !keys.includes(at)), countAt: step.complete_when?.count_at ?? null };
+}
+
+/** The steps a step reads from (by output name), in authored order: its `$ref: step` references. */
+function stepRefs(value: unknown, out = new Set<string>()): Set<string> {
+  const ref = templateRef(value);
+  if (ref) {
+    if (ref.$ref === "step" && ref.step) out.add(ref.step);
+    return out;
   }
-  return null;
+  if (Array.isArray(value)) for (const v of value) stepRefs(v, out);
+  else if (record(value)) for (const v of Object.values(record(value)!)) stepRefs(v, out);
+  return out;
 }
 
-/** What a read step reads, in words: its Query's name ("the watched vulnerabilities"), or the ClaimType it reads. */
-function readWords(step: ProcedureStep): string | null {
-  if (!("read" in step)) return null;
-  if (step.query) return `the ${nameWords(step.query)}`;
-  if (step.claim_type) return `its ${claimTypeShort(step.claim_type)}`;
-  return null;
-}
-
-const WHEN_ABSENT: Record<string, string> = {
-  keep: "kept as it is",
-  surface: "flagged for review",
-  mirror: "retired",
-  inverse: "recorded absent",
-};
-
-const TRANSFORM: Record<string, string> = {
-  shape: "Reshapes each row",
-  filter: "Keeps only the rows that match",
-  join: "Joins two lists on a key",
-  aggregate: "Sums a list up into one value",
-  dedupe: "Drops duplicate rows",
-  union: "Combines lists into one",
-  derive: "Computes one value",
-};
-
-/**
- * What one step is for, in plain words, from its authored spec: a call's
- * host and what it returns, a read's Query and its rows, an extract's
- * expected payload, the ClaimTypes a claims step writes and whether it
- * watches for drop-outs, a short phrase for the rest.
- */
-export function stepPurpose(spec: ProcedureSpec, index: number, ctx: StepWordsContext = {}): Phrase | null {
+/** The key fields of a step, for its graph node: `cisa.gov · JSON`, `watched_vulnerabilities`, `4 ClaimTypes → vulnerability`. */
+export function stepBrief(spec: ProcedureSpec, index: number, ctx: StepWordsContext = {}): Part[] {
   const step = spec.steps[index];
-  if (!step) return null;
-  const alias = stepAlias(step, index);
-
+  if (!step) return [];
   if ("call" in step) {
-    const input = record(step.input);
-    const url = str(resolveValue(input?.url, ctx.parameters));
-    const host = hostOf(url);
-    const format = str(resolveValue(input?.expected_format, ctx.parameters));
-    const contracts = Object.values(step.captures ?? {});
-    const parts: Part[] =
-      ctx.triggerInput && ctx.triggerInput === alias
-        ? [{ text: "Reads the Capture that landed" }]
-        : host
-          ? [{ text: "Fetches " }, { text: host, title: url ?? undefined }]
-          : [{ text: `Asks its ${step.slot} Provider` }];
-    if (contracts.length > 0) {
-      const kept = joinParts(contracts.map((c) => ({ text: `the ${nameWords(c)}`, ref: `CaptureContract:${c}`, title: `CaptureKind ${c}` })), " and ");
-      parts.push({ text: ", returns " }, ...(format ? [{ text: `${format.toUpperCase()} (` }, ...kept, { text: ")" }] : kept));
-    }
-    const title = [
-      url ? `Fetches ${url}` : `Calls slot ${step.slot}`,
-      contracts.length ? `kept as ${contracts.map((c) => `CaptureKind ${c}`).join(", ")}` : null,
-      format ? `expects ${format.toUpperCase()}` : null,
-    ]
-      .filter(Boolean)
-      .join("; ");
-    return phrase(parts, title);
+    const { url, host, format } = callInput(step, ctx);
+    const landing = ctx.triggerInput === stepAlias(step, index);
+    const source: Part = landing
+      ? { text: "landing", title: "The Capture whose landing started the run" }
+      : host
+        ? { text: host, title: url ?? undefined }
+        : { text: step.slot, title: `slot ${step.slot}` };
+    return joined([[source], format ? [{ text: format }] : []]);
   }
-
   if ("read" in step) {
-    if (step.query) {
-      const shape = ctx.queries?.get(step.query) ?? null;
-      const parts: Part[] = [{ text: "Reads " }, { text: `the ${nameWords(step.query)}`, ref: `QueryDefinition:${step.query}`, title: `Query ${step.query}` }];
-      if (shape) {
-        parts.push({ text: ` — one row per ${shape.kind ? nameWords(shape.kind) : "result"}` });
-        if (shape.fields.length > 0) parts.push({ text: " with " }, ...joinParts(shape.fields.map((f) => ({ text: f, code: true }))));
-      }
-      const title = [
-        `${phraseText(phrase(parts))}`,
-        `Query ${step.query}${shape?.description ? `: ${shape.description}` : ""}`,
-        shape?.row ? `Rows typed by ${shape.row}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      return phrase(parts, title);
-    }
-    if (step.claim_type) {
-      const parts: Part[] = [
-        { text: step.all ? `Reads up to ${count(step.all)} of its ` : "Reads its " },
-        { text: claimTypeShort(step.claim_type), ref: `ClaimType:${step.claim_type}`, title: `ClaimType ${step.claim_type}` },
-      ];
-      return phrase(parts, `${phraseText(phrase(parts))}\nClaimType ${step.claim_type}`);
-    }
-    return phrase([{ text: "Reads accepted state" }]);
+    if (step.query) return [queryPart(step.query)];
+    if (step.claim_type) return [claimTypePart(step.claim_type)];
+    return [];
   }
-
   if ("extract" in step) {
-    const ats = (fields: Record<string, { at: string; presence?: string | null }> | undefined) => [
-      ...new Map(Object.values(fields ?? {}).map((f) => [f.at, f.presence === "optional"])).entries(),
-    ];
-    const keys = ats(step.key);
-    const fields = ats(step.fields).filter(([at]) => !keys.some(([k]) => k === at));
-    const header = ats(step.header);
-    const countAt = step.complete_when?.count_at ?? null;
-    const parts: Part[] = [{ text: "One record per " }, { text: pointerText(step.records), code: true, title: step.records }];
-    if (countAt) parts.push({ text: ", as many as " }, { text: pointerText(countAt), code: true, title: countAt }, { text: " says" });
-    if (keys.length > 0) parts.push({ text: ", keyed by " }, ...joinParts(keys.map(([at]) => ({ text: at, code: true }))));
-    if (fields.length > 0) parts.push({ text: ", with " }, ...joinParts(fields.map(([at]) => ({ text: at, code: true }))));
-    const list = (items: [string, boolean][]) => items.map(([at, optional]) => (optional ? `${at} (optional)` : at)).join(", ");
-    const title = [
-      `Expects one record per ${step.records}${keys.length ? `, keyed by ${list(keys)}` : ""}${fields.length ? `, with ${list(fields)}` : ""}.`,
-      countAt ? `Complete only when the count at ${countAt} matches the records read.` : null,
-      header.length ? `Once per payload: ${list(header)}.` : null,
-      `Records typed by ${step.row}.`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-    return phrase(parts, title);
+    const { keys } = extractShape(step);
+    const n = Object.keys(step.fields ?? {}).length;
+    return joined([
+      [code(pointerText(step.records), step.records)],
+      keys.length ? [{ text: "key " }, ...list(keys.map((k) => code(k)))] : [],
+      n ? [{ text: plural(n, "field", "fields") }] : [],
+    ]);
   }
-
   if ("claims" in step) {
     const types = [...new Set(step.claims.map((c) => c.type))];
-    const parts: Part[] = [
-      { text: "Writes " },
-      ...joinParts(types.map((t) => ({ text: claimTypeShort(t), ref: `ClaimType:${t}`, title: `ClaimType ${t}` }))),
-      { text: " → " },
-      { text: nameWords(step.subject.kind), ref: `SubjectKind:${step.subject.kind}`, title: `Subject kind ${step.subject.kind}` },
-    ];
-    const lines = [`Writes ${types.map(claimTypeShort).join(", ")} on each ${nameWords(step.subject.kind)}.`];
-    const within = templateRef(step.subject.within);
-    const withinStep = within?.$ref === "step" && within.step ? stepNamed(spec, within.step) : null;
-    if (withinStep) lines.push(`Only for ${readWords(withinStep.step) ?? `the rows of ${within!.step}`}.`);
-    const expect = templateRef(step.expect);
-    const expected = expect?.$ref === "step" && expect.step ? stepNamed(spec, expect.step) : null;
-    if (expect) {
-      const read = expected ? ctx.summaries?.get(expected.id) : undefined;
-      const n = read?.kind === "read" ? read.rows : null;
-      const whom = n !== null ? count(n) : expected ? (readWords(expected.step) ?? "the expected ones") : "the expected ones";
-      parts.push({ text: `; watches ${whom} for removal` });
-      const absent = new Map<string, string[]>();
-      for (const claim of step.claims) {
-        const word = WHEN_ABSENT[claim.when_absent ?? "surface"] ?? claim.when_absent ?? "surface";
-        absent.set(word, [...(absent.get(word) ?? []), claimTypeShort(claim.type)]);
-      }
-      const what = [...absent.entries()].map(([word, names]) => `${names.join(", ")} ${word}`).join("; ");
-      lines.push(`When one of ${expected ? (readWords(expected.step) ?? "them") : "them"} drops out of the source: ${what}.`);
-    }
-    lines.push(...types.map((t) => `ClaimType ${t}`));
-    return phrase(parts, lines.join("\n"));
+    const what: Part[] = types.length === 1 ? [claimTypePart(types[0]!)] : [{ text: `${types.length} ClaimTypes`, title: types.join("\n") }];
+    return [...what, { text: " → " }, kindPart(step.subject.kind)];
   }
-
   if ("transform" in step) {
-    const spec = record(step.spec);
-    if (step.kind === "shape") {
-      const fields = Object.keys(record(spec?.fields) ?? {});
-      if (fields.length > 0) return phrase([{ text: "Keeps " }, ...joinParts(fields.map((f) => ({ text: f, code: true }))), { text: " of each row" }]);
-    }
-    return phrase([{ text: TRANSFORM[step.kind] ?? "Reshapes items" }]);
+    const fields = step.kind === "shape" ? Object.keys(record(record(step.spec)?.fields) ?? {}) : [];
+    return joined([[{ text: step.kind }], fields.length ? list(fields.map((f) => code(f))) : []]);
   }
   if ("guard" in step) {
-    const otherwise = step.else && "halt" in step.else ? "else stops" : step.else && "goto" in step.else ? `else goes to ${step.else.goto}` : "else refuses";
-    return phrase([{ text: `Goes on only if its condition holds; ${otherwise}` }]);
+    const otherwise = step.else && "halt" in step.else ? "halt" : step.else && "goto" in step.else ? `→ ${step.else.goto}` : "refuse";
+    return [{ text: `else ${otherwise}` }];
   }
-  if ("halt" in step) return phrase([{ text: "Stops the run here" }]);
-  if ("emit" in step) {
-    return phrase([{ text: "Keeps the run's output as " }, { text: `the ${nameWords(step.emit)}`, ref: `CaptureContract:${step.emit}`, title: `CaptureKind ${step.emit}` }]);
+  if ("halt" in step) return step.halt ? [code(step.halt)] : [];
+  if ("emit" in step) return [contractPart(step.emit)];
+  if ("inbox" in step) return [code(step.inbox)];
+  if ("invoke" in step) return [{ text: shortName(step.invoke), ref: `Procedure:${step.invoke}`, title: `Procedure ${step.invoke}` }];
+  if ("select" in step) return list(step.sources.map((s) => code(s)), " | ");
+  return [];
+}
+
+/** One step as a row of the steps table: what it reads, what it returns, which fields. */
+export interface StepRow {
+  id: string;
+  kind: string;
+  reads: Part[];
+  returns: Part[];
+  fields: Part[];
+}
+
+export function stepRow(spec: ProcedureSpec, index: number, ctx: StepWordsContext = {}): StepRow {
+  const step = spec.steps[index]!;
+  const refs = [...stepRefs(step)].map((name) => code(name));
+  const row: StepRow = { id: stepId(step, index), kind: stepKind(step), reads: list(refs), returns: [], fields: [] };
+  if ("call" in step) {
+    const { url, host } = callInput(step, ctx);
+    row.reads =
+      ctx.triggerInput === stepAlias(step, index)
+        ? [{ text: "landing", title: "The Capture whose landing started the run" }]
+        : host && url
+          ? [{ text: host, href: url, title: url }]
+          : [{ text: step.slot, title: `slot ${step.slot}` }];
+    row.returns = list(Object.values(step.captures ?? {}).map(contractPart));
+  } else if ("read" in step) {
+    const shape = step.query ? ctx.queries?.get(step.query) : undefined;
+    row.reads = step.query ? [queryPart(step.query)] : step.claim_type ? [claimTypePart(step.claim_type)] : [];
+    row.returns = shape ? [{ text: `1 row / ${shape.kind ? lastSegment(shape.kind) : "result"}`, title: shape.row ? `Row Contract ${shape.row}` : undefined }] : [];
+    row.fields = shape ? list(shape.fields.map((f) => code(f))) : [];
+  } else if ("extract" in step) {
+    const { keys, fields } = extractShape(step);
+    row.returns = joined([[{ text: "1 record / " }, code(step.records)], keys.length ? [{ text: "key " }, ...list(keys.map((k) => code(k)))] : []]);
+    row.fields = list(fields.map((f) => code(f)));
+  } else if ("claims" in step) {
+    row.returns = [kindPart(step.subject.kind)];
+    row.fields = list([...new Set(step.claims.map((c) => c.type))].map(claimTypePart));
+  } else if ("emit" in step) {
+    row.returns = [contractPart(step.emit)];
+  } else if ("invoke" in step) {
+    row.returns = stepBrief(spec, index, ctx);
+  } else if ("transform" in step) {
+    row.returns = [{ text: step.kind }];
+    row.fields = step.kind === "shape" ? list(Object.keys(record(record(step.spec)?.fields) ?? {}).map((f) => code(f))) : [];
   }
-  if ("inbox" in step) return phrase([{ text: `Posts ${step.for_each ? "an item for each" : "an item"} to the Line's inbox` }]);
-  if ("invoke" in step) return phrase([{ text: "Runs " }, { text: step.invoke, ref: `Procedure:${step.invoke}`, code: true, title: `Procedure ${step.invoke}` }]);
-  if ("project" in step) return phrase([{ text: "Builds one record from earlier steps" }]);
-  if ("select" in step) return phrase([{ text: "Takes the first of " }, ...joinParts(step.sources.map((s) => ({ text: s, code: true })), " or ")]);
-  if ("repeat" in step) return phrase([{ text: "Repeats until its condition holds" }]);
-  return null;
+  return row;
+}
+
+/** One row of a step's side panel: a label (a word, or a name set as code and maybe linked) and its value. */
+export interface DetailRow {
+  label: string;
+  /** The label is a name (a field, a ClaimType), set as code; `ref` links it. */
+  name?: boolean | undefined;
+  ref?: string | undefined;
+  title?: string | undefined;
+  value: Part[];
+}
+
+/** A titled group of a step's side panel (`Fetches`, `Records`, `Fields`, `ClaimTypes`). */
+export interface DetailSection {
+  title: string;
+  rows: DetailRow[];
+}
+
+const WHEN_ABSENT: Record<string, string> = { keep: "keep", surface: "flag", mirror: "retire", inverse: "record absent" };
+
+/** Every field of a step, in titled groups for its side panel: paths, ClaimTypes, row Contract, provider, limits. */
+export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsContext = {}): DetailSection[] {
+  const step = spec.steps[index];
+  if (!step) return [];
+  const sections: DetailSection[] = [];
+  let current: DetailSection | null = null;
+  const section = (title: string) => {
+    current = { title, rows: [] };
+    sections.push(current);
+  };
+  const add = (label: string, value: Part[] | null | false | undefined, extra: Partial<DetailRow> = {}) => {
+    if (value && value.length) current!.rows.push({ label, value, ...extra });
+  };
+  const refText = (value: unknown): Part[] | null => {
+    const ref = templateRef(value);
+    return ref?.$ref === "step" && ref.step ? [code([ref.step, ...(ref.path ?? [])].join("."))] : null;
+  };
+  if ("call" in step) {
+    const { url, host, format, maxBytes } = callInput(step, ctx);
+    section("Fetches");
+    add("Source", ctx.triggerInput === stepAlias(step, index) ? [{ text: "landing" }] : host && url ? [{ text: host, href: url, title: url }] : null);
+    add("URL", url ? [code(url)] : null);
+    add("Format", format ? [{ text: format }] : null);
+    add("Limit", maxBytes !== null ? [{ text: bytesWords(maxBytes), title: `${count(maxBytes)} bytes` }] : null);
+    const source = str(resolveValue(record(step.input)?.logical_source, ctx.parameters));
+    add("Logical source", source ? [code(source)] : null);
+    section("Returns");
+    add("CaptureKind", list(Object.values(step.captures ?? {}).map(contractPart)));
+    section("Provider");
+    add("Slot", [code(step.slot)]);
+    const provider = ctx.bindings?.[step.slot];
+    add("Build", provider ? [{ text: provider.split("/")[0]!, ref: `Provider:${provider}`, title: provider }] : null);
+  } else if ("read" in step) {
+    section("Reads");
+    if (step.query) {
+      const shape = ctx.queries?.get(step.query);
+      add("Query", [queryPart(step.query)]);
+      add("Per", shape?.kind ? [kindPart(shape.kind)] : null);
+      add("Row", shape?.row ? [{ text: shortName(shape.row), ref: `Contract:${shape.row}`, title: `Contract ${shape.row}` }] : null);
+      if (shape?.fields.length) {
+        section("Fields");
+        for (const f of shape.fields) add(f, [{ text: shape.types[f] ?? "—" }], { name: true });
+      }
+    }
+    if (step.claim_type) add("ClaimType", [claimTypePart(step.claim_type)]);
+    if (step.all) add("At most", [{ text: count(step.all) }]);
+  } else if ("extract" in step) {
+    const { keys, countAt } = extractShape(step);
+    section("Records");
+    add("From", refText(step.capture));
+    add("Per", [code(step.records)]);
+    add("Key", list(keys.map((k) => code(k))));
+    add("Count", countAt ? [code(countAt)] : null);
+    add("Header", list(ats(step.header).map((h) => code(h))));
+    add("Row", [{ text: shortName(step.row), ref: `Contract:${step.row}`, title: `Contract ${step.row}` }]);
+    section("Fields");
+    for (const [name, field] of Object.entries(step.fields ?? {}) as [string, ExtractField][]) {
+      add(name, [code(field.at), ...(field.presence === "optional" ? [{ text: " · optional" }] : [])], { name: true });
+    }
+  } else if ("claims" in step) {
+    section("Writes on");
+    add("Subject", [kindPart(step.subject.kind)]);
+    add("For each", refText(step.for_each));
+    add("Within", refText(step.subject.within));
+    add("Expect", refText(step.expect));
+    section("ClaimTypes");
+    for (const claim of step.claims) {
+      const absent = step.expect ? WHEN_ABSENT[claim.when_absent ?? "surface"] ?? claim.when_absent ?? "flag" : null;
+      add(lastSegment(claim.type), absent ? [{ text: `absent: ${absent}`, title: `when_absent ${claim.when_absent ?? "surface"}` }] : [{ text: "—" }], {
+        name: true,
+        ref: `ClaimType:${claim.type}`,
+        title: claim.type,
+      });
+    }
+  } else if ("transform" in step) {
+    section("Transform");
+    add("Kind", [{ text: step.kind }]);
+    add("Reads", list([...stepRefs(step)].map((s) => code(s))));
+  } else if ("emit" in step) {
+    section("Keeps");
+    add("CaptureKind", [contractPart(step.emit)]);
+  } else if ("invoke" in step) {
+    section("Runs");
+    add("Procedure", stepBrief(spec, index, ctx));
+  } else if ("halt" in step) {
+    section("Halts");
+    add("Code", step.halt ? [code(step.halt)] : null);
+  } else if ("inbox" in step) {
+    section("Posts");
+    add("Inbox", [code(step.inbox)]);
+    add("At most", step.max_items ? [{ text: count(step.max_items) }] : null);
+  } else if ("guard" in step) {
+    section("Guard");
+    add("Else", stepBrief(spec, index, ctx));
+  }
+  return sections.filter((s) => s.rows.length > 0);
 }
 
 // -- what a run's node did ----------------------------------------------------
 
-const DELIVERY: Record<string, string> = {
-  settled: "settled",
-  proposed: "proposed for review",
-  still_current: "still current",
-  unchanged: "nothing changed",
-  empty: "nothing to write",
-  delivered: "delivered",
-};
-
-/** The changes a claims summary made, in words, nonzero counts only (`written` always). */
-function claimCounts(s: Extract<RunSummary, { kind: "claims" }>): string[] {
-  const skipped = Object.values(s.skipped ?? {}).reduce((a, b) => a + b, 0);
-  return [
-    s.re_observed > 0 ? `${count(s.re_observed)} re-observed` : null,
-    `${count(s.written)} written`,
-    s.revised > 0 ? `${count(s.revised)} revised` : null,
-    s.inverse_written > 0 ? `${count(s.inverse_written)} recorded absent` : null,
-    s.retired > 0 ? `${count(s.retired)} retired` : null,
-    s.surfaced > 0 ? `${count(s.surfaced)} flagged for review` : null,
-    s.subjects_created > 0 ? `${plural(s.subjects_created, "new Subject", "new Subjects")}` : null,
-    s.downgraded > 0 ? `${count(s.downgraded)} unknown` : null,
-    s.no_op > 0 ? `${count(s.no_op)} restated` : null,
-    skipped > 0 ? `${count(skipped)} skipped` : null,
-  ].filter((x): x is string => x !== null);
-}
-
-/**
- * A run node's summary in words ("1,766 records · complete", "10 watched
- * vulnerabilities", "34 re-observed · 0 written · nothing changed"), with
- * the detail on hover. `rowsNoun` names a read's rows (its Query in words).
- */
-export function summaryWords(summary: RunSummary, rowsNoun?: string | null): { text: string; title: string } {
+/** A run node's counts, terse: `1 Capture`, `10 rows`, `1,766 records · complete`, `34 re-observed · 0 written`; detail on hover. */
+export function summaryWords(summary: RunSummary): { text: string; title: string } {
   switch (summary.kind) {
     case "call": {
       const text = plural(summary.captures, "Capture", "Captures");
-      return { text, title: [`Fetched ${text}`, ...(summary.capture_digests ?? [])].join("\n") };
+      return { text, title: [text, ...(summary.capture_digests ?? [])].join("\n") };
     }
     case "read": {
-      const text = rowsNoun && summary.rows !== 1 ? `${count(summary.rows)} ${rowsNoun}` : plural(summary.rows, "row", "rows");
-      return { text, title: `Read ${plural(summary.rows, "row", "rows")}` };
+      const text = plural(summary.rows, "row", "rows");
+      return { text, title: text };
     }
     case "extract": {
       const when = summary.complete_when;
-      const words = [
+      const text = [
         plural(summary.records, "record", "records"),
         summary.complete ? "complete" : "incomplete",
         summary.invalid_records > 0 ? `${count(summary.invalid_records)} invalid` : null,
         summary.duplicates > 0 ? plural(summary.duplicates, "duplicate", "duplicates") : null,
         summary.invalid_fields > 0 ? plural(summary.invalid_fields, "bad field", "bad fields") : null,
-      ].filter((x): x is string => x !== null);
-      const check = when
-        ? `The count at ${when.count_at} said ${when.expected ?? "nothing readable"}; ${when.observed ?? "?"} read: ${when.held ? "it held" : "it did not hold"}.`
-        : null;
-      return { text: words.join(" · "), title: [`Read ${plural(summary.records, "record", "records")}`, check].filter(Boolean).join("\n") };
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const check = when ? `${when.count_at}: expected ${when.expected ?? "?"}, read ${when.observed ?? "?"}` : null;
+      return { text, title: [text, check].filter(Boolean).join("\n") };
     }
     case "transform": {
       const { rows_in: rowsIn, rows_out: rowsOut } = summary;
       const text =
         rowsIn != null && rowsOut != null
-          ? `${count(rowsIn)} in → ${count(rowsOut)} out`
+          ? `${count(rowsIn)} → ${count(rowsOut)} rows`
           : rowsOut != null
             ? plural(rowsOut, "row", "rows")
             : rowsIn != null
-              ? `${count(rowsIn)} in → one value`
-              : "one value";
-      return { text, title: `${summary.transform_kind} transform: ${text}` };
+              ? `${count(rowsIn)} rows → 1 value`
+              : "1 value";
+      return { text, title: `${summary.transform_kind}: ${text}` };
     }
     case "guard": {
-      const text = summary.branch === "then" ? "condition held" : "condition did not hold";
-      const operands = (summary.operands ?? []).map((o) => JSON.stringify(o));
-      return { text, title: [text, ...operands].join("\n") };
+      const text = summary.branch === "then" ? "passed" : "else";
+      return { text, title: [`branch ${summary.branch}`, ...(summary.operands ?? []).map((o) => JSON.stringify(o))].join("\n") };
     }
     case "claims": {
-      const counts = claimCounts(summary);
-      const delivery = DELIVERY[summary.delivery] ?? summary.delivery;
-      return { text: [...counts, delivery].join(" · "), title: [...counts, `Delivery: ${delivery}`].join("\n") };
+      const skipped = Object.values(summary.skipped ?? {}).reduce((a, b) => a + b, 0);
+      const counts = [
+        summary.re_observed > 0 ? `${count(summary.re_observed)} re-observed` : null,
+        `${count(summary.written)} written`,
+        summary.revised > 0 ? `${count(summary.revised)} revised` : null,
+        summary.inverse_written > 0 ? `${count(summary.inverse_written)} absent` : null,
+        summary.retired > 0 ? `${count(summary.retired)} retired` : null,
+        summary.surfaced > 0 ? `${count(summary.surfaced)} flagged` : null,
+        summary.subjects_created > 0 ? `${count(summary.subjects_created)} new Subjects` : null,
+        summary.downgraded > 0 ? `${count(summary.downgraded)} unknown` : null,
+        summary.no_op > 0 ? `${count(summary.no_op)} no-op` : null,
+        skipped > 0 ? `${count(skipped)} skipped` : null,
+      ].filter((x): x is string => x !== null);
+      // Only a delivery that changed state is worth its word.
+      const delivery = summary.delivery === "settled" || summary.delivery === "proposed" ? [summary.delivery] : [];
+      return { text: [...counts, ...delivery].join(" · "), title: [...counts, `delivery ${summary.delivery}`].join("\n") };
     }
     case "emit_capture":
     case "post_inbox": {
-      const verb = summary.kind === "post_inbox" ? "posted" : "kept";
-      const text = [`${count(summary.emitted)} ${verb}`, (summary.unposted ?? 0) > 0 ? `${count(summary.unposted!)} left out` : null].filter(Boolean).join(" · ");
+      const text = [`${count(summary.emitted)} ${summary.kind === "post_inbox" ? "posted" : "kept"}`, (summary.unposted ?? 0) > 0 ? `${count(summary.unposted!)} cut` : null]
+        .filter(Boolean)
+        .join(" · ");
       return { text, title: text };
     }
     case "halt": {
-      const text = summary.reason ? `stopped: ${summary.reason}` : "stopped";
+      const text = summary.reason ? `halt ${summary.reason}` : "halt";
       return { text, title: text };
     }
     case "repeat": {
@@ -414,10 +452,9 @@ export function summaryWords(summary: RunSummary, rowsNoun?: string | null): { t
 }
 
 /**
- * What flows along a data edge in a run, when the source node's summary
- * counts it and the edge carries that output (an extract's `records`, a
- * read's or transform's `rows`, a call's Captures): "1,766 records". Null
- * for an edge carrying something else (a header field).
+ * What flows along a data edge in a run, when the source's summary counts it
+ * and the edge carries that output (an extract's `records`, a read's or
+ * transform's `rows`, a call's Captures). Null for an edge carrying anything else.
  */
 export function flowWords(summary: RunSummary | null | undefined, fields: readonly string[]): string | null {
   if (!summary) return null;
@@ -429,30 +466,26 @@ export function flowWords(summary: RunSummary | null | undefined, fields: readon
   return null;
 }
 
-/**
- * What a run changed, from its nodes' summaries: "32 written", "proposed 3",
- * "nothing changed"; null when no node has a summary (an older run) or none
- * of them writes or posts.
- */
+/** What a run changed: `32 written · 2 absent`, `proposed 3`, `no change`; null when no node kept a writing summary. */
 export function runChangedWords(nodes: readonly Schemas["GetRunNode"][] | null | undefined): string | null {
   const summaries = (nodes ?? []).flatMap((n) => (n.summary ? [n.summary] : []));
   const claims = summaries.filter((s): s is Extract<RunSummary, { kind: "claims" }> => s.kind === "claims");
-  const posts = summaries.filter((s): s is Extract<RunSummary, { kind: "post_inbox" | "emit_capture" }> => s.kind === "post_inbox" || s.kind === "emit_capture");
+  const posts = summaries.filter((s): s is Extract<RunSummary, { emitted: number }> => s.kind === "post_inbox");
   if (claims.length === 0 && posts.length === 0) return null;
   const sum = (pick: (s: Extract<RunSummary, { kind: "claims" }>) => number) => claims.reduce((a, s) => a + pick(s), 0);
   const changes = sum((s) => s.written + s.revised + s.inverse_written + s.retired);
-  const posted = posts.filter((s) => s.kind === "post_inbox").reduce((a, s) => a + s.emitted, 0);
   const words: string[] = [];
   if (claims.some((s) => s.delivery === "proposed")) words.push(changes > 0 ? `proposed ${count(changes)}` : "proposed");
   else {
-    const parts = [
+    for (const [n, word] of [
       [sum((s) => s.written), "written"],
       [sum((s) => s.revised), "revised"],
-      [sum((s) => s.inverse_written), "recorded absent"],
+      [sum((s) => s.inverse_written), "absent"],
       [sum((s) => s.retired), "retired"],
-    ] as const;
-    for (const [n, word] of parts) if (n > 0) words.push(`${count(n)} ${word}`);
+    ] as const)
+      if (n > 0) words.push(`${count(n)} ${word}`);
   }
+  const posted = posts.reduce((a, s) => a + s.emitted, 0);
   if (posted > 0) words.push(`${count(posted)} posted`);
-  return words.length > 0 ? words.join(" · ") : "nothing changed";
+  return words.length > 0 ? words.join(" · ") : "no change";
 }

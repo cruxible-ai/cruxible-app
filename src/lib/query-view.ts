@@ -95,8 +95,6 @@ export function kindWord(kind: string): string {
   return (kind.split(".").at(-1) ?? kind).replaceAll("_", " ").replaceAll("-", " ");
 }
 
-/** A field's name in words ("cve_id" -> "cve id"). */
-export const fieldWord = (name: string) => name.replaceAll("_", " ");
 
 /** A predicate named on a binding of `kinds`: its full ClaimType name and its field name. */
 export function claimTypeOf(predicate: string, kinds: readonly string[]): { claimType: string; field: string } {
@@ -176,15 +174,15 @@ export function filterBindings(text: string, bindings: ReadonlyMap<string, strin
   return [...named];
 }
 
-/** A binding's field reference in words: the box's own field, or "assessment's status". */
+/** A binding's field reference, named directly: the box's own field (`status`), or another box's (`assessment.status`). */
 function refWords(binding: string, rest: string, bindings: ReadonlyMap<string, string[]>, own: string | null): Part[] {
   const kinds = bindings.get(binding) ?? [];
-  const whose: Part[] = binding === own ? [] : [{ text: `${kindWord(kinds[0] ?? binding)}'s` }];
-  if (rest === "") return [{ text: binding === own ? "it" : `the ${kindWord(kinds[0] ?? binding)}` }];
-  if (rest === "subject_kind") return [...whose, { text: "kind" }];
-  if (rest === "subject_id") return [...whose, { text: "id" }];
+  const kind = kindWord(kinds[0] ?? binding);
+  const whose = binding === own ? "" : `${kind}.`;
+  if (rest === "") return [{ text: binding === own ? "it" : kind }];
+  if (rest === "subject_kind" || rest === "subject_id") return [{ field: `${whose}${rest}`, claimType: null, title: `${binding}.${rest}` }];
   const { claimType, field } = claimTypeOf(rest, kinds);
-  return [...whose, { field: fieldWord(field), claimType, title: `${binding}.${rest}` }];
+  return [{ field: `${whose}${field}`, claimType, title: `${binding}.${rest}` }];
 }
 
 /** A filter expression in words, `own` being the box it is written on. */
@@ -217,7 +215,7 @@ function merged(parts: readonly Part[]): Part[] {
   }, []);
 }
 
-/** A returned field's expression in words (`v.security.vulnerability.cve_id` -> vulnerability's cve id). */
+/** A returned field's source, named directly (`v.security.vulnerability.cve_id` -> `vulnerability.cve_id`). */
 export function expressionWords(text: string, bindings: ReadonlyMap<string, string[]>): Part[] {
   const fn = /^(role|verdict)\((.*)\)$/.exec(text.trim());
   if (fn) return merged([{ text: `${fn[1]} of` }, ...expressionWords(fn[2]!, bindings)]);
@@ -226,10 +224,10 @@ export function expressionWords(text: string, bindings: ReadonlyMap<string, stri
   const kinds = bindings.get(binding!) ?? [];
   const kind = kindWord(kinds[0] ?? binding!);
   const tail = rest.join(".");
-  if (tail === "" || tail === "subject_id") return [{ text: `${kind}'s id` }];
-  if (tail === "subject_kind") return [{ text: `${kind}'s kind` }];
+  if (tail === "" || tail === "subject_id") return [{ field: `${kind}.subject_id`, claimType: null, title: text }];
+  if (tail === "subject_kind") return [{ field: `${kind}.subject_kind`, claimType: null, title: text }];
   const { claimType, field } = claimTypeOf(tail, kinds);
-  return [{ text: `${kind}'s` }, { field: fieldWord(field), claimType, title: text }];
+  return [{ field: `${kind}.${field}`, claimType, title: text }];
 }
 
 /** Parts as plain text (tests, titles). */
@@ -421,11 +419,11 @@ export function needsOntology(view: QueryView): boolean {
   return view.boxes.some((box) => box.kinds.length === 0);
 }
 
-/** "One row per vulnerability" / "One row per path: vulnerability → assessment → release". */
+/** "1 row / vulnerability" / "1 row / path vulnerability → assessment → release". */
 export function rowWords(view: QueryView): string {
-  const word = (box: QueryBox | undefined) => (box && box.kinds.length > 0 ? box.kinds.map(kindWord).join(" or ") : "result");
-  if (!view.paths) return `One row per ${word(view.boxes[0])}`;
-  return `One row per path: ${view.boxes.map(word).join(" → ")}`;
+  const word = (box: QueryBox | undefined) => (box && box.kinds.length > 0 ? box.kinds.map(kindWord).join("|") : "result");
+  if (!view.paths) return `1 row / ${word(view.boxes[0])}`;
+  return `1 row / path ${view.boxes.map(word).join(" → ")}`;
 }
 
 /** The kind table holds exactly the query's answer: one entry kind, no hops, no filters, no entry parameter. */

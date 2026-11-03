@@ -28,15 +28,15 @@ describe("Procedure graph", () => {
     for (const [id, kind] of Object.entries(kinds)) expect(within(node(id)).getByText(kind)).toBeInTheDocument();
     // the guard's else halts under no id: the graph names it after the guard
     expect(within(node("changed.else")).getByText("no_change")).toBeInTheDocument();
-    // each step says what it is for, in words, from its spec: the CaptureKind a call returns (linked),
-    // the payload an extract expects, the ClaimTypes a claims step writes and on which kind (linked)
-    expect(node("catalog")).toHaveTextContent("Asks its fetch Provider, returns JSON (the kev http v1)");
-    expect(within(node("catalog")).getByText("the kev http v1").closest("a")).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
-    expect(node("entries")).toHaveTextContent("One record per /vulnerabilities/*, keyed by cveID, with dateAdded");
+    // each step's key fields, terse: payload names as code, named things linked
+    expect(node("catalog")).toHaveTextContent("fetch · JSON");
+    expect(node("watched")).toHaveTextContent("kev_exposure");
+    expect(within(node("watched")).getByText("kev_exposure").closest("a")).toHaveAttribute("href", `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`);
+    expect(node("entries")).toHaveTextContent("/vulnerabilities/* · key cveID · 1 field");
     expect(within(node("entries")).getByText("cveID").tagName).toBe("CODE");
-    expect(node("settle")).toHaveTextContent("Writes kev_date_added → vulnerability");
+    expect(node("settle")).toHaveTextContent("kev_date_added → vulnerability");
     expect(within(node("settle")).getByText("kev_date_added").closest("a")).toHaveAttribute("href", "/i/inst_fixture/claim-types/security.vulnerability.kev_date_added");
-    expect(node("changed")).toHaveTextContent("Goes on only if its condition holds; else stops");
+    expect(node("changed")).toHaveTextContent("else halt");
 
     fireEvent.click(node("entries"));
     expect(await screen.findByRole("button", { name: "Clear: Focused on entries" }, SLOW)).toBeInTheDocument();
@@ -60,9 +60,9 @@ describe("Procedure graph", () => {
     await waitFor(() => expect(node("trigger:security.kev-daily")).not.toBeNull(), SLOW);
     // a UTC schedule reads in the viewer's zone (the suite runs in America/New_York)
     expect(g.getByText(/^Daily at 1:00\s?AM EST$|^Daily at 2:00\s?AM EDT$/)).toBeInTheDocument();
-    // the call reads the landing; the build its slot binds is named on hover
-    await waitFor(() => expect(node("catalog")).toHaveTextContent("Reads the Capture that landed, returns JSON (the kev http v1)"), SLOW);
-    await waitFor(() => expect(node("catalog").querySelector("[title*='binds slot fetch to cruxible-provider-web']")).not.toBeNull(), SLOW);
+    // the call reads the landing; the build its slot binds is on hover
+    await waitFor(() => expect(node("catalog")).toHaveTextContent("landing · JSON"), SLOW);
+    await waitFor(() => expect(node("catalog").querySelector("[title*='slot fetch → cruxible-provider-web']")).not.toBeNull(), SLOW);
     expect(g.queryByText(/1,766/)).toBeNull(); // no run picked: no counts
 
     const picker = await screen.findByRole("combobox", { name: "Mark the steps with a run" }, SLOW);
@@ -70,11 +70,24 @@ describe("Procedure graph", () => {
     fireEvent.change(picker, { target: { value: "run-7" } });
     await waitFor(() => expect(within(node("changed")).getByText(/Refused · guard_refused/)).toBeInTheDocument(), SLOW);
     expect(node("changed").querySelector('[role="img"][aria-label^="Refused"]')).toHaveClass("bg-red-500"); // the red dot
-    // a node with a summary shows the run's counts in words; one without (the refusal) keeps its verdict
+    // a node with a summary shows the run's counts; one without (the refusal) keeps its verdict
     expect(within(node("catalog")).getByText("1 Capture")).toBeInTheDocument();
-    expect(within(node("watched")).getByText("3 kev exposure")).toBeInTheDocument();
+    expect(within(node("watched")).getByText("3 rows")).toBeInTheDocument();
     expect(within(node("entries")).getByText("1,766 records · complete")).toBeInTheDocument();
     expect(within(node("settle")).getByText(/Not run|delivered/)).toBeInTheDocument();
-    expect(screen.getByText(/Each step marked with what happened in run/)).toBeInTheDocument();
+    expect(screen.getByText("Marked with run")).toBeInTheDocument();
+    // the steps table under the graph: what each step reads, returns and which fields, and this run's counts
+    const steps = within(screen.getByRole("table", { name: "Steps" }));
+    const row = (id: string) => within(steps.getByText(id, { selector: "span.font-mono" }).closest("tr")!);
+    expect(row("entries").getByText("catalog")).toBeInTheDocument();
+    expect(row("entries").getByText("dateAdded")).toBeInTheDocument();
+    expect(row("entries").getByText("1,766 records · complete")).toBeInTheDocument();
+    expect(row("settle").getByText("kev_date_added").closest("a")).toHaveAttribute("href", "/i/inst_fixture/claim-types/security.vulnerability.kev_date_added");
+    expect(row("catalog").getByText("landing")).toBeInTheDocument();
+    // a clicked step opens its fields in groups
+    fireEvent.click(node("entries"));
+    const panel = within(await screen.findByRole("list", { name: "Records" }, SLOW));
+    expect(panel.getByText("/vulnerabilities/*")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Fields" })).getByText("dateAdded")).toBeInTheDocument();
   });
 });

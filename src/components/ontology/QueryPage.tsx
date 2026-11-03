@@ -211,19 +211,6 @@ export function QueryPath({ view }: { view: QueryView }) {
           <Words parts={filter} />
         </div>
       ))}
-      {view.returns.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-baseline gap-x-1 gap-y-1 text-[13px] text-zinc-300">
-          <span className="t-meta mr-1">Returns</span>
-          {view.returns.map((item, i) => (
-            <span key={item.name} className="whitespace-nowrap" title={item.expression}>
-              <span className="font-mono text-zinc-100">{item.name}</span>
-              <span className="mx-1 text-zinc-500">←</span>
-              <Words parts={item.from} />
-              {i < view.returns.length - 1 && <span className="text-zinc-600">,</span>}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -258,7 +245,7 @@ const RETURN_COLUMNS: Column<ReturnRow>[] = [
     header: "Filled from",
     cell: (row) =>
       row.from ? (
-        <span className="text-zinc-300" title={row.expression ?? undefined}>
+        <span className="font-mono text-[12px] text-zinc-300" title={row.expression ?? undefined}>
           <Words parts={row.from} />
         </span>
       ) : (
@@ -288,28 +275,26 @@ function Returns({ view }: { view: QueryView }) {
     return [...declared, ...extra];
   }, [card, view.returns]);
   return (
-    <Panel title="Returns">
-      <div className="mb-2 text-[13px] text-zinc-300">
-        {rowWords(view)}
-        {view.row ? (
-          <>
-            , each a{" "}
-            <RefLink value={`Contract:${view.row}`}>
-              <span className="font-mono text-[13px]" title={`Contract:${view.row}`}>
-                {view.row.split("@")[0]}
-              </span>
-            </RefLink>{" "}
-            row
-            {card?.description && <span className="text-zinc-500"> ({card.description.replace(/\.$/, "")})</span>}.
-          </>
-        ) : (
-          "."
-        )}
-      </div>
+    <Panel
+      title="Returns"
+      meta={
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <span>{rowWords(view)}</span>
+          {view.row && (
+            <span title={[`Contract:${view.row}`, card?.description].filter(Boolean).join("\n")}>
+              row{" "}
+              <RefLink value={`Contract:${view.row}`}>
+                <span className="font-mono text-[12px]">{view.row.split("@")[0]}</span>
+              </RefLink>
+            </span>
+          )}
+        </span>
+      }
+    >
       {view.row && contract.isPending ? (
         <LoadState />
       ) : (
-        <DataTable rows={rows} columns={RETURN_COLUMNS} rowKey={(row) => row.name} urlKey="returns" label="Returned fields" toolbar={false} maxHeight="none" empty="It names no fields." />
+        <DataTable rows={rows} columns={RETURN_COLUMNS} rowKey={(row) => row.name} urlKey="returns" label="Returned fields" toolbar={false} maxHeight="none" empty="No fields" />
       )}
     </Panel>
   );
@@ -338,7 +323,7 @@ function Parameters({ params }: { params: QueryParam[] }) {
   return (
     <Panel title="Parameters">
       {params.length === 0 ? (
-        <EmptyState>None: it runs as written.</EmptyState>
+        <EmptyState>None</EmptyState>
       ) : (
         <DataTable rows={params} columns={PARAM_COLUMNS} rowKey={(row) => row.name} urlKey="params" label="Parameters" toolbar={false} maxHeight="none" />
       )}
@@ -407,13 +392,15 @@ function Preview({ view }: { view: QueryView }) {
     <Panel title="Preview" meta={meta}>
       {missing.length > 0 ? (
         <EmptyState>
-          It needs {missing.map((param, i) => (
-            <Fragment key={param.name}>
-              {i > 0 && (i === missing.length - 1 ? " and " : ", ")}
-              <span className="font-mono text-zinc-300">{param.name}</span>
-            </Fragment>
-          ))}{" "}
-          to run, and {missing.length === 1 ? "it has" : "they have"} no default, so there is no preview here.
+          <span title="These parameters have no default, so the preview cannot run">
+            needs{" "}
+            {missing.map((param, i) => (
+              <Fragment key={param.name}>
+                {i > 0 && ", "}
+                <span className="font-mono text-zinc-300">{param.name}</span>
+              </Fragment>
+            ))}
+          </span>
         </EmptyState>
       ) : result.error ? (
         <LoadState error={result.error} />
@@ -421,8 +408,8 @@ function Preview({ view }: { view: QueryView }) {
         <LoadState />
       ) : (
         <>
-          <div className="mb-2 text-[12px] text-zinc-500">
-            Run live at this generation{params ? " with its defaults" : ""}; nothing is written.
+          <div className="mb-2 text-[12px] text-zinc-500" title="Run live at this generation; nothing is written">
+            live · read-only{params ? " · defaults" : ""}
           </div>
           <DataTable
             rows={page.rows}
@@ -432,7 +419,7 @@ function Preview({ view }: { view: QueryView }) {
             label="Preview rows"
             toolbar={false}
             maxHeight="none"
-            empty="No rows: nothing matches right now."
+            empty="No rows"
           />
           {(page.notes ?? []).map((note) => (
             <div key={note} className="mt-1.5 text-[12px] text-zinc-500">
@@ -494,7 +481,7 @@ function UsedBy({ query }: { query: string }) {
   let body: ReactNode;
   if (model.error) body = <LoadState error={model.error} />;
   else if (!model.data) body = <LoadState />;
-  else if (readers.length === 0) body = <EmptyState>No Procedure reads it.</EmptyState>;
+  else if (readers.length === 0) body = <EmptyState>No Procedure reads it</EmptyState>;
   else
     body = (
       <DataTable rows={readers} columns={READER_COLUMNS} rowKey={(row) => row.procedure} urlKey="readers" label="Procedures that read it" toolbar={false} maxHeight="none" />

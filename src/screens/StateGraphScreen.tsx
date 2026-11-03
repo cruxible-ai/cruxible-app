@@ -3,12 +3,12 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useCard, useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { ShownValue } from "@/components/ShownValue";
-import { Chip, toggleChipClass } from "@/components/Chip";
+import { actionChipClass, Chip, toggleChipClass } from "@/components/Chip";
 import { FieldList } from "@/components/FieldList";
 import { LoadState } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { CosmosDots, type GlDotEdge, type GlDotNode } from "@/components/graph/CosmosDots";
-import { ConnectionList, PanelActions, PanelHeading, PanelSection } from "@/components/graph/PanelBits";
+import { ConnectionList, PanelActions, PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
 import type { GraphPanelApi } from "@/components/graph/GraphCanvas";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
@@ -242,25 +242,29 @@ export function StateGraphScreen() {
               const targetKind = edge.target.split("/", 1)[0]!;
               return (
                 <div className="text-[12px]">
-                  <PanelHeading kicker="Subject-valued Claim" title={edge.predicate} />
-                  {edge.qualifier && <div className="text-zinc-500">Qualifier {edge.qualifier}</div>}
-                  <div className="mt-2 space-y-1">
-                    <div>
-                      <span className="text-zinc-600">from </span>
-                      <RefLink value={edge.source}>
-                        <span className="break-all font-mono">{idOf(edge.source, sourceKind)}</span>
-                      </RefLink>
-                    </div>
-                    <div>
-                      <span className="text-zinc-600">to </span>
-                      <RefLink value={edge.target}>
-                        <span className="break-all font-mono">{idOf(edge.target, targetKind)}</span>
-                      </RefLink>
-                    </div>
-                    <div>
-                      <RefLink value={edge.claim} />
-                    </div>
-                  </div>
+                  <PanelHeading kicker="Subject-valued Claim" title={edge.predicate.slice(edge.predicate.lastIndexOf(".") + 1)} />
+                  <FieldList
+                    density="compact"
+                    labels="words"
+                    label="Claim"
+                    fields={[
+                      { key: "from", label: "From", value: <SubjectRef subject={edge.source} kind={sourceKind} /> },
+                      { key: "to", label: "To", value: <SubjectRef subject={edge.target} kind={targetKind} /> },
+                      ...(edge.qualifier ? [{ key: "qualifier", label: "Qualifier", value: <span className="font-mono text-zinc-300">{edge.qualifier}</span> }] : []),
+                      {
+                        key: "claim_type",
+                        label: "ClaimType",
+                        value: (
+                          <span title={edge.predicate}>
+                            <RefLink value={`ClaimType:${edge.predicate}`}>
+                              <span className="font-mono">{edge.predicate.slice(edge.predicate.lastIndexOf(".") + 1)}</span>
+                            </RefLink>
+                          </span>
+                        ),
+                      },
+                      { key: "claim", label: "Claim", value: <RefLink value={edge.claim} short /> },
+                    ]}
+                  />
                 </div>
               );
             }}
@@ -271,14 +275,25 @@ export function StateGraphScreen() {
   );
 }
 
-/**
- * A selected Subject, read in place: its current Claims (one line per field,
- * flags kept), its one-hop links in this view (a click walks the selection
- * there), and the way out to its full page or neighborhood.
- */
+/** A Subject by its id (its kind dropped), linking its page; the full ref on hover. */
+function SubjectRef({ subject, kind }: { subject: string; kind: string }) {
+  return (
+    <span title={subject}>
+      <RefLink value={subject}>
+        <span className="break-all font-mono">{idOf(subject, kind)}</span>
+      </RefLink>
+    </span>
+  );
+}
+
 /** A many-valued field shows this many values in the panel; the rest are on the Subject's page. */
 const PANEL_LIST_CAP = 6;
 
+/**
+ * A selected Subject, in the Type map's panel style: kind and id, the way to
+ * its page, then its literal Claims (field | value, each field linking its
+ * ClaimType, flags kept) and its links in this view (a click walks there).
+ */
 function SubjectPanel({
   subject,
   edges,
@@ -292,6 +307,8 @@ function SubjectPanel({
   labelFor: (id: string) => string;
   openHref: string;
 }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
   const card = useCard(subject);
   const data = cardOf(card.data, "subject");
   const kind = subject.split("/", 1)[0]!;
@@ -300,11 +317,16 @@ function SubjectPanel({
   const literal = (data?.claims ?? []).filter((c) => !(typeof c.value === "string" && /^[a-z0-9_.-]+\/[^\s]+$/.test(c.value)));
   return (
     <div className="text-[12px]">
-      <PanelHeading kicker={kind} title={id} />
-      <PanelSection title="Claims">
-        {card.isPending && <div className="text-zinc-600">Reading…</div>}
-        {card.error && <div className="text-zinc-500">Could not read this Subject.</div>}
-        {data && literal.length === 0 && <div className="text-zinc-600">No literal values; its links are below.</div>}
+      <PanelHeading kicker={kind.slice(kind.lastIndexOf(".") + 1)} title={id} />
+      <PanelActions>
+        <Link to={openHref} className={actionChipClass}>
+          Open Subject →
+        </Link>
+      </PanelActions>
+      <PanelGroup title="Claims">
+        {card.isPending && <div className="text-zinc-600">…</div>}
+        {card.error && <div className="text-zinc-500" title={card.error.message}>unreadable</div>}
+        {data && literal.length === 0 && <div className="text-zinc-600">none</div>}
         {literal.length > 0 && (
           <FieldList
             density="compact"
@@ -312,6 +334,7 @@ function SubjectPanel({
             fields={literal.map((c) => ({
               key: `${c.predicate}-${c.qualifier ?? ""}`,
               label: `${c.predicate.slice(c.predicate.lastIndexOf(".") + 1)}${c.qualifier ? `[${c.qualifier}]` : ""}`,
+              labelHref: link(`/i/${instanceId}/claim-types/${encodeURIComponent(c.predicate)}`),
               labelTitle: c.predicate,
               value: (
                 <span className="break-words text-zinc-200">
@@ -319,7 +342,7 @@ function SubjectPanel({
                     <>
                       <ShownValue value={c.value.slice(0, PANEL_LIST_CAP) as typeof c.value} />
                       <Link to={openHref} className="block text-zinc-500 hover:text-zinc-300">
-                        +{c.value.length - PANEL_LIST_CAP} more
+                        +{c.value.length - PANEL_LIST_CAP}
                       </Link>
                     </>
                   ) : (
@@ -338,15 +361,10 @@ function SubjectPanel({
             }))}
           />
         )}
-      </PanelSection>
-      <PanelSection title="Links">
+      </PanelGroup>
+      <PanelGroup title="Links">
         <ConnectionList nodeId={subject} edges={edges as never} api={api} labelFor={labelFor} />
-      </PanelSection>
-      <PanelActions>
-        <Link to={openHref} className="border border-zinc-700 px-2 py-0.5 text-zinc-200 hover:border-zinc-500">
-          Open Subject
-        </Link>
-      </PanelActions>
+      </PanelGroup>
     </div>
   );
 }

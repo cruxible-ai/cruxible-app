@@ -55,18 +55,20 @@ describe("Line page", () => {
     expect(main.getByRole("button", { name: "Older →" })).toBeInTheDocument();
     // what each run changed, from its nodes' summaries; blank for a run with none that write
     const runs = within(main.getByRole("table", { name: "Runs" }));
-    expect(await runs.findByText("32 written · 2 recorded absent")).toBeInTheDocument();
+    expect(await runs.findByText("32 written · 2 absent")).toBeInTheDocument();
     expect(runs.getByRole("columnheader", { name: /Changed/ })).toBeInTheDocument();
     expect(await main.findByText("kev-triage-agreement")).toBeInTheDocument();
     expect(main.getByText("Missed a vendor backport.")).toBeInTheDocument();
     // the settle Mandate in words: what it settles, when a Subject leaves the source, under which condition
-    expect(await main.findByText("May settle without review")).toBeInTheDocument();
-    expect(await main.findByText(/otherwise it goes to review/)).toBeInTheDocument();
-    const sentences = main.getAllByRole("listitem").map((li) => li.textContent);
-    expect(sentences).toContain("New values extracted from the kev http v1 for status.");
-    expect(sentences).toContain("When a Subject leaves the kev http v1: retire its status.");
-    expect(main.getAllByRole("link", { name: "status" })[0]).toHaveAttribute("href", "/i/inst_fixture/claim-types/security.assessment.status");
-    expect(await main.findByText("Assessments whose vulnerability is KEV-listed and whose release is shipped.")).toBeInTheDocument();
+    // the settle Mandate as a table: per ClaimType what it settles and does on removal; its condition Query
+    const mandate = within(await main.findByRole("table", { name: "Mandate security.kev-settle" }));
+    const status = within(mandate.getByRole("link", { name: "status" }).closest("tr")!);
+    expect(mandate.getByRole("link", { name: "status" })).toHaveAttribute("href", "/i/inst_fixture/claim-types/security.assessment.status");
+    expect(status.getByText("new")).toBeInTheDocument();
+    expect(status.getByText("retires")).toBeInTheDocument();
+    expect(await main.findByText(/else review/)).toBeInTheDocument();
+    expect(main.getByRole("button", { name: "What settles means" })).toBeInTheDocument();
+    expect(main.getAllByRole("link", { name: "kev_exposure" })[0]).toHaveAttribute("href", `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`);
     expect(await main.findByText("Contradicted")).toBeInTheDocument();
     const item = await main.findByRole("button", { name: /^INB-7777/ });
     fireEvent.click(item);
@@ -111,25 +113,24 @@ describe("Line definitions", () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const main = within(await screen.findByRole("main"));
     // the panel shows while the Line's envelope loads; read it once its rows are in
-    const line = within((await main.findByText("Starts from")).closest("section")!);
-    // the trigger input in words, the step on hover, the CaptureKind linked
-    expect(line.getByText("The Capture that landed")).toHaveAttribute("title", "Trigger input: step catalog");
-    expect(line.getByRole("link", { name: "the kev http v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
-    expect(line.getByText("cruxible-provider-web")).toBeInTheDocument(); // the build the Line binds
-    expect(line.getByText("Keeps nothing")).toBeInTheDocument(); // its only call reads the landing
+    const sources = within(await main.findByRole("table", { name: "Sources" }));
+    // its only call reads the landing: the source row says so, with the CaptureKind (linked) and the build the Line binds
+    expect(sources.getByText("landing")).toHaveAttribute("title", "The Capture whose landing started the run");
+    expect(sources.getByRole("link", { name: "kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
+    expect(sources.getByText("cruxible-provider-web")).toBeInTheDocument();
     // the Procedure as authored is on the steps graph: a clicked step names its contract, slot, binding and query
     const node = async (id: string) => {
       await waitFor(() => expect(document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`)).not.toBeNull(), { timeout: 8000 });
       return document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`) as HTMLElement;
     };
     fireEvent.click(await node("catalog"));
-    const panel = within(await screen.findByText("Binds", { selector: "dt" }).then((dt) => dt.closest("dl")!.parentElement!));
-    expect(panel.getByRole("link", { name: /security\.kev-http-v1/ })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
-    expect(panel.getByText("fetch", { selector: "dd span" })).toBeInTheDocument();
-    expect(panel.getByRole("link", { name: "cruxible-provider-web" })).toBeInTheDocument();
+    expect(within(await screen.findByRole("list", { name: "Returns" })).getByRole("link", { name: "kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
+    const provider = within(screen.getByRole("list", { name: "Provider" }));
+    expect(provider.getByText("fetch")).toBeInTheDocument();
+    expect(provider.getByRole("link", { name: "cruxible-provider-web" })).toBeInTheDocument();
     fireEvent.click(await node("watched"));
-    const query = within(await screen.findByText("Query", { selector: "dt" }).then((dt) => dt.closest("dl")!.parentElement!));
-    expect(query.getByRole("link", { name: /security\.kev_exposure/ })).toHaveAttribute(
+    const query = within(await screen.findByRole("list", { name: "Reads" }));
+    expect(query.getByRole("link", { name: "kev_exposure" })).toHaveAttribute(
       "href",
       `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`,
     );

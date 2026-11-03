@@ -25,12 +25,13 @@ import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextTable } from "@/components/next/NextTable";
 import { LineDefinitionPanel } from "@/components/ontology/Definitions";
-import { PhraseText } from "@/components/PhraseText";
-import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
+import { Parts } from "@/components/Parts";
+import { InfoButton } from "@/components/InfoButton";
+import { ProcedureGraph, StepsTable, type GraphTrigger } from "@/components/graph/ProcedureGraph";
 import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
 import { buildProcedureGraph, INPUT_NODE } from "@/lib/procedure-graph";
 import { runMarks } from "@/lib/run-marks";
-import { mandateContext, mandateWords, type MandateContext } from "@/lib/mandate-words";
+import { mandateContext, mandateTable, type MandateContext, type MandateRow } from "@/lib/mandate-words";
 import { runChangedWords } from "@/lib/step-words";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
@@ -282,20 +283,24 @@ function LineGraphPanel({
         <div className="mt-2 space-y-0.5 text-[12px] text-zinc-500">
           {runCard ? (
             <div className="flex flex-wrap items-baseline gap-x-2">
-              <span>Each step marked with what happened in run</span>
+              <span>Marked with run</span>
               <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(picked)}`)} className="font-mono text-zinc-300 hover:underline" title={picked}>
                 {shortRunId(picked)}
               </Link>
               <Chip concept="run" value={runCard.status} />
-              {runState.data?.receipt_digest ? <span>(its card, journal and receipt)</span> : <span>(its card and journal; the receipt is withheld or not written yet)</span>}
+              <span title="Where the marks come from">{runState.data?.receipt_digest ? "card · journal · receipt" : "card · journal (no receipt)"}</span>
             </div>
           ) : (
             <LoadState />
           )}
-          {marks?.partial && <div>The run card lists only the latest {runCard?.nodes?.length ?? 0} of {runCard?.nodes_done} finished nodes; the run's journal marks the rest as ran.</div>}
+          {marks?.partial && (
+            <div title="The run card lists only the latest finished nodes; the journal marks the rest">
+              card: latest {runCard?.nodes?.length ?? 0} of {runCard?.nodes_done} nodes · rest from journal
+            </div>
+          )}
           {(marks?.others.length ?? 0) > 0 && (
             <div>
-              Also in this run, with no step of their own here:{" "}
+              <span title="Nodes this run reports that have no step here">Other nodes:</span>{" "}
               {marks!.others.map((o, i) => (
                 <span key={o.node}>
                   {i > 0 && ", "}
@@ -306,6 +311,9 @@ function LineGraphPanel({
           )}
         </div>
       )}
+      <div className="mt-3">
+        <StepsTable spec={spec} line={context} run={marks} />
+      </div>
     </Panel>
   );
 }
@@ -530,7 +538,7 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
       {
         id: "changed",
         header: "Changed",
-        title: "What the run changed, from its steps' counts (blank for a run that kept none)",
+        title: "What the run changed, from its steps' counts (blank: the run kept none)",
         sortValue: (run) => changed.get(runId(run.run)) ?? null,
         className: "whitespace-nowrap text-[12px] text-zinc-300",
         cell: (run) => changed.get(runId(run.run)) ?? "",
@@ -672,10 +680,10 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
 }
 
 /**
- * What the Line's Mandates let it do, in plain words (mandate-words.ts):
- * what it may settle without review and for which Subjects, what happens when
- * a Subject leaves the source, and that the rest goes to review when a
- * propose Mandate covers everything. Settle Mandates first.
+ * The Line's Mandates as a table per settle Mandate: each ClaimType, what it
+ * settles without review, what it does when a Subject leaves the source, and
+ * the bases (on hover); a closing "everything else → review" row when a
+ * propose Mandate covers the rest; a propose Mandate as one note line.
  */
 function MandatesPanel({ line, procedure }: { line: string; procedure: string }) {
   const mandates = useMandates();
@@ -686,9 +694,16 @@ function MandatesPanel({ line, procedure }: { line: string; procedure: string })
     .sort((a, b) => (a.grants === b.grants ? (a.mandate < b.mandate ? -1 : 1) : a.grants === "settle" ? -1 : 1));
   const restToReview = rows.some((m) => m.grants === "propose" && (m.scope ?? []).length === 0 && !m.suspended);
   return (
-    <Panel title="Mandates" meta={<span>{rows.length}</span>}>
+    <Panel
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          Mandates <InfoButton label="What a Mandate is">{CONCEPT.mandate}</InfoButton>
+        </span>
+      }
+      meta={<span>{rows.length}</span>}
+    >
       {mandates.isPending && <LoadState />}
-      {mandates.data && rows.length === 0 && <EmptyState>No mandate binds this Line: its runs can at most propose.</EmptyState>}
+      {mandates.data && rows.length === 0 && <EmptyState>None: runs at most propose.</EmptyState>}
       <div className="space-y-3">
         {rows.map((mandate) => (
           <MandateDetail key={mandate.mandate} mandate={mandate} ctx={ctx} restToReview={restToReview} />
@@ -698,37 +713,127 @@ function MandatesPanel({ line, procedure }: { line: string; procedure: string })
   );
 }
 
+/** Plain explanations of Cruxible concepts, behind the ⓘ beside a label. */
+const CONCEPT = {
+  mandate: "A Mandate is a standing permission for this Line: which kinds of facts (ClaimTypes) its runs may write, and whether they settle on their own or go to a person for review.",
+  settles: "Settles: the run's value becomes the accepted fact without review. Anything not settled is proposed and waits for a reviewer.",
+  removal: "When a watched item no longer appears in a complete read of the source: retires ends the fact; records absent writes that it is no longer there.",
+  basis: "Basis: what the value rests on. extracted: read from the source; absence: missing from a complete read; derived: computed from other facts; measured: a measurement.",
+};
+
+type ScopeRow = MandateRow & { rest?: boolean };
+
 function MandateDetail({ mandate, ctx, restToReview }: { mandate: Schemas["OrientMandate"]; ctx: MandateContext; restToReview: boolean }) {
   const name = mandate.mandate.replace(/^(Procedure)?Mandate:/, "");
   const read = useCard(`Mandate:${name}`);
   const card = cardOf(read.data, "mandate");
-  const words = card ? mandateWords(card, ctx, restToReview) : null;
-  // A condition's Query says in its own words what it holds for.
-  const condition = cardOf(useCard(card?.condition?.query ?? null).data, "query");
-  return (
-    <div className="text-[13px]">
-      <div className="flex flex-wrap items-baseline gap-x-3">
-        <span title={`Mandate ${name} grants ${mandate.grants}`}>
-          <RefLink value={`Mandate:${name}`}>
-            <span className="font-medium text-zinc-100">{words?.heading ?? term("authority", mandate.grants).word}</span>
-          </RefLink>
-        </span>
-        <Chip concept="mandate" value={mandate.suspended ? "suspended" : mandate.state} />
-        <span className="text-[12px] text-zinc-500" title={mandate.expires_at}>
-          until {formatDateTime(mandate.expires_at)}
-        </span>
+  const table = card ? mandateTable(card, ctx) : null;
+  const columns = useMemo<Column<ScopeRow>[]>(
+    () => [
+      {
+        id: "claim_type",
+        header: "ClaimType",
+        cell: (row) =>
+          row.rest ? (
+            <span className="text-zinc-400">everything else</span>
+          ) : (
+            <span title={`ClaimType:${row.claimType}`}>
+              <RefLink value={`ClaimType:${row.claimType}`}>
+                <span className="font-mono text-[12px]">{row.claimType.split(".").at(-1)}</span>
+              </RefLink>
+            </span>
+          ),
+      },
+      {
+        id: "settles",
+        header: (
+          <span className="inline-flex items-center gap-1">
+            Settles <InfoButton label="What settles means">{CONCEPT.settles}</InfoButton>
+          </span>
+        ),
+        label: "Settles",
+        cell: (row) => <span className={row.settles === "review" ? "text-zinc-500" : "text-zinc-200"}>{row.settles}</span>,
+      },
+      {
+        id: "removal",
+        header: (
+          <span className="inline-flex items-center gap-1">
+            On removal <InfoButton label="What on removal means">{CONCEPT.removal}</InfoButton>
+          </span>
+        ),
+        label: "On removal",
+        cell: (row) => <span className={row.onRemoval === "—" ? "text-zinc-600" : "text-zinc-200"}>{row.onRemoval}</span>,
+      },
+      {
+        id: "basis",
+        header: (
+          <span className="inline-flex items-center gap-1">
+            Basis <InfoButton label="What basis means">{CONCEPT.basis}</InfoButton>
+          </span>
+        ),
+        label: "Basis",
+        className: "text-[12px] text-zinc-500",
+        cell: (row) => row.basis.join(", ") || "—",
+      },
+    ],
+    [],
+  );
+  const head = (
+    <div className="flex flex-wrap items-baseline gap-x-3 text-[12px]">
+      <span title={`ProcedureMandate:${name}`}>
+        <RefLink value={`Mandate:${name}`}>
+          <span className="font-mono text-zinc-100">{name.replace(/^security\./, "")}</span>
+        </RefLink>
+      </span>
+      <span className="text-zinc-400">{mandate.grants === "settle" ? "settles" : "proposes"}</span>
+      <Chip concept="mandate" value={mandate.suspended ? "suspended" : mandate.state} />
+      <span className="text-zinc-500" title={mandate.expires_at}>
+        until {formatDateTime(mandate.expires_at)}
+      </span>
+    </div>
+  );
+  if (read.error) return <div className="text-[12px] text-red-400/80">{read.error.message}</div>;
+  if (!table) return head;
+  // A Mandate with no scope covers anything the Line writes.
+  if (table.rows.length === 0) {
+    return (
+      <div className="flex flex-wrap items-baseline gap-x-3 text-[12px]">
+        {head}
+        <span className="text-zinc-300">{mandate.grants === "settle" ? "settles: all" : "proposes: all"}</span>
       </div>
-      {read.error && <div className="text-red-400/80">{read.error.message}</div>}
-      {words && words.sentences.length > 0 && (
-        <ul className="mt-0.5 space-y-0.5 text-zinc-300">
-          {words.sentences.map((sentence, i) => (
-            <li key={i}>
-              <PhraseText phrase={sentence} />
-            </li>
-          ))}
-        </ul>
-      )}
-      {condition?.description && <div className="text-[12px] text-zinc-500">{condition.description}</div>}
+    );
+  }
+  const rows: ScopeRow[] = [...table.rows, ...(mandate.grants === "settle" && restToReview ? [{ claimType: "", settles: "review", onRemoval: "—", basis: [], rest: true }] : [])];
+  return (
+    <div className="space-y-1">
+      {head}
+      <dl className="flex flex-wrap gap-x-5 text-[12px]">
+        {table.subjects && (
+          <div className="flex gap-1.5">
+            <dt className="text-zinc-500">Subjects</dt>
+            <dd className="text-zinc-300">
+              <Parts parts={table.subjects} />
+            </dd>
+          </div>
+        )}
+        {table.condition && (
+          <div className="flex gap-1.5">
+            <dt className="text-zinc-500">Condition</dt>
+            <dd className="text-zinc-300">
+              <Parts parts={table.condition} />
+            </dd>
+          </div>
+        )}
+        {table.creates.length > 0 && (
+          <div className="flex gap-1.5">
+            <dt className="text-zinc-500">Creates</dt>
+            <dd className="text-zinc-300">
+              <Parts parts={table.creates} />
+            </dd>
+          </div>
+        )}
+      </dl>
+      <DataTable rows={rows} columns={columns} rowKey={(row) => row.claimType || "rest"} label={`Mandate ${name}`} toolbar={false} maxHeight="none" />
     </div>
   );
 }

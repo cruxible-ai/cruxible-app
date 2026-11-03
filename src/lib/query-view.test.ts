@@ -36,13 +36,13 @@ describe("readQueryView", () => {
     const view = readQueryView(WATCHED)!;
     expect(view.boxes).toEqual([{ binding: "v", kinds: ["security.vulnerability"], entryParam: null, filters: [] }]);
     expect(view.links).toEqual([]);
-    expect(rowWords(view)).toBe("One row per vulnerability");
+    expect(rowWords(view)).toBe("1 row / vulnerability");
     expect(view.returns.map((item) => [item.name, partsText(item.from)])).toEqual([
-      ["cve_id", "vulnerability's cve id"],
-      ["subject_id", "vulnerability's id"],
-      ["subject_kind", "vulnerability's kind"],
+      ["cve_id", "vulnerability.cve_id"],
+      ["subject_id", "vulnerability.subject_id"],
+      ["subject_kind", "vulnerability.subject_kind"],
     ]);
-    expect(view.returns[0]!.from[1]).toMatchObject({ claimType: "security.vulnerability.cve_id" });
+    expect(view.returns[0]!.from[0]).toMatchObject({ claimType: "security.vulnerability.cve_id" });
     expect(view.row).toBe("security.watched-vulnerability@1");
     // its whole answer is the kind table
     expect(wholeKindTable(view)).toBe("security.vulnerability");
@@ -60,14 +60,14 @@ describe("readQueryView", () => {
       { from: "a", to: "r", claimType: "security.assessment.release", field: "release", reverse: false, required: false },
     ]);
     // the top-level where names only v: it is written on v's box; the hop's on the assessment's
-    expect(view.boxes[0]!.filters.map(partsText)).toEqual(["kev listed is true"]);
+    expect(view.boxes[0]!.filters.map(partsText)).toEqual(["kev_listed is true"]);
     expect(view.boxes[1]!.filters.map(partsText)).toEqual(["status is affected"]);
     expect(view.filters).toEqual([]);
-    expect(rowWords(view)).toBe("One row per path: vulnerability → assessment → release");
+    expect(rowWords(view)).toBe("1 row / path vulnerability → assessment → release");
     expect(view.returns.map((item) => [item.name, partsText(item.from)])).toEqual([
-      ["cve_id", "vulnerability's cve id"],
-      ["release", "release's id"],
-      ["status", "assessment's status"],
+      ["cve_id", "vulnerability.cve_id"],
+      ["release", "release.subject_id"],
+      ["status", "assessment.status"],
     ]);
     expect(wholeKindTable(view)).toBeNull();
   });
@@ -95,7 +95,7 @@ describe("readQueryView", () => {
     };
     const view = readQueryView(card)!;
     expect(view.boxes[0]!.kinds).toEqual(["security.assessment"]);
-    expect(view.returns.map((item) => partsText(item.from))).toEqual(["assessment's status"]);
+    expect(view.returns.map((item) => partsText(item.from))).toEqual(["assessment.status"]);
     expect(missingParams(view)).toEqual([]);
     expect(previewParams(view)).toEqual({ status: "affected" });
   });
@@ -127,9 +127,9 @@ describe("words", () => {
   ]);
 
   it("reads operators, presence, parameters and another box's fields", () => {
-    expect(partsText(filterWords("not exists v.security.vulnerability.kev_listed", bindings, "v"))).toBe("has no kev listed");
+    expect(partsText(filterWords("not exists v.security.vulnerability.kev_listed", bindings, "v"))).toBe("has no kev_listed");
     expect(partsText(filterWords("a.status != $wanted and v.cve_id ~ \"2024\"", bindings, "v"))).toBe(
-      "assessment's status is not ‹wanted› and cve id contains 2024",
+      "assessment.status is not ‹wanted› and cve_id contains 2024",
     );
     expect(filterWords("v.cvss >= 7", bindings, "v")).toEqual([
       { field: "cvss", claimType: "security.vulnerability.cvss", title: "v.cvss" },
@@ -138,7 +138,7 @@ describe("words", () => {
   });
 
   it("reads role() and verdict() over a field", () => {
-    expect(partsText(expressionWords("verdict(a.security.assessment.status)", bindings))).toBe("verdict of assessment's status");
+    expect(partsText(expressionWords("verdict(a.security.assessment.status)", bindings))).toBe("verdict of assessment.status");
   });
 
   it("names Contract types in words", () => {

@@ -28,7 +28,7 @@ describe("Query page", () => {
     expect(asks.getByTitle(/the assessments whose vulnerability it is/)).toBeInTheDocument();
     expect(asks.getByTitle(/From each assessment, its release/)).toBeInTheDocument();
     // filters on their box
-    expect(asks.getByText((_, el) => el?.textContent === "where kev listed is true")).toBeInTheDocument();
+    expect(asks.getByText((_, el) => el?.textContent === "where kev_listed is true")).toBeInTheDocument();
     expect(asks.getByText((_, el) => el?.textContent === "where status is affected")).toBeInTheDocument();
     // the raw card is not dumped; the definition stays behind a disclosure
     expect(screen.queryByRole("heading", { name: "Card" })).toBeNull();
@@ -40,14 +40,15 @@ describe("Query page", () => {
     renderApp(page(KEV_EXPOSURE));
     await screen.findByRole("heading", { name: "Returns" });
     const returns = section("Returns");
-    expect(returns.getByText(/One row per path: vulnerability → assessment → release/)).toBeInTheDocument();
+    expect(returns.getByText("1 row / path vulnerability → assessment → release")).toBeInTheDocument();
     expect(returns.getByRole("link", { name: "security.kev-exposure" })).toHaveAttribute("href", expect.stringContaining("Contract%3Asecurity.kev-exposure%401"));
     const release = (await returns.findByText("release", { selector: "span.font-mono" })).closest("tr")!;
     expect(within(release).getByText("a Subject")).toBeInTheDocument();
-    expect(within(release).getByText("release's id")).toBeInTheDocument();
+    // what fills it, named directly
+    expect(within(release).getByText("release.subject_id")).toBeInTheDocument();
     const status = returns.getByText("status", { selector: "span.font-mono" }).closest("tr")!;
     expect(within(status).getByText(/optional/)).toBeInTheDocument();
-    expect(section("Parameters").getByText("None: it runs as written.")).toBeInTheDocument();
+    expect(section("Parameters").getByText("None")).toBeInTheDocument();
   });
 
   it("previews the first rows live with the total, and names the Procedures and Lines that read it", async () => {
@@ -69,11 +70,11 @@ describe("Query page", () => {
     renderApp(page(RELEASE_EXPOSURE));
     await screen.findByRole("heading", { name: "Preview" });
     const preview = section("Preview");
-    expect(await preview.findByText(/to run, and it has no default, so there is no preview here/)).toBeInTheDocument();
+    expect(await preview.findByTitle("These parameters have no default, so the preview cannot run")).toHaveTextContent("needs release");
     const params = section("Parameters");
     expect(params.getByText("a Subject")).toBeInTheDocument();
     expect(params.getByText(/none · must be given/)).toBeInTheDocument();
     expect(section("Asks").getByText(/the one named by/)).toBeInTheDocument();
-    expect(await section("Used by").findByText("No Procedure reads it.")).toBeInTheDocument();
+    expect(await section("Used by").findByText("No Procedure reads it")).toBeInTheDocument();
   });
 });

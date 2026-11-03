@@ -185,9 +185,12 @@ describe("Contract page", () => {
     expect(
       await main.findByText("A web response body Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased."),
     ).toBeInTheDocument();
-    expect(main.getByText("For at least 30 days")).toHaveAttribute("title", "body retention required_for_duration · minimum 2592000000000 µs");
-    expect(main.getByText("Never erased")).toBeInTheDocument();
-    expect(main.getByText(/^Attested/)).toBeInTheDocument();
+    // the terms, terse; the stored value on hover; what a term means behind its ⓘ
+    expect(main.getByText("≥ 30 days")).toHaveAttribute("title", "body retention required_for_duration · minimum 2592000000000 µs");
+    expect(main.getByText("never")).toBeInTheDocument();
+    expect(main.getByText("attested")).toBeInTheDocument();
+    expect(main.getByText("web response body + URL, status, content type")).toBeInTheDocument();
+    expect(main.getByRole("button", { name: "What replay means" })).toBeInTheDocument();
     // the page reads Input -> Contract -> Output, in that order
     const [input, contract, output] = ["Input", "Contract", "Output"].map((name) => main.getByRole("heading", { name }));
     expect(input!.compareDocumentPosition(contract!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

@@ -8,6 +8,7 @@ import { FieldList } from "@/components/FieldList";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
+import { InfoButton } from "@/components/InfoButton";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
 import { contractReadings, retainedByWords, type ContractReading, type LandingTrigger, type LogicalSource, type Retention } from "@/lib/definitions";
@@ -155,8 +156,9 @@ export function ContractScreen() {
               key: row.label,
               label: row.label,
               value: (
-                <span className="text-zinc-200" title={row.raw}>
+                <span className="inline-flex items-center gap-1.5 text-zinc-200" title={row.raw}>
                   {row.words}
+                  {row.info && <InfoButton label={`What ${row.label.toLowerCase()} means`}>{row.info}</InfoButton>}
                 </span>
               ),
             }))}
@@ -540,29 +542,45 @@ export function ContractsScreen() {
   );
 }
 
-const fieldWords = (field: string) => field.replace(/_/g, " ");
+/** What each Procedure extracts from Captures of this kind: per which records, keyed by what, which payload fields. */
+const READING_COLUMNS: Column<ContractReading>[] = [
+  {
+    id: "procedure",
+    header: "Procedure",
+    cell: (r) => (
+      <RefLink value={`Procedure:${r.procedure}`}>
+        <span className="font-mono text-[12px]">{r.procedure}</span>
+      </RefLink>
+    ),
+  },
+  {
+    id: "per",
+    header: "Per",
+    cell: (r) => (
+      <span className="text-zinc-300" title={r.row ? `row Contract ${r.row}` : undefined}>
+        {r.records ? <code className="font-mono text-[12px]">{r.records}</code> : "whole Capture"}
+        {r.key.length > 0 && (
+          <>
+            {" · key "}
+            <code className="font-mono text-[12px]">{r.key.join(", ")}</code>
+          </>
+        )}
+      </span>
+    ),
+  },
+  {
+    id: "fields",
+    header: "Fields",
+    cell: (r) => (
+      <span className="font-mono text-[12px] text-zinc-300" title={`as ${r.fields.join(", ")}`}>
+        {r.paths.join(", ") || "—"}
+      </span>
+    ),
+  },
+];
 
-/** What each Procedure reads out of Captures of this kind, in words. */
 function ReadingsList({ readings }: { readings: ContractReading[] }) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
-  return (
-    <FieldList
-      density="compact"
-      labels="words"
-      fields={readings.map((r) => ({
-        key: `${r.procedure}:${r.records ?? ""}`,
-        label: r.procedure,
-        labelHref: link(`/i/${instanceId}/ref/${encodeURIComponent(`Procedure:${r.procedure}`)}`),
-        value: (
-          <span className="text-zinc-300" title={[r.records ? `records at ${r.records}` : null, r.row ? `typed by ${r.row}` : null].filter(Boolean).join(" · ")}>
-            {r.records ? "One record per entry" : "One record"}
-            {r.fields.length > 0 && <>, with {r.fields.map(fieldWords).join(", ")}</>}
-          </span>
-        ),
-      }))}
-    />
-  );
+  return <DataTable rows={readings} columns={READING_COLUMNS} rowKey={(r) => `${r.procedure}:${r.records ?? ""}`} label="Read as" toolbar={false} maxHeight="none" />;
 }
 
 type CaptureRow = { capture: string; contract: string; observed_at: string; citing?: number | null };
