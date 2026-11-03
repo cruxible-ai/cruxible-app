@@ -530,23 +530,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/{instance_id}/claim-types/upgrade": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Claim Type Upgrade */
-        post: operations["claim_type_upgrade_api_v1__instance_id__claim_types_upgrade_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/{instance_id}/kits/remove": {
         parameters: {
             query?: never;
@@ -1486,23 +1469,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/{instance_id}/procedures/source/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Procedure Source Preview */
-        post: operations["procedure_source_preview_api_v1__instance_id__procedures_source_preview_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/{instance_id}/procedures/{name}/readiness": {
         parameters: {
             query?: never;
@@ -1992,6 +1958,41 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AbortAction
+         * @description Refuse the run with this diagnostic.
+         */
+        AbortAction: {
+            abort: components["schemas"]["AbortDetail"];
+        };
+        /** AbortDetail */
+        AbortDetail: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+        };
+        /** AbsenceWitness */
+        AbsenceWitness: {
+            /** Run Id */
+            run_id: string;
+            /** Procedure Digest */
+            procedure_digest: string;
+            /** Node Id */
+            node_id: string;
+            /** Capture */
+            capture: string;
+            /** Extract Spec */
+            extract_spec: string;
+            /** Extractor */
+            extractor: string;
+            /** Logical Source */
+            logical_source: string;
+            complete_when?: components["schemas"]["CompleteWhenResult"] | null;
+            /** Enumerated Key Digest */
+            enumerated_key_digest: string;
+            expect_coordinate: components["schemas"]["AcceptedCoordinate"];
+        };
+        /**
          * AcceptedCoordinate
          * @description Path-free public handle for one fully verified accepted generation.
          */
@@ -2087,18 +2088,6 @@ export interface components {
              * @default []
              */
             reason_codes?: string[];
-        };
-        /**
-         * AcquisitionPolicyInput
-         * @description One SourceAcquisitionPolicy: how a Line's Source inputs may be acquired.
-         */
-        AcquisitionPolicyInput: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "acquisition_policy";
-            acquisition_policy: components["schemas"]["SourceAcquisitionPolicy"];
         };
         /** ActionRunOutcome */
         ActionRunOutcome: {
@@ -2217,6 +2206,39 @@ export interface components {
              * @default false
              */
             expect_absent?: boolean;
+        };
+        /** AggregateSpec */
+        AggregateSpec: {
+            input: components["schemas"]["Template-Input"];
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "count" | "any" | "all" | "min" | "max" | "first_by";
+            /** Field */
+            field?: string | null;
+            /** Where */
+            where?: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"]) | null;
+        };
+        /** AllOf */
+        AllOf: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "all_of";
+            /** Of */
+            of: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"])[];
+        };
+        /** AnyOf */
+        AnyOf: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "any_of";
+            /** Of */
+            of: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"])[];
         };
         /**
          * AppendSection
@@ -2404,6 +2426,19 @@ export interface components {
             hold?: boolean;
         };
         /**
+         * ApprovalRequirement
+         * @description One independently satisfied approval role in an evaluated candidate.
+         */
+        ApprovalRequirement: {
+            /** Role */
+            role: string;
+            /**
+             * Minimum Distinct Signers
+             * @default 1
+             */
+            minimum_distinct_signers?: number;
+        };
+        /**
          * ArtifactIdentity
          * @description Kind-qualified stable identity shared by new Cruxible artifact families.
          */
@@ -2441,20 +2476,6 @@ export interface components {
             target: components["schemas"]["ArtifactIdentity"];
             /** Artifact Digest */
             artifact_digest: string;
-        };
-        /**
-         * ArtifactRef
-         * @description A governed dependency named by identity: whatever version is accepted.
-         *
-         *     A pin names exact bytes, which is right for code, fixed content and the
-         *     records of what happened. A definition that names another governed
-         *     definition names its identity instead, so improving the dependency through an
-         *     ordinary successor does not strand everything that names it.
-         */
-        ArtifactRef: {
-            /** Role */
-            role: string;
-            target: components["schemas"]["ArtifactIdentity"];
         };
         /**
          * AttestationAuthoringPayload
@@ -2728,15 +2749,15 @@ export interface components {
         AuthoringCompileSubmitRequest: {
             /**
              * Tag
-             * @default playbill-authoring-intent-compile-request-v3
+             * @default cruxible-authoring-intent-compile-request-v4
              * @constant
              */
-            tag?: "playbill-authoring-intent-compile-request-v3";
+            tag?: "cruxible-authoring-intent-compile-request-v4";
             /** Payload */
-            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
+            payload: components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
             /** Reference Expectations */
-            reference_expectations: (components["schemas"]["AuthoringReferenceExpectation"] | components["schemas"]["AuthoringSlotExpectation"])[];
-            program_stamp: components["schemas"]["AuthoringProgramStamp"];
+            reference_expectations?: (components["schemas"]["AuthoringReferenceExpectation"] | components["schemas"]["AuthoringSlotExpectation"])[] | null;
+            program_stamp?: components["schemas"]["AuthoringProgramStamp"] | null;
             /** Intent Id */
             intent_id?: string | null;
             /**
@@ -2801,7 +2822,7 @@ export interface components {
              */
             tag?: "playbill-authoring-input-compile-request-v1";
             /** Input */
-            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ChangeSetInput"];
+            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ChangeSetInput"];
             /** Intent Id */
             intent_id?: string | null;
         };
@@ -2821,7 +2842,7 @@ export interface components {
              */
             tag?: "playbill-authoring-input-submit-request-v1";
             /** Input */
-            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ChangeSetInput"];
+            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ChangeSetInput"];
             /** Intent Id */
             intent_id?: string | null;
             /**
@@ -2836,32 +2857,27 @@ export interface components {
              */
             dry_run?: boolean;
         };
-        /** AuthoringIntentCompileRequest */
+        /**
+         * AuthoringIntentCompileRequest
+         * @description Compile a payload, optionally asserting references and stamping its program.
+         *
+         *     ``reference_expectations`` is omitted when the author asserts none and
+         *     present (possibly empty) when asserted; ``program_stamp`` is absent unless
+         *     the SDK program that built the payload is named, and a stamped request
+         *     always asserts its references.
+         */
         AuthoringIntentCompileRequest: {
             /**
              * Tag
-             * @default playbill-authoring-intent-compile-request-v3
+             * @default cruxible-authoring-intent-compile-request-v4
              * @constant
              */
-            tag?: "playbill-authoring-intent-compile-request-v3";
+            tag?: "cruxible-authoring-intent-compile-request-v4";
             /** Payload */
-            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
+            payload: components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
             /** Reference Expectations */
-            reference_expectations: (components["schemas"]["AuthoringReferenceExpectation"] | components["schemas"]["AuthoringSlotExpectation"])[];
-            program_stamp: components["schemas"]["AuthoringProgramStamp"];
-            /** Intent Id */
-            intent_id?: string | null;
-        };
-        /** AuthoringIntentCompileRequestV1 */
-        AuthoringIntentCompileRequestV1: {
-            /**
-             * Tag
-             * @default playbill-authoring-intent-compile-request-v1
-             * @constant
-             */
-            tag?: "playbill-authoring-intent-compile-request-v1";
-            /** Payload */
-            payload: components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
+            reference_expectations?: (components["schemas"]["AuthoringReferenceExpectation"] | components["schemas"]["AuthoringSlotExpectation"])[] | null;
+            program_stamp?: components["schemas"]["AuthoringProgramStamp"] | null;
             /** Intent Id */
             intent_id?: string | null;
         };
@@ -2904,7 +2920,7 @@ export interface components {
         };
         /**
          * AuthoringNoneClaimObject
-         * @description A none as authored (an inverse Claim, ClaimType v9): the unit ``of`` names holds nothing.
+         * @description A none as authored (an inverse Claim): the unit ``of`` names holds nothing.
          *
          *     ``of`` is absent for a whole one-valued slot, else the object (``object``
          *     inverse) or the key value (``object_key``). Lowering stores it as the
@@ -3342,21 +3358,6 @@ export interface components {
             /** Reason */
             reason: string;
         };
-        /**
-         * BlueprintOrigin
-         * @description The Blueprint a Procedure was instantiated from, and the Provider bound per slot.
-         */
-        BlueprintOrigin: {
-            /**
-             * Tag
-             * @default cruxible-blueprint-origin-v1
-             * @constant
-             */
-            tag?: "cruxible-blueprint-origin-v1";
-            blueprint: components["schemas"]["ArtifactPin"];
-            /** Bindings */
-            bindings: components["schemas"]["ProcedureSlotBinding"][];
-        };
         /** BodyAccessResult */
         BodyAccessResult: {
             /**
@@ -3376,6 +3377,14 @@ export interface components {
             byte_length?: number | null;
             /** Body Base64 */
             body_base64?: string | null;
+        };
+        /** BoolType */
+        BoolType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "bool";
         };
         /** BootstrapClaimRequest */
         BootstrapClaimRequest: {
@@ -3445,7 +3454,14 @@ export interface components {
         };
         /**
          * CallNode
-         * @description A contracted call; Provider names its implementation, not a node category.
+         * @description A typed call: the slot names the signature; the Line names the operation.
+         *
+         *     ``captures`` pins, for each ``capture<K>`` field of the slot's out Contract,
+         *     the accepted CaptureContract the field's bytes are committed as (``K``
+         *     itself, or any CaptureContract for the generic ``capture<workspace.file>``
+         *     of the core-served read). A call with captures acquires: its capture
+         *     fields are committed byte-exact as Captures and its other fields are
+         *     normalized, and its value names each Capture by digest.
          */
         CallNode: {
             /**
@@ -3455,25 +3471,37 @@ export interface components {
             kind: "call";
             /** Node Id */
             node_id: string;
-            /** Provider */
-            provider: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            interface: components["schemas"]["ArtifactPin"];
-            /** Interface Digest */
-            interface_digest: string;
-            /** Implementation Digest */
-            implementation_digest?: string | null;
-            /** Contract In */
-            contract_in?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Contract Out */
-            contract_out?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Effect Policy */
-            effect_policy?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            /** Slot */
+            slot: string;
+            effect_policy?: components["schemas"]["ArtifactNameRef"] | null;
             /** Input */
             input: unknown;
+            /** Captures */
+            captures?: {
+                [key: string]: components["schemas"]["ArtifactNameRef"];
+            };
             /** As */
             as: string;
             /** Next */
             next?: string | null;
+        };
+        /**
+         * CallRunSummary
+         * @description One call: how many Captures it made or was admitted, and the first of them.
+         */
+        CallRunSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "call";
+            /** Captures */
+            captures: number;
+            /**
+             * Capture Digests
+             * @default []
+             */
+            capture_digests?: string[];
         };
         /** CallStep */
         CallStep: {
@@ -3483,13 +3511,18 @@ export interface components {
             next?: string | null;
             /** Call */
             call: string;
-            /** Interface */
-            interface: string;
-            /** Provider */
-            provider?: string | null;
-            input: components["schemas"]["JsonValue"];
+            /** Slot */
+            slot: string;
+            input: components["schemas"]["Template-Input"];
             /** Effect Policy */
             effect_policy?: string | null;
+            /**
+             * Captures
+             * @description The CaptureContract each capture<K> field of the slot's out Contract is committed as.
+             */
+            captures?: {
+                [key: string]: string;
+            };
         };
         /** CandidateStatusRecord */
         CandidateStatusRecord: {
@@ -3558,6 +3591,16 @@ export interface components {
             status: "admitted" | "not_admitted" | "not_evidence";
             decision: components["schemas"]["CaptureEvidenceAdmission"] | null;
         };
+        /** CaptureBasis */
+        CaptureBasis: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            basis: "capture";
+            /** Capture Digest */
+            capture_digest: string;
+        };
         /**
          * CaptureContract
          * @description Current stored contract: shape and policy, with frozen expanded components.
@@ -3586,6 +3629,7 @@ export interface components {
              * @enum {string}
              */
             epistemic_grade?: "observed" | "derived" | "predicted";
+            decoding?: components["schemas"]["CaptureDecoding"] | null;
             /**
              * @default {
              *       "state": "live"
@@ -3660,8 +3704,59 @@ export interface components {
             max_bytes?: number | null;
             /** Selector Privacy */
             selector_privacy?: ("direct_allowed" | "pseudonymous_required") | null;
+            /** @description How the bytes decode for an extract: {format: json|csv|text|bytes, encoding: identity|gzip, csv?: {comment_prefix, header}, limits: {decoded_bytes, depth, records}}. Required for any CaptureContract an extract reads. */
+            decoding?: components["schemas"]["CaptureDecoding"] | null;
             /** Lifecycle */
             lifecycle?: ("live" | "retired") | null;
+        };
+        /**
+         * CaptureCsvDecoding
+         * @description How a CSV Capture is read: an optional comment prefix and a header row.
+         */
+        CaptureCsvDecoding: {
+            /** Comment Prefix */
+            comment_prefix?: string | null;
+            /**
+             * Header
+             * @default true
+             */
+            header?: boolean;
+        };
+        /**
+         * CaptureDecoding
+         * @description How the bytes of a Capture of this kind decode, for an ``extract`` that reads them.
+         *
+         *     ``format`` names the decoded shape, ``encoding`` the transfer encoding the
+         *     bytes carry (gzip is decoded as a stream, never past ``limits.decoded_bytes``),
+         *     ``csv`` the CSV dialect when ``format`` is ``csv``. It is accepted state:
+         *     core decodes with exactly these declarations, and nothing else adapts them.
+         */
+        CaptureDecoding: {
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "json" | "csv" | "text" | "bytes";
+            /**
+             * Encoding
+             * @default identity
+             * @enum {string}
+             */
+            encoding?: "identity" | "gzip";
+            csv?: components["schemas"]["CaptureCsvDecoding"] | null;
+            limits: components["schemas"]["CaptureDecodingLimits"];
+        };
+        /**
+         * CaptureDecodingLimits
+         * @description What decoding one Capture of this kind may produce before it refuses.
+         */
+        CaptureDecodingLimits: {
+            /** Decoded Bytes */
+            decoded_bytes: number;
+            /** Depth */
+            depth: number;
+            /** Records */
+            records: number;
         };
         /** CaptureEgressNode */
         CaptureEgressNode: {
@@ -3672,8 +3767,7 @@ export interface components {
             kind: "emit_capture";
             /** Node Id */
             node_id: string;
-            /** Capture Contract */
-            capture_contract: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
+            capture_contract: components["schemas"]["ArtifactNameRef"];
             /** Input */
             input: unknown;
             /** Result */
@@ -3715,8 +3809,6 @@ export interface components {
             input_receipt_set_manifest_digest?: string | null;
             /** Production Evidence */
             production_evidence: components["schemas"]["ProviderInvocationCaptureEvidence"] | components["schemas"]["ProcedureEgressCaptureEvidence"];
-            /** Observed Content Digest */
-            observed_content_digest?: string | null;
         };
         /** CaptureEnvelopeV1 */
         CaptureEnvelopeV1: {
@@ -3883,6 +3975,18 @@ export interface components {
             duration_seconds: number;
         };
         /**
+         * CaptureEventNameSelector
+         * @description An authored CaptureContract name and optional logical-source restriction.
+         */
+        CaptureEventNameSelector: {
+            capture_contract_identity: components["schemas"]["ArtifactIdentity"];
+            /**
+             * Logical Sources
+             * @default []
+             */
+            logical_sources?: string[];
+        };
+        /**
          * CaptureEventSelector
          * @description Match a durable produced-capture event, never an accepted-head change.
          */
@@ -3949,7 +4053,7 @@ export interface components {
         };
         /**
          * CaptureLandingByNameSchedule
-         * @description Resolve a live CaptureContract at prepare; accepted Triggers retain its digest.
+         * @description Resolve a live CaptureContract at prepare; accepted Triggers retain its name.
          */
         CaptureLandingByNameSchedule: {
             /**
@@ -4096,6 +4200,19 @@ export interface components {
             max_items: number;
         };
         /**
+         * CaptureType
+         * @description Retained bytes of one CaptureKind, by Capture digest.
+         */
+        CaptureType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "capture";
+            /** Capture Kind */
+            capture_kind: string;
+        };
+        /**
          * CaptureUploadCompleteRequest
          * @description Read the uploaded file as a Capture by running the acquire Procedure on it.
          *
@@ -4197,22 +4314,6 @@ export interface components {
              */
             expires_at: string;
         };
-        /** CarriedContractInput */
-        CarriedContractInput: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
-            /** Fields */
-            fields: {
-                [key: string]: components["schemas"]["PropertySchema"];
-            };
-            /**
-             * Allow Extra
-             * @default false
-             */
-            allow_extra?: boolean;
-        };
         /**
          * CarriedLineV1
          * @description A same-identity Line successor; exact-version enablement never transfers.
@@ -4250,7 +4351,7 @@ export interface components {
         };
         /**
          * CarriedMandateV1
-         * @description A same-name propose successor, with all settle-only fields removed.
+         * @description A same-name propose successor pinning its Line's successor; settle fields removed.
          */
         CarriedMandateV1: {
             /**
@@ -4260,12 +4361,12 @@ export interface components {
             kind: "mandate";
             /** Identity */
             identity: string;
-            /** Procedure */
-            procedure: string;
-            /** Old Procedure Digest */
-            old_procedure_digest: string;
-            /** New Procedure Digest */
-            new_procedure_digest?: string | null;
+            /** Line */
+            line: string;
+            /** Old Line Digest */
+            old_line_digest: string;
+            /** New Line Digest */
+            new_line_digest?: string | null;
             /** Old Artifact Digest */
             old_artifact_digest: string;
             /** New Artifact Digest */
@@ -4408,7 +4509,7 @@ export interface components {
              */
             tag: "playbill-change-set-authoring-payload-v1";
             /** Members */
-            members: (components["schemas"]["ClaimAuthoringPayloadV1"] | components["schemas"]["ClaimAuthoringPayloadV2"] | components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ClaimTypeAuthoringPayload"] | components["schemas"]["ClaimTypeSuccessionMember"] | components["schemas"]["ClaimRetirementMember"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["SubjectCreationAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["SourceAcquisitionPolicyAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"])[];
+            members: (components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ClaimTypeAuthoringPayload"] | components["schemas"]["ClaimTypeSuccessionMember"] | components["schemas"]["ClaimRetirementMember"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["SubjectCreationAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"])[];
             /** Rationale */
             rationale?: string | null;
         };
@@ -4420,7 +4521,7 @@ export interface components {
              */
             kind: "change_set";
             /** Members */
-            members: (components["schemas"]["ClaimInput"] | components["schemas"]["ClaimTypeInput"] | components["schemas"]["ClaimTypeSuccessionInput"] | components["schemas"]["ClaimRetirementInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["AcquisitionPolicyInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ProcedureInput"])[];
+            members: (components["schemas"]["ClaimInput"] | components["schemas"]["ClaimTypeInput"] | components["schemas"]["ClaimTypeSuccessionInput"] | components["schemas"]["ClaimRetirementInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ProcedureInput"])[];
             /** Rationale */
             rationale?: string | null;
         };
@@ -4635,13 +4736,20 @@ export interface components {
              */
             valid_until?: string | null;
         };
-        /** ClaimAuthoringPayload */
+        /**
+         * ClaimAuthoringPayload
+         * @description One authored Claim: its statement, source and every optional binding.
+         *
+         *     ``located_at`` keeps absent and explicit null apart: they are different
+         *     statements of where the author found the text. Every other optional member
+         *     is omitted when unset, so it has one spelling.
+         */
         ClaimAuthoringPayload: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-claim-authoring-payload-v3";
+            tag: "cruxible-claim-authoring-payload-v4";
             statement: components["schemas"]["AuthoringClaimStatement"];
             /** Rationale */
             rationale: string;
@@ -4657,65 +4765,14 @@ export interface components {
              */
             existing_claim_dispositions?: components["schemas"]["AuthoringExistingClaimDisposition"][];
             located_at?: components["schemas"]["WorkingSelectionObservation"] | null;
-            dependency_drafts: components["schemas"]["ClaimDependencyDrafts"];
+            dependency_drafts?: components["schemas"]["ClaimDependencyDrafts"];
             derivation?: components["schemas"]["ClaimDerivationBinding"] | null;
             /**
              * Replaces Citations
              * @default []
              */
             replaces_citations?: string[];
-        };
-        /** ClaimAuthoringPayloadV1 */
-        ClaimAuthoringPayloadV1: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            tag: "playbill-claim-authoring-payload-v1";
-            statement: components["schemas"]["AuthoringClaimStatement"];
-            /** Rationale */
-            rationale: string;
-            /** Source */
-            source: components["schemas"]["WorkingSelectionObservation"] | components["schemas"]["SelfSourceBody"];
-            /** Citation Role */
-            citation_role?: ("evidence" | "copy") | null;
-            /** Revises */
-            revises?: string | null;
-            /**
-             * Existing Claim Dispositions
-             * @default []
-             */
-            existing_claim_dispositions?: components["schemas"]["AuthoringExistingClaimDisposition"][];
-            located_at?: components["schemas"]["WorkingSelectionObservation"] | null;
-        };
-        /** ClaimAuthoringPayloadV2 */
-        ClaimAuthoringPayloadV2: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            tag: "playbill-claim-authoring-payload-v2";
-            statement: components["schemas"]["AuthoringClaimStatement"];
-            /** Rationale */
-            rationale: string;
-            /** Source */
-            source: components["schemas"]["WorkingSelectionObservation"] | components["schemas"]["SelfSourceBody"];
-            /** Citation Role */
-            citation_role?: ("evidence" | "copy") | null;
-            /** Revises */
-            revises?: string | null;
-            /**
-             * Existing Claim Dispositions
-             * @default []
-             */
-            existing_claim_dispositions?: components["schemas"]["AuthoringExistingClaimDisposition"][];
-            located_at?: components["schemas"]["WorkingSelectionObservation"] | null;
-            dependency_drafts: components["schemas"]["ClaimDependencyDrafts"];
-            /**
-             * Replaces Citations
-             * @default []
-             */
-            replaces_citations?: string[];
+            procedure_evidence?: components["schemas"]["ClaimEvidenceReceipt"] | null;
         };
         /** ClaimBackingsRequest */
         ClaimBackingsRequest: {
@@ -4779,48 +4836,6 @@ export interface components {
              */
             rules?: components["schemas"]["ClaimEvidenceAdmissionRule"][];
         };
-        /** ClaimEvidenceAdmissionPolicyV1 */
-        ClaimEvidenceAdmissionPolicyV1: {
-            /**
-             * Tag
-             * @default playbill-claim-evidence-admission-policy-v1
-             * @constant
-             */
-            tag?: "playbill-claim-evidence-admission-policy-v1";
-            /**
-             * Rules
-             * @default []
-             */
-            rules?: components["schemas"]["ClaimEvidenceAdmissionRuleV1"][];
-        };
-        /** ClaimEvidenceAdmissionPolicyV2 */
-        ClaimEvidenceAdmissionPolicyV2: {
-            /**
-             * Tag
-             * @default playbill-claim-evidence-admission-policy-v2
-             * @constant
-             */
-            tag?: "playbill-claim-evidence-admission-policy-v2";
-            /**
-             * Rules
-             * @default []
-             */
-            rules?: components["schemas"]["ClaimEvidenceAdmissionRuleV2"][];
-        };
-        /** ClaimEvidenceAdmissionPolicyV3 */
-        ClaimEvidenceAdmissionPolicyV3: {
-            /**
-             * Tag
-             * @default playbill-claim-evidence-admission-policy-v3
-             * @constant
-             */
-            tag?: "playbill-claim-evidence-admission-policy-v3";
-            /**
-             * Rules
-             * @default []
-             */
-            rules?: components["schemas"]["ClaimEvidenceAdmissionRuleV3"][];
-        };
         /** ClaimEvidenceAdmissionRule */
         ClaimEvidenceAdmissionRule: {
             /** Rule Id */
@@ -4852,124 +4867,6 @@ export interface components {
             /** Capture Contracts */
             capture_contracts: components["schemas"]["CaptureContractAdmission"][];
         };
-        /**
-         * ClaimEvidenceAdmissionRuleV1
-         * @description Frozen producer allowlist for historical ClaimTypes only.
-         */
-        ClaimEvidenceAdmissionRuleV1: {
-            /** Rule Id */
-            rule_id: string;
-            /** Claim Roles */
-            claim_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
-            /**
-             * Admission
-             * @enum {string}
-             */
-            admission: "origin_only" | "direct" | "derivational";
-            /**
-             * Subject Binding
-             * @enum {string}
-             */
-            subject_binding: "exact_claim_subject" | "contract_source_mapping";
-            /**
-             * Attestation Requirement
-             * @default none
-             * @enum {string}
-             */
-            attestation_requirement?: "none" | "verified_provider" | "verified_principal" | "any_verified";
-            /** Evidence Kinds */
-            evidence_kinds: string[];
-            /** Capture Contract Digests */
-            capture_contract_digests: string[];
-            /**
-             * Tag
-             * @default playbill-claim-evidence-admission-rule-v1
-             * @constant
-             */
-            tag?: "playbill-claim-evidence-admission-rule-v1";
-            /**
-             * Allowed Reducer Digests
-             * @default []
-             */
-            allowed_reducer_digests?: string[];
-        };
-        /**
-         * ClaimEvidenceAdmissionRuleV2
-         * @description Evidence requirements; producer authorization belongs to governed mandates.
-         */
-        ClaimEvidenceAdmissionRuleV2: {
-            /** Rule Id */
-            rule_id: string;
-            /** Claim Roles */
-            claim_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
-            /**
-             * Admission
-             * @enum {string}
-             */
-            admission: "origin_only" | "direct" | "derivational";
-            /**
-             * Subject Binding
-             * @enum {string}
-             */
-            subject_binding: "exact_claim_subject" | "contract_source_mapping";
-            /**
-             * Attestation Requirement
-             * @default none
-             * @enum {string}
-             */
-            attestation_requirement?: "none" | "verified_provider" | "verified_principal" | "any_verified";
-            /** Evidence Kinds */
-            evidence_kinds: string[];
-            /** Capture Contract Digests */
-            capture_contract_digests: string[];
-            /**
-             * Tag
-             * @default playbill-claim-evidence-admission-rule-v2
-             * @constant
-             */
-            tag?: "playbill-claim-evidence-admission-rule-v2";
-        };
-        /**
-         * ClaimEvidenceAdmissionRuleV3
-         * @description Evidence requirements naming CaptureContracts by identity.
-         *
-         *     The rule admits evidence captured under any accepted version of a named
-         *     contract. That is safe because a contract successor must be compatible with
-         *     its predecessor; a change that alters what the evidence means is a new
-         *     contract identity, which the rule does not name until someone edits it.
-         */
-        ClaimEvidenceAdmissionRuleV3: {
-            /** Rule Id */
-            rule_id: string;
-            /** Claim Roles */
-            claim_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
-            /**
-             * Admission
-             * @enum {string}
-             */
-            admission: "origin_only" | "direct" | "derivational";
-            /**
-             * Subject Binding
-             * @enum {string}
-             */
-            subject_binding: "exact_claim_subject" | "contract_source_mapping";
-            /**
-             * Attestation Requirement
-             * @default none
-             * @enum {string}
-             */
-            attestation_requirement?: "none" | "verified_provider" | "verified_principal" | "any_verified";
-            /** Evidence Kinds */
-            evidence_kinds: string[];
-            /**
-             * Tag
-             * @default playbill-claim-evidence-admission-rule-v3
-             * @constant
-             */
-            tag?: "playbill-claim-evidence-admission-rule-v3";
-            /** Capture Contracts */
-            capture_contracts: components["schemas"]["ArtifactRef"][];
-        };
         /** ClaimEvidenceFreshness */
         ClaimEvidenceFreshness: {
             /**
@@ -4992,6 +4889,24 @@ export interface components {
              */
             tag?: "playbill-claim-evidence-freshness-v1";
             stale_after: string | components["schemas"]["ClaimFreshnessDuration"];
+        };
+        /** ClaimEvidenceReceipt */
+        ClaimEvidenceReceipt: {
+            /**
+             * Law
+             * @default claim-evidence-v2
+             * @constant
+             */
+            law?: "claim-evidence-v2";
+            /** Node Id */
+            node_id: string;
+            /** Template */
+            template: number;
+            /** Procedure Digest */
+            procedure_digest: string;
+            /** Value */
+            value: components["schemas"]["ExtractedBasis"] | components["schemas"]["CaptureBasis"] | components["schemas"]["DerivedBasis"] | components["schemas"]["MeasuredBasis"];
+            absence?: components["schemas"]["AbsenceWitness"] | null;
         };
         /** ClaimFreshnessDuration */
         ClaimFreshnessDuration: {
@@ -5050,7 +4965,7 @@ export interface components {
         };
         /**
          * ClaimInverse
-         * @description How a ClaimType v9 states absence: the unit an inverse Claim covers and its evidence.
+         * @description How a ClaimType states absence: the unit an inverse Claim covers and its evidence.
          *
          *     An inverse Claim (object ``{kind: none}``) says the unit ``key`` names holds
          *     no value. Only a Capture one of ``evidence_rules`` admits can establish it,
@@ -5076,7 +4991,7 @@ export interface components {
         };
         /**
          * ClaimInverseInput
-         * @description How the type states that a unit holds nothing (ClaimType v9).
+         * @description How the type states that a unit holds nothing.
          *
          *     ``key`` names the unit: ``{kind: slot}`` for a one-valued type,
          *     ``{kind: object}`` or ``{kind: object_key, predicate}`` (a key ClaimType of
@@ -5154,6 +5069,31 @@ export interface components {
             /** Qualifier */
             qualifier?: string | null;
             value: components["schemas"]["ShownValue"];
+        };
+        /**
+         * ClaimPrecedence
+         * @description Highest role first; one policy governs every Procedure replacement.
+         */
+        ClaimPrecedence: {
+            /**
+             * Roles
+             * @default [
+             *       "normative",
+             *       "environment_binding",
+             *       "observation",
+             *       "derivation"
+             *     ]
+             */
+            roles?: ("normative" | "observation" | "environment_binding" | "derivation")[];
+            /**
+             * Revisable By Procedures
+             * @default [
+             *       "environment_binding",
+             *       "observation",
+             *       "derivation"
+             *     ]
+             */
+            revisable_by_procedures?: ("normative" | "observation" | "environment_binding" | "derivation")[];
         };
         /**
          * ClaimQueryResult
@@ -5328,6 +5268,7 @@ export interface components {
              * @enum {string}
              */
             reason: "was-rescinded" | "was-wrong" | "superseded";
+            absence?: components["schemas"]["AbsenceWitness"] | null;
             /** Effective Until */
             effective_until?: string | null;
         };
@@ -5366,7 +5307,7 @@ export interface components {
          *     would only name the same inventory twice.
          *
          *     `retires` is the bare Claim ID, named and spelled exactly as
-         *     `ClaimAuthoringPayloadV1.revises` is. Tolerating a `Claim:` prefix here would
+         *     `ClaimAuthoringPayload.revises` is. Tolerating a `Claim:` prefix here would
          *     give two spellings of one retirement the same member identity but different
          *     payload digests, so create-dedup would miss and two live intents could carry
          *     one semantic identity.
@@ -5390,6 +5331,7 @@ export interface components {
              * @enum {string}
              */
             reason: "was-rescinded" | "was-wrong" | "superseded";
+            absence?: components["schemas"]["AbsenceWitness"] | null;
             /** Effective Until */
             effective_until?: string | null;
             /**
@@ -5413,7 +5355,7 @@ export interface components {
             /** Predicate */
             predicate: string;
             /** Object */
-            object: components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Output"] | components["schemas"]["ExactContentClaimObject"] | components["schemas"]["NoneClaimObject"];
+            object: components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Output"] | components["schemas"]["NoneClaimObject"];
             /**
              * Role
              * @enum {string}
@@ -5451,79 +5393,115 @@ export interface components {
             /** Acceptable Verdicts */
             acceptable_verdicts: ("supported" | "uncovered" | "stale" | "contradicted" | "unresolved")[];
         };
-        /** ClaimStep */
-        ClaimStep: {
-            /** Id */
-            id?: string | null;
-            /** Next */
-            next?: string | null;
-            /** Claim */
-            claim: string;
-            /** Claim Type */
-            claim_type: string;
-            subject: components["schemas"]["JsonValue"];
-            /** Subject Kind */
-            subject_kind?: string | null;
-            /** All */
-            all?: number | null;
+        /** ClaimTemplate */
+        ClaimTemplate: {
+            type: components["schemas"]["ArtifactNameRef"];
+            /** Value */
+            value: unknown;
+            /** Qualifier */
+            qualifier?: unknown;
+            /** Effective From */
+            effective_from?: unknown;
+            /** Effective Until */
+            effective_until?: unknown;
+            /** When */
+            when?: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"]) | null;
+            /** Role */
+            role?: ("normative" | "observation" | "environment_binding" | "derivation") | null;
+            /** Replaces */
+            replaces?: ("normative" | "observation" | "environment_binding" | "derivation")[] | null;
+            /**
+             * Inputs
+             * @default []
+             */
+            inputs?: unknown[];
+            /**
+             * Rationale
+             * @default Claim from declared Procedure template.
+             */
+            rationale?: string;
+            /**
+             * When Absent
+             * @default surface
+             * @enum {string}
+             */
+            when_absent?: "keep" | "surface" | "mirror" | "inverse";
+        };
+        /** ClaimTemplateSpec */
+        ClaimTemplateSpec: {
+            /** Type */
+            type: string;
+            value: components["schemas"]["Template-Input"];
+            qualifier?: components["schemas"]["Template-Input"];
+            effective_from?: components["schemas"]["Template-Input"];
+            effective_until?: components["schemas"]["Template-Input"];
+            /** When */
+            when?: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"]) | null;
+            /** Role */
+            role?: ("normative" | "observation" | "environment_binding" | "derivation") | null;
+            /** Replaces */
+            replaces?: ("normative" | "observation" | "environment_binding" | "derivation")[] | null;
+            /**
+             * Inputs
+             * @default []
+             */
+            inputs?: components["schemas"]["Ref"][];
+            /**
+             * Rationale
+             * @default Claim from declared Procedure template.
+             */
+            rationale?: string;
+            /**
+             * When Absent
+             * @default surface
+             * @enum {string}
+             */
+            when_absent?: "keep" | "surface" | "mirror" | "inverse";
         };
         /**
-         * ClaimTapNode
-         * @description A bounded field read using an exact ClaimType and named Subject.
+         * ClaimType
+         * @description The one ClaimType: what a predicate means, admits and settles.
+         *
+         *     Optional members are omitted from the wire when absent, so absence and a
+         *     stated value never share a spelling.
          */
-        ClaimTapNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "state_claim";
-            /** Node Id */
-            node_id: string;
-            claim_type: components["schemas"]["ArtifactPin"];
-            /** Subject Kind */
-            subject_kind: string;
-            /** Subject Id */
-            subject_id: unknown;
-            /**
-             * Cardinality
-             * @default one
-             * @enum {string}
-             */
-            cardinality?: "one" | "all";
-            /** Limit */
-            limit?: number | null;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** ClaimType */
         ClaimType: {
             /**
              * Artifact Format
-             * @default playbill-claim-type-v7
-             * @enum {string}
+             * @default cruxible-claim-type-v11
+             * @constant
              */
-            artifact_format?: "playbill-claim-type-v1" | "playbill-claim-type-v3" | "playbill-claim-type-v4" | "playbill-claim-type-v5" | "playbill-claim-type-v6" | "playbill-claim-type-v7" | "playbill-claim-type-v8" | "cruxible-claim-type-v9";
+            artifact_format?: "cruxible-claim-type-v11";
             identity: components["schemas"]["ArtifactIdentity"];
             /** Predicate */
             predicate: string;
             /** Allowed Subject Kinds */
             allowed_subject_kinds: string[];
+            /** Value */
+            value: components["schemas"]["StringType"] | components["schemas"]["IntType"] | components["schemas"]["DecimalType"] | components["schemas"]["NumberType"] | components["schemas"]["BoolType"] | components["schemas"]["DateType"] | components["schemas"]["DateTimeType"] | components["schemas"]["DurationType"] | components["schemas"]["EnumType"] | components["schemas"]["EnumOfType"] | components["schemas"]["ListType"] | components["schemas"]["NestedType"] | components["schemas"]["VariantType"] | components["schemas"]["KeyType"] | components["schemas"]["KeyPartType"] | components["schemas"]["SubjectType"] | components["schemas"]["CaptureType"] | components["schemas"]["FieldResultType"] | components["schemas"]["RecordType"] | components["schemas"]["ResultType"] | components["schemas"]["RefusalType"];
             /**
-             * Object Kind
-             * @enum {string}
+             * @default {
+             *       "roles": [
+             *         "normative",
+             *         "environment_binding",
+             *         "observation",
+             *         "derivation"
+             *       ],
+             *       "revisable_by_procedures": [
+             *         "environment_binding",
+             *         "observation",
+             *         "derivation"
+             *       ]
+             *     }
              */
-            object_kind: "literal" | "subject" | "exact_content";
-            /** Literal Schema */
-            literal_schema?: {
-                [key: string]: unknown;
-            } | null;
+            precedence?: components["schemas"]["ClaimPrecedence"];
             /**
-             * Allowed Object Subject Kinds
+             * Requires Complete Input
              * @default []
              */
-            allowed_object_subject_kinds?: string[];
+            requires_complete_input?: (string | boolean)[];
+            /** Incomplete Fallback */
+            incomplete_fallback?: string | boolean | null;
             /**
              * Cardinality
              * @enum {string}
@@ -5537,8 +5515,7 @@ export interface components {
              * @enum {string}
              */
             referent_sensitivity?: "identity" | "shell";
-            /** Evidence Admission Policy */
-            evidence_admission_policy: components["schemas"]["ClaimEvidenceAdmissionPolicyV1"] | components["schemas"]["ClaimEvidenceAdmissionPolicyV2"] | components["schemas"]["ClaimEvidenceAdmissionPolicyV3"] | components["schemas"]["ClaimEvidenceAdmissionPolicy"];
+            evidence_admission_policy: components["schemas"]["ClaimEvidenceAdmissionPolicy"];
             admission_policy: components["schemas"]["ClaimAdmissionPolicy"];
             resolution_policy: components["schemas"]["ClaimResolutionPolicy"];
             /**
@@ -5552,10 +5529,6 @@ export interface components {
              *     }
              */
             lifecycle?: components["schemas"]["ArtifactLifecycle"];
-            /** Subject Scope */
-            subject_scope?: null;
-            /** Slot Policy */
-            slot_policy?: null;
             evidence_freshness?: components["schemas"]["ClaimEvidenceFreshness"] | null;
             attestation_consequence_policy?: components["schemas"]["ClaimAttestationConsequencePolicy"] | null;
             unsure_hold_for?: components["schemas"]["ClaimFreshnessDuration"] | null;
@@ -5568,12 +5541,23 @@ export interface components {
             member_descriptions?: components["schemas"]["ClaimTypeMemberDescription"][];
             /** Default Role */
             default_role?: ("normative" | "observation" | "environment_binding" | "derivation") | null;
-            /** Evidence Requirement */
-            evidence_requirement?: ("none" | "self" | "captured") | null;
-            /** Revision Evidence */
-            revision_evidence?: ("replace" | "accumulate") | null;
-            /** Canonical Form */
-            canonical_form?: ("nfc" | "nfkc" | "trim" | "collapse_whitespace" | "casefold" | "upper" | "strip_punctuation")[] | null;
+            /**
+             * Evidence Requirement
+             * @default self
+             * @enum {string}
+             */
+            evidence_requirement?: "none" | "self" | "captured";
+            /**
+             * Revision Evidence
+             * @default accumulate
+             * @enum {string}
+             */
+            revision_evidence?: "replace" | "accumulate";
+            /**
+             * Canonical Form
+             * @default []
+             */
+            canonical_form?: ("nfc" | "nfkc" | "trim" | "collapse_whitespace" | "casefold" | "upper" | "strip_punctuation")[];
             inverse?: components["schemas"]["ClaimInverse"] | null;
         };
         /**
@@ -5650,29 +5634,6 @@ export interface components {
             /** Claim Effective Until */
             claim_effective_until?: string | null;
         };
-        /** ClaimTypeDependentDispositionV1 */
-        ClaimTypeDependentDispositionV1: {
-            /** Claim Id */
-            claim_id: string;
-            /**
-             * Disposition
-             * @enum {string}
-             */
-            disposition: "successor" | "retire";
-        };
-        /** ClaimTypeDependentDispositionV2 */
-        ClaimTypeDependentDispositionV2: {
-            identity: components["schemas"]["ArtifactIdentity"];
-            /**
-             * Disposition
-             * @enum {string}
-             */
-            disposition: "successor" | "retire";
-            /** Successor */
-            successor?: {
-                [key: string]: unknown;
-            } | null;
-        };
         /** ClaimTypeInput */
         ClaimTypeInput: {
             /**
@@ -5699,9 +5660,9 @@ export interface components {
          *
          *     A new ClaimType states ``predicate`` and ``cardinality``. The predicate's
          *     prefix before its last dot supplies ``allowed_subject_kinds``; state it for
-         *     a multi-kind field. ``literal_schema`` infers a literal object,
-         *     ``allowed_object_subject_kinds`` a Subject object; state only one. Neither
-         *     means a string literal. State ``object_kind: exact_content`` explicitly.
+         *     a multi-kind field. ``value`` declares a native Contract field type;
+         *     omitted, it is ``string{max_len: 256}``. Subject-valued fields state
+         *     ``subject<K>`` or ``subject<K1 | K2>``. Prose belongs in Documents.
          *     Every other field takes its default, written out in full in the stored ClaimType
          *     (``cruxible claim-type propose --template --expanded`` prints them):
          *
@@ -5725,33 +5686,44 @@ export interface components {
          *     (RFC 7396) against the accepted predecessor for every field but
          *     ``predicate``: a field left out keeps the predecessor's value, so an
          *     unrelated edit never drops what the type means or how it is backed. An
-         *     explicit ``null`` clears a field that may be empty (``literal_schema``,
-         *     ``evidence_freshness``, ``attestation_consequence_policy``,
+         *     explicit ``null`` clears a field that may be empty (``evidence_freshness``,
+         *     ``attestation_consequence_policy``,
          *     ``unsure_hold_for``, ``description``, ``member_descriptions`` (``[]`` too),
          *     ``default_role``, ``canonical_form``, ``inverse``); the others always have a value, so
-         *     they are named or left out, never ``null``. Over a ClaimType before v7,
-         *     omitted descriptions start empty, the default role is none, and the
-         *     requirement and revision evidence are the predecessor's meaning: ``self``
-         *     and ``accumulate``. Durations (``evidence_freshness.stale_after``,
+         *     they are named or left out, never ``null``. Durations (``evidence_freshness.stale_after``,
          *     ``unsure_hold_for``) take ISO-8601 (``P30D``) or ``{microseconds: N}``.
          *     A rule names a contract by its public or stored name.
          */
         ClaimTypeInputRecord: {
+            /** Value */
+            value?: (components["schemas"]["StringType"] | components["schemas"]["IntType"] | components["schemas"]["DecimalType"] | components["schemas"]["NumberType"] | components["schemas"]["BoolType"] | components["schemas"]["DateType"] | components["schemas"]["DateTimeType"] | components["schemas"]["DurationType"] | components["schemas"]["EnumType"] | components["schemas"]["EnumOfType"] | components["schemas"]["ListType"] | components["schemas"]["NestedType"] | components["schemas"]["VariantType"] | components["schemas"]["KeyType"] | components["schemas"]["KeyPartType"] | components["schemas"]["SubjectType"] | components["schemas"]["CaptureType"] | components["schemas"]["FieldResultType"] | components["schemas"]["RecordType"] | components["schemas"]["ResultType"] | components["schemas"]["RefusalType"]) | null;
+            /**
+             * @default {
+             *       "roles": [
+             *         "normative",
+             *         "environment_binding",
+             *         "observation",
+             *         "derivation"
+             *       ],
+             *       "revisable_by_procedures": [
+             *         "environment_binding",
+             *         "observation",
+             *         "derivation"
+             *       ]
+             *     }
+             */
+            precedence?: components["schemas"]["ClaimPrecedence"];
+            /**
+             * Requires Complete Input
+             * @default []
+             */
+            requires_complete_input?: (string | boolean)[];
+            /** Incomplete Fallback */
+            incomplete_fallback?: string | boolean | null;
             /** Predicate */
             predicate: string;
             /** Allowed Subject Kinds */
             allowed_subject_kinds?: string[] | null;
-            /** Object Kind */
-            object_kind?: ("literal" | "subject" | "exact_content") | null;
-            /** Literal Schema */
-            literal_schema?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Allowed Object Subject Kinds
-             * @default []
-             */
-            allowed_object_subject_kinds?: string[];
             /** Cardinality */
             cardinality?: ("one" | "many") | null;
             /** Permitted Roles */
@@ -5893,40 +5865,6 @@ export interface components {
              */
             dependents?: components["schemas"]["ClaimTypeDependentDisposition"][];
         };
-        /** ClaimTypeMigrationRequestV1 */
-        ClaimTypeMigrationRequestV1: {
-            /**
-             * Tag
-             * @default playbill-claim-type-migration-request-v1
-             * @constant
-             */
-            tag?: "playbill-claim-type-migration-request-v1";
-            /** Successor */
-            successor: components["schemas"]["ClaimTypeInputRecord"] | components["schemas"]["ClaimType"];
-            /** Dependents */
-            dependents: components["schemas"]["ClaimTypeDependentDispositionV1"][];
-        };
-        /** ClaimTypeMigrationRequestV2 */
-        ClaimTypeMigrationRequestV2: {
-            /**
-             * Tag
-             * @default playbill-claim-type-migration-request-v2
-             * @constant
-             */
-            tag?: "playbill-claim-type-migration-request-v2";
-            /**
-             * Mode
-             * @enum {string}
-             */
-            mode: "preflight" | "submit";
-            /** Successor */
-            successor: components["schemas"]["ClaimTypeInputRecord"] | components["schemas"]["ClaimType"];
-            /**
-             * Dependents
-             * @default []
-             */
-            dependents?: components["schemas"]["ClaimTypeDependentDispositionV2"][];
-        };
         /** ClaimTypeMigrationResult */
         ClaimTypeMigrationResult: {
             /**
@@ -5953,83 +5891,6 @@ export interface components {
             }[];
             lint?: components["schemas"]["ClaimTypeProposalLint"] | null;
         };
-        /** ClaimTypeMigrationResultV1 */
-        ClaimTypeMigrationResultV1: {
-            /**
-             * Tag
-             * @default playbill-claim-type-migration-result-v1
-             * @constant
-             */
-            tag?: "playbill-claim-type-migration-result-v1";
-            /** Operation Digest */
-            operation_digest: string;
-            /** Dependents */
-            dependents: {
-                [key: string]: unknown;
-            }[];
-            proposal: components["schemas"]["ProposalInspection"];
-            /** Semantic Delta */
-            semantic_delta: components["schemas"]["SemanticFieldDelta"][];
-            /**
-             * Warnings
-             * @default []
-             */
-            warnings?: {
-                [key: string]: unknown;
-            }[];
-            lint?: components["schemas"]["ClaimTypeProposalLint"] | null;
-        };
-        /** ClaimTypeMigrationResultV2 */
-        ClaimTypeMigrationResultV2: {
-            /**
-             * Tag
-             * @default playbill-claim-type-migration-result-v2
-             * @constant
-             */
-            tag?: "playbill-claim-type-migration-result-v2";
-            /** Operation Digest */
-            operation_digest: string;
-            /** Dependents */
-            dependents: {
-                [key: string]: unknown;
-            }[];
-            proposal: components["schemas"]["ProposalInspection"];
-            /** Semantic Delta */
-            semantic_delta: components["schemas"]["SemanticFieldDelta"][];
-            /**
-             * Warnings
-             * @default []
-             */
-            warnings?: {
-                [key: string]: unknown;
-            }[];
-            lint?: components["schemas"]["ClaimTypeProposalLint"] | null;
-        };
-        /**
-         * ClaimTypePolicyRestatement
-         * @description One ClaimType whose v3 identity evidence policy is restated as v4.
-         *
-         *     The v4 policy admits exactly the evidence the v3 one did: the same rules,
-         *     roles, admission, subject binding and attestation requirement, naming the
-         *     same contracts with no logical-source restriction. Compiler revision 36
-         *     writes only v4, so a ClaimType is edited after this restatement.
-         */
-        ClaimTypePolicyRestatement: {
-            /** Claim Type */
-            claim_type: string;
-            /**
-             * From Policy
-             * @default playbill-claim-evidence-admission-policy-v3
-             * @constant
-             */
-            from_policy?: "playbill-claim-evidence-admission-policy-v3";
-            /**
-             * To Policy
-             * @default cruxible-claim-evidence-admission-policy-v4
-             * @constant
-             */
-            to_policy?: "cruxible-claim-evidence-admission-policy-v4";
-        };
         /** ClaimTypeProposalLint */
         ClaimTypeProposalLint: {
             /**
@@ -6040,43 +5901,6 @@ export interface components {
             tag?: "playbill-claim-type-proposal-lint-v1";
             /** Warnings */
             warnings: components["schemas"]["ClaimTypeLintWarning"][];
-        };
-        /**
-         * ClaimTypeStructure
-         * @description Policy-free ClaimType shape; deliberately not a governed artifact format.
-         */
-        ClaimTypeStructure: {
-            /** Predicate */
-            predicate: string;
-            /** Allowed Subject Kinds */
-            allowed_subject_kinds: string[];
-            /**
-             * Object Kind
-             * @enum {string}
-             */
-            object_kind: "literal" | "subject" | "exact_content";
-            /** Literal Schema */
-            literal_schema?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Allowed Object Subject Kinds
-             * @default []
-             */
-            allowed_object_subject_kinds?: string[];
-            /**
-             * Cardinality
-             * @enum {string}
-             */
-            cardinality: "one" | "many";
-            /** Permitted Roles */
-            permitted_roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
-            /**
-             * Referent Sensitivity
-             * @default identity
-             * @enum {string}
-             */
-            referent_sensitivity?: "identity" | "shell";
         };
         /**
          * ClaimTypeSuccessionDependent
@@ -6178,131 +6002,6 @@ export interface components {
              */
             carry_all?: boolean;
         };
-        /**
-         * ClaimTypeUpgrade
-         * @description One ClaimType moved to v7, and the one meaning that changes with it.
-         */
-        ClaimTypeUpgrade: {
-            /** Claim Type */
-            claim_type: string;
-            /**
-             * From Format
-             * @enum {string}
-             */
-            from_format: "playbill-claim-type-v1" | "playbill-claim-type-v3" | "playbill-claim-type-v4" | "playbill-claim-type-v5" | "playbill-claim-type-v6";
-            /**
-             * Revision Evidence Before
-             * @default accumulate
-             * @constant
-             */
-            revision_evidence_before?: "accumulate";
-            /**
-             * Revision Evidence After
-             * @enum {string}
-             */
-            revision_evidence_after: "replace" | "accumulate";
-            /**
-             * Evidence Requirement
-             * @default self
-             * @constant
-             */
-            evidence_requirement?: "self";
-            /**
-             * Widened Versions
-             * @default []
-             */
-            widened_versions?: string[];
-        };
-        /** ClaimTypeUpgradeRefusal */
-        ClaimTypeUpgradeRefusal: {
-            /** Claim Type */
-            claim_type: string;
-            /** Reason */
-            reason: string;
-            /** Code */
-            code?: "cruxible.claim_type.policy_restatement_inexact" | null;
-        };
-        /**
-         * ClaimTypeUpgradeRequest
-         * @description Which ClaimTypes move to v7, and what their statement-changing revisions keep.
-         *
-         *     Every ClaimType before v7 accumulates evidence across revisions; the upgrade
-         *     states the rule explicitly and defaults to ``replace``, so a revision that
-         *     changes what it states carries exactly the evidence it cites.
-         */
-        ClaimTypeUpgradeRequest: {
-            /**
-             * Tag
-             * @default playbill-claim-type-upgrade-request-v1
-             * @constant
-             */
-            tag?: "playbill-claim-type-upgrade-request-v1";
-            /**
-             * Claim Types
-             * @default []
-             */
-            claim_types?: string[];
-            /**
-             * Revision Evidence
-             * @default replace
-             * @enum {string}
-             */
-            revision_evidence?: "replace" | "accumulate";
-            /**
-             * Dry Run
-             * @description true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews).
-             */
-            dry_run?: boolean | null;
-            /**
-             * At
-             * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
-             */
-            at?: string | null;
-        };
-        /** ClaimTypeUpgradeResult */
-        ClaimTypeUpgradeResult: {
-            /**
-             * Tag
-             * @default playbill-claim-type-upgrade-result-v1
-             * @constant
-             */
-            tag?: "playbill-claim-type-upgrade-result-v1";
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "unchanged" | "proposed" | "blocked" | "would_propose" | "would_block";
-            /** Proposal Id */
-            proposal_id?: string | null;
-            /**
-             * Upgraded
-             * @default []
-             */
-            upgraded?: components["schemas"]["ClaimTypeUpgrade"][];
-            /**
-             * Restated
-             * @default []
-             */
-            restated?: components["schemas"]["ClaimTypePolicyRestatement"][];
-            /**
-             * Unchanged
-             * @default []
-             */
-            unchanged?: string[];
-            /**
-             * Refused
-             * @default []
-             */
-            refused?: components["schemas"]["ClaimTypeUpgradeRefusal"][];
-            /**
-             * Carried Claims
-             * @default 0
-             */
-            carried_claims?: number;
-            /** Detail */
-            detail?: string | null;
-            coordinate?: components["schemas"]["GetCoordinate"] | null;
-        };
         /** ClaimVersionReference */
         ClaimVersionReference: {
             identity: components["schemas"]["ArtifactIdentity"];
@@ -6338,6 +6037,188 @@ export interface components {
             /** Admission Accounts */
             admission_accounts: components["schemas"]["CaptureAdmissionAccount"][];
             statement: components["schemas"]["ClaimStatementCard"];
+        };
+        /** ClaimsDiagnostic */
+        ClaimsDiagnostic: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "extract_refused" | "duplicate_key" | "incomplete_source" | "held_disagrees" | "slot_contested" | "claim_not_in_source";
+            /** Target */
+            target: string;
+            /** Field */
+            field?: string | null;
+            /** Problem */
+            problem?: string | null;
+            /** Lexeme */
+            lexeme?: string | null;
+            /** Input */
+            input?: string | null;
+            /** Claim */
+            claim?: string | null;
+            /** Role */
+            role?: string | null;
+            /** Subject */
+            subject?: string | null;
+            /** Claim Type */
+            claim_type?: string | null;
+            qualifier?: components["schemas"]["JsonValue"];
+            /** Logical Source */
+            logical_source?: string | null;
+            /** Capture */
+            capture?: string | null;
+            /** Extract Spec */
+            extract_spec?: string | null;
+            /** Reason */
+            reason?: ("record_absent" | "field_absent") | null;
+            /**
+             * Source Incomplete
+             * @default false
+             */
+            source_incomplete?: boolean;
+            /** Key */
+            key?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /**
+             * Record Locators
+             * @default []
+             */
+            record_locators?: string[];
+            /**
+             * Record Count
+             * @default 0
+             */
+            record_count?: number;
+            held_value?: components["schemas"]["JsonValue"];
+            incoming_value?: components["schemas"]["JsonValue"];
+        };
+        /** ClaimsNode */
+        ClaimsNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "claims";
+            /** Node Id */
+            node_id: string;
+            /** For Each */
+            for_each: unknown;
+            /** Where */
+            where?: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"]) | null;
+            /** Expect */
+            expect?: unknown | null;
+            subject: components["schemas"]["ClaimsSubject"];
+            /** Claims */
+            claims: components["schemas"]["ClaimTemplate"][];
+        };
+        /**
+         * ClaimsRunSummary
+         * @description One claims terminal: what it wrote, kept, retired, surfaced and skipped.
+         *
+         *     ``written`` and ``revised`` count new and revising Claims, ``inverse_written``
+         *     the declared-inverse Claims (written or revising) apart from them, and
+         *     ``subjects_created`` the Subjects created by key. ``re_observed`` counts
+         *     held Claims a new Capture re-confirmed, ``no_op`` restatements that changed
+         *     nothing at all. ``downgraded`` counts values written as the ClaimType's
+         *     unknown member over incomplete input. ``surfaced`` counts held Claims a
+         *     source no longer contains that were reported instead of retired;
+         *     ``skipped`` counts the other findings, by kind (an item not written, or an
+         *     incomplete source). ``delivery`` is how the change landed.
+         */
+        ClaimsRunSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "claims";
+            /** Written */
+            written: number;
+            /** Revised */
+            revised: number;
+            /** Inverse Written */
+            inverse_written: number;
+            /** Subjects Created */
+            subjects_created: number;
+            /** Re Observed */
+            re_observed: number;
+            /** No Op */
+            no_op: number;
+            /** Retired */
+            retired: number;
+            /** Surfaced */
+            surfaced: number;
+            /** Downgraded */
+            downgraded: number;
+            /** Skipped */
+            skipped?: {
+                [key: string]: number;
+            };
+            /**
+             * Delivery
+             * @enum {string}
+             */
+            delivery: "settled" | "proposed" | "still_current" | "unchanged" | "empty" | "delivered";
+        };
+        /** ClaimsStep */
+        ClaimsStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Claims */
+            claims: components["schemas"]["ClaimTemplateSpec"][];
+            for_each: components["schemas"]["Ref"];
+            /** Where */
+            where?: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"]) | null;
+            subject: components["schemas"]["ClaimsSubjectSpec"];
+            expect?: components["schemas"]["Ref"] | null;
+        };
+        /** ClaimsSubject */
+        ClaimsSubject: {
+            /** Kind */
+            kind: string;
+            /** Key */
+            key: {
+                [key: string]: unknown;
+            };
+            /**
+             * Create
+             * @default never
+             * @enum {string}
+             */
+            create?: "never" | "if_absent";
+            /** Within */
+            within?: unknown | null;
+        };
+        /** ClaimsSubjectSpec */
+        ClaimsSubjectSpec: {
+            /** Kind */
+            kind: string;
+            /** Key */
+            key: {
+                [key: string]: components["schemas"]["Template-Input"];
+            };
+            /**
+             * Create
+             * @default never
+             * @enum {string}
+             */
+            create?: "never" | "if_absent";
+            within?: components["schemas"]["Ref"] | null;
+        };
+        /** Comparison */
+        Comparison: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "eq" | "ge" | "gt" | "le" | "lt" | "ne";
+            /** Left */
+            left: components["schemas"]["Ref"] | components["schemas"]["LiteralOperand"] | components["schemas"]["CountOperand"];
+            /** Right */
+            right: components["schemas"]["Ref"] | components["schemas"]["LiteralOperand"] | components["schemas"]["CountOperand"];
         };
         /** CompiledFileDocument */
         CompiledFileDocument: {
@@ -6433,25 +6314,38 @@ export interface components {
             at?: string | null;
         };
         /**
-         * ConstantNode
-         * @description Exact literal record; dollar-prefixed strings are data, never references.
+         * CompleteWhen
+         * @description The extract is complete only when the count stated at ``count_at`` is the records read.
          */
-        ConstantNode: {
+        CompleteWhen: {
+            /** Count At */
+            count_at: string;
+        };
+        /** CompleteWhenResult */
+        CompleteWhenResult: {
+            /** Count At */
+            count_at: string;
+            /** Expected */
+            expected: number | null;
+            /** Observed */
+            observed: number;
+            /** Held */
+            held: boolean;
+        };
+        /** CompletenessReason */
+        CompletenessReason: {
+            /** Node */
+            node: string;
             /**
-             * @description discriminator enum property added by openapi-typescript
+             * Kind
              * @enum {string}
              */
-            kind: "constant";
-            /** Node Id */
-            node_id: string;
-            /** Fields */
-            fields: unknown;
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
+            kind: "incomplete_input" | "count_mismatch" | "invalid_record" | "duplicate_key" | "invalid_field" | "unknown_predicate" | "may_truncate" | "control_incomplete" | "upstream_incomplete";
+            /**
+             * Inputs
+             * @default []
+             */
+            inputs?: string[];
         };
         /**
          * ConsumerStatus
@@ -6481,22 +6375,57 @@ export interface components {
             };
         };
         /**
-         * ContentSpan
-         * @description One exact zero-based, end-exclusive occurrence in immutable bytes.
+         * Contract
+         * @description One immutable data shape. A successor version names its predecessor's digest.
+         *
+         *     ``fields`` may be empty: the closed empty record, which accepts only ``{}``
+         *     (an empty selector, a refusal without detail, a parameterless operation).
          */
-        ContentSpan: {
+        Contract: {
             /**
-             * Tag
-             * @default playbill-content-span-v1
+             * Artifact Format
+             * @default cruxible-contract-v1
              * @constant
              */
-            tag?: "playbill-content-span-v1";
-            /** Content Digest */
-            content_digest: string;
-            /** Start Byte */
-            start_byte: number;
-            /** End Byte */
-            end_byte: number;
+            artifact_format?: "cruxible-contract-v1";
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /** Description */
+            description?: string | null;
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["ContractField"];
+            };
+            /** Predecessor Digest */
+            predecessor_digest?: string | null;
+        };
+        /**
+         * ContractAuthoringPayload
+         * @description One Contract version: a named, immutable data shape.
+         *
+         *     ``fields`` are typed by the Contract grammar. Lowering writes
+         *     ``contracts/<name>/v<version>.json``, pins each nested ``name@N`` to the
+         *     accepted version's digest, and names version N-1 as the predecessor of
+         *     every later version. An accepted version never changes; author the next.
+         */
+        ContractAuthoringPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            tag: "cruxible-contract-authoring-payload-v1";
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /** Description */
+            description?: string | null;
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["ContractField"];
+            };
         };
         /**
          * ContractEvidence
@@ -6515,21 +6444,87 @@ export interface components {
             contract: string;
         };
         /**
-         * ContractSchema
-         * @description Typed input or output schema carried inside one Procedure-v2 envelope.
+         * ContractField
+         * @description One field: its type, whether its key may be absent, and what it means.
          */
-        ContractSchema: {
-            /** Description */
-            description?: string | null;
-            /** Fields */
-            fields: {
-                [key: string]: components["schemas"]["PropertySchema"];
-            };
+        ContractField: {
+            /** Type */
+            type: components["schemas"]["StringType"] | components["schemas"]["IntType"] | components["schemas"]["DecimalType"] | components["schemas"]["NumberType"] | components["schemas"]["BoolType"] | components["schemas"]["DateType"] | components["schemas"]["DateTimeType"] | components["schemas"]["DurationType"] | components["schemas"]["EnumType"] | components["schemas"]["EnumOfType"] | components["schemas"]["ListType"] | components["schemas"]["NestedType"] | components["schemas"]["VariantType"] | components["schemas"]["KeyType"] | components["schemas"]["KeyPartType"] | components["schemas"]["SubjectType"] | components["schemas"]["CaptureType"] | components["schemas"]["FieldResultType"] | components["schemas"]["RecordType"] | components["schemas"]["ResultType"] | components["schemas"]["RefusalType"];
             /**
-             * Allow Extra
+             * Optional
              * @default false
              */
-            allow_extra?: boolean;
+            optional?: boolean;
+            /**
+             * Requires Complete Input
+             * @default []
+             */
+            requires_complete_input?: (string | boolean)[];
+            /** Incomplete Fallback */
+            incomplete_fallback?: string | boolean | null;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * ContractFieldInput
+         * @description One Contract field with its meaning: a type spelling and an optional description.
+         */
+        ContractFieldInput: {
+            /**
+             * Type
+             * @description The field type, e.g. 'string', 'int{0..9}', 'decimal{0..1}', 'date', 'enum[open, fixed]', 'list<string>{max_items: 50}', 'key<security.vulnerability>', 'capture<security.kev>', or another Contract as 'name@N'. A trailing '?' makes the key optional (absent, never null).
+             */
+            type: string;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * ContractInput
+         * @description One Contract version: a named, immutable data shape every edge is checked against.
+         *
+         *     Each field has a type from the closed grammar: there is no ``json`` type and
+         *     no untyped map (keep opaque bytes as a Capture), and every list states
+         *     ``max_items``. Nested Contracts are written ``name@N`` and pinned to the
+         *     accepted version. Version 1 starts a Contract; version N names version N-1
+         *     as its predecessor. An accepted version never changes: author the next.
+         */
+        ContractInput: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "contract";
+            /**
+             * Name
+             * @description The Contract name, e.g. 'security.epss-row'.
+             */
+            name: string;
+            /**
+             * Version
+             * @description The version this declares, starting at 1.
+             */
+            version: number;
+            /** Description */
+            description?: string | null;
+            /**
+             * Fields
+             * @description Field name to its type spelling, or to {type, description}. Empty ({}) declares the closed empty record, which accepts only {}.
+             */
+            fields: {
+                [key: string]: string | components["schemas"]["ContractFieldInput"];
+            };
+        };
+        /**
+         * ContractRef
+         * @description A pin to one Contract version. Authors write ``name@N``; acceptance adds the digest.
+         */
+        ContractRef: {
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /** Digest */
+            digest?: string | null;
         };
         /** CorroborationRequirement */
         CorroborationRequirement: {
@@ -6545,6 +6540,13 @@ export interface components {
             query_definition_digest: string;
             /** Min Count */
             min_count: number;
+        };
+        /**
+         * CountOperand
+         * @description The number of elements of the referenced list (guards and repeat ``until`` only).
+         */
+        CountOperand: {
+            count: components["schemas"]["Ref"];
         };
         /**
          * CoverageCardBudget
@@ -6994,6 +6996,37 @@ export interface components {
              */
             at?: string | null;
         };
+        /** DateTimeType */
+        DateTimeType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "datetime";
+        };
+        /** DateType */
+        DateType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "date";
+        };
+        /**
+         * DecimalType
+         * @description A decimal; bounds are canonical decimal strings, never floats.
+         */
+        DecimalType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "decimal";
+            /** Min */
+            min?: string | null;
+            /** Max */
+            max?: string | null;
+        };
         /**
          * DeclaredBlockPageObservation
          * @description One workspace page's stamped blocks as a client read them, for block-churn detection.
@@ -7027,6 +7060,60 @@ export interface components {
              * @default []
              */
             marker_notes?: ("projection_block_unstamped" | "projection_marker_invalid")[];
+        };
+        /** DedupeSpec */
+        DedupeSpec: {
+            input: components["schemas"]["Template-Input"];
+            /** Keys */
+            keys: string[];
+        };
+        /** DeriveCase */
+        DeriveCase: {
+            /** When */
+            when: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
+            /** Value */
+            value: boolean | number | string | null;
+        };
+        /** DeriveCaseSpec */
+        DeriveCaseSpec: {
+            /** When */
+            when: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
+            /** Value */
+            value: string | boolean | number | null;
+        };
+        /** DeriveSpec */
+        DeriveSpec: {
+            /** Input */
+            input: {
+                [key: string]: components["schemas"]["Template-Input"];
+            };
+            /** Cases */
+            cases: components["schemas"]["DeriveCaseSpec"][];
+            /** Else */
+            else: string | boolean | number | null;
+        };
+        /** DerivedBasis */
+        DerivedBasis: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            basis: "derived";
+            /**
+             * Inputs
+             * @default []
+             */
+            inputs?: components["schemas"]["ArtifactPin"][];
+            /**
+             * Extractions
+             * @default []
+             */
+            extractions?: components["schemas"]["ExtractedBasis"][];
+            /**
+             * Transform Node Ids
+             * @default []
+             */
+            transform_node_ids?: string[];
         };
         /** DiagnosticFrontier */
         DiagnosticFrontier: {
@@ -7439,6 +7526,34 @@ export interface components {
              */
             keys?: number;
         };
+        /** DurationType */
+        DurationType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "duration";
+        };
+        /**
+         * EgressRunSummary
+         * @description One ``emit_capture`` or ``post_inbox`` terminal: the items it emitted.
+         *
+         *     ``unposted`` counts the items a post's inbox cap left out.
+         */
+        EgressRunSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "emit_capture" | "post_inbox";
+            /** Emitted */
+            emitted: number;
+            /**
+             * Unposted
+             * @default 0
+             */
+            unposted?: number;
+        };
         /** EmitStep */
         EmitStep: {
             /** Id */
@@ -7447,8 +7562,31 @@ export interface components {
             next?: string | null;
             /** Emit */
             emit: string;
-            input: components["schemas"]["JsonValue"];
-            result: components["schemas"]["JsonValue"];
+            input: components["schemas"]["Template-Input"];
+            result: components["schemas"]["Template-Input"];
+        };
+        /**
+         * EnumOfType
+         * @description The members a ClaimType's enum value admits, read from that ClaimType.
+         */
+        EnumOfType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "enum_of";
+            /** Claim Type */
+            claim_type: string;
+        };
+        /** EnumType */
+        EnumType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "enum";
+            /** Members */
+            members: string[];
         };
         /**
          * ErrorResponse
@@ -7493,17 +7631,6 @@ export interface components {
              */
             materialization: "ledger" | "cas" | "external" | "none";
         };
-        /** ExactContentClaimObject */
-        ExactContentClaimObject: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "exact_content";
-            /** Content Digest */
-            content_digest: string;
-            span?: components["schemas"]["ContentSpan"] | null;
-        };
         /**
          * ExactContentObjectInput
          * @description The exact bytes a Claim's object IS, spelled as text or as base64.
@@ -7530,45 +7657,6 @@ export interface components {
             content_base64?: string | null;
         };
         /**
-         * ExactContentRef
-         * @description An exact-content Claim value shown by digest, because it cannot be shown as text.
-         *
-         *     An exact-content value reads as its UTF-8 text wherever a value is shown.
-         *     This marker stands in for the text when there is none to show: the bytes are
-         *     not UTF-8 text (``binary``), or the store no longer holds them
-         *     (``unavailable``). It never raises. Every caller who may read a Claim reads
-         *     its exact-content value; nothing is withheld by permission.
-         */
-        ExactContentRef: {
-            /**
-             * Exact Content
-             * @enum {string}
-             */
-            exact_content: "binary" | "unavailable";
-            /** Content Digest */
-            content_digest: string;
-            /** Length */
-            length?: number | null;
-        };
-        /** ExhaustTapNode */
-        ExhaustTapNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "exhaust_tap";
-            /** Node Id */
-            node_id: string;
-            /** Reducer Or Query */
-            reducer_or_query: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Journal Identity */
-            journal_identity: string;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /**
          * ExistingCaptureCitationSource
          * @description Reference one already-materialized Capture without re-authoring its bytes.
          */
@@ -7590,14 +7678,6 @@ export interface components {
             kind: "existing_capture";
             /** Capture Digest */
             capture_digest: string;
-        };
-        /**
-         * ExplicitStep
-         * @description Lossless fallback for a stored graph outside the recognized patterns.
-         */
-        ExplicitStep: {
-            /** Explicit */
-            explicit: components["schemas"]["NamedInvokeNode"] | components["schemas"]["NamedClaimTapNode"] | components["schemas"]["NamedStateTapNode"] | components["schemas"]["NamedSourceNode"] | components["schemas"]["NamedExhaustTapNode"] | components["schemas"]["NamedCallNode"] | components["schemas"]["NamedTransformNode"] | components["schemas"]["GuardNode"] | components["schemas"]["NamedProjectNode"] | components["schemas"]["NamedRepeatNode"] | components["schemas"]["NamedCaptureEgressNode"] | components["schemas"]["InboxEgressNode"] | components["schemas"]["NamedProposeChangeSetNode"] | components["schemas"]["NamedSettleChangeSetNode"] | components["schemas"]["HaltNode"] | components["schemas"]["NamedSelectNode"] | components["schemas"]["NamedReturnNode"] | components["schemas"]["NamedConstantNode"];
         };
         /** ExternalSourceReference */
         ExternalSourceReference: {
@@ -7629,6 +7709,213 @@ export interface components {
              * @enum {string}
              */
             replayability: "exact" | "attested_only";
+        };
+        /**
+         * ExtractCompleteWhen
+         * @description An extract's declared count check, bounded for a summary.
+         *
+         *     ``count_at`` is the declared path, cut to ``NODE_SUMMARY_TEXT_MAX`` code
+         *     points (``count_at_truncated`` then says so). ``expected`` is absent when
+         *     the source enumerated no count; a count past ``NODE_SUMMARY_INT_MAX`` is
+         *     left out and ``out_of_range`` says so.
+         */
+        ExtractCompleteWhen: {
+            /** Count At */
+            count_at: string;
+            /**
+             * Count At Truncated
+             * @default false
+             */
+            count_at_truncated?: boolean;
+            /** Expected */
+            expected?: number | null;
+            /** Observed */
+            observed?: number | null;
+            /**
+             * Out Of Range
+             * @default false
+             */
+            out_of_range?: boolean;
+            /** Held */
+            held: boolean;
+        };
+        /**
+         * ExtractField
+         * @description Where one field is read, and how its lexeme becomes a typed value.
+         *
+         *     ``at`` is a JSON Pointer relative to the record (or to the document, for a
+         *     header field), or a CSV column name. ``parse`` converts a text lexeme
+         *     (``date``, ``datetime``, ``int``, ``decimal``, ``bool``); ``type`` states
+         *     the field's type where no row Contract does (keys and header fields);
+         *     ``canonicalize: claim_type`` matches an enum member case-insensitively.
+         *     ``presence`` overrides the row Contract's optionality. ``project`` reshapes
+         *     the parsed value: ``utc_date`` (``parse: datetime``) keeps its UTC calendar
+         *     day; ``utc_start_of_day`` (``parse: date``) is that day at 00:00 UTC.
+         */
+        ExtractField: {
+            /** At */
+            at: string;
+            /** Type */
+            type?: string | null;
+            /** Project */
+            project?: ("utc_date" | "utc_start_of_day") | null;
+            /** Parse */
+            parse?: ("date" | "datetime" | "int" | "decimal" | "bool") | null;
+            /** Canonicalize */
+            canonicalize?: "claim_type" | null;
+            /** Presence */
+            presence?: ("required" | "optional") | null;
+        };
+        /**
+         * ExtractNode
+         * @description Read one Capture's records, typed, with per-field results and a completeness verdict.
+         */
+        ExtractNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "extract";
+            /** Node Id */
+            node_id: string;
+            /** Capture */
+            capture: string;
+            /** Records */
+            records: string;
+            complete_when?: components["schemas"]["CompleteWhen"] | null;
+            /** Key */
+            key?: {
+                [key: string]: components["schemas"]["ExtractField"];
+            };
+            /**
+             * Duplicates
+             * @default refuse_key
+             * @enum {string}
+             */
+            duplicates?: "refuse_run" | "refuse_key" | "first";
+            /** Only Keys */
+            only_keys?: unknown;
+            row: components["schemas"]["ContractRef"];
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["ExtractField"];
+            };
+            /** Header */
+            header?: {
+                [key: string]: components["schemas"]["ExtractField"];
+            };
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /**
+         * ExtractRunSummary
+         * @description One extract: the records it read, and what its completeness rests on.
+         *
+         *     ``records`` counts every record read, ``invalid_records`` and
+         *     ``duplicates`` those among them that were invalid or a refused duplicate;
+         *     ``invalid_fields`` counts the invalid field results of valid records.
+         *     ``complete_when`` is the declared count check's result, when one is declared.
+         */
+        ExtractRunSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "extract";
+            /** Records */
+            records: number;
+            /** Invalid Records */
+            invalid_records: number;
+            /** Duplicates */
+            duplicates: number;
+            /** Invalid Fields */
+            invalid_fields: number;
+            /** Complete */
+            complete: boolean;
+            complete_when?: components["schemas"]["ExtractCompleteWhen"] | null;
+        };
+        /**
+         * ExtractStep
+         * @description Read one Capture's records, typed: ``capture`` references ``<call>.<capture field>``.
+         *
+         *     ``row`` is the Contract (``name@N``) whose fields the step reads; the rest
+         *     are the extract node's declarations (records, key, fields, header,
+         *     complete_when, duplicates, only_keys).
+         */
+        ExtractStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Extract */
+            extract: string;
+            capture: components["schemas"]["Ref"];
+            /** Records */
+            records: string;
+            /** Row */
+            row: string;
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["ExtractField"];
+            };
+            /** Key */
+            key?: {
+                [key: string]: components["schemas"]["ExtractField"];
+            };
+            /** Header */
+            header?: {
+                [key: string]: components["schemas"]["ExtractField"];
+            };
+            complete_when?: components["schemas"]["CompleteWhen"] | null;
+            /**
+             * Duplicates
+             * @default refuse_key
+             * @enum {string}
+             */
+            duplicates?: "refuse_run" | "refuse_key" | "first";
+            only_keys?: components["schemas"]["Template-Input"];
+        };
+        /** ExtractedBasis */
+        ExtractedBasis: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            basis: "extracted";
+            /** Capture Digest */
+            capture_digest: string;
+            /** Extract Spec Digest */
+            extract_spec_digest: string;
+            /** Extractor Version */
+            extractor_version: string;
+            /** Record Locator */
+            record_locator: string;
+            /** Field Path */
+            field_path: string;
+            /** Record Key */
+            record_key?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Transform Node Ids
+             * @default []
+             */
+            transform_node_ids?: string[];
+        };
+        /**
+         * FieldResultType
+         * @description ``variant{present: {value: T, at}, absent: {}, invalid: {problem}}``.
+         */
+        FieldResultType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "field_result";
+            /** Value */
+            value: components["schemas"]["StringType"] | components["schemas"]["IntType"] | components["schemas"]["DecimalType"] | components["schemas"]["NumberType"] | components["schemas"]["BoolType"] | components["schemas"]["DateType"] | components["schemas"]["DateTimeType"] | components["schemas"]["DurationType"] | components["schemas"]["EnumType"] | components["schemas"]["EnumOfType"] | components["schemas"]["ListType"] | components["schemas"]["NestedType"] | components["schemas"]["VariantType"] | components["schemas"]["KeyType"] | components["schemas"]["KeyPartType"] | components["schemas"]["SubjectType"] | components["schemas"]["CaptureType"] | components["schemas"]["FieldResultType"] | components["schemas"]["RecordType"] | components["schemas"]["ResultType"] | components["schemas"]["RefusalType"];
         };
         /** FileBundleRequest */
         FileBundleRequest: {
@@ -7744,6 +8031,12 @@ export interface components {
              * @enum {string}
              */
             accept?: "if_allowed" | "never";
+        };
+        /** FilterSpec */
+        FilterSpec: {
+            input: components["schemas"]["Template-Input"];
+            /** Where */
+            where: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
         };
         /** FixedWindow */
         FixedWindow: {
@@ -7952,21 +8245,6 @@ export interface components {
             kind: "generation_accepted";
         };
         /**
-         * GetAcquisitionInput
-         * @description How one Procedure input is acquired under a source acquisition policy.
-         */
-        GetAcquisitionInput: {
-            /** Input */
-            input: string;
-            /**
-             * Requirement
-             * @enum {string}
-             */
-            requirement: "required" | "optional" | "conservative_default";
-            /** Max Age */
-            max_age?: string | null;
-        };
-        /**
          * GetApprovalPolicyCard
          * @description The instance's approval policy: whether a proposer may approve its own change.
          */
@@ -8086,44 +8364,6 @@ export interface components {
             coordinate: components["schemas"]["AcceptedCoordinate"];
             /** Results */
             results: components["schemas"]["GetResult"][];
-        };
-        /**
-         * GetBlueprintCard
-         * @description A Procedure skeleton and its instantiation preview: each slot and what fits it.
-         */
-        GetBlueprintCard: {
-            /** Blueprint */
-            blueprint: string;
-            /** Description */
-            description?: string | null;
-            /** Lifecycle */
-            lifecycle: string;
-            /** Inputs */
-            inputs: {
-                [key: string]: unknown;
-            };
-            /** Slots */
-            slots: components["schemas"]["GetBlueprintSlot"][];
-            /**
-             * Next
-             * @default []
-             */
-            next?: string[];
-        };
-        /**
-         * GetBlueprintSlot
-         * @description One open slot: the interface it needs and the accepted Providers that fit it.
-         */
-        GetBlueprintSlot: {
-            /** Slot */
-            slot: string;
-            /** Interface */
-            interface: string;
-            /**
-             * Fits
-             * @default []
-             */
-            fits?: string[];
         };
         /**
          * GetBody
@@ -8304,6 +8544,8 @@ export interface components {
         };
         /** GetClaimCard */
         GetClaimCard: {
+            /** Value Source */
+            value_source?: ("field" | "literal" | "param") | null;
             /** Claim */
             claim: string;
             /** Subject */
@@ -8315,8 +8557,10 @@ export interface components {
             /** Qualifier */
             qualifier?: string | null;
             value: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective Until */
+            effective_until?: string | null;
             /** Verdict */
             verdict: string;
             /** Status */
@@ -8405,10 +8649,51 @@ export interface components {
             /** Claim */
             claim: string;
             value: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | null;
             /** Verdict */
             verdict: string;
+        };
+        /**
+         * GetContractCard
+         * @description One Contract version: an immutable data shape, field by field.
+         */
+        GetContractCard: {
+            /** Contract */
+            contract: string;
+            /** Version */
+            version: number;
+            /** Description */
+            description?: string | null;
+            /** Fields */
+            fields: components["schemas"]["GetContractField"][];
+            /** Predecessor */
+            predecessor?: string | null;
+            /**
+             * Pins
+             * @default []
+             */
+            pins?: string[];
+            /**
+             * Next
+             * @default []
+             */
+            next?: string[];
+        };
+        /**
+         * GetContractField
+         * @description One Contract field: its type as authors spell it, and what it means.
+         */
+        GetContractField: {
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /**
+             * Optional
+             * @default false
+             */
+            optional?: boolean;
+            /** Description */
+            description?: string | null;
         };
         /**
          * GetCoordinate
@@ -8444,8 +8729,6 @@ export interface components {
         GetEvidence: {
             /** Value */
             value: unknown;
-            /** Content Digest */
-            content_digest?: string | null;
             /** Captures */
             captures: components["schemas"]["GetCaptureEvidence"][];
             /** Attestations */
@@ -8499,8 +8782,6 @@ export interface components {
             /** Reason */
             reason?: (components["schemas"]["GetChangeSetReason"] | components["schemas"]["GetProposedReason"]) | null;
             value?: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | null;
             /**
              * Next
              * @default []
@@ -8546,8 +8827,6 @@ export interface components {
             /** Reason */
             reason?: (components["schemas"]["GetChangeSetReason"] | components["schemas"]["GetProposedReason"]) | null;
             value?: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | null;
             /**
              * Next
              * @default []
@@ -8592,8 +8871,6 @@ export interface components {
             /** Reason */
             reason?: (components["schemas"]["GetChangeSetReason"] | components["schemas"]["GetProposedReason"]) | null;
             value?: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | null;
             /**
              * Next
              * @default []
@@ -8634,8 +8911,6 @@ export interface components {
             /** Reason */
             reason?: (components["schemas"]["GetChangeSetReason"] | components["schemas"]["GetProposedReason"]) | null;
             value?: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | null;
             /**
              * Next
              * @default []
@@ -8679,8 +8954,6 @@ export interface components {
             /** Reason */
             reason?: (components["schemas"]["GetChangeSetReason"] | components["schemas"]["GetProposedReason"]) | null;
             value?: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | null;
             /**
              * Next
              * @default []
@@ -8940,19 +9213,20 @@ export interface components {
         };
         /**
          * GetMandateCard
-         * @description One mandate: what it grants, to which Procedure, over what, and until when.
+         * @description One mandate: what it grants, to which exact Line, over what, and until when.
          *
          *     ``scope`` lists the ClaimTypes a settle grant covers; ``subject_scope`` the
          *     Subjects it is limited to (artifact paths), absent when it reaches every
          *     Subject its namespace does; ``condition`` the settlement predicate;
          *     ``subject_creation`` the Subject kinds a settle may create. ``suspended``
-         *     appears only when the mandate's kill switch is on. A v1 mandate has none.
+         *     appears only when the mandate's kill switch is on. ``line`` is the Line it
+         *     grants, at the exact version it pins (``Line:<name>@<digest>``).
          */
         GetMandateCard: {
             /** Mandate */
             mandate: string;
-            /** Procedure */
-            procedure: string;
+            /** Line */
+            line: string;
             /**
              * Grants
              * @enum {string}
@@ -8987,6 +9261,8 @@ export interface components {
             scope?: components["schemas"]["MandateScope"][];
             /** Subject Scope */
             subject_scope?: string[] | null;
+            /** Subjects */
+            subjects?: "expected" | null;
             condition?: components["schemas"]["MandateConditionView"] | null;
             /**
              * Subject Creation
@@ -9144,6 +9420,7 @@ export interface components {
             run: string;
             /** Procedure */
             procedure: string;
+            completeness?: components["schemas"]["RunCompleteness"] | null;
             /**
              * Status
              * @enum {string}
@@ -9253,6 +9530,7 @@ export interface components {
         };
         /** GetProposalCard */
         GetProposalCard: {
+            originating_line?: components["schemas"]["OriginatingLine"] | null;
             /** Proposal */
             proposal: string;
             /** Status */
@@ -9356,65 +9634,15 @@ export interface components {
              */
             state: "live" | "retired";
             /**
-             * Interfaces
+             * Operations
              * @default []
              */
-            interfaces?: string[];
+            operations?: string[];
             /**
              * Next
              * @default []
              */
             next?: string[];
-        };
-        /**
-         * GetProviderInterfaceCard
-         * @description One live provider interface: its contract fields, effect and implementations.
-         *
-         *     ``produces`` lists the logical source names the interface declares its
-         *     Captures carry (empty when undeclared). ``detail="proof"`` answers the
-         *     accepted inventory entry a Procedure node pins (``entry``): the artifact and
-         *     interface digests, the operation contract and every implementation.
-         */
-        GetProviderInterfaceCard: {
-            /** Interface */
-            interface: string;
-            /** Description */
-            description?: string | null;
-            /**
-             * Input
-             * @default []
-             */
-            input?: string[];
-            /**
-             * Output
-             * @default []
-             */
-            output?: string[];
-            /**
-             * Effect
-             * @enum {string}
-             */
-            effect: "pure" | "external_read" | "external_mutation";
-            /**
-             * Produces
-             * @default []
-             */
-            produces?: string[];
-            /**
-             * Providers
-             * @default []
-             */
-            providers?: components["schemas"]["GetProviderInterfaceProvider"][];
-            /**
-             * Next
-             * @default []
-             */
-            next?: string[];
-        };
-        /** GetProviderInterfaceProvider */
-        GetProviderInterfaceProvider: {
-            /** Provider */
-            provider: string;
         };
         /** GetQueryCard */
         GetQueryCard: {
@@ -9531,14 +9759,14 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "claim" | "subject" | "claim_type" | "document" | "procedure" | "blueprint" | "query" | "capture_contract" | "trigger" | "subject_kind" | "proposal" | "line" | "capture" | "resolution_contract" | "mandate" | "procedure_run" | "principal" | "approval_policy" | "procedure_runtime_policy" | "source_acquisition_policy" | "provider_interface" | "provider";
+            kind: "claim" | "subject" | "claim_type" | "document" | "procedure" | "query" | "capture_contract" | "trigger" | "subject_kind" | "proposal" | "line" | "capture" | "resolution_contract" | "mandate" | "procedure_run" | "principal" | "approval_policy" | "procedure_runtime_policy" | "provider" | "contract";
             /**
              * Detail
              * @enum {string}
              */
             detail: "summary" | "evidence" | "why" | "history" | "incoming" | "runs" | "proof" | "body";
             /** Card */
-            card?: components["schemas"]["GetClaimCard"] | components["schemas"]["GetSubjectCard"] | components["schemas"]["GetClaimTypeCard"] | components["schemas"]["GetDocumentCard"] | components["schemas"]["GetProcedureCard"] | components["schemas"]["GetBlueprintCard"] | components["schemas"]["GetQueryCard"] | components["schemas"]["GetCaptureContractCard"] | components["schemas"]["GetTriggerCard"] | components["schemas"]["GetSubjectKindCard"] | components["schemas"]["GetProposalCard"] | components["schemas"]["GetLineCard"] | components["schemas"]["GetCaptureCard"] | components["schemas"]["GetResolutionContractCard"] | components["schemas"]["GetMandateCard"] | components["schemas"]["GetProcedureRunCard"] | components["schemas"]["GetPrincipalCard"] | components["schemas"]["GetApprovalPolicyCard"] | components["schemas"]["GetProcedureRuntimePolicyCard"] | components["schemas"]["GetSourceAcquisitionPolicyCard"] | components["schemas"]["GetProviderInterfaceCard"] | components["schemas"]["GetProviderCard"] | null;
+            card?: components["schemas"]["GetClaimCard"] | components["schemas"]["GetSubjectCard"] | components["schemas"]["GetClaimTypeCard"] | components["schemas"]["GetDocumentCard"] | components["schemas"]["GetProcedureCard"] | components["schemas"]["GetQueryCard"] | components["schemas"]["GetCaptureContractCard"] | components["schemas"]["GetTriggerCard"] | components["schemas"]["GetSubjectKindCard"] | components["schemas"]["GetProposalCard"] | components["schemas"]["GetLineCard"] | components["schemas"]["GetCaptureCard"] | components["schemas"]["GetResolutionContractCard"] | components["schemas"]["GetMandateCard"] | components["schemas"]["GetProcedureRunCard"] | components["schemas"]["GetPrincipalCard"] | components["schemas"]["GetApprovalPolicyCard"] | components["schemas"]["GetProcedureRuntimePolicyCard"] | components["schemas"]["GetProviderCard"] | components["schemas"]["GetContractCard"] | null;
             evidence?: components["schemas"]["GetEvidence"] | null;
             /** History */
             history?: (components["schemas"]["GetHistory"] | components["schemas"]["GetSubjectHistory"]) | null;
@@ -9594,8 +9822,10 @@ export interface components {
             /** Lifecycle */
             lifecycle?: string | null;
             value?: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective Until */
+            effective_until?: string | null;
             /**
              * Digest
              * @description Artifact digest prefix of this revision.
@@ -9631,7 +9861,10 @@ export interface components {
          *
          *     ``duration_us`` is absent: the journal records every event of a run at the
          *     run's evaluation instant (the deterministic clock), so per-node durations
-         *     are not derivable from it.
+         *     are not derivable from it. ``summary`` is what flowed through a node that
+         *     succeeded (its records, rows, Captures, branch or Claim counts), by kind;
+         *     it is absent for a node that refused or failed, and for a kind that keeps
+         *     none (``project``, ``select``, ``invoke``).
          */
         GetRunNode: {
             /** Node */
@@ -9644,6 +9877,8 @@ export interface components {
             sequence: number;
             /** Duration Us */
             duration_us?: number | null;
+            /** Summary */
+            summary?: (components["schemas"]["ExtractRunSummary"] | components["schemas"]["TransformRunSummary"] | components["schemas"]["ReadRunSummary"] | components["schemas"]["CallRunSummary"] | components["schemas"]["GuardRunSummary"] | components["schemas"]["ClaimsRunSummary"] | components["schemas"]["EgressRunSummary"] | components["schemas"]["HaltRunSummary"] | components["schemas"]["RepeatRunSummary"]) | null;
         };
         /**
          * GetRunOutcome
@@ -9681,34 +9916,6 @@ export interface components {
              */
             enabled_by_withheld?: boolean;
         };
-        /**
-         * GetSourceAcquisitionPolicyCard
-         * @description One source policy: age defaults and alias overrides, or frozen v1 details.
-         */
-        GetSourceAcquisitionPolicyCard: {
-            /** Policy */
-            policy: string;
-            /** Lifecycle */
-            lifecycle: string;
-            /** Max Age */
-            max_age?: string | null;
-            /** Overrides */
-            overrides?: {
-                [key: string]: string | null;
-            };
-            /** Coherence */
-            coherence?: ("independent" | "bounded_window" | "declared_snapshot_group") | null;
-            /**
-             * Inputs
-             * @default []
-             */
-            inputs?: components["schemas"]["GetAcquisitionInput"][];
-            /**
-             * Next
-             * @default []
-             */
-            next?: string[];
-        };
         /** GetSubjectCard */
         GetSubjectCard: {
             /** Subject */
@@ -9736,8 +9943,6 @@ export interface components {
             /** Claim */
             claim: string | string[];
             value: components["schemas"]["ShownValue"];
-            /** Content Digest */
-            content_digest?: string | string[] | null;
             /**
              * Flags
              * @default []
@@ -9790,6 +9995,10 @@ export interface components {
              * @default []
              */
             keys?: string[];
+            /** Normalizers */
+            normalizers?: {
+                [key: string]: string;
+            };
             /** Uniqueness */
             uniqueness?: ("unique" | "hint") | null;
             /** Live Subjects */
@@ -9838,7 +10047,21 @@ export interface components {
             /** Inherited Workspace Root */
             inherited_workspace_root: string;
         };
-        /** GuardNode */
+        /**
+         * GotoAction
+         * @description Continue at a later step.
+         */
+        GotoAction: {
+            /** Goto */
+            goto: string;
+        };
+        /**
+         * GuardNode
+         * @description Branch on a closed run predicate (the same typed Predicate transforms use).
+         *
+         *     ``refusal_code`` and ``message`` are the abort diagnostic: present exactly
+         *     when an arm is ``$abort``.
+         */
         GuardNode: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -9847,7 +10070,8 @@ export interface components {
             kind: "guard";
             /** Node Id */
             node_id: string;
-            predicate: components["schemas"]["GuardPredicate"];
+            /** Predicate */
+            predicate: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
             /** On True */
             on_true?: string | null;
             /**
@@ -9861,47 +10085,92 @@ export interface components {
             message?: string | null;
         };
         /**
-         * GuardPredicate
-         * @description Closed predicate: exactly one comparison or connective.
+         * GuardOperand
+         * @description One comparison a guard evaluated: its operator, and its numeric or bool operands.
+         *
+         *     An operand that is anything else (a string, a list, a record) is left out;
+         *     so is the whole comparison when neither operand is a number or a boolean.
+         *     A number past ``NODE_SUMMARY_INT_MAX`` is left out too, and ``out_of_range``
+         *     says so. ``present`` and ``absent`` carry whether the reference resolved as
+         *     ``left``.
          */
-        GuardPredicate: {
-            /**
-             * Tag
-             * @default playbill-guard-predicate-v1
-             * @constant
-             */
-            tag?: "playbill-guard-predicate-v1";
-            left?: components["schemas"]["PredicateOperand"] | null;
+        GuardOperand: {
             /** Operator */
-            operator?: ("eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "before" | "on_or_before" | "after" | "on_or_after") | null;
-            right?: components["schemas"]["PredicateOperand"] | null;
-            /** All Of */
-            all_of?: components["schemas"]["GuardPredicate"][] | null;
-            /** Any Of */
-            any_of?: components["schemas"]["GuardPredicate"][] | null;
-            not_of?: components["schemas"]["GuardPredicate"] | null;
+            operator: ("eq" | "ne" | "lt" | "le" | "gt" | "ge") | ("in" | "not_in" | "present" | "absent");
+            /** Left */
+            left?: boolean | number | null;
+            /** Right */
+            right?: boolean | number | null;
+            /**
+             * Out Of Range
+             * @default false
+             */
+            out_of_range?: boolean;
         };
-        /** GuardStep */
+        /**
+         * GuardRunSummary
+         * @description One guard: the branch it took, and the numeric and bool operands it compared.
+         */
+        GuardRunSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "guard";
+            /**
+             * Branch
+             * @enum {string}
+             */
+            branch: "then" | "else";
+            /**
+             * Operands
+             * @default []
+             */
+            operands?: components["schemas"]["GuardOperand"][];
+            /**
+             * Operands Truncated
+             * @default 0
+             */
+            operands_truncated?: number;
+        };
+        /**
+         * GuardStep
+         * @description Branch on a typed run predicate.
+         *
+         *     ``then`` (default: continue with the next step) and ``else`` (default:
+         *     abort ``guard_refused``) are typed actions.
+         */
         GuardStep: {
             /** Id */
             id?: string | null;
             /** Next */
             next?: string | null;
             /** Guard */
-            guard: string;
+            guard: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
             /** Then */
-            then?: string | null;
-            /** Refusal Code */
-            refusal_code?: string | null;
-            /** Message */
-            message?: string | null;
-            /** Else Id */
-            else_id?: string | null;
+            then?: (components["schemas"]["AbortAction"] | components["schemas"]["HaltAction"] | components["schemas"]["GotoAction"]) | null;
             /**
              * Else
-             * @default abort(guard_refused, "Procedure guard refused.")
+             * @default {
+             *       "abort": {
+             *         "code": "guard_refused",
+             *         "message": "Procedure guard refused."
+             *       }
+             *     }
              */
-            else?: string;
+            else?: components["schemas"]["AbortAction"] | components["schemas"]["HaltAction"] | components["schemas"]["GotoAction"];
+        };
+        /**
+         * HaltAction
+         * @description End this branch successfully without a result; ``id`` names the halt node.
+         */
+        HaltAction: {
+            /** Halt */
+            halt: string | null;
+            /** Message */
+            message?: string | null;
+            /** Id */
+            id?: string | null;
         };
         /**
          * HaltNode
@@ -9920,6 +10189,24 @@ export interface components {
             /** Message */
             message?: string | null;
         };
+        /**
+         * HaltRunSummary
+         * @description One halt: the reason code it declares, when it declares one, cut to the text bound.
+         */
+        HaltRunSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "halt";
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Reason Truncated
+             * @default false
+             */
+            reason_truncated?: boolean;
+        };
         /** HaltStep */
         HaltStep: {
             /** Id */
@@ -9927,7 +10214,7 @@ export interface components {
             /** Next */
             next?: string | null;
             /** Halt */
-            halt: string;
+            halt: string | null;
             /** Message */
             message?: string | null;
         };
@@ -10188,12 +10475,19 @@ export interface components {
         };
         /**
          * InboxEgressNode
-         * @description Terminal output into the Line inbox: items sent, as they are, to intelligence.
+         * @description Terminal output into the Line inbox: typed items sent, as they are, to intelligence.
          *
-         *     ``input`` is one item, or ``{"items": ...}`` to fan out over a list the run
-         *     produced. Posting is inert: it never touches accepted state. ``max_items``
-         *     caps what one run posts (``INBOX_RUN_ITEM_CAP_DEFAULT`` when absent); items
-         *     past it are not posted and the run reports the truncation.
+         *     Every posted item is a record of ``contract`` (an accepted Contract,
+         *     ``name@N``, pinned to its digest). With ``for_each`` (a reference to a list
+         *     the run produced: an extract's or a closed transform's records, a rows
+         *     view, or any list) each element posts one item whose ``fields`` read it as
+         *     ``$item...`` (``$item.fields.<f>`` reads a record's field when it is
+         *     present); without it, ``fields`` resolve to one item. ``dedupe_key`` names
+         *     the item fields that are its identity in the inbox: items with the same
+         *     key are one item (absent: the whole item). Posting is inert: it never
+         *     touches accepted state. ``max_items`` caps what one run posts
+         *     (``INBOX_RUN_ITEM_CAP_DEFAULT`` when absent); items past it are not posted
+         *     and the run reports the truncation.
          */
         InboxEgressNode: {
             /**
@@ -10203,8 +10497,18 @@ export interface components {
             kind: "post_inbox";
             /** Node Id */
             node_id: string;
-            /** Input */
-            input: unknown;
+            contract: components["schemas"]["ContractRef"];
+            /** For Each */
+            for_each?: unknown;
+            /** Fields */
+            fields: {
+                [key: string]: unknown;
+            };
+            /**
+             * Dedupe Key
+             * @default []
+             */
+            dedupe_key?: string[];
             /** Max Items */
             max_items?: number | null;
         };
@@ -10450,13 +10754,31 @@ export interface components {
              */
             source_capture_digests?: string[];
         };
-        /** InboxStep */
+        /**
+         * InboxStep
+         * @description Post typed items to the Line inbox: ``inbox`` names the item Contract, ``name@N``.
+         *
+         *     ``for_each`` references a list the run produced (each element posts one
+         *     item, read with ``item`` references); ``fields`` make the item;
+         *     ``dedupe_key`` names the fields that are an item's inbox identity.
+         */
         InboxStep: {
             /** Id */
             id?: string | null;
             /** Next */
             next?: string | null;
-            inbox: components["schemas"]["JsonValue"];
+            /** Inbox */
+            inbox: string;
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["Template-Input"];
+            };
+            for_each?: components["schemas"]["Ref"] | null;
+            /**
+             * Dedupe Key
+             * @default []
+             */
+            dedupe_key?: string[];
             /** Max Items */
             max_items?: number | null;
         };
@@ -10553,8 +10875,8 @@ export interface components {
             package?: string | null;
             /** Version */
             version?: string | null;
-            /** Interfaces */
-            interfaces: string[];
+            /** Operations */
+            operations: string[];
             /** Build */
             build: string;
             /**
@@ -10612,6 +10934,18 @@ export interface components {
             decommissioned_by: string;
             coordinate: components["schemas"]["AcceptedCoordinate"];
         };
+        /** IntType */
+        IntType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "int";
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+        };
         /** InvestigationBinding */
         InvestigationBinding: {
             contract: components["schemas"]["ResolutionContractReference"];
@@ -10620,7 +10954,7 @@ export interface components {
         };
         /**
          * InvokeNode
-         * @description A call to an exact accepted Procedure under the enclosing run's limits.
+         * @description A call to a named accepted Procedure under the enclosing run's limits.
          */
         InvokeNode: {
             /**
@@ -10630,9 +10964,11 @@ export interface components {
             kind: "invoke";
             /** Node Id */
             node_id: string;
-            procedure: components["schemas"]["ArtifactPin"];
+            procedure: components["schemas"]["ArtifactNameRef"];
             /** Input */
             input: unknown;
+            /** Parameters */
+            parameters?: unknown;
             /** As */
             as: string;
             /** Next */
@@ -10646,11 +10982,74 @@ export interface components {
             next?: string | null;
             /** Invoke */
             invoke: string;
-            input: components["schemas"]["JsonValue"];
+            input: components["schemas"]["Template-Input"];
+            /**
+             * Params
+             * @description The child's parameter values, over its defaults (its params Contract).
+             */
+            params?: {
+                [key: string]: components["schemas"]["Template-Input"];
+            };
             /** As */
             as?: string | null;
         };
+        /** JoinSpec */
+        JoinSpec: {
+            left: components["schemas"]["Template-Input"];
+            right: components["schemas"]["Template-Input"];
+            /** Left Field */
+            left_field: string;
+            /** Right Field */
+            right_field: string;
+            /**
+             * Mode
+             * @default inner
+             * @enum {string}
+             */
+            mode?: "inner" | "anti";
+            /** Right Fields */
+            right_fields?: {
+                [key: string]: string;
+            };
+        };
         JsonValue: unknown;
+        /**
+         * KeyPartType
+         * @description ``key_part<K:part>``: one key part of kind ``K``, canonicalized by that part's rule.
+         *
+         *     ``part`` names the key ClaimType by predicate or by its last name under the
+         *     kind (``key_part<security.vulnerability:cve_id>``).
+         */
+        KeyPartType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "key_part";
+            /** Subject Kind */
+            subject_kind: string;
+            /** Part */
+            part: string;
+        };
+        /**
+         * KeyType
+         * @description A Subject key of one kind; core canonicalizes it with the kind's identity rule.
+         *
+         *     The value is the key: the bare value for a one-key kind, or a mapping of
+         *     every key part to its value for a composite one (canonically keyed by each
+         *     part's last name under the kind; a conversion also reads full predicates).
+         *     Core canonicalizes each part with its key ClaimType's canonical form and the
+         *     SubjectKind's normalizer for it.
+         */
+        KeyType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "key";
+            /** Subject Kind */
+            subject_kind: string;
+        };
         /**
          * KitAddRequest
          * @description Install or upgrade a kit. It always proposes: a conflicting definition takes
@@ -10723,7 +11122,7 @@ export interface components {
          *     ``delivery`` ``index`` makes it the kit's default provider: the kit records
          *     the package, version, wheel and lock digests and carries none of the files,
          *     and ``kit add`` installs it by name from the consumer's provider index when no
-         *     Provider there implements its interfaces. The staged wheel must be the
+         *     Provider there serves its operations. The staged wheel must be the
          *     published build and the lock the one it embeds.
          */
         KitBuildProvider: {
@@ -10746,10 +11145,8 @@ export interface components {
          * KitBuildRequest
          * @description Export this instance's definitions under ``owns`` as one kit release.
          *
-         *     ``providers`` bundles provider packages with the release. Every Provider a
-         *     carried Procedure pins must be bundled (the same wheel this instance
-         *     installed), and every ProviderInterface the kit carries must be exactly what
-         *     a bundled wheel registers.
+         *     ``providers`` bundles provider packages with the release (the same wheels
+         *     this instance installed), so the kit's Lines can bind their operations.
          */
         KitBuildRequest: {
             /** Kit Id */
@@ -11036,13 +11433,13 @@ export interface components {
          *
          *     A bundled package (the default delivery) is carried as those files; ``kit
          *     add`` installs it before the kit's definitions, through the ordinary
-         *     transfer install, so the Provider and ProviderInterfaces it registers are the
-         *     ones the kit's Procedures and Blueprints pin. An ``index`` package is the
-         *     kit's default implementation of its interfaces: the kit carries no file of
-         *     it, ``kit add`` installs ``package`` at exactly ``version`` by name (its lock
-         *     is the one the wheel embeds, its path dependencies come from the same index)
-         *     unless another live Provider here already implements every one of its
-         *     interfaces, and ``wheel`` and ``lock`` name the published build it verifies.
+         *     transfer install, so the operations it declares are there for the kit's Lines
+         *     to bind. An ``index`` package is the kit's default provider of its
+         *     operations: the kit carries no file of it, ``kit add`` installs ``package``
+         *     at exactly ``version`` by name (its lock is the one the wheel embeds, its path
+         *     dependencies come from the same index) unless another live Provider here
+         *     already serves every one of its operations' signatures, and ``wheel`` and
+         *     ``lock`` name the published build it verifies.
          */
         KitProvider: {
             /** Provider Id */
@@ -11059,10 +11456,10 @@ export interface components {
              */
             dependencies?: components["schemas"]["KitProviderFile"][];
             /**
-             * Interfaces
+             * Operations
              * @default []
              */
-            interfaces?: string[];
+            operations?: string[];
             /**
              * Delivery
              * @default bundled
@@ -11351,26 +11748,58 @@ export interface components {
             coordinate: components["schemas"]["AcceptedCoordinate"];
         };
         /**
+         * LineAcquisitionRule
+         * @description One capture output's rule as a Line declares it.
+         */
+        LineAcquisitionRule: {
+            max_age?: components["schemas"]["CanonicalDuration"] | null;
+            /**
+             * On Unavailable
+             * @default refuse
+             * @enum {string}
+             */
+            on_unavailable?: "refuse" | "omit";
+            /**
+             * On Stale
+             * @default refuse
+             * @enum {string}
+             */
+            on_stale?: "refuse" | "omit";
+            /**
+             * On Oversized
+             * @default refuse
+             * @enum {string}
+             */
+            on_oversized?: "refuse" | "omit";
+            /** Permitted Replayability */
+            permitted_replayability?: ("exact" | "attested_only")[] | null;
+            /** Origins */
+            origins?: string[] | null;
+        };
+        /**
          * LineAuthoringPayload
-         * @description Decision-only Line input; lowering owns the exact Procedure and policy pins.
+         * @description Decision-only Line input; lowering owns the exact Procedure and binding pins.
          *
-         *     An author names the accepted or same-set Procedure and acquisition policy
-         *     by name, the way a ProcedureMandate member names its Procedure, and
-         *     lowering resolves both into the exact digest pins the LineSpec carries. A
-         *     budget left unset lowers to the Procedure's own hard caps. The acquisition
-         *     policy is required only when the Procedure acquires (has Source
-         *     nodes); a pure-compute Line pins none. ``parameters`` is the Procedure's
-         *     input record, checked against its input Contract when the Line lowers.
-         *     When the Line runs is not its own: Triggers aim at it. ``trigger_input``
-         *     binds the triggering Capture to one Source input, and lowering declares the
-         *     exact event that input accepts from its CaptureContract.
+         *     An author names the accepted or same-set Procedure by name; lowering pins
+         *     its exact version. ``bindings`` names a ``provider[/build]#operation`` (or
+         *     a ``provider[/build]`` whose one fitting operation is meant) per slot, keyed
+         *     by slot, or ``<invoke node path>.<slot>`` for an invoked child; a slot left
+         *     out is fitted through the signature index (exactly one live operation must
+         *     serve its signature). Lowering records the exact ``{build, operation}``.
+         *     ``acquisition`` declares the acquisition rule per capture output
+         *     (``<alias>.<field>``); one it leaves out runs under the stated core default.
+         *     A budget left unset lowers to the Procedure's own hard caps.
+         *     ``parameters`` is the Procedure's input record, checked against its input
+         *     Contract when the Line lowers. When the Line runs is not its own: Triggers
+         *     aim at it. ``trigger_input`` binds the triggering Capture to one capture
+         *     output, ``<alias>.<field>``, and lowering declares the exact event it accepts.
          */
         LineAuthoringPayload: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-line-authoring-payload-v1";
+            tag: "cruxible-line-authoring-payload-v2";
             /** Name */
             name: string;
             /** Procedure Name */
@@ -11379,18 +11808,18 @@ export interface components {
             bindings?: {
                 [key: string]: string;
             };
-            /** Acquisition Policy Name */
-            acquisition_policy_name?: string | null;
+            findings?: components["schemas"]["LineFindings"];
+            /** Acquisition */
+            acquisition?: {
+                [key: string]: components["schemas"]["LineAcquisitionRule"];
+            };
             /** Max Authority */
             max_authority?: ("observe" | "propose" | "settle") | null;
             /** Trigger Input */
             trigger_input?: string | null;
             /** Parameters */
             parameters?: unknown;
-            /** Budgets */
-            budgets?: {
-                [key: string]: number;
-            } | null;
+            budgets?: components["schemas"]["LineBudgetsInput"] | null;
             /** Epsilon */
             epsilon?: unknown;
             /**
@@ -11403,6 +11832,24 @@ export interface components {
              * @default false
              */
             retire?: boolean;
+        };
+        /**
+         * LineBudgetsInput
+         * @description The budget a Line author states; each unstated required limit defaults to the cap.
+         */
+        LineBudgetsInput: {
+            /** Max Wall Clock Microseconds */
+            max_wall_clock_microseconds?: number | null;
+            /** Max Provider Calls */
+            max_provider_calls?: number | null;
+            /** Max Capture Bytes */
+            max_capture_bytes?: number | null;
+            /** Max Items */
+            max_items?: number | null;
+            /** Max Result Bytes */
+            max_result_bytes?: number | null;
+            /** Max Read Rows */
+            max_read_rows?: number | null;
         };
         /** LineDispatchItem */
         LineDispatchItem: {
@@ -11626,16 +12073,27 @@ export interface components {
             /** Detail */
             detail?: string | null;
         };
+        /** LineFindings */
+        LineFindings: {
+            /**
+             * Inbox
+             * @default []
+             */
+            inbox?: ("extract_refused" | "duplicate_key" | "incomplete_source" | "held_disagrees" | "slot_contested" | "claim_not_in_source")[];
+        };
         /**
          * LineInput
          * @description One Line: a stable instantiation of an accepted or same-set Procedure.
          *
-         *     Lowering resolves the named Procedure and acquisition policy into exact
-         *     pins. A Line runs when run explicitly (`line run`, one manual occurrence),
+         *     Lowering pins the named Procedure's exact version and binds every slot to
+         *     one exact ``{build, operation}``: ``bindings`` names
+         *     ``provider[/build]#operation`` (or ``provider[/build]``) per slot, and a
+         *     slot left out is fitted (exactly one live operation must serve its
+         *     signature). A Line runs when run explicitly (`line run`, one manual occurrence),
          *     or, once it is enabled (`line enable`), when a Trigger aimed at it fires; a
          *     Trigger aimed at a Line that is not enabled does nothing. Enabling needs
          *     governed write even for an observe-only Line. A Line that proposes or
-         *     settles also needs a live ProcedureMandate covering its Procedure before it
+         *     settles also needs a live ProcedureMandate pinning this exact Line before it
          *     can run or be enabled; an observe-only Line needs none.
          */
         LineInput: {
@@ -11648,15 +12106,21 @@ export interface components {
             name: string;
             /** Procedure Name */
             procedure_name: string;
-            /** Bindings */
+            /**
+             * Bindings
+             * @description Slot -> 'provider[/build]#operation' (or 'provider[/build]'); an invoked child's slot is '<invoke node>.<slot>'. Omitted slots are fitted.
+             */
             bindings?: {
                 [key: string]: string;
             };
+            findings?: components["schemas"]["LineFindings"];
             /**
-             * Acquisition Policy Name
-             * @description SourceAcquisitionPolicy name; omitted uses the instance default.
+             * Acquisition
+             * @description Per capture output <alias>.<field> (an invoked child's: <invoke node path>.<alias>.<field>): {max_age, on_unavailable, on_stale, on_oversized, permitted_replayability, origins}. A capture output left out runs under the core default: any age, refuse when unavailable, stale or oversized, any replay class, any origin.
              */
-            acquisition_policy_name?: string | null;
+            acquisition?: {
+                [key: string]: components["schemas"]["LineAcquisitionRule"];
+            };
             /**
              * Max Authority
              * @description Caps this Line below its Procedure's own capability; omit to inherit it.
@@ -11671,13 +12135,8 @@ export interface components {
             parameters?: {
                 [key: string]: unknown;
             };
-            /**
-             * Budgets
-             * @description Per-run budgets; omit to use the Procedure's hard caps.
-             */
-            budgets?: {
-                [key: string]: number;
-            } | null;
+            /** @description Per-run budgets; omit to use the Procedure's hard caps. */
+            budgets?: components["schemas"]["LineBudgetsInput"] | null;
             /**
              * Occurrence Epoch
              * @default 1
@@ -11804,6 +12263,18 @@ export interface components {
             /** Artifact Digest */
             artifact_digest: string;
         };
+        /** ListType */
+        ListType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "list";
+            /** Item */
+            item: components["schemas"]["StringType"] | components["schemas"]["IntType"] | components["schemas"]["DecimalType"] | components["schemas"]["NumberType"] | components["schemas"]["BoolType"] | components["schemas"]["DateType"] | components["schemas"]["DateTimeType"] | components["schemas"]["DurationType"] | components["schemas"]["EnumType"] | components["schemas"]["EnumOfType"] | components["schemas"]["ListType"] | components["schemas"]["NestedType"] | components["schemas"]["VariantType"] | components["schemas"]["KeyType"] | components["schemas"]["KeyPartType"] | components["schemas"]["SubjectType"] | components["schemas"]["CaptureType"] | components["schemas"]["FieldResultType"] | components["schemas"]["RecordType"] | components["schemas"]["ResultType"] | components["schemas"]["RefusalType"];
+            /** Max Items */
+            max_items: number;
+        };
         /** LiteralClaimObject */
         LiteralClaimObject: {
             /**
@@ -11823,6 +12294,11 @@ export interface components {
             kind: "literal";
             /** Value */
             value: unknown;
+        };
+        /** LiteralOperand */
+        LiteralOperand: {
+            /** Literal */
+            literal: string | number | boolean;
         };
         /**
          * LiveHead
@@ -11884,6 +12360,36 @@ export interface components {
             identity: string;
         };
         /**
+         * LowercaseNormalizer
+         * @description NFC, Unicode default lowercase, NFC.
+         */
+        LowercaseNormalizer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            normalizer: "lowercase";
+            /** Version */
+            version: number;
+        };
+        /**
+         * MandateChangeScope
+         * @description The evidence bases one change kind of a scoped ClaimType settles on.
+         */
+        MandateChangeScope: {
+            /** Basis */
+            basis: ("extracted" | "measured" | "derived" | "absence")[];
+        };
+        /**
+         * MandateChanges
+         * @description Per change kind, the bases a settle grant covers; a kind left out never settles.
+         */
+        MandateChanges: {
+            create?: components["schemas"]["MandateChangeScope"] | null;
+            revise?: components["schemas"]["MandateChangeScope"] | null;
+            retire?: components["schemas"]["MandateChangeScope"] | null;
+        };
+        /**
          * MandateConditionAuthoring
          * @description The settle predicate, named by query; lowering pins the exact accepted query.
          */
@@ -11898,6 +12404,10 @@ export interface components {
             query_name: string;
             /** Binding Parameter */
             binding_parameter: string;
+            /** Value Parameter */
+            value_parameter?: string | null;
+            /** Before Parameter */
+            before_parameter?: string | null;
             /** Fixed Parameters */
             fixed_parameters?: {
                 [key: string]: unknown;
@@ -11924,6 +12434,10 @@ export interface components {
             query: string;
             /** Binding Parameter */
             binding_parameter: string;
+            /** Value Parameter */
+            value_parameter?: string | null;
+            /** Before Parameter */
+            before_parameter?: string | null;
             /** Fixed Parameters */
             fixed_parameters?: {
                 [key: string]: components["schemas"]["JsonValue"];
@@ -11940,16 +12454,17 @@ export interface components {
          * MandateScope
          * @description One ClaimType a settle grant covers.
          *
-         *     ``claim_type`` is its ``ClaimType:<predicate>`` ref, ``change_kinds`` the
-         *     changes the grant may settle on it, and ``binds`` which referent of the
-         *     changed Claim (its ``subject`` or its ``object``) binds the condition
-         *     query's parameter.
+         *     ``claim_type`` is its ``ClaimType:<predicate>`` ref, ``changes`` the
+         *     change kinds the grant may settle on it with the evidence bases each
+         *     settles on, ``value`` an enum or bool ClaimType's allowed moves, and
+         *     ``binds`` which referent of the changed Claim (its ``subject`` or its
+         *     ``object``) binds the condition query's parameter.
          */
         MandateScope: {
             /** Claim Type */
             claim_type: string;
-            /** Change Kinds */
-            change_kinds: ("create" | "revise" | "retire")[];
+            changes: components["schemas"]["MandateChanges"];
+            value?: components["schemas"]["MandateValueCondition"] | null;
             /**
              * Binds
              * @enum {string}
@@ -11959,6 +12474,10 @@ export interface components {
         /**
          * MandateScopeAuthoring
          * @description One ClaimType a settle grant covers, named by predicate; lowering pins its digest.
+         *
+         *     ``changes`` lists, per change kind, the evidence bases that settle
+         *     (``{create: {basis: [extracted]}, retire: {basis: [absence]}}``); ``value``
+         *     limits an enum or bool ClaimType's moves (``{from: [...], to: [...]}``).
          */
         MandateScopeAuthoring: {
             /**
@@ -11969,14 +12488,70 @@ export interface components {
             tag?: "playbill-mandate-scope-authoring-v1";
             /** Claim Type */
             claim_type: string;
-            /** Change Kinds */
-            change_kinds: ("create" | "revise" | "retire")[];
+            changes: components["schemas"]["MandateChanges"];
             /**
              * Binding Subject Role
              * @default subject
              * @enum {string}
              */
             binding_subject_role?: "subject" | "object";
+            value?: components["schemas"]["MandateValueCondition"] | null;
+        };
+        /**
+         * MandateValueCondition
+         * @description Enum and bool ClaimTypes only: the values a settled change may move from and to.
+         *
+         *     ``from`` lists the held values a change may replace (a create holds none, so
+         *     it settles only when ``from`` is omitted); ``to`` the values it may write (a
+         *     retirement or an inverse writes none, so it settles only when ``to`` is
+         *     omitted). At least one is declared.
+         */
+        MandateValueCondition: {
+            /** From */
+            from?: (string | boolean)[] | null;
+            /** To */
+            to?: (string | boolean)[] | null;
+        };
+        /** MeasuredBasis */
+        MeasuredBasis: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            basis: "measured";
+            /** Capture Digest */
+            capture_digest: string;
+            /** Operation */
+            operation: string;
+            build: components["schemas"]["ArtifactPin"];
+            /** Enumerates */
+            enumerates?: string | null;
+            /** Declared Fields */
+            declared_fields?: {
+                [key: string]: string;
+            };
+            /** Field Path */
+            field_path?: string | null;
+            /**
+             * Transform Node Ids
+             * @default []
+             */
+            transform_node_ids?: string[];
+        };
+        /**
+         * Membership
+         * @description ``left`` is (``in``) or is not (``not_in``) one of the literal members or a list.
+         */
+        Membership: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "in" | "not_in";
+            /** Left */
+            left: components["schemas"]["Ref"] | components["schemas"]["LiteralOperand"] | components["schemas"]["CountOperand"];
+            /** Right */
+            right: (string | number | boolean)[] | components["schemas"]["Ref"];
         };
         /**
          * NamePair
@@ -11987,45 +12562,6 @@ export interface components {
             stored: string;
             /** Public */
             public: string;
-        };
-        /** NamedBlueprintBinding */
-        NamedBlueprintBinding: {
-            /** Slot Name */
-            slot_name: string;
-            provider: components["schemas"]["ArtifactNameRef"];
-        };
-        /** NamedBlueprintOrigin */
-        NamedBlueprintOrigin: {
-            /**
-             * Tag
-             * @default cruxible-blueprint-origin-v2
-             * @constant
-             */
-            tag?: "cruxible-blueprint-origin-v2";
-            blueprint: components["schemas"]["ArtifactNameRef"];
-            /** Bindings */
-            bindings: components["schemas"]["NamedBlueprintBinding"][];
-        };
-        /** NamedCallNode */
-        NamedCallNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "call";
-            /** Node Id */
-            node_id: string;
-            /** Provider */
-            provider: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            interface: components["schemas"]["ArtifactNameRef"];
-            /** Effect Policy */
-            effect_policy?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Input */
-            input: unknown;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
         };
         /** NamedCaptureComponents */
         NamedCaptureComponents: {
@@ -12040,14 +12576,21 @@ export interface components {
             coordinate_grammar?: components["schemas"]["ArtifactNameRef"] | null;
             proof_adapter?: components["schemas"]["ArtifactNameRef"] | null;
         };
-        /** NamedCaptureContract */
+        /**
+         * NamedCaptureContract
+         * @description The stored CaptureContract (format v4).
+         *
+         *     ``decoding`` is optional: it declares how the bytes decode for an
+         *     ``extract``, and a Procedure whose extract reads a CaptureContract without
+         *     it is refused when it is accepted.
+         */
         NamedCaptureContract: {
             /**
              * Artifact Format
-             * @default cruxible-capture-contract-v3
+             * @default cruxible-capture-contract-v4
              * @constant
              */
-            artifact_format?: "cruxible-capture-contract-v3";
+            artifact_format?: "cruxible-capture-contract-v4";
             identity: components["schemas"]["ArtifactIdentity"];
             /** Shape */
             shape: ("http_response" | "procedure_output" | "foreign_span" | "database_snapshot") | "coordinator_self_source";
@@ -12065,37 +12608,13 @@ export interface components {
              * @enum {string}
              */
             epistemic_grade?: "observed" | "derived" | "predicted";
+            decoding?: components["schemas"]["CaptureDecoding"] | null;
             /**
              * @default {
              *       "state": "live"
              *     }
              */
             lifecycle?: components["schemas"]["ArtifactLifecycle"];
-        };
-        /** NamedCaptureEgressNode */
-        NamedCaptureEgressNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "emit_capture";
-            /** Node Id */
-            node_id: string;
-            /** Capture Contract */
-            capture_contract: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Input */
-            input: unknown;
-            /** Result */
-            result: unknown;
-        };
-        /** NamedCaptureEventSelector */
-        NamedCaptureEventSelector: {
-            capture_contract_identity: components["schemas"]["ArtifactIdentity"];
-            /**
-             * Logical Sources
-             * @default []
-             */
-            logical_sources?: string[];
         };
         /** NamedCaptureRetentionPolicy */
         NamedCaptureRetentionPolicy: {
@@ -12117,626 +12636,17 @@ export interface components {
              */
             selector_privacy: "direct_allowed" | "pseudonymous_required";
         };
-        /** NamedClaimTapNode */
-        NamedClaimTapNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "state_claim";
-            /** Node Id */
-            node_id: string;
-            claim_type: components["schemas"]["ArtifactNameRef"];
-            /** Subject Kind */
-            subject_kind: string;
-            /** Subject Id */
-            subject_id: unknown;
-            /**
-             * Cardinality
-             * @default one
-             * @enum {string}
-             */
-            cardinality?: "one" | "all";
-            /** Limit */
-            limit?: number | null;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** NamedConstantNode */
-        NamedConstantNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "constant";
-            /** Node Id */
-            node_id: string;
-            /** Fields */
-            fields: unknown;
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** NamedExhaustTapNode */
-        NamedExhaustTapNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "exhaust_tap";
-            /** Node Id */
-            node_id: string;
-            /** Reducer Or Query */
-            reducer_or_query: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Journal Identity */
-            journal_identity: string;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** NamedInvokeNode */
-        NamedInvokeNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "invoke";
-            /** Node Id */
-            node_id: string;
-            procedure: components["schemas"]["ArtifactNameRef"];
-            /** Input */
-            input: unknown;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
         /**
-         * NamedProcedureArtifact
-         * @description Revision-36 writer: dependencies resolve at the accepted coordinate.
+         * NestedType
+         * @description A field holding one record of another Contract version.
          */
-        NamedProcedureArtifact: {
-            identity: components["schemas"]["ArtifactIdentity"];
-            definition: components["schemas"]["NamedProcedureDefinition"];
-            /** Definition Digest */
-            definition_digest: string;
-            /** Owned Contracts */
-            owned_contracts: components["schemas"]["ProcedureOwnedContract"][];
-            /**
-             * Activation Policy
-             * @enum {string}
-             */
-            activation_policy: "drain" | "abort" | "snapshot" | "epoch-check";
-            /**
-             * @default {
-             *       "state": "live"
-             *     }
-             */
-            lifecycle?: components["schemas"]["ArtifactLifecycle"];
+        NestedType: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            artifact_format: "cruxible-procedure-v3";
-            /** Acquisition Policy */
-            acquisition_policy?: string | null;
-            blueprint?: components["schemas"]["NamedBlueprintOrigin"] | null;
-        };
-        /** NamedProcedureDefinition */
-        NamedProcedureDefinition: {
-            /**
-             * Graph Format
-             * @default 7
-             * @constant
-             */
-            graph_format?: 7;
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
-            /** Contract In */
-            contract_in: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Parameter Contract */
-            parameter_contract?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Nodes */
-            nodes: (components["schemas"]["NamedInvokeNode"] | components["schemas"]["NamedClaimTapNode"] | components["schemas"]["NamedStateTapNode"] | components["schemas"]["NamedSourceNode"] | components["schemas"]["NamedExhaustTapNode"] | components["schemas"]["NamedCallNode"] | components["schemas"]["NamedTransformNode"] | components["schemas"]["GuardNode"] | components["schemas"]["NamedProjectNode"] | components["schemas"]["NamedRepeatNode"] | components["schemas"]["NamedCaptureEgressNode"] | components["schemas"]["InboxEgressNode"] | components["schemas"]["NamedProposeChangeSetNode"] | components["schemas"]["NamedSettleChangeSetNode"] | components["schemas"]["HaltNode"] | components["schemas"]["NamedSelectNode"] | components["schemas"]["NamedReturnNode"] | components["schemas"]["NamedConstantNode"])[];
-            /** Returns */
-            returns?: string | null;
-            /**
-             * Pin Slots
-             * @default []
-             */
-            pin_slots?: components["schemas"]["NamedProcedurePinSlot"][];
-            /**
-             * Measurements
-             * @default []
-             */
-            measurements?: components["schemas"]["ProcedureMeasurementDeclaration"][];
-            budget: components["schemas"]["ProcedureBudget"];
-            hard_caps: components["schemas"]["ProcedureHardCaps"];
-            /**
-             * Terminal Capability
-             * @enum {integer}
-             */
-            terminal_capability: 1 | 2 | 3;
-            /** Annotations */
-            annotations?: unknown;
-            source?: components["schemas"]["NamedProcedureSourceProgram"] | null;
-        };
-        /** NamedProcedurePinSlot */
-        NamedProcedurePinSlot: {
-            /**
-             * Tag
-             * @default cruxible-procedure-slot-v2
-             * @constant
-             */
-            tag?: "cruxible-procedure-slot-v2";
-            /** Slot Name */
-            slot_name: string;
-            interface: components["schemas"]["ArtifactNameRef"];
-        };
-        /** NamedProcedureSourceProgram */
-        NamedProcedureSourceProgram: {
-            /**
-             * Rules
-             * @default cruxible.procedure-source.v3
-             * @constant
-             */
-            rules?: "cruxible.procedure-source.v3";
-            /** Text */
-            text: string;
-            /** Filename */
-            filename: string;
-            /**
-             * First Line
-             * @default 1
-             */
-            first_line?: number;
-            /** Function */
-            function: string;
-            /** Contracts */
-            contracts?: {
-                [key: string]: components["schemas"]["SourceContract"];
-            };
-            /** Bindings */
-            bindings?: {
-                [key: string]: components["schemas"]["NamedSourceProviderBinding"] | components["schemas"]["NamedSourceSlotBinding"] | components["schemas"]["NamedSourceQueryBinding"] | components["schemas"]["NamedSourceProcedureBinding"];
-            };
-            /** Claim Types */
-            claim_types?: {
-                [key: string]: components["schemas"]["NamedSourceClaimType"];
-            };
-            /**
-             * Capture Contracts
-             * @default []
-             */
-            capture_contracts?: string[];
-            /**
-             * Subject Kinds
-             * @default []
-             */
-            subject_kinds?: string[];
-            /**
-             * Syntax Rules
-             * @default cruxible.procedure-source.v2
-             * @enum {string}
-             */
-            syntax_rules?: "cruxible.procedure-source.v1" | "cruxible.procedure-source.v2";
-        };
-        /** NamedProjectNode */
-        NamedProjectNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "project";
-            /** Node Id */
-            node_id: string;
-            /** Fields */
-            fields: unknown;
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** NamedProposeChangeSetNode */
-        NamedProposeChangeSetNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "propose_change_set";
-            /** Node Id */
-            node_id: string;
-            /** Candidate Templates */
-            candidate_templates: unknown[] | components["schemas"]["ProposalItemsFanOut"];
-            /**
-             * Claim Types
-             * @default []
-             */
-            claim_types?: components["schemas"]["ArtifactNameRef"][];
-            /** Result */
-            result: unknown;
-        };
-        /** NamedQueryDefinition */
-        NamedQueryDefinition: {
-            /**
-             * Artifact Format
-             * @default cruxible-query-definition-v3
-             * @constant
-             */
-            artifact_format?: "cruxible-query-definition-v3";
-            identity: components["schemas"]["ArtifactIdentity"];
-            /** Description */
-            description?: string | null;
-            /** Entry */
-            entry: components["schemas"]["QueryEntry"] | components["schemas"]["QueryArtifactsEntry"];
-            /**
-             * Traversal
-             * @default []
-             */
-            traversal?: components["schemas"]["QueryTraversalStep"][];
-            /** Where */
-            where?: (components["schemas"]["QueryComparisonFilter"] | components["schemas"]["QueryMembershipFilter"] | components["schemas"]["QueryClaimPresenceFilter"] | components["schemas"]["QueryConjunctionFilter"] | components["schemas"]["QueryDisjunctionFilter"] | components["schemas"]["QueryNegationFilter"]) | null;
-            /** Result Binding */
-            result_binding: string;
-            /**
-             * Result Shape
-             * @enum {string}
-             */
-            result_shape: "subject" | "relation_claim" | "path" | "artifact_definition";
-            /**
-             * Result Cardinality
-             * @enum {string}
-             */
-            result_cardinality: "one" | "many";
-            /**
-             * Dedupe
-             * @enum {string}
-             */
-            dedupe: "subject" | "path" | "none" | "artifact";
-            projection?: components["schemas"]["QueryProjection"] | null;
-            /**
-             * Orderings
-             * @default []
-             */
-            orderings?: components["schemas"]["QueryOrdering"][];
-            /**
-             * Includes
-             * @default []
-             */
-            includes?: components["schemas"]["QueryInclude"][];
-            /**
-             * Parameters
-             * @default []
-             */
-            parameters?: components["schemas"]["QueryParameterDeclaration"][];
-            evaluation_policy: components["schemas"]["QueryEvaluationPolicy"];
-            default_budgets: components["schemas"]["QueryBudgets"];
-            maximum_budgets: components["schemas"]["QueryBudgets"];
-            /**
-             * @default {
-             *       "state": "live"
-             *     }
-             */
-            lifecycle?: components["schemas"]["ArtifactLifecycle"];
-        };
-        /**
-         * NamedQueryDefinitionSpec
-         * @description The pin-less typed authoring form with the same stated defaults.
-         */
-        NamedQueryDefinitionSpec: {
-            /**
-             * Artifact Format
-             * @default cruxible-query-definition-v3
-             * @constant
-             */
-            artifact_format?: "cruxible-query-definition-v3";
-            identity: components["schemas"]["ArtifactIdentity"];
-            /** Description */
-            description?: string | null;
-            /** Entry */
-            entry: components["schemas"]["QueryEntry"] | components["schemas"]["QueryArtifactsEntry"];
-            /**
-             * Traversal
-             * @default []
-             */
-            traversal?: components["schemas"]["QueryTraversalStep"][];
-            /** Where */
-            where?: (components["schemas"]["QueryComparisonFilter"] | components["schemas"]["QueryMembershipFilter"] | components["schemas"]["QueryClaimPresenceFilter"] | components["schemas"]["QueryConjunctionFilter"] | components["schemas"]["QueryDisjunctionFilter"] | components["schemas"]["QueryNegationFilter"]) | null;
-            /** Result Binding */
-            result_binding: string;
-            /**
-             * Result Shape
-             * @enum {string}
-             */
-            result_shape?: "subject" | "relation_claim" | "path" | "artifact_definition";
-            /**
-             * Result Cardinality
-             * @enum {string}
-             */
-            result_cardinality?: "one" | "many";
-            /**
-             * Dedupe
-             * @enum {string}
-             */
-            dedupe?: "subject" | "path" | "none" | "artifact";
-            projection?: components["schemas"]["QueryProjection"] | null;
-            /**
-             * Orderings
-             * @default []
-             */
-            orderings?: components["schemas"]["QueryOrdering"][];
-            /**
-             * Includes
-             * @default []
-             */
-            includes?: components["schemas"]["QueryInclude"][];
-            /**
-             * Parameters
-             * @default []
-             */
-            parameters?: components["schemas"]["QueryParameterDeclaration"][];
-            evaluation_policy?: components["schemas"]["QueryEvaluationPolicy"];
-            default_budgets?: components["schemas"]["QueryBudgets"];
-            maximum_budgets?: components["schemas"]["QueryBudgets"];
-            /**
-             * @default {
-             *       "state": "live"
-             *     }
-             */
-            lifecycle?: components["schemas"]["ArtifactLifecycle"];
-        };
-        /** NamedRepeatBodyNode */
-        NamedRepeatBodyNode: {
-            /** Node Id */
-            node_id: string;
-            /**
-             * Operation
-             * @enum {string}
-             */
-            operation: "call" | "transform";
-            /** Transform Kind */
-            transform_kind?: ("shape_items" | "join_items" | "filter_items" | "aggregate_items" | "dedupe_items" | "adapter") | null;
-            /** Provider */
-            provider?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            interface?: components["schemas"]["ArtifactNameRef"] | null;
-            /** Contract In */
-            contract_in?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Contract Out */
-            contract_out?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Effect Policy */
-            effect_policy?: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Spec */
-            spec: (components["schemas"]["TransformAdapterSpec"] | components["schemas"]["TransformShapeItemsSpec"] | components["schemas"]["TransformFilterItemsSpec"] | components["schemas"]["TransformDedupeItemsSpec"] | components["schemas"]["TransformJoinItemsSpec"] | components["schemas"]["TransformAggregateItemsSpec"]) | unknown;
-            /** As */
-            as: string;
-        };
-        /** NamedRepeatNode */
-        NamedRepeatNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "repeat";
-            /** Node Id */
-            node_id: string;
-            /** Max Attempts */
-            max_attempts: number;
-            /** Body */
-            body: components["schemas"]["NamedRepeatBodyNode"][];
-            until: components["schemas"]["GuardPredicate"];
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** NamedReturnNode */
-        NamedReturnNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "return";
-            /** Node Id */
-            node_id: string;
-            /** Fields */
-            fields: unknown;
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** NamedSelectNode */
-        NamedSelectNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "select";
-            /** Node Id */
-            node_id: string;
-            /** Sources */
-            sources: string[];
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** NamedSettleChangeSetNode */
-        NamedSettleChangeSetNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "settle_change_set";
-            /** Node Id */
-            node_id: string;
-            /** Candidate Templates */
-            candidate_templates: unknown[] | components["schemas"]["ProposalItemsFanOut"];
-            /**
-             * Claim Types
-             * @default []
-             */
-            claim_types?: components["schemas"]["ArtifactNameRef"][];
-            /** Result */
-            result: unknown;
-        };
-        /** NamedSourceClaimType */
-        NamedSourceClaimType: {
-            structure: components["schemas"]["ClaimTypeStructure"];
-        };
-        /** NamedSourceNode */
-        NamedSourceNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "source";
-            /** Node Id */
-            node_id: string;
-            /** Capture Contract */
-            capture_contract: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Provider */
-            provider: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            interface: components["schemas"]["ArtifactNameRef"];
-            /** Request */
-            request: unknown;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** NamedSourceProcedureBinding */
-        NamedSourceProcedureBinding: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "procedure";
-            /** Name */
-            name: string;
-            input: components["schemas"]["ContractSchema"];
-            output: components["schemas"]["ContractSchema"];
-            /**
-             * Capture Terminal
-             * @default false
-             */
-            capture_terminal?: boolean;
-            /**
-             * Required Terminal Rung
-             * @default 0
-             */
-            required_terminal_rung?: number;
-        };
-        /** NamedSourceProviderBinding */
-        NamedSourceProviderBinding: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "provider";
-            /** Provider */
-            provider: string;
-            /** Interface */
-            interface: string;
-            /**
-             * Effect Class
-             * @enum {string}
-             */
-            effect_class: "pure" | "external_read" | "external_mutation";
-            operation: components["schemas"]["ProviderOperationContract"];
-        };
-        /** NamedSourceQueryBinding */
-        NamedSourceQueryBinding: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "query";
-            /** Name */
-            name: string;
-            definition: components["schemas"]["NamedQueryDefinition"];
-        };
-        /** NamedSourceSlotBinding */
-        NamedSourceSlotBinding: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "slot";
-            /** Interface */
-            interface: string;
-            /**
-             * Effect Class
-             * @enum {string}
-             */
-            effect_class: "pure" | "external_read" | "external_mutation";
-            operation: components["schemas"]["ProviderOperationContract"];
-        };
-        /** NamedStateTapNode */
-        NamedStateTapNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "state_tap";
-            /** Node Id */
-            node_id: string;
-            /** Query */
-            query: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Parameters */
-            parameters?: unknown;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-            /**
-             * View
-             * @default typed_query
-             * @constant
-             */
-            view?: "typed_query";
-            budgets?: components["schemas"]["QueryBudgets"] | null;
-        };
-        /** NamedTransformNode */
-        NamedTransformNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "transform";
-            /** Node Id */
-            node_id: string;
-            /**
-             * Transform Kind
-             * @enum {string}
-             */
-            transform_kind: "shape_items" | "join_items" | "filter_items" | "aggregate_items" | "dedupe_items" | "adapter";
-            /** Contract In */
-            contract_in: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactNameRef"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Spec */
-            spec: components["schemas"]["TransformAdapterSpec"] | components["schemas"]["TransformShapeItemsSpec"] | components["schemas"]["TransformFilterItemsSpec"] | components["schemas"]["TransformDedupeItemsSpec"] | components["schemas"]["TransformJoinItemsSpec"] | components["schemas"]["TransformAggregateItemsSpec"];
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
+            kind: "contract";
+            contract: components["schemas"]["ContractRef"];
         };
         /**
          * NewerCaptureNotCitableWarning
@@ -12879,7 +12789,7 @@ export interface components {
              * Operation
              * @enum {string}
              */
-            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.claim-type.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
+            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
             /** Target */
             target: string;
             /** Required Change */
@@ -12920,7 +12830,7 @@ export interface components {
              * Operation
              * @enum {string}
              */
-            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.claim-type.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
+            operation: "cruxible.authoring.example" | "cruxible.authoring.submit" | "cruxible.authoring.bind" | "cruxible.claim.retire" | "cruxible.rebind" | "cruxible.get" | "cruxible.set" | "cruxible.write" | "cruxible.floor.export" | "cruxible.block.depublish" | "cruxible.block.detach" | "cruxible.block.repin" | "cruxible.block.sync" | "cruxible.files.propose" | "cruxible.proposal.readmit" | "cruxible.proposal.approve" | "cruxible.proposal.activate" | "cruxible.compiler.upgrade" | "cruxible.line.enable" | "cruxible.line.evaluate" | "cruxible.line.dispatch" | "cruxible.inbox.list" | "cruxible.prediction.settle" | "cruxible.kit.add" | "hand_edit";
             /** Tool */
             tool: string;
             /**
@@ -13043,7 +12953,7 @@ export interface components {
          *     ``of`` names the unit within the slot: omitted for an inverse keyed by
          *     ``slot`` (the whole one-valued slot), the absent object itself for one keyed
          *     by ``object``, and the key value (a literal in the key ClaimType's canonical
-         *     form) for one keyed by ``object_key``. Only a ClaimType v9 that declares an
+         *     form) for one keyed by ``object_key``. Only a ClaimType that declares an
          *     inverse admits one.
          */
         NoneClaimObject: {
@@ -13056,6 +12966,19 @@ export interface components {
             of?: (components["schemas"]["LiteralClaimObject"] | components["schemas"]["SubjectClaimObject-Output"]) | null;
         };
         /**
+         * NoneNormalizer
+         * @description The key part's value as it is (after its ClaimType's canonical form).
+         */
+        NoneNormalizer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            normalizer: "none";
+            /** Version */
+            version: number;
+        };
+        /**
          * NoneValue
          * @description A none: the field holds nothing; needs a ClaimType inverse and its evidence.
          */
@@ -13065,6 +12988,33 @@ export interface components {
              * @description null, or the value (key) not held.
              */
             none: boolean | number | string | null;
+        };
+        /** Not */
+        Not: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "not";
+            /** Of */
+            of: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
+        };
+        /**
+         * NumberType
+         * @description A number, integral or not. Its canonical encoding is an integer when the value
+         *     is integral and canonical decimal text otherwise, so ``1`` and ``1.0`` are equal
+         *     (:func:`canonical_number`). Bounds are canonical decimal strings, never floats.
+         */
+        NumberType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "number";
+            /** Min */
+            min?: string | null;
+            /** Max */
+            max?: string | null;
         };
         /** ObservationSettlementEvidence */
         ObservationSettlementEvidence: {
@@ -13410,6 +13360,7 @@ export interface components {
             procedure?: string | null;
             /** Line */
             line?: string | null;
+            completeness?: components["schemas"]["RunCompleteness"] | null;
             /**
              * Status
              * @enum {string}
@@ -13473,8 +13424,8 @@ export interface components {
             documents: number;
             /** Queries */
             queries: number;
-            /** Interfaces */
-            interfaces: number;
+            /** Operations */
+            operations: number;
             /**
              * Lines
              * @default 0
@@ -13607,6 +13558,26 @@ export interface components {
              * @default 0
              */
             retired?: number;
+        };
+        /**
+         * OrientContract
+         * @description One accepted Contract version: a data shape every edge is checked against.
+         *
+         *     ``contract`` is ``<name>@<version>``; ``get("Contract:<name>@<version>")``
+         *     reads its fields. ``pins`` names the Contract versions it nests.
+         */
+        OrientContract: {
+            /** Contract */
+            contract: string;
+            /** Fields */
+            fields: number;
+            /** Description */
+            description?: string | null;
+            /**
+             * Pins
+             * @default []
+             */
+            pins?: string[];
         };
         /** OrientDocument */
         OrientDocument: {
@@ -13777,61 +13748,6 @@ export interface components {
             subjects: number;
         };
         /**
-         * OrientInterface
-         * @description One live provider interface a Procedure node can call.
-         *
-         *     ``input`` and ``output`` list the operation contract's fields as
-         *     ``name: type`` (``?`` when optional); an acquisition interface's output is
-         *     the named external-capture contract instead. ``effect`` is the interface's
-         *     governed effect class: an ``external_mutation`` call needs an effect policy
-         *     on its node. ``providers`` names the live Providers implementing it; one
-         *     with none has nothing to run it yet. ``operation_contract`` describes the
-         *     node's input and output. ``produces`` lists the logical source names the
-         *     interface declares its Captures carry (empty when undeclared, as when the
-         *     caller names the source). ``get("ProviderInterface:<name>")`` reads the
-         *     whole accepted entry. Admission records the exact versions selected by name.
-         */
-        OrientInterface: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
-            /**
-             * Input
-             * @default []
-             */
-            input?: string[];
-            /**
-             * Output
-             * @default []
-             */
-            output?: string[];
-            /**
-             * Effect
-             * @enum {string}
-             */
-            effect: "pure" | "external_read" | "external_mutation";
-            /**
-             * Produces
-             * @default []
-             */
-            produces?: string[];
-            /**
-             * Providers
-             * @default []
-             */
-            providers?: components["schemas"]["OrientInterfaceProvider"][];
-            operation_contract?: components["schemas"]["ProviderOperationContract"] | null;
-        };
-        /**
-         * OrientInterfaceProvider
-         * @description One live Provider implementing an interface, and the implementation it pins.
-         */
-        OrientInterfaceProvider: {
-            /** Provider */
-            provider: string;
-        };
-        /**
          * OrientKindDetail
          * @description One kind in full, with a few Subject IDs to read next.
          *
@@ -13934,13 +13850,14 @@ export interface components {
          * OrientMandate
          * @description One mandate row: its grant and state, the ClaimTypes a settle grant covers,
          *     its condition query's ref, the Subject kinds it may create, and ``suspended``
-         *     when its kill switch is on. ``get`` reads the rest.
+         *     when its kill switch is on. ``line`` is the Line it grants. ``get`` reads the
+         *     rest.
          */
         OrientMandate: {
             /** Mandate */
             mandate: string;
-            /** Procedure */
-            procedure: string;
+            /** Line */
+            line: string;
             /**
              * Grants
              * @enum {string}
@@ -13975,6 +13892,38 @@ export interface components {
             suspended?: boolean;
         };
         /**
+         * OrientOperation
+         * @description One operation a live provider build serves: what a Line can bind a slot to.
+         *
+         *     ``input`` and ``output`` name its Contracts (``name@N``); a slot whose
+         *     signature is ``{in: input, out: output, effect}`` fits it. ``build`` is the
+         *     exact build (``Provider:<name>/<build key>``); a Line binding names it as
+         *     ``<build>#<operation>``. ``refusals`` lists the typed refusal codes it may
+         *     return. ``get("Provider:<build>")`` reads the whole build.
+         */
+        OrientOperation: {
+            /** Build */
+            build: string;
+            /** Operation */
+            operation: string;
+            /** Input */
+            input: string;
+            /** Output */
+            output: string;
+            /**
+             * Effect
+             * @enum {string}
+             */
+            effect: "pure" | "external_read" | "external_mutation";
+            /**
+             * Refusals
+             * @default []
+             */
+            refusals?: string[];
+            /** Signature Digest */
+            signature_digest: string;
+        };
+        /**
          * OrientPin
          * @description One dependency of a live definition, identified by source, field and target.
          *
@@ -13999,9 +13948,9 @@ export interface components {
          * @description One predicate of a kind: compact by default, in full under ``orient(kind=...)``.
          *
          *     ``name`` is the short name a query field uses against this kind; ``predicate``
-         *     is the full ClaimType predicate. ``type`` is the value type: a JSON type,
-         *     ``date``/``datetime``, ``enum`` (with ``members``), ``subject`` or
-         *     ``subject:<kinds>`` for a Subject-valued predicate, or ``exact_content``.
+         *     is the full ClaimType predicate. ``type`` is the native Contract type spelling,
+         *     including enum members and
+         *     ``subject<K1 | K2>`` for a Subject-valued predicate.
          *     ``evidence`` names the CaptureContracts the ClaimType admits; a digest that
          *     names no accepted contract shows as ``unresolved:<short digest>``.
          *     ``None`` (omitted on the wire) inherits the kind's evidence set; an empty
@@ -14014,10 +13963,10 @@ export interface components {
          *     Claim's own origin supports it; ``captured``: a Capture under a declared
          *     contract is required). A full descriptor also carries each described enum
          *     member, the role a write defaults to, and ``revision_evidence``: what a
-         *     statement-changing revision keeps (``accumulate`` before v7).
+         *     statement-changing revision keeps.
          *     A full descriptor also names how the ClaimType settles rival Claims
-         *     (``contention``), its format version (``format``: 7 for
-         *     ``playbill-claim-type-v7``), its accepted ``revision`` and its ledger
+         *     (``contention``), its format version (``format``: 10 for
+         *     ``cruxible-claim-type-v11``), its accepted ``revision`` and its ledger
          *     ``path``, which a kit's drifted paths name. Under ``orient(kind=K)`` a
          *     descriptor counts the kind's ``live_claims`` of the predicate and
          *     ``subjects_with_value``: its live Subjects with at least one, both read
@@ -14138,7 +14087,7 @@ export interface components {
          *       ``artifacts``, ``queries`` and ``attention``;
          *     - ``kind``: ``kind_detail``;
          *     - ``section``: that section's rows (``documents``, ``procedures``,
-         *       ``claim_types``, ``subject_kinds``, ``queries``, ``interfaces``, or an
+         *       ``claim_types``, ``subject_kinds``, ``queries``, ``operations``, or an
          *       operational family:
          *       ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,
          *       ``predictions``, ``mandates``), the logical sources runs landed
@@ -14184,7 +14133,7 @@ export interface components {
             attention?: components["schemas"]["OrientAttention"] | null;
             kind_detail?: components["schemas"]["OrientKindDetail"] | null;
             /** Section */
-            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources") | null;
+            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "operations" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources" | "contracts") | null;
             /** Documents */
             documents?: components["schemas"]["OrientDocument"][] | null;
             /** Procedures */
@@ -14193,10 +14142,12 @@ export interface components {
             claim_types?: components["schemas"]["OrientPredicate"][] | null;
             /** Subject Kinds */
             subject_kinds?: components["schemas"]["OrientSubjectKind"][] | null;
+            /** Contracts */
+            contracts?: components["schemas"]["OrientContract"][] | null;
             /** Queries */
             queries?: components["schemas"]["OrientQuery"][] | null;
-            /** Interfaces */
-            interfaces?: components["schemas"]["OrientInterface"][] | null;
+            /** Operations */
+            operations?: components["schemas"]["OrientOperation"][] | null;
             /** Runs */
             runs?: components["schemas"]["RunRow"][] | null;
             /** Lines */
@@ -14352,6 +14303,28 @@ export interface components {
             can_author: boolean;
             authoring_refusal?: components["schemas"]["AuthoringRefusal"] | null;
         };
+        /**
+         * OriginatingLine
+         * @description The root Line and exact accepted version responsible for a proposal.
+         */
+        OriginatingLine: {
+            identity: components["schemas"]["ArtifactIdentity"];
+            /** Artifact Digest */
+            artifact_digest: string;
+        };
+        /**
+         * Pep503Normalizer
+         * @description A Python package name in its PEP 503 normal form.
+         */
+        Pep503Normalizer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            normalizer: "pep503";
+            /** Version */
+            version: number;
+        };
         /** PolicyInForce */
         PolicyInForce: {
             /**
@@ -14369,7 +14342,7 @@ export interface components {
              * Policy Kind
              * @enum {string}
              */
-            policy_kind: "approval_policy" | "procedure_runtime_policy" | "source_acquisition_policy" | "claim_evidence_admission_policy" | "claim_admission_policy" | "claim_resolution_policy" | "claim_evidence_freshness_policy" | "claim_attestation_consequence_policy" | "capture_retention_erasure_policy" | "query_evaluation_policy" | "document_activation_policy" | "procedure_activation_policy" | "trigger_schedule";
+            policy_kind: "approval_policy" | "procedure_runtime_policy" | "claim_evidence_admission_policy" | "claim_admission_policy" | "claim_resolution_policy" | "claim_evidence_freshness_policy" | "claim_attestation_consequence_policy" | "capture_retention_erasure_policy" | "query_evaluation_policy" | "document_activation_policy" | "procedure_activation_policy" | "trigger_schedule";
             /** Declaring Artifact Identity */
             declaring_artifact_identity: string;
             /** Declaring Artifact Kind */
@@ -14384,36 +14357,6 @@ export interface components {
             policy: {
                 [key: string]: unknown;
             };
-        };
-        /**
-         * PredicateOperand
-         * @description One operand in the closed predicate grammar.
-         */
-        PredicateOperand: {
-            /**
-             * Tag
-             * @default playbill-predicate-operand-v1
-             * @constant
-             */
-            tag?: "playbill-predicate-operand-v1";
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "literal" | "input" | "step" | "parameter" | "count" | "exists" | "truncated";
-            /** Value */
-            value?: boolean | number | string | null;
-            /** Input Name */
-            input_name?: string | null;
-            /** Alias */
-            alias?: string | null;
-            /**
-             * Path
-             * @default []
-             */
-            path?: string[];
-            /** Parameter Name */
-            parameter_name?: string | null;
         };
         /** PredictRequest */
         PredictRequest: {
@@ -14582,6 +14525,18 @@ export interface components {
             frontier_limits?: components["schemas"]["DiagnosticFrontierLimits"];
             /** Certificate Digest */
             certificate_digest: string;
+        };
+        /**
+         * Presence
+         * @description Whether the referenced value is ``present`` (or ``absent``).
+         */
+        Presence: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "absent" | "present";
+            of: components["schemas"]["Ref"];
         };
         /**
          * PresentationPolicy
@@ -14780,7 +14735,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "unsupported_node" | "not_current" | "artifact_binding_mismatch" | "pin_binding_mismatch" | "input_material_mismatch" | "state_tap_refused" | "replay_material_mismatch" | "procedure_runtime_policy_absent" | "provider_replay_receipt_required" | "exhaust_binding_carrier_required" | "source_acquisition_policy_required" | "source_acquisition_refused" | "evaluation_instant_skewed" | "line_identity_mismatch" | "line_not_accepted" | "line_closure_incomplete" | "line_mandate_required" | "occurrence_id_mismatch" | "occurrence_not_due" | "occurrence_already_admitted" | "trigger_capture_stale" | "trigger_capture_unavailable" | "trigger_capture_over_budget" | "trigger_capture_forbidden" | "trigger_capture_invalid" | "trigger_capture_not_yet_observed" | "trigger_event_precedes_acceptance" | "line_binding_superseded" | "line_trigger_mismatch" | "cruxible.procedure.slot_binding_missing" | "cruxible.procedure.slot_binding_ambiguous" | "cruxible.procedure.slot_undeclared";
+            code: "unsupported_node" | "not_current" | "artifact_binding_mismatch" | "pin_binding_mismatch" | "input_material_mismatch" | "state_tap_refused" | "read_ceiling_exceeded" | "query_contract_violated" | "replay_material_mismatch" | "procedure_runtime_policy_absent" | "provider_replay_receipt_required" | "exhaust_binding_carrier_required" | "source_acquisition_refused" | "evaluation_instant_skewed" | "line_identity_mismatch" | "line_not_accepted" | "line_closure_incomplete" | "line_mandate_required" | "occurrence_id_mismatch" | "occurrence_not_due" | "occurrence_already_admitted" | "trigger_capture_stale" | "trigger_capture_unavailable" | "trigger_capture_over_budget" | "trigger_capture_forbidden" | "trigger_capture_invalid" | "trigger_capture_not_yet_observed" | "trigger_event_precedes_acceptance" | "line_binding_superseded" | "line_trigger_mismatch" | "cruxible.line.slot_unfilled" | "cruxible.line.slot_ambiguous" | "cruxible.procedure.slot_undeclared";
             /** Message */
             message: string;
             /** Details */
@@ -14795,20 +14750,25 @@ export interface components {
         };
         /**
          * ProcedureArtifact
-         * @description Procedure envelope whose Contract closure rides with its owner.
+         * @description The one Procedure envelope: one named graph.
          *
-         *     ``blueprint`` records the Blueprint it was instantiated from and the exact
-         *     Provider bound to each slot; it is provenance, not a dependency.
+         *     Every dependency the graph names -- its input, output and parameter
+         *     Contracts included, which are governed Contracts -- resolves at the
+         *     accepted coordinate; the envelope itself pins nothing and carries no
+         *     Contracts. Acquisition rules are not the Procedure's:
+         *     its Line declares them per capture output (``<alias>.<field>``).
          */
         ProcedureArtifact: {
+            /**
+             * Artifact Format
+             * @default cruxible-procedure-v4
+             * @constant
+             */
+            artifact_format?: "cruxible-procedure-v4";
             identity: components["schemas"]["ArtifactIdentity"];
             definition: components["schemas"]["ProcedureDefinition"];
             /** Definition Digest */
             definition_digest: string;
-            /** Pins */
-            pins: components["schemas"]["ArtifactPin"][];
-            /** Owned Contracts */
-            owned_contracts: components["schemas"]["ProcedureOwnedContract"][];
             /**
              * Activation Policy
              * @enum {string}
@@ -14820,29 +14780,24 @@ export interface components {
              *     }
              */
             lifecycle?: components["schemas"]["ArtifactLifecycle"];
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            artifact_format: "playbill-procedure-v2";
-            /** Acquisition Policy */
-            acquisition_policy?: string | null;
-            blueprint?: components["schemas"]["BlueprintOrigin"] | null;
         };
         /**
          * ProcedureAuthoringPayload
-         * @description A Procedure input with an optional acquisition policy name.
+         * @description A lowered Procedure: its stored graph and the boundary Contracts core co-proposes.
          *
-         *     Omitted names inherit SourceAcquisitionPolicy:default. An explicit name is
-         *     checked at authoring and resolved at run admission; the envelope does not
-         *     pin policy bytes. The admission records the resolved digest for replay.
+         *     ``generated`` holds the inline fields of each boundary (``input``,
+         *     ``output``, ``params``) the spec declared inline; lowering co-proposes the
+         *     governed Contract ``<procedure>.<role>@N`` for each, versioned with the
+         *     Procedure (a successor reuses version N when its fields are unchanged), and
+         *     points the definition at it. A boundary the spec names (``name@N``) is not
+         *     here. Acquisition rules are not the Procedure's: its Line declares them.
          */
         ProcedureAuthoringPayload: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-procedure-authoring-payload-v2";
+            tag: "cruxible-procedure-authoring-payload-v5";
             /** Definition */
             definition: {
                 [key: string]: unknown;
@@ -14852,10 +14807,12 @@ export interface components {
              * @enum {string}
              */
             activation_policy: "drain" | "abort" | "snapshot" | "epoch-check";
-            /** Owned Contracts */
-            owned_contracts: components["schemas"]["ProcedureOwnedContract"][];
-            /** Acquisition Policy */
-            acquisition_policy?: string | null;
+            /** Generated */
+            generated?: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["ContractField"];
+                };
+            };
             /**
              * Retire
              * @default false
@@ -14879,6 +14836,8 @@ export interface components {
             max_result_bytes?: number | null;
             /** Max Items */
             max_items?: number | null;
+            /** Max Read Rows */
+            max_read_rows?: number | null;
         };
         /** ProcedureBudgetBoundaryObservation */
         ProcedureBudgetBoundaryObservation: {
@@ -14990,44 +14949,45 @@ export interface components {
         };
         /**
          * ProcedureDefinition
-         * @description The one Procedure graph format (6): explicit value joins and typed return paths.
+         * @description The one Procedure graph: explicit value joins and typed return paths.
          *
-         *     Slots (``pin_slots`` plus slot references in node pins) are interface-typed
-         *     binding points. Only a Blueprint may leave them open; an accepted Procedure
-         *     pins every Provider exactly.
+         *     Every dependency field names a governed identity; an execution plan
+         *     resolves each to its exact pin at the run's accepted coordinate.
+         *     ``slots`` declares each provider-calling node's signature ``{in, out,
+         *     effect}`` by name. The Procedure never names a provider; a Line binds every
+         *     slot to one exact build and operation when it is accepted.
          */
         ProcedureDefinition: {
             /**
              * Graph Format
-             * @default 6
+             * @default 8
              * @constant
              */
-            graph_format?: 6;
+            graph_format?: 8;
             /** Name */
             name: string;
             /** Description */
             description?: string | null;
-            /** Contract In */
-            contract_in: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Parameter Contract */
-            parameter_contract?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            contract_in: components["schemas"]["ArtifactNameRef"];
+            contract_out: components["schemas"]["ArtifactNameRef"];
+            parameter_contract?: components["schemas"]["ArtifactNameRef"] | null;
+            /** Parameter Defaults */
+            parameter_defaults?: {
+                [key: string]: unknown;
+            };
             /** Nodes */
-            nodes: (components["schemas"]["InvokeNode"] | components["schemas"]["ClaimTapNode"] | components["schemas"]["StateTapNode"] | components["schemas"]["SourceNode"] | components["schemas"]["ExhaustTapNode"] | components["schemas"]["CallNode"] | components["schemas"]["TransformNode"] | components["schemas"]["GuardNode"] | components["schemas"]["ProjectNode"] | components["schemas"]["RepeatNode"] | components["schemas"]["CaptureEgressNode"] | components["schemas"]["InboxEgressNode"] | components["schemas"]["ProposeChangeSetNode"] | components["schemas"]["SettleChangeSetNode"] | components["schemas"]["HaltNode"] | components["schemas"]["SelectNode"] | components["schemas"]["ReturnNode"] | components["schemas"]["ConstantNode"])[];
+            nodes: (components["schemas"]["InvokeNode"] | components["schemas"]["ReadNode"] | components["schemas"]["CallNode"] | components["schemas"]["ExtractNode"] | components["schemas"]["TransformNode"] | components["schemas"]["GuardNode"] | components["schemas"]["ProjectNode"] | components["schemas"]["RepeatNode"] | components["schemas"]["CaptureEgressNode"] | components["schemas"]["InboxEgressNode"] | components["schemas"]["ClaimsNode"] | components["schemas"]["HaltNode"] | components["schemas"]["SelectNode"])[];
             /** Returns */
             returns?: string | null;
-            /**
-             * Pin Slots
-             * @default []
-             */
-            pin_slots?: components["schemas"]["ProcedurePinSlot"][];
+            /** Slots */
+            slots?: {
+                [key: string]: components["schemas"]["ProcedureSlot"];
+            };
             /**
              * Measurements
              * @default []
              */
             measurements?: components["schemas"]["ProcedureMeasurementDeclaration"][];
-            budget: components["schemas"]["ProcedureBudget"];
             hard_caps: components["schemas"]["ProcedureHardCaps"];
             /**
              * Terminal Capability
@@ -15036,7 +14996,6 @@ export interface components {
             terminal_capability: 1 | 2 | 3;
             /** Annotations */
             annotations?: unknown;
-            source?: components["schemas"]["ProcedureSourceProgram"] | null;
         };
         /**
          * ProcedureEgressCaptureEvidence
@@ -15079,51 +15038,6 @@ export interface components {
              */
             message?: string;
         };
-        /**
-         * ProcedureField
-         * @description Strict authored schema; retained PropertySchema encodings stay frozen.
-         */
-        ProcedureField: {
-            /**
-             * Type
-             * @default string
-             * @enum {string}
-             */
-            type?: "string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list";
-            /**
-             * Primary Key
-             * @default false
-             */
-            primary_key?: boolean;
-            /**
-             * Indexed
-             * @default false
-             */
-            indexed?: boolean;
-            /**
-             * Optional
-             * @default false
-             */
-            optional?: boolean;
-            /** Required */
-            required?: boolean | null;
-            /** Default */
-            default?: unknown | null;
-            /** Enum */
-            enum?: unknown[] | null;
-            /** Enum Ref */
-            enum_ref?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Json Schema */
-            json_schema?: {
-                [key: string]: unknown;
-            } | null;
-            /** Item Fields */
-            item_fields?: {
-                [key: string]: components["schemas"]["PropertySchema"];
-            } | null;
-        };
         /** ProcedureHaltTerminal */
         ProcedureHaltTerminal: {
             /**
@@ -15164,37 +15078,32 @@ export interface components {
             max_items: number;
             /** Max Repeat Attempts */
             max_repeat_attempts: number;
+            /**
+             * Max Read Rows
+             * @default 100000
+             */
+            max_read_rows?: number;
         };
-        /** ProcedureInput */
+        /**
+         * ProcedureInput
+         * @description A Procedure, authored in the one typed form: a :class:`ProcedureSpec`.
+         *
+         *     The stored Procedure graph is produced by lowering the spec; a graph is
+         *     never authored directly, and the retired Python source request is refused
+         *     (``procedure_authoring_form_retired``).
+         */
         ProcedureInput: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             kind: "procedure";
-            /** Definition */
-            definition?: {
-                [key: string]: unknown;
-            };
-            spec?: components["schemas"]["ProcedureSpec"] | null;
-            /**
-             * Activation Policy
-             * @default snapshot
-             * @enum {string}
-             */
-            activation_policy?: "drain" | "abort" | "snapshot" | "epoch-check";
+            spec: components["schemas"]["ProcedureSpec"];
             /**
              * Retire
              * @default false
              */
             retire?: boolean;
-            /**
-             * Contracts
-             * @default []
-             */
-            contracts?: components["schemas"]["CarriedContractInput"][];
-            /** Acquisition Policy */
-            acquisition_policy?: string | null;
         };
         /** ProcedureInternalFailure */
         ProcedureInternalFailure: {
@@ -15213,7 +15122,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "unexpected_exception" | "journal_integrity_error" | "run_record_invalid" | "compiler_invariant_broken" | "provider_refusal_taxonomy_unknown" | "unknown_manifest_field" | "manifest_divergence" | "acceptance_divergence" | "unaccepted_provider" | "undeclared_interface" | "ambiguous_implementation" | "unknown_interface" | "interface_digest_mismatch" | "bucket_fixture_missing" | "invalid_bucket_vocabulary" | "unknown_run_context_field" | "provider_protocol_violation" | "lock_mismatch" | "lock_bytes_mismatch" | "lock_missing_hash" | "lock_ambiguous_fork" | "index_not_pinned" | "index_redirect" | "artifact_hash_mismatch" | "cache_integrity" | "environment_divergence" | "undeclared_egress" | "secret_leak" | "non_finite_output" | "non_finite_result" | "image_provenance_mismatch" | "provider_runtime_not_in_materialization" | "provider_process_lease_invalid" | "provider_process_lease_missing" | "provider_process_lease_echo_failed" | "provider_process_lease_echo_mismatch" | "provider_process_group_survived_recovery";
+            code: "unexpected_exception" | "journal_integrity_error" | "run_record_invalid" | "compiler_invariant_broken" | "provider_refusal_taxonomy_unknown" | "unknown_manifest_field" | "manifest_divergence" | "acceptance_divergence" | "unaccepted_provider" | "undeclared_operation" | "undeclared_refusal" | "unknown_run_context_field" | "provider_protocol_violation" | "lock_mismatch" | "lock_bytes_mismatch" | "lock_missing_hash" | "lock_ambiguous_fork" | "index_not_pinned" | "index_redirect" | "artifact_hash_mismatch" | "cache_integrity" | "environment_divergence" | "undeclared_egress" | "secret_leak" | "non_finite_output" | "image_provenance_mismatch" | "provider_runtime_not_in_materialization" | "provider_process_lease_invalid" | "provider_process_lease_missing" | "provider_process_lease_echo_failed" | "provider_process_lease_echo_mismatch" | "provider_process_group_survived_recovery";
             /** Message */
             message: string;
             /** Correlation Id */
@@ -15243,7 +15152,10 @@ export interface components {
             /** Record Digest */
             record_digest: string;
         };
-        /** ProcedureLimits */
+        /**
+         * ProcedureLimits
+         * @description A Procedure's hard caps as authored (lowered to ``ProcedureHardCaps``).
+         */
         ProcedureLimits: {
             /**
              * Wall Clock
@@ -15269,6 +15181,8 @@ export interface components {
              * @default 1
              */
             repeat_attempts?: number;
+            /** Read Rows */
+            read_rows?: number | null;
         };
         /**
          * ProcedureMandateAuthoringPayload
@@ -15279,17 +15193,16 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-procedure-mandate-authoring-payload-v1";
+            tag: "cruxible-procedure-mandate-authoring-payload-v3";
             /** Name */
             name: string;
-            /** Procedure Name */
-            procedure_name: string;
+            /** Line Name */
+            line_name: string;
             /**
              * Grants
              * @enum {string}
              */
             grants: "propose" | "settle";
-            resource_ceiling: components["schemas"]["ProcedureHardCaps"];
             /** Namespace */
             namespace: string[];
             /**
@@ -15309,6 +15222,8 @@ export interface components {
             scope?: components["schemas"]["MandateScopeAuthoring"][];
             /** Subject Scope */
             subject_scope?: components["schemas"]["SemanticAddress"][] | null;
+            /** Subjects */
+            subjects?: "expected" | null;
             condition?: components["schemas"]["MandateConditionAuthoring"] | null;
             /**
              * Subject Creation
@@ -15330,17 +15245,23 @@ export interface components {
          * ProcedureMandateInput
          * @description A propose grant, or a settle grant with its Claim scope and condition query.
          *
-         *     ``grants`` is the verb the mandate delegates. A settle grant names the
-         *     ClaimTypes (by predicate) and change kinds it covers and the accepted query
-         *     that decides each target; lowering pins every exact digest.
+         *     ``line_name`` names the Line the grant authorizes (accepted, or defined in
+         *     the same set); lowering pins its exact digest, so changing the Line's
+         *     Procedure version, parameters or bindings renews the grant. ``grants`` is
+         *     the verb the mandate delegates. A settle grant names the ClaimTypes (by
+         *     predicate), per change kind the evidence bases that settle, an optional
+         *     ``value: {from, to}`` for enum and bool ClaimTypes, and an optional accepted
+         *     condition query (which may bind ``$target.value`` and ``$target.before``);
+         *     lowering pins every exact digest. ``subjects: expected`` limits the grant
+         *     to Subjects the Line's claims templates fence with ``within``.
          */
         ProcedureMandateInput: {
             /**
              * Tag
-             * @default playbill-procedure-mandate-input-v1
+             * @default cruxible-procedure-mandate-input-v3
              * @constant
              */
-            tag?: "playbill-procedure-mandate-input-v1";
+            tag?: "cruxible-procedure-mandate-input-v3";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -15348,14 +15269,13 @@ export interface components {
             kind: "procedure_mandate";
             /** Name */
             name: string;
-            /** Procedure Name */
-            procedure_name: string;
+            /** Line Name */
+            line_name: string;
             /**
              * Grants
              * @enum {string}
              */
             grants: "propose" | "settle";
-            resource_ceiling: components["schemas"]["ProcedureHardCaps"];
             /** Namespace */
             namespace: string[];
             /**
@@ -15375,6 +15295,8 @@ export interface components {
             scope?: components["schemas"]["MandateScopeAuthoring"][];
             /** Subject Scope */
             subject_scope?: components["schemas"]["SemanticAddress"][] | null;
+            /** Subjects */
+            subjects?: "expected" | null;
             condition?: components["schemas"]["MandateConditionAuthoring"] | null;
             /**
              * Subject Creation
@@ -15750,7 +15672,14 @@ export interface components {
              */
             tags?: string[];
         };
-        /** ProcedureNodeRefusal */
+        /**
+         * ProcedureNodeRefusal
+         * @description One node's refusal.
+         *
+         *     ``detail_code`` carries an authored code: for ``guard_refused`` the guard's,
+         *     for ``operation_refused`` the refusal code the bound provider operation
+         *     declares (its own vocabulary, with ``details`` its declared detail).
+         */
         ProcedureNodeRefusal: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -15767,7 +15696,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "guard_refused" | "repeat_exhausted" | "budget_exhausted" | "runtime_reference_unresolved" | "contract_input_refused" | "contract_output_refused" | "adapter_value_invalid" | "shape_items_input_invalid" | "filter_items_input_invalid" | "dedupe_items_input_invalid" | "join_items_left_input_invalid" | "join_items_right_input_invalid" | "aggregate_items_input_invalid" | "result_not_canonical" | "line_binding_required" | "source_acquisition_unavailable" | "source_material_unavailable" | "terminal_not_available" | "terminal_egress_unverified" | "proposal_item_invalid" | "proposal_item_evidence_missing" | "proposal_item_evidence_ambiguous" | "inbox_item_invalid" | "inbox_item_evidence_ambiguous" | "inbox_item_over_budget" | "proposal_lowering_refused" | "proposal_candidate_refused" | "settle_mandate_missing" | "settle_mandate_ambiguous" | "settle_condition_refused" | "settle_publication_refused" | "proposal_target_paths_mismatch" | "proposal_receipt_incomplete" | "effectful_operation_payload_mismatch" | "procedure_mandate_required" | "procedure_mandate_superseded" | "procedure_mandate_expired" | "procedure_mandate_procedure_mismatch" | "procedure_mandate_grant_insufficient" | "procedure_mandate_authority_ceiling_insufficient" | "procedure_mandate_namespace_mismatch" | "procedure_mandate_not_applicable" | "procedure_authority_admission_invalid" | "procedure_authority_admission_mismatch" | "provider_unavailable" | "unclassified_input" | "unclaimed_bucket" | "cruxible.acquisition.unavailable" | "cruxible.acquisition.stale" | "cruxible.acquisition.oversized" | "cruxible.acquisition.refused" | "effect_grant_unrecognized" | "effect_dispatch_requires_actor" | "effect_dispatch_requires_authenticated_actor" | "terminal_authority_capped_by_procedure_terminal_capability" | "terminal_authority_capped_by_line_max_authority" | "terminal_authority_capped_by_propagated_sensitivity" | "terminal_authority_capped_by_mandate_grant" | "provider_acquisition_plan_required" | "provider_acquisition_plan_mismatch" | "workspace_file_read_refused" | "provider_effect_declaration_mismatch" | "classifier_not_installed" | "classifier_digest_mismatch" | "unknown_extra" | "budget_wall_clock" | "budget_output_size" | "budget_cost" | "provider_declined" | "secret_bundle_too_large" | "insufficient_series_length" | "non_finite_input" | "degenerate_scale" | "mismatched_lengths" | "unknown_method" | "unknown_test_name" | "declared_family_mismatch" | "unsupported_aggregation" | "unknown_column" | "malformed_model_ref" | "undeclared_match_parameters" | "invalid_parameter" | "cross_origin_credentialed_redirect" | "unsupported_redirect_scheme" | "redirect_limit" | "provider_protocol_violation";
+            code: "guard_refused" | "decode_invalid" | "decoded_limit_exceeded" | "extract.header_invalid@1" | "extract_decoding_undeclared" | "extract_duplicate_key" | "extract_format_unsupported" | "read_ceiling_exceeded" | "query_contract_violated" | "repeat_exhausted" | "budget_exhausted" | "runtime_reference_unresolved" | "contract_input_refused" | "contract_output_refused" | "result_not_canonical" | "line_binding_required" | "source_acquisition_unavailable" | "source_material_unavailable" | "terminal_not_available" | "terminal_egress_unverified" | "proposal_item_invalid" | "claims_absence_invalid" | "claims_expect_outside_only_keys" | "claims_enumeration_invalid" | "claims_expect_provider_enumeration_unsupported" | "claims_inverse_unit_unresolved" | "claims_absence_binding_invalid" | "proposal_item_evidence_missing" | "proposal_item_evidence_ambiguous" | "inbox_item_invalid" | "inbox_item_evidence_ambiguous" | "inbox_item_over_budget" | "proposal_lowering_refused" | "proposal_candidate_refused" | "settle_mandate_missing" | "settle_mandate_ambiguous" | "settle_condition_refused" | "settle_publication_refused" | "proposal_target_paths_mismatch" | "proposal_receipt_incomplete" | "effectful_operation_payload_mismatch" | "procedure_mandate_required" | "procedure_mandate_superseded" | "procedure_mandate_expired" | "procedure_mandate_procedure_mismatch" | "procedure_mandate_grant_insufficient" | "procedure_mandate_namespace_mismatch" | "procedure_mandate_not_applicable" | "procedure_authority_admission_invalid" | "procedure_authority_admission_mismatch" | "provider_unavailable" | "cruxible.acquisition.unavailable" | "cruxible.acquisition.stale" | "cruxible.acquisition.oversized" | "cruxible.acquisition.refused" | "cruxible.acquisition.replayability_ineligible" | "cruxible.acquisition.origin_ineligible" | "effect_grant_unrecognized" | "effect_dispatch_requires_actor" | "effect_dispatch_requires_authenticated_actor" | "terminal_authority_capped_by_procedure_terminal_capability" | "terminal_authority_capped_by_line_max_authority" | "terminal_authority_capped_by_propagated_sensitivity" | "terminal_authority_capped_by_mandate_grant" | "provider_acquisition_plan_required" | "provider_acquisition_plan_mismatch" | "workspace_file_read_refused" | "provider_effect_declaration_mismatch" | "unknown_extra" | "budget_wall_clock" | "budget_output_size" | "budget_cost" | "secret_bundle_too_large" | "operation_refused" | "provider_protocol_violation";
             /** Message */
             message: string;
             /** Node Id */
@@ -15836,122 +15765,27 @@ export interface components {
             repair: components["schemas"]["RepairOperation"] | components["schemas"]["HandEditRepair"];
         };
         /**
-         * ProcedureOwnedContract
-         * @description A closed Contract artifact carried by exactly one Procedure envelope.
-         */
-        ProcedureOwnedContract: {
-            /**
-             * Tag
-             * @default playbill-procedure-owned-contract-v1
-             * @constant
-             */
-            tag?: "playbill-procedure-owned-contract-v1";
-            identity: components["schemas"]["ArtifactIdentity"];
-            schema: components["schemas"]["ContractSchema"];
-        };
-        /**
-         * ProcedurePinSlot
-         * @description One interface-typed binding point; it never chooses an implementation.
-         */
-        ProcedurePinSlot: {
-            /**
-             * Tag
-             * @default playbill-procedure-pin-slot-v1
-             * @constant
-             */
-            tag?: "playbill-procedure-pin-slot-v1";
-            /** Slot Name */
-            slot_name: string;
-            /** Pin Role */
-            pin_role: string;
-            /** Artifact Kind */
-            artifact_kind: string;
-            /** Interface Digest */
-            interface_digest: string;
-        };
-        /** ProcedurePinSlotRef */
-        ProcedurePinSlotRef: {
-            /**
-             * Tag
-             * @default playbill-procedure-pin-slot-ref-v1
-             * @constant
-             */
-            tag?: "playbill-procedure-pin-slot-ref-v1";
-            /** Slot Name */
-            slot_name: string;
-        };
-        /**
          * ProcedureProviderBinding
-         * @description Successor binding carrying the full classification and RAT-9 authority.
+         * @description What one slotted node binds at admission: its slot's exact build and operation.
+         *
+         *     The binding is the Line's (or, for a direct run, the request's ephemeral
+         *     spec), never chosen at run time.
          */
         ProcedureProviderBinding: {
             /**
              * Tag
-             * @default playbill-procedure-provider-binding-v2
+             * @default cruxible-procedure-provider-binding-v4
              * @constant
              */
-            tag?: "playbill-procedure-provider-binding-v2";
+            tag?: "cruxible-procedure-provider-binding-v4";
             /** Node Id */
             node_id: string;
-            /** Provider Artifact Digest */
-            provider_artifact_digest: string;
-            classification_plan: components["schemas"]["ProviderBucketClassificationPlan"];
-            /** Implementation Digest */
-            implementation_digest: string;
-            /**
-             * Effect Class
-             * @enum {string}
-             */
-            effect_class: "pure" | "external_read" | "external_mutation" | "none";
-            /** Secret Binding Identity Digests */
-            secret_binding_identity_digests: string[];
-        };
-        /** ProcedureProviderBindingV1 */
-        ProcedureProviderBindingV1: {
-            /**
-             * Tag
-             * @default playbill-procedure-provider-binding-v1
-             * @constant
-             */
-            tag?: "playbill-procedure-provider-binding-v1";
-            /** Node Id */
-            node_id: string;
-            /** Provider Artifact Digest */
-            provider_artifact_digest: string;
-            /** Interface Artifact Digest */
-            interface_artifact_digest: string;
-            /** Interface Digest */
-            interface_digest: string;
-            /** Classifier Digest */
-            classifier_digest: string;
-            /** Accepted Bucket Selectors */
-            accepted_bucket_selectors: string[];
-            /** Implementation Digest */
-            implementation_digest: string;
-            /** Secret Binding Identity Digests */
-            secret_binding_identity_digests: string[];
-        };
-        /**
-         * ProcedureProviderBindingV3
-         * @description What one Provider node binds at admission: the interface, by identity and
-         *     contract digest, and the exact Provider implementation that serves it.
-         *
-         *     No classification plan: core classifies no input, so a run binds no bucket
-         *     vocabulary, classifier or admitted selectors. Binding v1 and v2 stay readable
-         *     for the runs admitted under them.
-         */
-        ProcedureProviderBindingV3: {
-            /**
-             * Tag
-             * @default playbill-procedure-provider-binding-v3
-             * @constant
-             */
-            tag?: "playbill-procedure-provider-binding-v3";
-            /** Node Id */
-            node_id: string;
-            interface: components["schemas"]["ArtifactIdentity"];
-            /** Interface Digest */
-            interface_digest: string;
+            /** Slot */
+            slot: string;
+            /** Operation */
+            operation: string;
+            /** Operation Signature Digest */
+            operation_signature_digest: string;
             /** Provider Artifact Digest */
             provider_artifact_digest: string;
             /** Implementation Digest */
@@ -15960,7 +15794,7 @@ export interface components {
              * Effect Class
              * @enum {string}
              */
-            effect_class: "pure" | "external_read" | "external_mutation" | "none";
+            effect_class: "pure" | "external_read" | "external_mutation";
             /** Secret Binding Identity Digests */
             secret_binding_identity_digests: string[];
         };
@@ -15971,10 +15805,10 @@ export interface components {
         ProcedureReadiness: {
             /**
              * Tag
-             * @default playbill-procedure-readiness-result-v1
+             * @default playbill-procedure-readiness-result-v2
              * @constant
              */
-            tag?: "playbill-procedure-readiness-result-v1";
+            tag?: "playbill-procedure-readiness-result-v2";
             coordinate: components["schemas"]["AcceptedCoordinate"];
             /** Procedure Identity */
             procedure_identity: {
@@ -15984,8 +15818,12 @@ export interface components {
             artifact_digest: string;
             /** Definition Digest */
             definition_digest: string;
-            /** Artifact */
-            artifact: components["schemas"]["ProcedureArtifact"] | components["schemas"]["NamedProcedureArtifact"];
+            artifact: components["schemas"]["ProcedureArtifact"];
+            /**
+             * Contracts
+             * @default []
+             */
+            contracts?: components["schemas"]["Contract"][];
             /**
              * Runnable
              * @enum {string}
@@ -16249,47 +16087,40 @@ export interface components {
              */
             withheld?: "names_the_enabling_credential";
         };
-        /** ProcedureRunBudget */
+        /**
+         * ProcedureRunBudget
+         * @description The one budget grammar: declared bounds and observed high-water values.
+         */
         ProcedureRunBudget: {
             /**
              * Tag
-             * @default playbill-procedure-run-budget-v2
+             * @default playbill-procedure-run-budget-v3
              * @constant
              */
-            tag?: "playbill-procedure-run-budget-v2";
+            tag?: "playbill-procedure-run-budget-v3";
             declared: components["schemas"]["ProcedureRunBudgetDeclared"];
             observed: components["schemas"]["ProcedureRunBudgetObserved"];
         };
-        /** ProcedureRunBudgetDeclared */
+        /**
+         * ProcedureRunBudgetDeclared
+         * @description The run's declared budget: what it admitted, and the caps in force.
+         *
+         *     ``provider_output_bytes_cap`` is present exactly for a run that planned
+         *     Provider occurrences.
+         */
         ProcedureRunBudgetDeclared: {
             /**
              * Tag
-             * @default playbill-procedure-run-budget-declared-v2
+             * @default playbill-procedure-run-budget-declared-v3
              * @constant
              */
-            tag?: "playbill-procedure-run-budget-declared-v2";
+            tag?: "playbill-procedure-run-budget-declared-v3";
             budget: components["schemas"]["ProcedureBudget"];
             hard_caps: components["schemas"]["ProcedureHardCaps"];
             /** Result Bytes Cap */
             result_bytes_cap: number;
             /** Provider Output Bytes Cap */
-            provider_output_bytes_cap: number;
-        };
-        /** ProcedureRunBudgetDeclaredV1 */
-        ProcedureRunBudgetDeclaredV1: {
-            /**
-             * Tag
-             * @default playbill-procedure-run-budget-declared-v1
-             * @constant
-             */
-            tag?: "playbill-procedure-run-budget-declared-v1";
-            budget: components["schemas"]["ProcedureBudget"];
-            hard_caps: components["schemas"]["ProcedureHardCaps"];
-            /**
-             * Result Bytes Cap
-             * @default 1048576
-             */
-            result_bytes_cap?: number;
+            provider_output_bytes_cap?: number | null;
         };
         /** ProcedureRunBudgetObserved */
         ProcedureRunBudgetObserved: {
@@ -16307,17 +16138,11 @@ export interface components {
             capture_bytes: number;
             /** Wall Clock Microseconds */
             wall_clock_microseconds: number;
-        };
-        /** ProcedureRunBudgetV1 */
-        ProcedureRunBudgetV1: {
             /**
-             * Tag
-             * @default playbill-procedure-run-budget-v1
-             * @constant
+             * Read Rows
+             * @default 0
              */
-            tag?: "playbill-procedure-run-budget-v1";
-            declared: components["schemas"]["ProcedureRunBudgetDeclaredV1"];
-            observed: components["schemas"]["ProcedureRunBudgetObserved"];
+            read_rows?: number;
         };
         /** ProcedureRunNodePinSet */
         ProcedureRunNodePinSet: {
@@ -16334,23 +16159,29 @@ export interface components {
         };
         /**
          * ProcedureRunReceipt
-         * @description Receipt successor exposing the complete B2 plan and durable call evidence.
+         * @description The one public run receipt, for every run lane.
          *
-         *     The inherited ``bound_coordinate.generation`` and
-         *     ``head_at_admission.generation`` fields and the inherited
+         *     A direct run (``invocation_origin="actor"``) names no Line coordinate; a
+         *     Line run names its LineSpec, occurrence, deployment, acquisition policy,
+         *     sensitivity and mandate coordinates. A run that planned Provider
+         *     occurrences names its acquisition plan, selection decision and Provider
+         *     bindings, its durable invocation receipts and its Source Capture
+         *     associations; a pure run names none of them.
+         *
+         *     ``bound_coordinate.generation``, ``head_at_admission.generation`` and the
          *     ``first_sequence``/``last_sequence`` journal range read SETTLEMENT ORDER.
-         *     The inherited ``evaluation_time``, ``occurrence_evaluation_time``, and
-         *     ``attribution.recorded_time`` fields read EVALUATION INSTANT.  Every nested
+         *     ``evaluation_time``, ``occurrence_evaluation_time`` and
+         *     ``attribution.recorded_time`` read EVALUATION INSTANT. Every
          *     ``admission_material_manifest.members[].retain_until`` and Provider budget
          *     or duration field reads VALIDITY WINDOW.
          */
         ProcedureRunReceipt: {
             /**
              * Tag
-             * @default playbill-procedure-run-receipt-v6
+             * @default playbill-procedure-run-receipt-v8
              * @constant
              */
-            tag?: "playbill-procedure-run-receipt-v6";
+            tag?: "playbill-procedure-run-receipt-v8";
             /** Run Id */
             run_id: string;
             /** Admission Binding Digest */
@@ -16404,15 +16235,14 @@ export interface components {
             budget: components["schemas"]["ProcedureRunBudget"];
             /**
              * Invocation Origin
-             * @default line
-             * @constant
+             * @enum {string}
              */
-            invocation_origin?: "line";
-            line_identity: components["schemas"]["ArtifactIdentity"];
+            invocation_origin: "actor" | "line";
+            line_identity?: components["schemas"]["ArtifactIdentity"] | null;
             /** Line Spec Digest */
-            line_spec_digest: string;
+            line_spec_digest?: string | null;
             /** Occurrence Id */
-            occurrence_id: string;
+            occurrence_id?: string | null;
             /**
              * Occurrence Evaluation Time
              * Format: date-time
@@ -16425,476 +16255,38 @@ export interface components {
             /** Replay Input Vector */
             replay_input_vector: components["schemas"]["ProcedureReplayInputProjection"][];
             /** Deployment Snapshot Digest */
-            deployment_snapshot_digest: string;
+            deployment_snapshot_digest?: string | null;
             /** Acquisition Policy Digest */
-            acquisition_policy_digest: string;
+            acquisition_policy_digest?: string | null;
             /** Selection Receipt Digest */
-            selection_receipt_digest: string | null;
-            selection_decision: components["schemas"]["ProcedureSelectionDecision"];
+            selection_receipt_digest?: string | null;
+            selection_decision?: components["schemas"]["ProcedureSelectionDecision"] | null;
             /** Selection Decision Digest */
-            selection_decision_digest: string;
-            /** Resolved Provider Bindings */
-            resolved_provider_bindings: components["schemas"]["ProcedureProviderBinding"][];
+            selection_decision_digest?: string | null;
+            /**
+             * Resolved Provider Bindings
+             * @default []
+             */
+            resolved_provider_bindings?: components["schemas"]["ProcedureProviderBinding"][];
             /** Sensitivity Policy Digest */
-            sensitivity_policy_digest: string;
+            sensitivity_policy_digest?: string | null;
             /** Mandate Coordinate Digest */
-            mandate_coordinate_digest: string;
-            /** Taint Labels */
-            taint_labels: string[];
-            /** Epsilon Member */
-            epsilon_member: boolean;
+            mandate_coordinate_digest?: string | null;
+            /**
+             * Taint Labels
+             * @default []
+             */
+            taint_labels?: string[];
+            /**
+             * Epsilon Member
+             * @default false
+             */
+            epsilon_member?: boolean;
             admission_material_manifest: components["schemas"]["ProcedureAdmissionMaterialManifest"];
             /** Admission Material Manifest Digest */
             admission_material_manifest_digest: string;
             /** Acquisition Plan Digest */
-            acquisition_plan_digest: string;
-            /** Exhaust Access Binding Digest */
-            exhaust_access_binding_digest?: string | null;
-            /**
-             * Invocation Receipt Digests
-             * @default []
-             */
-            invocation_receipt_digests?: string[];
-            /**
-             * Source Capture Associations
-             * @default []
-             */
-            source_capture_associations?: components["schemas"]["ProcedureSourceCaptureAssociation"][];
-        };
-        /** ProcedureRunReceiptV2 */
-        ProcedureRunReceiptV2: {
-            /**
-             * Tag
-             * @default playbill-procedure-run-receipt-v2
-             * @constant
-             */
-            tag?: "playbill-procedure-run-receipt-v2";
-            /** Run Id */
-            run_id: string;
-            /** Admission Binding Digest */
-            admission_binding_digest: string;
-            /** Semantic Replay Key Digest */
-            semantic_replay_key_digest: string;
-            /** Semantic Result Digest */
-            semantic_result_digest: string | null;
-            bound_coordinate: components["schemas"]["AcceptedCoordinate"];
-            head_at_admission: components["schemas"]["AcceptedCoordinate"];
-            /**
-             * Lane
-             * @enum {string}
-             */
-            lane: "current" | "replay";
-            /**
-             * Evaluation Time
-             * Format: date-time
-             */
-            evaluation_time: string;
-            /** Validated Pins */
-            validated_pins: components["schemas"]["ArtifactPin"][];
-            /** Admitted Inputs */
-            admitted_inputs: {
-                [key: string]: unknown;
-            }[];
-            attribution: components["schemas"]["ProcedureRunAttribution"];
-            /** Stream Instance Id */
-            stream_instance_id: string;
-            /** Journal Family */
-            journal_family: string;
-            /** Stream Id */
-            stream_id: string;
-            /** Partition Id */
-            partition_id: string;
-            /** First Sequence */
-            first_sequence: number;
-            /** Last Sequence */
-            last_sequence: number;
-            /** Record Digests */
-            record_digests: string[];
-            /** Chain Head Digest */
-            chain_head_digest: string;
-        };
-        /** ProcedureRunReceiptV3 */
-        ProcedureRunReceiptV3: {
-            /**
-             * Tag
-             * @default playbill-procedure-run-receipt-v3
-             * @constant
-             */
-            tag?: "playbill-procedure-run-receipt-v3";
-            /** Run Id */
-            run_id: string;
-            /** Admission Binding Digest */
-            admission_binding_digest: string;
-            /** Semantic Replay Key Digest */
-            semantic_replay_key_digest: string;
-            /** Semantic Result Digest */
-            semantic_result_digest: string | null;
-            bound_coordinate: components["schemas"]["AcceptedCoordinate"];
-            head_at_admission: components["schemas"]["AcceptedCoordinate"];
-            /**
-             * Lane
-             * @enum {string}
-             */
-            lane: "current" | "replay";
-            /**
-             * Evaluation Time
-             * Format: date-time
-             */
-            evaluation_time: string;
-            /** Validated Pins */
-            validated_pins: components["schemas"]["ArtifactPin"][];
-            /** Admitted Inputs */
-            admitted_inputs: {
-                [key: string]: unknown;
-            }[];
-            attribution: components["schemas"]["ProcedureRunAttribution"];
-            /** Stream Instance Id */
-            stream_instance_id: string;
-            /** Journal Family */
-            journal_family: string;
-            /** Stream Id */
-            stream_id: string;
-            /** Partition Id */
-            partition_id: string;
-            /** First Sequence */
-            first_sequence: number;
-            /** Last Sequence */
-            last_sequence: number;
-            /** Record Digests */
-            record_digests: string[];
-            /** Chain Head Digest */
-            chain_head_digest: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "succeeded" | "node_refused" | "operational_failed" | "internal_failed" | "halted";
-            /** Terminal */
-            terminal: (components["schemas"]["ProcedureAdmissionRefusal"] | components["schemas"]["ProcedureNodeRefusal"] | components["schemas"]["ProcedureOperationalFailure"] | components["schemas"]["ProcedureInternalFailure"] | components["schemas"]["ProcedureBudgetExhausted"] | components["schemas"]["ProcedureHaltTerminal"]) | null;
-            budget: components["schemas"]["ProcedureRunBudgetV1"];
-        };
-        /** ProcedureRunReceiptV4 */
-        ProcedureRunReceiptV4: {
-            /**
-             * Tag
-             * @default playbill-procedure-run-receipt-v4
-             * @constant
-             */
-            tag?: "playbill-procedure-run-receipt-v4";
-            /** Run Id */
-            run_id: string;
-            /** Admission Binding Digest */
-            admission_binding_digest: string;
-            /** Semantic Replay Key Digest */
-            semantic_replay_key_digest: string;
-            /** Semantic Result Digest */
-            semantic_result_digest: string | null;
-            bound_coordinate: components["schemas"]["AcceptedCoordinate"];
-            head_at_admission: components["schemas"]["AcceptedCoordinate"];
-            /**
-             * Lane
-             * @enum {string}
-             */
-            lane: "current" | "replay";
-            /**
-             * Evaluation Time
-             * Format: date-time
-             */
-            evaluation_time: string;
-            /** Validated Pins */
-            validated_pins: components["schemas"]["ArtifactPin"][];
-            /** Admitted Inputs */
-            admitted_inputs: {
-                [key: string]: unknown;
-            }[];
-            attribution: components["schemas"]["ProcedureRunAttribution"];
-            /** Stream Instance Id */
-            stream_instance_id: string;
-            /** Journal Family */
-            journal_family: string;
-            /** Stream Id */
-            stream_id: string;
-            /** Partition Id */
-            partition_id: string;
-            /** First Sequence */
-            first_sequence: number;
-            /** Last Sequence */
-            last_sequence: number;
-            /** Record Digests */
-            record_digests: string[];
-            /** Chain Head Digest */
-            chain_head_digest: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "succeeded" | "node_refused" | "operational_failed" | "internal_failed" | "halted";
-            /** Terminal */
-            terminal: (components["schemas"]["ProcedureAdmissionRefusal"] | components["schemas"]["ProcedureNodeRefusal"] | components["schemas"]["ProcedureOperationalFailure"] | components["schemas"]["ProcedureInternalFailure"] | components["schemas"]["ProcedureBudgetExhausted"] | components["schemas"]["ProcedureHaltTerminal"]) | null;
-            budget: components["schemas"]["ProcedureRunBudget"];
-            /**
-             * Invocation Origin
-             * @default line
-             * @constant
-             */
-            invocation_origin?: "line";
-            line_identity: components["schemas"]["ArtifactIdentity"];
-            /** Line Spec Digest */
-            line_spec_digest: string;
-            /** Occurrence Id */
-            occurrence_id: string;
-            /**
-             * Occurrence Evaluation Time
-             * Format: date-time
-             */
-            occurrence_evaluation_time: string;
-            /** Node Pin Sets */
-            node_pin_sets: components["schemas"]["ProcedureRunNodePinSet"][];
-            /** Pin Set Digest */
-            pin_set_digest: string;
-            /** Replay Input Vector */
-            replay_input_vector: components["schemas"]["ProcedureReplayInputProjection"][];
-            /** Deployment Snapshot Digest */
-            deployment_snapshot_digest: string;
-            /** Acquisition Policy Digest */
-            acquisition_policy_digest: string;
-            /** Selection Receipt Digest */
-            selection_receipt_digest: string | null;
-            selection_decision: components["schemas"]["ProcedureSelectionDecision"];
-            /** Selection Decision Digest */
-            selection_decision_digest: string;
-            /** Resolved Provider Bindings */
-            resolved_provider_bindings: components["schemas"]["ProcedureProviderBindingV1"][];
-            /** Sensitivity Policy Digest */
-            sensitivity_policy_digest: string;
-            /** Mandate Coordinate Digest */
-            mandate_coordinate_digest: string;
-            /** Taint Labels */
-            taint_labels: string[];
-            /** Epsilon Member */
-            epsilon_member: boolean;
-            admission_material_manifest: components["schemas"]["ProcedureAdmissionMaterialManifest"];
-            /** Admission Material Manifest Digest */
-            admission_material_manifest_digest: string;
-        };
-        /**
-         * ProcedureRunReceiptV5
-         * @description Receipt successor embedding Provider binding v2 without rewriting v4.
-         */
-        ProcedureRunReceiptV5: {
-            /**
-             * Tag
-             * @default playbill-procedure-run-receipt-v5
-             * @constant
-             */
-            tag?: "playbill-procedure-run-receipt-v5";
-            /** Run Id */
-            run_id: string;
-            /** Admission Binding Digest */
-            admission_binding_digest: string;
-            /** Semantic Replay Key Digest */
-            semantic_replay_key_digest: string;
-            /** Semantic Result Digest */
-            semantic_result_digest: string | null;
-            bound_coordinate: components["schemas"]["AcceptedCoordinate"];
-            head_at_admission: components["schemas"]["AcceptedCoordinate"];
-            /**
-             * Lane
-             * @enum {string}
-             */
-            lane: "current" | "replay";
-            /**
-             * Evaluation Time
-             * Format: date-time
-             */
-            evaluation_time: string;
-            /** Validated Pins */
-            validated_pins: components["schemas"]["ArtifactPin"][];
-            /** Admitted Inputs */
-            admitted_inputs: {
-                [key: string]: unknown;
-            }[];
-            attribution: components["schemas"]["ProcedureRunAttribution"];
-            /** Stream Instance Id */
-            stream_instance_id: string;
-            /** Journal Family */
-            journal_family: string;
-            /** Stream Id */
-            stream_id: string;
-            /** Partition Id */
-            partition_id: string;
-            /** First Sequence */
-            first_sequence: number;
-            /** Last Sequence */
-            last_sequence: number;
-            /** Record Digests */
-            record_digests: string[];
-            /** Chain Head Digest */
-            chain_head_digest: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "succeeded" | "node_refused" | "operational_failed" | "internal_failed" | "halted";
-            /** Terminal */
-            terminal: (components["schemas"]["ProcedureAdmissionRefusal"] | components["schemas"]["ProcedureNodeRefusal"] | components["schemas"]["ProcedureOperationalFailure"] | components["schemas"]["ProcedureInternalFailure"] | components["schemas"]["ProcedureBudgetExhausted"] | components["schemas"]["ProcedureHaltTerminal"]) | null;
-            budget: components["schemas"]["ProcedureRunBudget"];
-            /**
-             * Invocation Origin
-             * @default line
-             * @constant
-             */
-            invocation_origin?: "line";
-            line_identity: components["schemas"]["ArtifactIdentity"];
-            /** Line Spec Digest */
-            line_spec_digest: string;
-            /** Occurrence Id */
-            occurrence_id: string;
-            /**
-             * Occurrence Evaluation Time
-             * Format: date-time
-             */
-            occurrence_evaluation_time: string;
-            /** Node Pin Sets */
-            node_pin_sets: components["schemas"]["ProcedureRunNodePinSet"][];
-            /** Pin Set Digest */
-            pin_set_digest: string;
-            /** Replay Input Vector */
-            replay_input_vector: components["schemas"]["ProcedureReplayInputProjection"][];
-            /** Deployment Snapshot Digest */
-            deployment_snapshot_digest: string;
-            /** Acquisition Policy Digest */
-            acquisition_policy_digest: string;
-            /** Selection Receipt Digest */
-            selection_receipt_digest: string | null;
-            selection_decision: components["schemas"]["ProcedureSelectionDecision"];
-            /** Selection Decision Digest */
-            selection_decision_digest: string;
-            /** Resolved Provider Bindings */
-            resolved_provider_bindings: components["schemas"]["ProcedureProviderBinding"][];
-            /** Sensitivity Policy Digest */
-            sensitivity_policy_digest: string;
-            /** Mandate Coordinate Digest */
-            mandate_coordinate_digest: string;
-            /** Taint Labels */
-            taint_labels: string[];
-            /** Epsilon Member */
-            epsilon_member: boolean;
-            admission_material_manifest: components["schemas"]["ProcedureAdmissionMaterialManifest"];
-            /** Admission Material Manifest Digest */
-            admission_material_manifest_digest: string;
-        };
-        /**
-         * ProcedureRunReceiptV7
-         * @description Receipt successor embedding Provider binding v3: no classification plan.
-         *
-         *     Everything else reads as the v6 receipt it extends; v6 stays readable for
-         *     the runs admitted with classification plans.
-         */
-        ProcedureRunReceiptV7: {
-            /**
-             * Tag
-             * @default playbill-procedure-run-receipt-v7
-             * @constant
-             */
-            tag?: "playbill-procedure-run-receipt-v7";
-            /** Run Id */
-            run_id: string;
-            /** Admission Binding Digest */
-            admission_binding_digest: string;
-            /** Semantic Replay Key Digest */
-            semantic_replay_key_digest: string;
-            /** Semantic Result Digest */
-            semantic_result_digest: string | null;
-            bound_coordinate: components["schemas"]["AcceptedCoordinate"];
-            head_at_admission: components["schemas"]["AcceptedCoordinate"];
-            /**
-             * Lane
-             * @enum {string}
-             */
-            lane: "current" | "replay";
-            /**
-             * Evaluation Time
-             * Format: date-time
-             */
-            evaluation_time: string;
-            /** Validated Pins */
-            validated_pins: components["schemas"]["ArtifactPin"][];
-            /** Admitted Inputs */
-            admitted_inputs: {
-                [key: string]: unknown;
-            }[];
-            attribution: components["schemas"]["ProcedureRunAttribution"];
-            /** Stream Instance Id */
-            stream_instance_id: string;
-            /** Journal Family */
-            journal_family: string;
-            /** Stream Id */
-            stream_id: string;
-            /** Partition Id */
-            partition_id: string;
-            /** First Sequence */
-            first_sequence: number;
-            /** Last Sequence */
-            last_sequence: number;
-            /** Record Digests */
-            record_digests: string[];
-            /** Chain Head Digest */
-            chain_head_digest: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "succeeded" | "node_refused" | "operational_failed" | "internal_failed" | "halted";
-            /** Terminal */
-            terminal: (components["schemas"]["ProcedureAdmissionRefusal"] | components["schemas"]["ProcedureNodeRefusal"] | components["schemas"]["ProcedureOperationalFailure"] | components["schemas"]["ProcedureInternalFailure"] | components["schemas"]["ProcedureBudgetExhausted"] | components["schemas"]["ProcedureHaltTerminal"]) | null;
-            budget: components["schemas"]["ProcedureRunBudget"];
-            /**
-             * Invocation Origin
-             * @default line
-             * @constant
-             */
-            invocation_origin?: "line";
-            line_identity: components["schemas"]["ArtifactIdentity"];
-            /** Line Spec Digest */
-            line_spec_digest: string;
-            /** Occurrence Id */
-            occurrence_id: string;
-            /**
-             * Occurrence Evaluation Time
-             * Format: date-time
-             */
-            occurrence_evaluation_time: string;
-            /** Node Pin Sets */
-            node_pin_sets: components["schemas"]["ProcedureRunNodePinSet"][];
-            /** Pin Set Digest */
-            pin_set_digest: string;
-            /** Replay Input Vector */
-            replay_input_vector: components["schemas"]["ProcedureReplayInputProjection"][];
-            /** Deployment Snapshot Digest */
-            deployment_snapshot_digest: string;
-            /** Acquisition Policy Digest */
-            acquisition_policy_digest: string;
-            /** Selection Receipt Digest */
-            selection_receipt_digest: string | null;
-            selection_decision: components["schemas"]["ProcedureSelectionDecision"];
-            /** Selection Decision Digest */
-            selection_decision_digest: string;
-            /** Resolved Provider Bindings */
-            resolved_provider_bindings: components["schemas"]["ProcedureProviderBindingV3"][];
-            /** Sensitivity Policy Digest */
-            sensitivity_policy_digest: string;
-            /** Mandate Coordinate Digest */
-            mandate_coordinate_digest: string;
-            /** Taint Labels */
-            taint_labels: string[];
-            /** Epsilon Member */
-            epsilon_member: boolean;
-            admission_material_manifest: components["schemas"]["ProcedureAdmissionMaterialManifest"];
-            /** Admission Material Manifest Digest */
-            admission_material_manifest_digest: string;
-            /** Acquisition Plan Digest */
-            acquisition_plan_digest: string;
+            acquisition_plan_digest?: string | null;
             /** Exhaust Access Binding Digest */
             exhaust_access_binding_digest?: string | null;
             /**
@@ -16941,9 +16333,26 @@ export interface components {
             at?: components["schemas"]["AcceptedCoordinate"] | null;
             /** Evaluation Time */
             evaluation_time?: string | null;
-            /** Bindings */
+            /**
+             * Bindings
+             * @description Slot -> 'provider[/build][#operation]'; an invoked child's slot is '<invoke node>.<slot>'. Omitted slots are fitted when the run is admitted.
+             */
             bindings?: {
                 [key: string]: string;
+            };
+            /**
+             * Acquisition
+             * @description Per capture output <alias>.<field> (an invoked child's: <invoke node path>.<alias>.<field>): {max_age, on_unavailable, ...}. The direct run's ephemeral Line spec carries them; one left out runs under the core default.
+             */
+            acquisition?: {
+                [key: string]: components["schemas"]["LineAcquisitionRule"];
+            };
+            /**
+             * Parameters
+             * @description The run's Procedure parameter values (its ephemeral Line spec's), over the Procedure's parameter_defaults; checked against its params Contract.
+             */
+            parameters?: {
+                [key: string]: unknown;
             };
             /** Input */
             input: unknown;
@@ -16999,7 +16408,7 @@ export interface components {
             /** Semantic Result Digest */
             semantic_result_digest?: string | null;
             /** Receipt */
-            receipt?: components["schemas"]["ProcedureRunReceiptV2"] | components["schemas"]["ProcedureRunReceiptV3"] | components["schemas"]["ProcedureRunReceiptV4"] | components["schemas"]["ProcedureRunReceiptV5"] | components["schemas"]["ProcedureRunReceipt"] | components["schemas"]["ProcedureRunReceiptV7"] | components["schemas"]["ProcedureRunReceiptWithheld"] | null;
+            receipt?: components["schemas"]["ProcedureRunReceipt"] | components["schemas"]["ProcedureRunReceiptWithheld"] | null;
             /** Receipt Digest */
             receipt_digest?: string | null;
             /** Terminal */
@@ -17010,6 +16419,16 @@ export interface components {
             source_observations?: components["schemas"]["ProcedureSourceObservation"][];
             /** Terminal Egress */
             terminal_egress?: components["schemas"]["ProcedureTerminalEgress"][];
+            /** Findings */
+            findings?: components["schemas"]["ClaimsDiagnostic"][];
+            /**
+             * Findings Count
+             * @default 0
+             */
+            findings_count?: number;
+            completeness?: components["schemas"]["RunCompleteness"] | null;
+            /** Nodes */
+            nodes?: components["schemas"]["GetRunNode"][];
         };
         /** ProcedureRuntimePolicy */
         ProcedureRuntimePolicy: {
@@ -17065,29 +16484,26 @@ export interface components {
             coherence_proof_digest?: string | null;
         };
         /**
-         * ProcedureSlotBinding
-         * @description One open slot bound to one exact accepted artifact, through the slot's interface.
-         *
-         *     ``interface_digest`` is the interface the slot declares and the binding
-         *     serves. One artifact may fill several slots of different interfaces, so the
-         *     interface belongs to the binding, not to the artifact.
+         * ProcedureSlot
+         * @description One binding point a Procedure declares: the signature its operation must serve.
          */
-        ProcedureSlotBinding: {
+        ProcedureSlot: {
+            in: components["schemas"]["ContractRef"];
+            out: components["schemas"]["ContractRef"];
             /**
-             * Tag
-             * @default cruxible-procedure-slot-binding-v1
-             * @constant
+             * Effect
+             * @enum {string}
              */
-            tag?: "cruxible-procedure-slot-binding-v1";
-            /** Slot Name */
-            slot_name: string;
-            artifact_pin: components["schemas"]["ArtifactPin"];
-            /** Interface Digest */
-            interface_digest: string;
+            effect: "pure" | "external_read" | "external_mutation";
+            /**
+             * May Truncate
+             * @default false
+             */
+            may_truncate?: boolean;
         };
         /**
          * ProcedureSourceCaptureAssociation
-         * @description Reserved B4 association between one Provider occurrence and one Capture.
+         * @description One capture field of one Provider occurrence, and the Capture it produced.
          */
         ProcedureSourceCaptureAssociation: {
             /**
@@ -17098,6 +16514,8 @@ export interface components {
             tag?: "playbill-procedure-source-capture-association-v1";
             /** Occurrence Path */
             occurrence_path: string;
+            /** Field */
+            field: string;
             /** Invocation Receipt Digest */
             invocation_receipt_digest: string;
             /** Capture Digest */
@@ -17125,6 +16543,8 @@ export interface components {
             node_id?: string | null;
             /** Input Name */
             input_name?: string | null;
+            /** Field */
+            field?: string | null;
             source_read_receipt?: components["schemas"]["SourceReadReceipt"] | null;
             /** Source Read Receipt Digest */
             source_read_receipt_digest?: string | null;
@@ -17133,137 +16553,32 @@ export interface components {
             /** Capture Digest */
             capture_digest?: string | null;
         };
-        /** ProcedureSourcePreview */
-        ProcedureSourcePreview: {
-            /** Name */
-            name: string;
-            coordinate: components["schemas"]["AcceptedCoordinate"];
-            /** Definition */
-            definition?: components["schemas"]["ProcedureDefinition"] | components["schemas"]["NamedProcedureDefinition"] | null;
-            /**
-             * Contracts
-             * @default []
-             */
-            contracts?: components["schemas"]["SourceContract"][];
-            /**
-             * Source Map
-             * @default []
-             */
-            source_map?: components["schemas"]["SourceMapEntry"][];
-            /**
-             * Errors
-             * @default []
-             */
-            errors?: components["schemas"]["SourceDiagnostic"][];
-            /**
-             * Pending Checks
-             * @default [
-             *       "Admission verifies installation, authority and effective budgets.",
-             *       "Runtime values must satisfy the pinned contracts. Preview executes no effects."
-             *     ]
-             */
-            pending_checks?: string[];
-            /**
-             * Provider Builds
-             * @default []
-             */
-            provider_builds?: components["schemas"]["ProviderBuildResolutionV1"][];
-        };
-        /** ProcedureSourcePreviewRequest */
-        ProcedureSourcePreviewRequest: {
-            source: components["schemas"]["ProcedureSourceRequest"];
-            at: components["schemas"]["AcceptedCoordinate"];
-        };
-        /**
-         * ProcedureSourceProgram
-         * @description Source plus explicit data dependencies; no closures or executable imports.
-         */
-        ProcedureSourceProgram: {
-            /**
-             * Rules
-             * @default cruxible.procedure-source.v1
-             * @enum {string}
-             */
-            rules?: "cruxible.procedure-source.v1" | "cruxible.procedure-source.v2";
-            /** Text */
-            text: string;
-            /** Filename */
-            filename: string;
-            /**
-             * First Line
-             * @default 1
-             */
-            first_line?: number;
-            /** Function */
-            function: string;
-            /** Contracts */
-            contracts?: {
-                [key: string]: components["schemas"]["SourceContract"];
-            };
-            /** Bindings */
-            bindings?: {
-                [key: string]: components["schemas"]["SourceProviderBinding"] | components["schemas"]["SourceSlotBinding"] | components["schemas"]["SourceQueryBinding"] | components["schemas"]["SourceProcedureBinding"];
-            };
-            /** Claim Types */
-            claim_types?: {
-                [key: string]: components["schemas"]["SourceClaimType"];
-            };
-            /** Capture Contracts */
-            capture_contracts?: {
-                [key: string]: string;
-            };
-            /**
-             * Subject Kinds
-             * @default []
-             */
-            subject_kinds?: string[];
-        };
-        /** ProcedureSourceRequest */
-        ProcedureSourceRequest: {
-            /**
-             * Source Format
-             * @default cruxible.procedure-source-request.v1
-             * @constant
-             */
-            source_format?: "cruxible.procedure-source-request.v1";
-            /** Name */
-            name: string;
-            /** Text */
-            text: string;
-            /** Filename */
-            filename: string;
-            /** First Line */
-            first_line: number;
-            /** Function */
-            function: string;
-            input: components["schemas"]["SourceContract"];
-            output: components["schemas"]["SourceContract"];
-            /** Contracts */
-            contracts: {
-                [key: string]: components["schemas"]["SourceContract"];
-            };
-            /** Bindings */
-            bindings?: {
-                [key: string]: components["schemas"]["SourceProviderSelection"] | components["schemas"]["SourceSlotSelection"] | components["schemas"]["SourceQuerySelection"] | components["schemas"]["SourceProcedureSelection"];
-            };
-            budget: components["schemas"]["ProcedureBudget"];
-            hard_caps: components["schemas"]["ProcedureHardCaps"];
-            /** Description */
-            description?: string | null;
-        };
         /** ProcedureSpec */
         ProcedureSpec: {
             /** Procedure */
             procedure: string;
             /** Description */
             description?: string | null;
-            /** Input */
-            input: {
-                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+            /**
+             * Input
+             * @description Input fields (Contract field spellings); core co-proposes the governed <procedure>.input@N Contract. Or name one with input_contract.
+             */
+            input?: {
+                [key: string]: components["schemas"]["ContractField"];
             };
-            /** Params */
+            /**
+             * Params
+             * @description Parameter fields a Line supplies (Contract field spellings); core co-proposes the governed <procedure>.params@N Contract. A field may state its default inline as {type, default}.
+             */
             params?: {
-                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+                [key: string]: components["schemas"]["ContractField"];
+            };
+            /**
+             * Parameter Defaults
+             * @description Each parameter's default by name; a Line's value overrides it. The params Contract stays shape-only, and each default must fit its field.
+             */
+            parameter_defaults?: {
+                [key: string]: components["schemas"]["JsonValue"];
             };
             /** Returns */
             returns?: string | components["schemas"]["ReturnFrom"] | components["schemas"]["ReturnFields"] | null;
@@ -17274,6 +16589,7 @@ export interface components {
              */
             activation?: "drain" | "abort" | "snapshot" | "epoch-check";
             /**
+             * @description The most any run of this Procedure may use. The operating budget is the Line's (a direct run's ephemeral Line spec), within these caps.
              * @default {
              *       "wall_clock": "PT1M",
              *       "provider_calls": 100,
@@ -17281,16 +16597,16 @@ export interface components {
              *       "repeat_attempts": 1
              *     }
              */
-            budget?: components["schemas"]["ProcedureLimits"];
-            caps?: components["schemas"]["ProcedureLimits"] | null;
-            /** Slots */
+            hard_caps?: components["schemas"]["ProcedureLimits"];
+            /**
+             * Slots
+             * @description Each slot's signature {in: name@N, out: name@N, effect}; a Line binds it.
+             */
             slots?: {
-                [key: string]: string;
+                [key: string]: components["schemas"]["ProcedureSlot"];
             };
-            /** Acquisition Policy */
-            acquisition_policy?: string | null;
             /** Steps */
-            steps: (components["schemas"]["SourceStep"] | components["schemas"]["TapStep"] | components["schemas"]["ClaimStep"] | components["schemas"]["CallStep"] | components["schemas"]["ProjectStep"] | components["schemas"]["TransformStep"] | components["schemas"]["GuardStep"] | components["schemas"]["InboxStep"] | components["schemas"]["ProposeStep"] | components["schemas"]["SettleStep"] | components["schemas"]["EmitStep"] | components["schemas"]["InvokeStep"] | components["schemas"]["SelectStep"] | components["schemas"]["RepeatStep"] | components["schemas"]["HaltStep"] | components["schemas"]["ExplicitStep"])[];
+            steps: (components["schemas"]["ReadStep"] | components["schemas"]["CallStep"] | components["schemas"]["ExtractStep"] | components["schemas"]["ProjectStep"] | components["schemas"]["TransformStep"] | components["schemas"]["GuardStep"] | components["schemas"]["InboxStep"] | components["schemas"]["ClaimsStep"] | components["schemas"]["EmitStep"] | components["schemas"]["InvokeStep"] | components["schemas"]["SelectStep"] | components["schemas"]["RepeatStep"] | components["schemas"]["HaltStep"])[];
             /** Input Contract */
             input_contract?: string | null;
             /** Output Contract */
@@ -17299,22 +16615,8 @@ export interface components {
             parameter_contract?: string | null;
             /** Output */
             output?: {
-                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+                [key: string]: components["schemas"]["ContractField"];
             } | null;
-            /** Contracts */
-            contracts?: {
-                [key: string]: components["schemas"]["ContractSchema"];
-            };
-            /**
-             * Halt Order
-             * @default []
-             */
-            halt_order?: string[];
-            /**
-             * Source
-             * @description Retained AST provenance; revise it through source authoring.
-             */
-            readonly source?: components["schemas"]["NamedProcedureSourceProgram"] | components["schemas"]["ProcedureSourceProgram"] | null;
             /**
              * Measurements
              * @default []
@@ -17327,7 +16629,7 @@ export interface components {
          * @description What one terminal node of a run did, reconstructed from its journal.
          *
          *     Additive and optional: a run with no terminal carries none. A delivered
-         *     `propose_change_set` names the proposal and the exact candidate it produced,
+         *     `claims` names the proposal and the exact candidate it produced,
          *     so a manager can retrieve, review and activate that candidate through the
          *     existing proposal doors; producing it never activates it. A refused or
          *     failed egress names the code the run refused with, so the run reads as the
@@ -17346,7 +16648,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "emit_capture" | "post_inbox" | "propose_change_set" | "settle_change_set";
+            kind: "claims" | "emit_capture" | "post_inbox";
             /**
              * Verdict
              * @enum {string}
@@ -17389,13 +16691,34 @@ export interface components {
             /** Fallback Reason */
             fallback_reason?: string | null;
             /**
-             * Outside Scope Claim Types
+             * Outside Scope
              * @default []
              */
-            outside_scope_claim_types?: string[];
+            outside_scope?: components["schemas"]["SettleScopeGap"][];
             /** Capped By */
             capped_by?: ("procedure_terminal_capability" | "line_max_authority" | "propagated_sensitivity" | "mandate_grant") | null;
             prior_refusal_coverage?: components["schemas"]["PriorRefusalCoverage"] | null;
+            /**
+             * Claims Diagnostics
+             * @default []
+             */
+            claims_diagnostics?: components["schemas"]["ClaimsDiagnostic"][];
+            /**
+             * Claims Same Count
+             * @default 0
+             */
+            claims_same_count?: number;
+            /**
+             * Claims Diagnostics Count
+             * @default 0
+             */
+            claims_diagnostics_count?: number;
+            /**
+             * Claims Diagnostics Truncated
+             * @default 0
+             */
+            claims_diagnostics_truncated?: number;
+            claims_diagnostics_inbox_truncation?: components["schemas"]["InboxPostTruncation"] | null;
             inbox_truncation?: components["schemas"]["InboxPostTruncation"] | null;
             line_open_proposal?: components["schemas"]["LineOpenProposalOutcome"] | null;
         };
@@ -17431,7 +16754,14 @@ export interface components {
              */
             prior_refusals?: components["schemas"]["PriorRefusalReceipt"][];
         };
-        /** ProjectNode */
+        /**
+         * ProjectNode
+         * @description A typed record: ``fields`` resolved from the run, or an exact ``literal``.
+         *
+         *     A ``literal`` record is data: dollar-prefixed strings in it are never
+         *     references. A ``leaf`` project is a successful terminal that returns its
+         *     own value, so each branch may return its own exact result.
+         */
         ProjectNode: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -17441,15 +16771,26 @@ export interface components {
             /** Node Id */
             node_id: string;
             /** Fields */
-            fields: unknown;
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
+            fields?: unknown;
+            /** Literal */
+            literal?: unknown;
+            /**
+             * Leaf
+             * @default false
+             */
+            leaf?: boolean;
             /** As */
             as: string;
             /** Next */
             next?: string | null;
         };
-        /** ProjectStep */
+        /**
+         * ProjectStep
+         * @description A typed record: ``fields`` resolved from the run, or an exact ``literal``.
+         *
+         *     A ``literal`` is data: nothing in it is a reference. ``leaf: true`` makes
+         *     the record this branch's own return value (a leaf has no successor).
+         */
         ProjectStep: {
             /** Id */
             id?: string | null;
@@ -17458,15 +16799,19 @@ export interface components {
             /** Project */
             project: string;
             /** Fields */
-            fields: {
-                [key: string]: components["schemas"]["JsonValue"];
-            };
+            fields?: {
+                [key: string]: components["schemas"]["Template-Input"];
+            } | components["schemas"]["Ref"] | null;
+            literal?: components["schemas"]["JsonValue"];
+            /**
+             * Leaf
+             * @default false
+             */
+            leaf?: boolean;
             /** Output */
             output?: {
-                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+                [key: string]: components["schemas"]["ContractField"];
             } | null;
-            /** Contract */
-            contract?: string | null;
         };
         /** ProjectionAdvisory */
         ProjectionAdvisory: {
@@ -17738,51 +17083,6 @@ export interface components {
             /** Value */
             value?: unknown;
         };
-        /**
-         * PropertySchema
-         * @description One owner-carried Contract field, byte-compatible with the deferred family.
-         */
-        PropertySchema: {
-            /**
-             * Type
-             * @default string
-             * @enum {string}
-             */
-            type?: "string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list";
-            /**
-             * Primary Key
-             * @default false
-             */
-            primary_key?: boolean;
-            /**
-             * Indexed
-             * @default false
-             */
-            indexed?: boolean;
-            /**
-             * Optional
-             * @default false
-             */
-            optional?: boolean;
-            /** Required */
-            required?: boolean | null;
-            /** Default */
-            default?: unknown | null;
-            /** Enum */
-            enum?: unknown[] | null;
-            /** Enum Ref */
-            enum_ref?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Json Schema */
-            json_schema?: {
-                [key: string]: unknown;
-            } | null;
-            /** Item Fields */
-            item_fields?: {
-                [key: string]: components["schemas"]["PropertySchema"];
-            } | null;
-        };
         /** ProposalInspection */
         ProposalInspection: {
             /**
@@ -17820,7 +17120,7 @@ export interface components {
          * ProposalItemReason
          * @description One Procedure terminal item's own reason, kept with the member it explains.
          *
-         *     A ``propose_change_set`` or ``settle_change_set`` item states why in its
+         *     A ``claims`` or ``claims`` item states why in its
          *     ``rationale``; the change set's rationale names only the run and the item
          *     count, and each item's reason is recorded here, keyed by the immutable
          *     Procedure operation (``operation``: the terminal's admission binding and
@@ -17857,19 +17157,6 @@ export interface components {
              * @default false
              */
             truncated?: boolean;
-        };
-        /**
-         * ProposalItemsFanOut
-         * @description Candidates from data: each element of ``items`` is one Claim proposal item.
-         *
-         *     ``items`` resolves at run time (typically ``$steps.<alias>.items``, a list a
-         *     provider, Source or transform produced); every element becomes one item of
-         *     the one proposal, with its own dependency closure and evidence, exactly as
-         *     the capture and inbox terminals fan out ``{"items": ...}``.
-         */
-        ProposalItemsFanOut: {
-            /** Items */
-            items: unknown;
         };
         /** ProposalList */
         ProposalList: {
@@ -18143,11 +17430,10 @@ export interface components {
         /** ProposalReview */
         ProposalReview: {
             /**
-             * Tag
-             * @default playbill-proposal-review-v1
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            tag?: "playbill-proposal-review-v1";
+            tag: "playbill-proposal-review-v1";
             /**
              * Coordinate Kind
              * @default provisional
@@ -18181,6 +17467,7 @@ export interface components {
             provenance: {
                 [key: string]: unknown;
             };
+            originating_line?: components["schemas"]["OriginatingLine"] | null;
             /** Rationale */
             rationale?: string | null;
             /** Item Reasons */
@@ -18206,6 +17493,79 @@ export interface components {
             projection_evidence?: components["schemas"]["ProjectionEvidence"] | null;
             prior_refusal_coverage?: components["schemas"]["PriorRefusalCoverage"] | null;
             compiler_upgrade?: components["schemas"]["CompilerUpgradeNotice"] | null;
+        };
+        /** ProposalReviewSummary */
+        ProposalReviewSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            tag: "playbill-proposal-review-summary-v1";
+            /** Proposal Id */
+            proposal_id: string;
+            /** Candidate Digest */
+            candidate_digest: string;
+            settlement_base: components["schemas"]["AcceptedCoordinate"];
+            originating_line?: components["schemas"]["OriginatingLine"] | null;
+            rationale?: components["schemas"]["ReviewSummaryValue"] | null;
+            counts: components["schemas"]["ReviewSummaryCounts"];
+            /** Subject Kinds */
+            subject_kinds: {
+                [key: string]: components["schemas"]["ReviewSummaryCounts"];
+            };
+            /** Subject Kind Count */
+            subject_kind_count: number;
+            /**
+             * Subject Kinds Truncated
+             * @default false
+             */
+            subject_kinds_truncated?: boolean;
+            /**
+             * Required Tier
+             * @enum {string}
+             */
+            required_tier: "governed_write" | "graph_write" | "admin";
+            /**
+             * Activation Policy
+             * @enum {string}
+             */
+            activation_policy: "abort" | "drain" | "epoch-check" | "snapshot";
+            /** Approval Requirements */
+            approval_requirements: components["schemas"]["ApprovalRequirement"][];
+            /**
+             * Item Reasons
+             * @default []
+             */
+            item_reasons?: components["schemas"]["ReviewSummaryValue"][];
+            /**
+             * Item Reason Count
+             * @default 0
+             */
+            item_reason_count?: number;
+            /**
+             * Prior Refusal Member Count
+             * @default 0
+             */
+            prior_refusal_member_count?: number;
+            prior_refusal_coverage?: components["schemas"]["PriorRefusalCoverage"] | null;
+            /**
+             * Projection Advisory
+             * @default Workspace projection coverage requires --detail.
+             * @constant
+             */
+            projection_advisory?: "Workspace projection coverage requires --detail.";
+            /** Findings */
+            findings: components["schemas"]["ReviewSummaryValue"][];
+            /** Finding Count */
+            finding_count: number;
+            /** Findings Next Cursor */
+            findings_next_cursor?: string | null;
+            /** Groups */
+            groups: components["schemas"]["ReviewSummaryGroup"][];
+            /** Group Count */
+            group_count: number;
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** ProposalSelectorResult */
         ProposalSelectorResult: {
@@ -18326,31 +17686,6 @@ export interface components {
              */
             accept?: "if_allowed" | "never";
         };
-        /**
-         * ProposeChangeSetNode
-         * @description Terminal output into proposal receive; it has no activation field.
-         *
-         *     ``candidate_templates`` is a fixed, non-empty list of item templates, or
-         *     ``{"items": ...}`` to fan out over data (:class:`ProposalItemsFanOut`).
-         */
-        ProposeChangeSetNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "propose_change_set";
-            /** Node Id */
-            node_id: string;
-            /** Candidate Templates */
-            candidate_templates: unknown[] | components["schemas"]["ProposalItemsFanOut"];
-            /**
-             * Claim Types
-             * @default []
-             */
-            claim_types?: components["schemas"]["ArtifactPin"][];
-            /** Result */
-            result: unknown;
-        };
         /** ProposeClaimTypeInputRequest */
         ProposeClaimTypeInputRequest: {
             /**
@@ -18421,40 +17756,6 @@ export interface components {
              * @description The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone.
              */
             at?: string | null;
-        };
-        /** ProposeStep */
-        ProposeStep: {
-            /** Id */
-            id?: string | null;
-            /** Next */
-            next?: string | null;
-            /** Propose */
-            propose: string | components["schemas"]["JsonValue"][];
-            result?: components["schemas"]["JsonValue"];
-        };
-        /**
-         * ProviderBucketClassificationPlan
-         * @description Accepted, measured-bucket-free classifier plan for one occurrence.
-         */
-        ProviderBucketClassificationPlan: {
-            /**
-             * Tag
-             * @default playbill-provider-bucket-classification-plan-v1
-             * @constant
-             */
-            tag?: "playbill-provider-bucket-classification-plan-v1";
-            /** Node Id */
-            node_id: string;
-            /** Interface Artifact Digest */
-            interface_artifact_digest: string;
-            /** Interface Digest */
-            interface_digest: string;
-            /** Vocabulary Digest */
-            vocabulary_digest: string;
-            /** Classifier Digest */
-            classifier_digest: string;
-            /** Accepted Bucket Selectors */
-            accepted_bucket_selectors: string[];
         };
         /**
          * ProviderBuildResolutionV1
@@ -18670,18 +17971,14 @@ export interface components {
             provider_artifact_digest: string;
             /** External Occurrence Plan Digest */
             external_occurrence_plan_digest: string;
-            /** Interface Artifact Digest */
-            interface_artifact_digest: string;
-            /** Interface Id */
-            interface_id: string;
-            /** Interface Digest */
-            interface_digest: string;
+            /** Operation */
+            operation: string;
+            /** Operation Signature Digest */
+            operation_signature_digest: string;
             /** Implementation Digest */
             implementation_digest: string;
             /** Materialization Digest */
             materialization_digest: string;
-            /** Input Bucket */
-            input_bucket?: string | null;
             /** Invocation Receipt Digest */
             invocation_receipt_digest: string;
             /** Source Read Receipt Digest */
@@ -18793,17 +18090,10 @@ export interface components {
             detail?: string | null;
             coordinate?: components["schemas"]["AcceptedCoordinate"] | null;
         };
-        /** ProviderOperationContract */
-        ProviderOperationContract: {
-            input: components["schemas"]["ContractSchema"];
-            /** Output */
-            output: components["schemas"]["ContractSchema"] | "playbill-provider-result-to-external-capture-v1";
-            material?: components["schemas"]["ContractSchema"] | null;
-        };
         /** ProviderOperationReadiness */
         ProviderOperationReadiness: {
-            /** Interface Id */
-            interface_id: string;
+            /** Operation */
+            operation: string;
             /** Installed */
             installed: boolean;
             /**
@@ -18818,12 +18108,12 @@ export interface components {
             name: string;
             /** Version */
             version: string;
-            /** Interfaces */
-            interfaces: string[];
+            /** Operations */
+            operations: string[];
         };
         /**
          * ProviderRepinV1
-         * @description One live definition moved (or not) from a provider build to another.
+         * @description One live Line moved (or not) from a provider build to another.
          */
         ProviderRepinV1: {
             /**
@@ -18943,6 +18233,24 @@ export interface components {
             exact: components["schemas"]["NamePair"][];
             /** Prefixes */
             prefixes: components["schemas"]["NamePair"][];
+        };
+        /**
+         * PurlTypeNormalizer
+         * @description A package URL in canonical form under per-type rules; qualifiers kept or excluded.
+         */
+        PurlTypeNormalizer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            normalizer: "purl-type";
+            /** Version */
+            version: number;
+            /**
+             * Identity
+             * @enum {string}
+             */
+            identity: "package" | "package_variant";
         };
         /**
          * QueryArtifactDefinition
@@ -19267,15 +18575,15 @@ export interface components {
         };
         /**
          * QueryDefinition
-         * @description One governed, digest-pinned, Claim-native canonical query declaration.
+         * @description One governed, named, Claim-native canonical query declaration.
          */
         QueryDefinition: {
             /**
              * Artifact Format
-             * @default playbill-query-definition-v1
-             * @enum {string}
+             * @default cruxible-query-definition-v3
+             * @constant
              */
-            artifact_format?: "playbill-query-definition-v1" | "playbill-query-definition-v2";
+            artifact_format?: "cruxible-query-definition-v3";
             identity: components["schemas"]["ArtifactIdentity"];
             /** Description */
             description?: string | null;
@@ -19321,14 +18629,11 @@ export interface components {
              * @default []
              */
             parameters?: components["schemas"]["QueryParameterDeclaration"][];
+            parameter_contract?: components["schemas"]["ContractRef"] | null;
+            row_contract?: components["schemas"]["ContractRef"] | null;
             evaluation_policy: components["schemas"]["QueryEvaluationPolicy"];
             default_budgets: components["schemas"]["QueryBudgets"];
             maximum_budgets: components["schemas"]["QueryBudgets"];
-            /**
-             * Pins
-             * @default []
-             */
-            pins?: components["schemas"]["ArtifactPin"][];
             /**
              * @default {
              *       "state": "live"
@@ -19344,7 +18649,7 @@ export interface components {
              */
             tag: "playbill-query-definition-authoring-payload-v1";
             /** Query Definition */
-            query_definition: components["schemas"]["QuerySpecInput"] | components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["QueryDefinition"] | components["schemas"]["NamedQueryDefinitionSpec"] | components["schemas"]["NamedQueryDefinition"];
+            query_definition: components["schemas"]["QuerySpecInput"] | components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["QueryDefinition"];
         };
         /** QueryDefinitionInput */
         QueryDefinitionInput: {
@@ -19354,24 +18659,22 @@ export interface components {
              */
             kind: "query_definition";
             /** Query Definition */
-            query_definition: components["schemas"]["QuerySpecInput"] | components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["QueryDefinition"] | components["schemas"]["NamedQueryDefinitionSpec"] | components["schemas"]["NamedQueryDefinition"];
+            query_definition: components["schemas"]["QuerySpecInput"] | components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["QueryDefinition"];
         };
         /**
          * QueryDefinitionSpec
-         * @description Authoring grammar: omitted ClaimType pins resolve at the intent base.
+         * @description Authoring grammar with stated defaults and named dependencies.
          *
-         *     Explicit pins remain assertions, never silently rebound. Accepted artifacts
-         *     always pass the stricter QueryDefinition validation after lowering. The
-         *     shape, cardinality, dedupe, evaluation policy and budgets may be left out
-         *     (``query_spec_defaults``); the stored definition states them.
+         *     The shape, cardinality, dedupe, evaluation policy and budgets may be left
+         *     out (``query_spec_defaults``); the stored definition states them.
          */
         QueryDefinitionSpec: {
             /**
              * Artifact Format
-             * @default playbill-query-definition-v1
-             * @enum {string}
+             * @default cruxible-query-definition-v3
+             * @constant
              */
-            artifact_format?: "playbill-query-definition-v1" | "playbill-query-definition-v2";
+            artifact_format?: "cruxible-query-definition-v3";
             identity: components["schemas"]["ArtifactIdentity"];
             /** Description */
             description?: string | null;
@@ -19417,14 +18720,11 @@ export interface components {
              * @default []
              */
             parameters?: components["schemas"]["QueryParameterDeclaration"][];
+            parameter_contract?: components["schemas"]["ContractRef"] | null;
+            row_contract?: components["schemas"]["ContractRef"] | null;
             evaluation_policy?: components["schemas"]["QueryEvaluationPolicy"];
             default_budgets?: components["schemas"]["QueryBudgets"];
             maximum_budgets?: components["schemas"]["QueryBudgets"];
-            /**
-             * Pins
-             * @default []
-             */
-            pins?: components["schemas"]["ArtifactPin"][];
             /**
              * @default {
              *       "state": "live"
@@ -19855,7 +19155,7 @@ export interface components {
          * QueryNone
          * @description One none behind a cell: ``rows[i].nones[column]`` lists a field's live nones.
          *
-         *     A none (a ClaimType v9 inverse Claim) says the field holds nothing (``of``
+         *     A none (an inverse Claim) says the field holds nothing (``of``
          *     absent: a one-valued field's whole slot) or does not hold ``of``; it is
          *     never a cell value. A cell with no value and no current none is unknown.
          */
@@ -20131,8 +19431,7 @@ export interface components {
             limit?: number;
             /** Cursor */
             cursor?: string | null;
-            /** Spec */
-            spec?: components["schemas"]["QueryDefinitionSpec"] | components["schemas"]["NamedQueryDefinitionSpec"] | null;
+            spec?: components["schemas"]["QueryDefinitionSpec"] | null;
             /** Name */
             name?: string | null;
             /** Params */
@@ -20164,8 +19463,8 @@ export interface components {
          * @description One page of a ``query`` answer: values first, flags per row.
          *
          *     Rows are bounded by ``get``'s card rule: a string value over 500 characters
-         *     is a ``TruncatedText`` preview, and an exact-content value is its text, or an
-         *     ``ExactContentRef`` when it cannot be shown as text. A row cell names no
+         *     is a ``TruncatedText`` preview. A structured value retains its typed shape.
+         *     A row cell names no
          *     whole read; with ``claims=True`` each Claim's preview does.
          */
         QueryResultRecord: {
@@ -20246,6 +19545,16 @@ export interface components {
             params?: {
                 [key: string]: ("string" | "integer" | "boolean" | "decimal" | "timestamp" | "subject_reference") | "subject";
             };
+            /**
+             * Params Contract
+             * @description The Contract (name@N) the params satisfy; each param is one of its fields.
+             */
+            params_contract?: string | null;
+            /**
+             * Row
+             * @description The Contract (name@N) every row satisfies; the fields are its fields.
+             */
+            row?: string | null;
             /** From */
             from: {
                 [key: string]: string;
@@ -20433,6 +19742,85 @@ export interface components {
             visible_verdicts?: ("supported" | "uncovered" | "stale" | "contradicted" | "unresolved")[];
         };
         /**
+         * ReadNode
+         * @description A read of accepted state: one named Query, or one ClaimType's Claims about a Subject.
+         *
+         *     Exactly one of ``query`` and ``claim_type`` is set. A read runs to the end:
+         *     it evaluates under the run's Procedure read ceiling, never the Query's
+         *     interactive budgets, and refuses ``read_ceiling_exceeded`` rather than
+         *     returning a clipped result.
+         */
+        ReadNode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "read";
+            /** Node Id */
+            node_id: string;
+            query?: components["schemas"]["ArtifactNameRef"] | null;
+            /** Parameters */
+            parameters?: unknown;
+            claim_type?: components["schemas"]["ArtifactNameRef"] | null;
+            /** Subject Kind */
+            subject_kind?: string | null;
+            /** Subject Id */
+            subject_id?: unknown;
+            /**
+             * Cardinality
+             * @default one
+             * @enum {string}
+             */
+            cardinality?: "one" | "all";
+            /** Limit */
+            limit?: number | null;
+            /** As */
+            as: string;
+            /** Next */
+            next?: string | null;
+        };
+        /**
+         * ReadRunSummary
+         * @description One accepted-state read: the rows it admitted.
+         */
+        ReadRunSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "read";
+            /** Rows */
+            rows: number;
+        };
+        /**
+         * ReadStep
+         * @description A read of accepted state: a named ``query`` with ``params``, or one ClaimType.
+         *
+         *     A Claim read names ``claim_type`` and its ``subject`` (and optionally its
+         *     ``subject_kind``); ``all: N`` reads at most N Claims instead of one.
+         */
+        ReadStep: {
+            /** Id */
+            id?: string | null;
+            /** Next */
+            next?: string | null;
+            /** Read */
+            read: string;
+            /** Query */
+            query?: string | null;
+            /** Params */
+            params?: {
+                [key: string]: components["schemas"]["Template-Input"];
+            };
+            /** Claim Type */
+            claim_type?: string | null;
+            subject?: components["schemas"]["Template-Input"];
+            /** Subject Kind */
+            subject_kind?: string | null;
+            /** All */
+            all?: number | null;
+        };
+        /**
          * RebindChange
          * @description Re-cite a Claim on its text now, or on a fresh Capture; the value stays.
          */
@@ -20470,6 +19858,52 @@ export interface components {
              */
             change: "added" | "replaced" | "removed";
         };
+        /**
+         * RecordType
+         * @description ``{record: <locator>, key, fields: {f: field_result<C.f>}}``.
+         */
+        RecordType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "record";
+            contract: components["schemas"]["ContractRef"];
+        };
+        /**
+         * Ref
+         * @description A typed reference: its ``$ref`` root, the ``step`` it reads, and a member ``path``.
+         *
+         *     ``step`` is named exactly when the root is ``step``. ``path`` members are
+         *     field names, list positions as digits, or explicit ``[*]`` projections.
+         *     A ``param`` reference names the parameter as its first path member.
+         */
+        Ref: {
+            /**
+             * $Ref
+             * @enum {string}
+             */
+            $ref: "input" | "param" | "step" | "item";
+            /** Step */
+            step?: string | null;
+            /**
+             * Path
+             * @default []
+             */
+            path?: string[];
+        };
+        /**
+         * RefusalType
+         * @description One operation refusal code's typed body.
+         */
+        RefusalType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "refusal";
+            contract: components["schemas"]["ContractRef"];
+        };
         /** RepairAlternative */
         RepairAlternative: {
             /** Kind */
@@ -20490,7 +19924,7 @@ export interface components {
         };
         /**
          * RepeatBodyNode
-         * @description One bounded repeat operation with occurrence-local explicit Provider pins.
+         * @description One bounded repeat operation: a slotted call or a closed transform.
          */
         RepeatBodyNode: {
             /** Node Id */
@@ -20501,24 +19935,29 @@ export interface components {
              */
             operation: "call" | "transform";
             /** Transform Kind */
-            transform_kind?: ("shape_items" | "join_items" | "filter_items" | "aggregate_items" | "dedupe_items" | "adapter") | null;
-            /** Provider */
-            provider?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            interface?: components["schemas"]["ArtifactPin"] | null;
-            /** Interface Digest */
-            interface_digest?: string | null;
-            /** Implementation Digest */
-            implementation_digest?: string | null;
-            /** Contract In */
-            contract_in?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Contract Out */
-            contract_out?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
-            /** Effect Policy */
-            effect_policy?: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"] | null;
+            transform_kind?: ("shape" | "filter" | "join" | "aggregate" | "dedupe" | "union" | "derive") | null;
+            /** Slot */
+            slot?: string | null;
+            effect_policy?: components["schemas"]["ArtifactNameRef"] | null;
             /** Spec */
-            spec: (components["schemas"]["TransformAdapterSpec"] | components["schemas"]["TransformShapeItemsSpec"] | components["schemas"]["TransformFilterItemsSpec"] | components["schemas"]["TransformDedupeItemsSpec"] | components["schemas"]["TransformJoinItemsSpec"] | components["schemas"]["TransformAggregateItemsSpec"]) | unknown;
+            spec: (components["schemas"]["TransformShapeSpec"] | components["schemas"]["TransformFilterSpec"] | components["schemas"]["TransformJoinSpec"] | components["schemas"]["TransformAggregateSpec"] | components["schemas"]["TransformDedupeSpec"] | components["schemas"]["TransformUnionSpec"] | components["schemas"]["TransformDeriveSpec"]) | unknown;
             /** As */
             as: string;
+        };
+        /**
+         * RepeatCall
+         * @description One bounded repeat attempt's slotted call.
+         */
+        RepeatCall: {
+            /** Call */
+            call: string;
+            /** Id */
+            id?: string | null;
+            /** Slot */
+            slot: string;
+            input: components["schemas"]["Template-Input"];
+            /** Effect Policy */
+            effect_policy?: string | null;
         };
         /** RepeatNode */
         RepeatNode: {
@@ -20533,11 +19972,25 @@ export interface components {
             max_attempts: number;
             /** Body */
             body: components["schemas"]["RepeatBodyNode"][];
-            until: components["schemas"]["GuardPredicate"];
+            /** Until */
+            until: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
             /** As */
             as: string;
             /** Next */
             next?: string | null;
+        };
+        /**
+         * RepeatRunSummary
+         * @description One repeat: the attempts it used.
+         */
+        RepeatRunSummary: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "repeat";
+            /** Attempts */
+            attempts: number;
         };
         /** RepeatStep */
         RepeatStep: {
@@ -20550,9 +20003,26 @@ export interface components {
             /** Max Attempts */
             max_attempts: number;
             /** Body */
-            body: components["schemas"]["NamedRepeatBodyNode"][];
+            body: (components["schemas"]["RepeatCall"] | components["schemas"]["RepeatTransform"])[];
             /** Until */
-            until: string;
+            until: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
+        };
+        /**
+         * RepeatTransform
+         * @description One bounded repeat attempt's closed transform.
+         */
+        RepeatTransform: {
+            /** Transform */
+            transform: string;
+            /** Id */
+            id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "shape" | "filter" | "join" | "aggregate" | "dedupe" | "union" | "derive";
+            /** Spec */
+            spec: components["schemas"]["ShapeSpec"] | components["schemas"]["FilterSpec"] | components["schemas"]["JoinSpec"] | components["schemas"]["AggregateSpec"] | components["schemas"]["DedupeSpec"] | components["schemas"]["UnionSpec"] | components["schemas"]["DeriveSpec"];
         };
         /**
          * ReplaceSection
@@ -20735,13 +20205,24 @@ export interface components {
         };
         /**
          * ResolvedTriggerCaptureContract
-         * @description The exact contract a Trigger resolved during this prepare or preview.
+         * @description The contract identity a Trigger resolved during this prepare or preview.
          */
         ResolvedTriggerCaptureContract: {
             /** Trigger Name */
             trigger_name: string;
-            /** Event */
-            event: components["schemas"]["CaptureEventSelector"] | components["schemas"]["NamedCaptureEventSelector"];
+            event: components["schemas"]["CaptureEventNameSelector"];
+        };
+        /**
+         * ResultType
+         * @description ``variant{record: record<C>, invalid_record, duplicate}``; consumed via ``.records``.
+         */
+        ResultType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "result";
+            contract: components["schemas"]["ContractRef"];
         };
         /**
          * RetireChange
@@ -20844,7 +20325,7 @@ export interface components {
         ReturnFields: {
             /** Fields */
             fields: {
-                [key: string]: components["schemas"]["JsonValue"];
+                [key: string]: components["schemas"]["Template-Input"];
             };
             /**
              * Id
@@ -20867,39 +20348,134 @@ export interface components {
              */
             id?: string;
         };
-        /**
-         * ReturnNode
-         * @description A typed successful leaf; each branch may return its own exact value.
-         */
-        ReturnNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "return";
-            /** Node Id */
-            node_id: string;
-            /** Fields */
-            fields: unknown;
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
         /** ReviewRequest */
         ReviewRequest: {
             /**
-             * Include Body
+             * Detail
              * @default false
              */
-            include_body?: boolean;
+            detail?: boolean;
+            /** Summary After */
+            summary_after?: string | null;
+            /** Summary Group */
+            summary_group?: string | null;
+            /** Rows After */
+            rows_after?: string | null;
+            /**
+             * Rows Limit
+             * @default 5
+             */
+            rows_limit?: number;
+            /**
+             * Groups Limit
+             * @default 5
+             */
+            groups_limit?: number;
+            /** Findings After */
+            findings_after?: string | null;
+            /** Include Body */
+            include_body?: boolean | null;
             workspace_observation?: components["schemas"]["ReviewWorkspaceObservation"] | null;
             /** Item Reasons After */
             item_reasons_after?: string | null;
             /** Item Reasons Limit */
             item_reasons_limit?: number | null;
+        };
+        /** ReviewSummaryCounts */
+        ReviewSummaryCounts: {
+            /**
+             * Created
+             * @default 0
+             */
+            created?: number;
+            /**
+             * Revised
+             * @default 0
+             */
+            revised?: number;
+            /**
+             * Retired
+             * @default 0
+             */
+            retired?: number;
+        };
+        /** ReviewSummaryGroup */
+        ReviewSummaryGroup: {
+            /** Group */
+            group: string;
+            /** Subject Kind */
+            subject_kind: string;
+            /** Artifact Kind */
+            artifact_kind: string;
+            /**
+             * Disposition
+             * @enum {string}
+             */
+            disposition: "create" | "replace" | "retire" | "delete";
+            /**
+             * Closure Role
+             * @enum {string}
+             */
+            closure_role: "authored" | "generated_successor" | "invalidation";
+            /** Procedure Digest */
+            procedure_digest?: string | null;
+            /** Node */
+            node?: string | null;
+            /** Template */
+            template?: number | null;
+            counts: components["schemas"]["ReviewSummaryCounts"];
+            /** Shared Fields */
+            shared_fields: {
+                [key: string]: components["schemas"]["ReviewSummaryValue"];
+            };
+            /** Varying Columns */
+            varying_columns: string[];
+            /** Rows */
+            rows: components["schemas"]["ReviewSummaryRow"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** ReviewSummaryRow */
+        ReviewSummaryRow: {
+            /** Path */
+            path: string;
+            /** Before */
+            before: {
+                [key: string]: components["schemas"]["ReviewSummaryValue"];
+            } | null;
+            /** After */
+            after: {
+                [key: string]: components["schemas"]["ReviewSummaryValue"];
+            } | null;
+            /**
+             * Findings
+             * @default []
+             */
+            findings?: components["schemas"]["ReviewSummaryValue"][];
+            /**
+             * Finding Count
+             * @default 0
+             */
+            finding_count?: number;
+            /**
+             * Prior Refusals
+             * @default []
+             */
+            prior_refusals?: components["schemas"]["ReviewSummaryValue"][];
+            /**
+             * Prior Refusals More
+             * @default false
+             */
+            prior_refusals_more?: boolean;
+        };
+        /** ReviewSummaryValue */
+        ReviewSummaryValue: {
+            value: components["schemas"]["JsonValue"];
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated?: boolean;
         };
         /**
          * ReviewWorkspaceObservation
@@ -20962,6 +20538,38 @@ export interface components {
             }[];
             /** Prior Refusals */
             prior_refusals?: components["schemas"]["PriorRefusalReceipt"][];
+        };
+        /**
+         * RunCompleteness
+         * @description A run's completeness summary: present when incomplete or when expect met ``within``.
+         *
+         *     ``complete`` is derived: false exactly when a reason, downgrade or skipped
+         *     write was recorded. ``expect_outside_within`` counts expected Subjects
+         *     outside the step's ``within`` (never retired or inverted).
+         */
+        RunCompleteness: {
+            /**
+             * Complete
+             * @default false
+             */
+            complete?: boolean;
+            /** Reasons */
+            reasons: components["schemas"]["CompletenessReason"][];
+            /**
+             * Downgraded
+             * @default 0
+             */
+            downgraded?: number;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped?: number;
+            /**
+             * Expect Outside Within
+             * @default 0
+             */
+            expect_outside_within?: number;
         };
         /**
          * RunRow
@@ -21178,8 +20786,6 @@ export interface components {
             node_id: string;
             /** Sources */
             sources: string[];
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
             /** As */
             as: string;
             /** Next */
@@ -21197,14 +20803,12 @@ export interface components {
             sources: string[];
             /** Output */
             output?: {
-                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
+                [key: string]: components["schemas"]["ContractField"];
             } | null;
-            /** Contract */
-            contract?: string | null;
         };
         /**
          * SelfEvidence
-         * @description Own words; default: because (exact content: the value itself).
+         * @description Own words; defaults to because.
          */
         SelfEvidence: {
             /**
@@ -21452,32 +21056,6 @@ export interface components {
             expect?: boolean | number | string | (boolean | number | string)[] | null;
         };
         /**
-         * SettleChangeSetNode
-         * @description Terminal settle: the proposal terminal's Claims, settled under delegated authority.
-         *
-         *     It carries no mandate: Core selects the one accepted settle ProcedureMandate
-         *     that covers the change, evaluates its condition, and falls back as that
-         *     mandate declares. Compiler revision 31.
-         */
-        SettleChangeSetNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "settle_change_set";
-            /** Node Id */
-            node_id: string;
-            /** Candidate Templates */
-            candidate_templates: unknown[] | components["schemas"]["ProposalItemsFanOut"];
-            /**
-             * Claim Types
-             * @default []
-             */
-            claim_types?: components["schemas"]["ArtifactPin"][];
-            /** Result */
-            result: unknown;
-        };
-        /**
          * SettleRequest
          * @description Settle one prediction; usually just the observation's Claim ID.
          *
@@ -21537,15 +21115,61 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** SettleStep */
-        SettleStep: {
-            /** Id */
-            id?: string | null;
-            /** Next */
-            next?: string | null;
-            /** Settle */
-            settle: string | components["schemas"]["JsonValue"][];
-            result?: components["schemas"]["JsonValue"];
+        /**
+         * SettleScopeGap
+         * @description One reason a settle grant's scope left a change out, so the whole change proposed.
+         *
+         *     ``basis`` is the changed value's evidence basis (``None`` when the change
+         *     carries none a grant can name).
+         */
+        SettleScopeGap: {
+            /** Claim Type */
+            claim_type: string;
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "create" | "revise" | "retire";
+            /** Basis */
+            basis?: ("extracted" | "measured" | "derived" | "absence") | null;
+            /**
+             * Term
+             * @enum {string}
+             */
+            term: "claim_type" | "change_kind" | "basis" | "value" | "subject";
+        };
+        /**
+         * ShapeField
+         * @description One shaped field: read ``from`` the current record (``$item.fields.<f>``,
+         *     ``$item.key.<k>``), or a literal ``value``; ``as`` casts it explicitly.
+         */
+        ShapeField: {
+            /** From */
+            from?: string | null;
+            /** Value */
+            value?: boolean | number | string | null;
+            /** As */
+            as?: string | null;
+        };
+        /**
+         * ShapeFieldSpec
+         * @description One shaped field: read ``from`` the record (``$item.fields.<f>``/``$item.key.<k>``),
+         *     or a literal ``value``; ``as`` casts it explicitly.
+         */
+        ShapeFieldSpec: {
+            from?: components["schemas"]["Ref"] | null;
+            /** Value */
+            value?: string | boolean | number | null;
+            /** As */
+            as?: string | null;
+        };
+        /** ShapeSpec */
+        ShapeSpec: {
+            input: components["schemas"]["Template-Input"];
+            /** Fields */
+            fields: {
+                [key: string]: components["schemas"]["ShapeFieldSpec"];
+            };
         };
         /**
          * ShownObject
@@ -21684,54 +21308,6 @@ export interface components {
             /** Value */
             value?: boolean | number | string | null;
         };
-        /**
-         * SourceAcquisitionPolicy
-         * @description One instance-wide age bound and only the aliases that differ.
-         */
-        SourceAcquisitionPolicy: {
-            /**
-             * Artifact Format
-             * @default playbill-source-acquisition-policy-v2
-             * @constant
-             */
-            artifact_format?: "playbill-source-acquisition-policy-v2";
-            identity: components["schemas"]["ArtifactIdentity"];
-            max_age?: components["schemas"]["CanonicalDuration"] | string | null;
-            /** Overrides */
-            overrides?: {
-                [key: string]: components["schemas"]["CanonicalDuration"] | string | null;
-            };
-            /**
-             * @default {
-             *       "state": "live"
-             *     }
-             */
-            lifecycle?: components["schemas"]["ArtifactLifecycle"];
-        };
-        /**
-         * SourceAcquisitionPolicyAuthoringPayload
-         * @description One whole SourceAcquisitionPolicy authored as a change-set definition member.
-         */
-        SourceAcquisitionPolicyAuthoringPayload: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            tag: "playbill-source-acquisition-policy-authoring-payload-v1";
-            acquisition_policy: components["schemas"]["SourceAcquisitionPolicy"];
-        };
-        /** SourceClaimType */
-        SourceClaimType: {
-            /** Version */
-            version: string;
-            structure: components["schemas"]["ClaimTypeStructure"];
-        };
-        /** SourceContract */
-        SourceContract: {
-            /** Name */
-            name: string;
-            schema: components["schemas"]["ContractSchema"];
-        };
         /** SourceDereferenceResult */
         SourceDereferenceResult: {
             /**
@@ -21761,21 +21337,6 @@ export interface components {
             body_access?: components["schemas"]["BodyAccessResult"] | null;
             coverage: components["schemas"]["CoverageDescriptor"];
         };
-        /** SourceDiagnostic */
-        SourceDiagnostic: {
-            /** Code */
-            code: string;
-            /** Message */
-            message: string;
-            span: components["schemas"]["SourceSpan"];
-            /** Hint */
-            hint?: string | null;
-            /**
-             * Related Spans
-             * @default []
-             */
-            related_spans?: components["schemas"]["SourceSpan"][];
-        };
         /** SourceEffectiveTime */
         SourceEffectiveTime: {
             /**
@@ -21791,132 +21352,6 @@ export interface components {
             effective_from: string;
             /** Effective Until */
             effective_until?: string | null;
-        };
-        /** SourceMapEntry */
-        SourceMapEntry: {
-            /** Node Id */
-            node_id: string;
-            span: components["schemas"]["SourceSpan"];
-        };
-        /** SourceNode */
-        SourceNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "source";
-            /** Node Id */
-            node_id: string;
-            /** Capture Contract */
-            capture_contract: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Provider */
-            provider: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            interface: components["schemas"]["ArtifactPin"];
-            /** Interface Digest */
-            interface_digest: string;
-            /** Implementation Digest */
-            implementation_digest?: string | null;
-            /** Request */
-            request: unknown;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-        };
-        /** SourceProcedureBinding */
-        SourceProcedureBinding: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "procedure";
-            /** Name */
-            name: string;
-            /** Version */
-            version: string;
-            input: components["schemas"]["ContractSchema"];
-            output: components["schemas"]["ContractSchema"];
-            /**
-             * Capture Terminal
-             * @default false
-             */
-            capture_terminal?: boolean;
-            /**
-             * Required Terminal Rung
-             * @default 0
-             */
-            required_terminal_rung?: number;
-        };
-        /** SourceProcedureSelection */
-        SourceProcedureSelection: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "procedure";
-            /** Name */
-            name: string;
-        };
-        /** SourceProviderBinding */
-        SourceProviderBinding: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "provider";
-            /** Provider */
-            provider: string;
-            /** Provider Version */
-            provider_version: string;
-            /** Interface */
-            interface: string;
-            /** Interface Version */
-            interface_version: string;
-            /** Interface Digest */
-            interface_digest: string;
-            /** Implementation Digest */
-            implementation_digest: string;
-            /**
-             * Effect Class
-             * @enum {string}
-             */
-            effect_class: "pure" | "external_read" | "external_mutation" | "none";
-            operation: components["schemas"]["ProviderOperationContract"];
-        };
-        /** SourceProviderSelection */
-        SourceProviderSelection: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "provider";
-            /** Provider */
-            provider: string;
-            /** Interface */
-            interface: string;
-        };
-        /** SourceQueryBinding */
-        SourceQueryBinding: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "query";
-            /** Name */
-            name: string;
-            /** Version */
-            version: string;
-            definition: components["schemas"]["QueryDefinition"];
-        };
-        /** SourceQuerySelection */
-        SourceQuerySelection: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "query";
-            /** Name */
-            name: string;
         };
         /**
          * SourceReadReceipt
@@ -21968,74 +21403,6 @@ export interface components {
             read_at: string;
         };
         /**
-         * SourceSlotBinding
-         * @description An open Provider slot: the interface it needs, no implementation chosen.
-         *
-         *     Source that uses one compiles to a Blueprint; instantiating the Blueprint
-         *     replaces it with a ``SourceProviderBinding`` and compiles again.
-         */
-        SourceSlotBinding: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "slot";
-            /** Interface */
-            interface: string;
-            /** Interface Version */
-            interface_version: string;
-            /** Interface Digest */
-            interface_digest: string;
-            /**
-             * Effect Class
-             * @enum {string}
-             */
-            effect_class: "pure" | "external_read" | "external_mutation" | "none";
-            operation: components["schemas"]["ProviderOperationContract"];
-        };
-        /**
-         * SourceSlotSelection
-         * @description An open Provider slot typed by an accepted interface: the source builds a Blueprint.
-         */
-        SourceSlotSelection: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "slot";
-            /** Interface */
-            interface: string;
-        };
-        /** SourceSpan */
-        SourceSpan: {
-            /** Filename */
-            filename: string;
-            /** Line */
-            line: number;
-            /** Column */
-            column: number;
-            /** End Line */
-            end_line: number;
-            /** End Column */
-            end_column: number;
-        };
-        /** SourceStep */
-        SourceStep: {
-            /** Id */
-            id?: string | null;
-            /** Next */
-            next?: string | null;
-            /** Source */
-            source: string;
-            /** Contract */
-            contract: string;
-            /** Interface */
-            interface: string;
-            /** Provider */
-            provider?: string | null;
-            request: components["schemas"]["JsonValue"];
-        };
-        /**
          * StateCoordinate
          * @description The operational state one change was evaluated against.
          *
@@ -22057,37 +21424,9 @@ export interface components {
             digest: string;
         };
         /**
-         * StateTapNode
-         * @description Request-bound query with a typed view over the retained query result.
-         */
-        StateTapNode: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "state_tap";
-            /** Node Id */
-            node_id: string;
-            /** Query */
-            query: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Parameters */
-            parameters?: unknown;
-            /** As */
-            as: string;
-            /** Next */
-            next?: string | null;
-            /**
-             * View
-             * @default typed_query
-             * @constant
-             */
-            view?: "typed_query";
-            budgets?: components["schemas"]["QueryBudgets"] | null;
-        };
-        /**
          * StoppedAutomationV1
-         * @description Automation retired with a retired definition; live Procedure successors
-         *     instead carry Lines disabled and Mandates propose-only.
+         * @description Automation retired with a retired definition; live successors instead carry
+         *     Lines disabled and their Mandates propose-only.
          */
         StoppedAutomationV1: {
             /**
@@ -22110,6 +21449,20 @@ export interface components {
         StoreBodyRequest: {
             /** Content Base64 */
             content_base64: string;
+        };
+        /** StringType */
+        StringType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "string";
+            /** Pattern */
+            pattern?: string | null;
+            /** Min Len */
+            min_len?: number | null;
+            /** Max Len */
+            max_len?: number | null;
         };
         /**
          * SubjectAssignment
@@ -22283,17 +21636,21 @@ export interface components {
          * @description One SubjectKind decision: how core names Subjects of one kind.
          *
          *     Exactly one of ``keys`` (the key ClaimTypes by predicate, in key order, with
-         *     optional ``uniqueness``, default ``unique``) or ``minted``. Lowering writes
+         *     optional ``uniqueness``, default ``unique``) or ``minted``. ``normalizers``
+         *     names, per key part (by predicate or its last name under the kind), the
+         *     identity normalizer its value takes, pinned by version; a key part it does
+         *     not name takes ``none@1``, written out in the artifact. Lowering writes
          *     ``subject-kinds/<name>.json`` as the successor of the accepted one when there
-         *     is one; changing the keys or uniqueness is that governed successor, and no
-         *     existing Subject's id moves.
+         *     is one; changing the keys, a normalizer or uniqueness is that governed
+         *     successor (a changed normalizer re-keys: the same change re-authors the key
+         *     values it moves), and no existing Subject's id moves.
          */
         SubjectKindAuthoringPayload: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "cruxible-subject-kind-authoring-payload-v1";
+            tag: "cruxible-subject-kind-authoring-payload-v2";
             /** Name */
             name: string;
             /** Description */
@@ -22303,6 +21660,10 @@ export interface components {
              * @default []
              */
             keys?: string[];
+            /** Normalizers */
+            normalizers?: {
+                [key: string]: components["schemas"]["NoneNormalizer"] | components["schemas"]["LowercaseNormalizer"] | components["schemas"]["Pep503Normalizer"] | components["schemas"]["PurlTypeNormalizer"];
+            };
             /** Uniqueness */
             uniqueness?: ("unique" | "hint") | null;
             /**
@@ -22321,9 +21682,10 @@ export interface components {
          * @description How core names Subjects of one kind: by key ClaimTypes, or by minted ids.
          *
          *     Every new Subject is of a kind with an accepted SubjectKind. ``keys`` names
-         *     the key ClaimTypes (by predicate, in key order): each a ClaimType v8 about
+         *     the key ClaimTypes (by predicate, in key order): each a ClaimType about
          *     this kind only, literal and one-valued, accepted here or earlier; a Subject's
-         *     id is then the readable rendering of its canonical key. The default
+         *     id is then the readable rendering of its canonical key. ``normalizers``
+         *     gives a key part an identity normalizer from the fixed core set. The default
          *     ``uniqueness: unique`` refuses a second live Subject with the same key; ``hint`` only
          *     surfaces it in the duplicates audit. ``minted: true`` has core mint opaque
          *     ids instead. Change it, or retire it, through a successor.
@@ -22347,6 +21709,13 @@ export interface components {
              * @default []
              */
             keys?: string[];
+            /**
+             * Normalizers
+             * @description Per key part (by predicate or last name), the identity normalizer its value takes, pinned by version: {normalizer: none|lowercase|pep503, version: 1}, or {normalizer: purl-type, version: 1, identity: package|package_variant}. A part not named takes none@1. Two raw values that normalize to one name one Subject.
+             */
+            normalizers?: {
+                [key: string]: components["schemas"]["NoneNormalizer"] | components["schemas"]["LowercaseNormalizer"] | components["schemas"]["Pep503Normalizer"] | components["schemas"]["PurlTypeNormalizer"];
+            };
             /**
              * Uniqueness
              * @description With keys: defaults to unique, which refuses a duplicate key; hint does not.
@@ -22421,19 +21790,25 @@ export interface components {
             kind: "subject_succession";
             subject: components["schemas"]["SubjectShell"];
         };
-        /** TapStep */
-        TapStep: {
-            /** Id */
-            id?: string | null;
-            /** Next */
-            next?: string | null;
-            /** Tap */
-            tap: string;
-            /** Query */
-            query: string;
-            params?: components["schemas"]["JsonValue"];
-            budgets?: components["schemas"]["JsonValue"];
+        /**
+         * SubjectType
+         * @description A Subject of one of the explicitly named kinds, in canonical order.
+         */
+        SubjectType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "subject";
+            /** Subject Kinds */
+            subject_kinds: string[];
         };
+        "Template-Input": components["schemas"]["Ref"] | {
+            [key: string]: components["schemas"]["Template-Input"];
+        } | components["schemas"]["Template-Input"][] | string | boolean | number | null;
+        "Template-Output": components["schemas"]["Ref"] | {
+            [key: string]: components["schemas"]["Template-Output"];
+        } | components["schemas"]["Template-Output"][] | string | boolean | number | null;
         /** TerminalSettlementEvidence */
         TerminalSettlementEvidence: {
             /**
@@ -22451,73 +21826,118 @@ export interface components {
             /** Terminal Record Digest */
             terminal_record_digest: string;
         };
-        /** TransformAdapterSpec */
-        TransformAdapterSpec: {
+        /**
+         * TransformAggregateSpec
+         * @description One value over the records: ``count``, ``any``/``all`` of ``where``, ``min``/``max`` of
+         *     ``field``, or the ``first_by`` record ordered by ``field``.
+         */
+        TransformAggregateSpec: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-transform-adapter-spec-v1";
-            /** Value */
-            value: unknown;
+            tag: "cruxible-transform-aggregate-spec-v1";
+            /** Input */
+            input: unknown;
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "count" | "any" | "all" | "min" | "max" | "first_by";
+            /** Field */
+            field?: string | null;
+            /** Where */
+            where?: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"]) | null;
         };
-        /** TransformAggregateItemsSpec */
-        TransformAggregateItemsSpec: {
+        /** TransformDedupeSpec */
+        TransformDedupeSpec: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-transform-aggregate-items-spec-v1";
-            /** Items */
-            items: unknown;
-        };
-        /** TransformDedupeItemsSpec */
-        TransformDedupeItemsSpec: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            tag: "playbill-transform-dedupe-items-spec-v1";
-            /** Items */
-            items: unknown;
+            tag: "cruxible-transform-dedupe-spec-v1";
+            /** Input */
+            input: unknown;
             /** Keys */
             keys: string[];
         };
-        /** TransformFilterItemsSpec */
-        TransformFilterItemsSpec: {
+        /**
+         * TransformDeriveSpec
+         * @description ``case [{when, value}] else value`` over named inputs (``$item.fields.<name>``).
+         *
+         *     The first case whose ``when`` is ``true`` decides; a ``when`` that is
+         *     ``unknown`` before any case decides makes the derived value ``unknown``.
+         *     ``else`` is required.
+         */
+        TransformDeriveSpec: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-transform-filter-items-spec-v1";
-            /** Items */
-            items: unknown;
+            tag: "cruxible-transform-derive-spec-v1";
+            /** Input */
+            input: {
+                [key: string]: unknown;
+            };
+            /** Cases */
+            cases: components["schemas"]["DeriveCase"][];
+            /** Else */
+            else: boolean | number | string | null;
+        };
+        /**
+         * TransformFilterSpec
+         * @description Keep the records whose closed predicate is ``true``; an ``unknown`` one taints the output.
+         */
+        TransformFilterSpec: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            tag: "cruxible-transform-filter-spec-v1";
+            /** Input */
+            input: unknown;
             /** Where */
-            where: {
-                [key: string]: unknown;
-            };
+            where: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
         };
-        /** TransformJoinItemsSpec */
-        TransformJoinItemsSpec: {
+        /**
+         * TransformJoinSpec
+         * @description Records of ``left`` whose ``left_field`` equals a ``right`` record's ``right_field``.
+         *
+         *     ``inner`` keeps each matched pair, adding ``right_fields`` (output name ->
+         *     right field); ``anti`` keeps the left records no right record matches.
+         */
+        TransformJoinSpec: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-transform-join-items-spec-v1";
-            /** Left Items */
-            left_items: unknown;
-            /** Right Items */
-            right_items: unknown;
-            /** Left Key */
-            left_key: string;
-            /** Right Key */
-            right_key: string;
-            /** Fields */
-            fields: {
-                [key: string]: unknown;
+            tag: "cruxible-transform-join-spec-v1";
+            /** Left */
+            left: unknown;
+            /** Right */
+            right: unknown;
+            /** Left Field */
+            left_field: string;
+            /** Right Field */
+            right_field: string;
+            /**
+             * Mode
+             * @default inner
+             * @enum {string}
+             */
+            mode?: "inner" | "anti";
+            /** Right Fields */
+            right_fields?: {
+                [key: string]: string;
             };
         };
-        /** TransformNode */
+        /**
+         * TransformNode
+         * @description A closed, deterministic transform: records in, records (or one value) out.
+         *
+         *     Its records are typed as they flow (each field keeps its field result), its
+         *     predicates are three-valued, and its output carries completeness.
+         */
         TransformNode: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -22530,38 +21950,58 @@ export interface components {
              * Transform Kind
              * @enum {string}
              */
-            transform_kind: "shape_items" | "join_items" | "filter_items" | "aggregate_items" | "dedupe_items" | "adapter";
-            /** Contract In */
-            contract_in: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
-            /** Contract Out */
-            contract_out: components["schemas"]["ArtifactPin"] | components["schemas"]["ProcedurePinSlotRef"];
+            transform_kind: "shape" | "filter" | "join" | "aggregate" | "dedupe" | "union" | "derive";
             /** Spec */
-            spec: components["schemas"]["TransformAdapterSpec"] | components["schemas"]["TransformShapeItemsSpec"] | components["schemas"]["TransformFilterItemsSpec"] | components["schemas"]["TransformDedupeItemsSpec"] | components["schemas"]["TransformJoinItemsSpec"] | components["schemas"]["TransformAggregateItemsSpec"];
+            spec: components["schemas"]["TransformShapeSpec"] | components["schemas"]["TransformFilterSpec"] | components["schemas"]["TransformJoinSpec"] | components["schemas"]["TransformAggregateSpec"] | components["schemas"]["TransformDedupeSpec"] | components["schemas"]["TransformUnionSpec"] | components["schemas"]["TransformDeriveSpec"];
             /** As */
             as: string;
             /** Next */
             next?: string | null;
         };
-        /** TransformShapeItemsSpec */
-        TransformShapeItemsSpec: {
+        /**
+         * TransformRunSummary
+         * @description One closed transform: the records it read and the records it produced.
+         *
+         *     ``rows_in`` sums every records input (a join's left and right, a union's
+         *     parts); ``rows_out`` is absent for a transform that produces one value
+         *     (``aggregate``, ``derive``), and ``rows_in`` for one that reads none.
+         */
+        TransformRunSummary: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            tag: "playbill-transform-shape-items-spec-v1";
-            /** Items */
-            items: unknown;
+            kind: "transform";
+            /**
+             * Transform Kind
+             * @enum {string}
+             */
+            transform_kind: "shape" | "filter" | "join" | "aggregate" | "dedupe" | "union" | "derive";
+            /** Rows In */
+            rows_in?: number | null;
+            /** Rows Out */
+            rows_out?: number | null;
+        };
+        /** TransformShapeSpec */
+        TransformShapeSpec: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            tag: "cruxible-transform-shape-spec-v1";
+            /** Input */
+            input: unknown;
             /** Fields */
             fields: {
-                [key: string]: unknown;
+                [key: string]: components["schemas"]["ShapeField"];
             };
-            /**
-             * Include Input
-             * @default false
-             */
-            include_input?: boolean;
         };
-        /** TransformStep */
+        /**
+         * TransformStep
+         * @description A closed transform (shape, filter, join, aggregate, dedupe, union, derive).
+         *
+         *     Its records are typed as they flow; it names no Contracts of its own.
+         */
         TransformStep: {
             /** Id */
             id?: string | null;
@@ -22573,21 +22013,19 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "shape_items" | "join_items" | "filter_items" | "aggregate_items" | "dedupe_items" | "adapter";
+            kind: "shape" | "filter" | "join" | "aggregate" | "dedupe" | "union" | "derive";
             /** Spec */
-            spec: components["schemas"]["TransformAdapterSpec"] | components["schemas"]["TransformShapeItemsSpec"] | components["schemas"]["TransformFilterItemsSpec"] | components["schemas"]["TransformDedupeItemsSpec"] | components["schemas"]["TransformJoinItemsSpec"] | components["schemas"]["TransformAggregateItemsSpec"];
-            /** Input */
-            input: {
-                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
-            };
-            /** Output */
-            output: {
-                [key: string]: ("string" | "int" | "integer" | "float" | "number" | "bool" | "date" | "datetime" | "json" | "list") | components["schemas"]["ProcedureField"];
-            };
-            /** Contract In */
-            contract_in?: string | null;
-            /** Contract Out */
-            contract_out?: string | null;
+            spec: components["schemas"]["ShapeSpec"] | components["schemas"]["FilterSpec"] | components["schemas"]["JoinSpec"] | components["schemas"]["AggregateSpec"] | components["schemas"]["DedupeSpec"] | components["schemas"]["UnionSpec"] | components["schemas"]["DeriveSpec"];
+        };
+        /** TransformUnionSpec */
+        TransformUnionSpec: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            tag: "cruxible-transform-union-spec-v1";
+            /** Inputs */
+            inputs: unknown[];
         };
         /**
          * TriggerAuthoringPayload
@@ -22687,6 +22125,26 @@ export interface components {
             /** Length */
             length: number;
             read_whole?: components["schemas"]["WholeValueRead"] | null;
+        };
+        /** UnionSpec */
+        UnionSpec: {
+            /** Inputs */
+            inputs: components["schemas"]["Template-Input"][];
+        };
+        /**
+         * VariantType
+         * @description A tagged choice; each arm is one Contract version.
+         */
+        VariantType: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "variant";
+            /** Arms */
+            arms: {
+                [key: string]: components["schemas"]["ContractRef"];
+            };
         };
         /**
          * VerdictNotSupportedWarning
@@ -25746,95 +25204,6 @@ export interface operations {
             };
         };
     };
-    claim_type_upgrade_api_v1__instance_id__claim_types_upgrade_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                instance_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClaimTypeUpgradeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClaimTypeUpgradeResult"];
-                };
-            };
-            /** @description Bad request error envelope */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Authentication error envelope */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Permission error envelope */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not found error envelope */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict error envelope */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation error envelope */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Internal server error envelope */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     kit_remove_api_v1__instance_id__kits_remove_post: {
         parameters: {
             query?: never;
@@ -26817,7 +26186,7 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: string | null;
-                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "interfaces" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources") | null;
+                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "operations" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources" | "contracts") | null;
                 limit?: number;
                 cursor?: string | null;
                 /** @description An accepted generation's Git OID, or a unique prefix of at least 12 hex characters; the four coordinate fields also pin one. */
@@ -27381,7 +26750,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProposalReview"];
+                    "application/json": components["schemas"]["ProposalReview"] | components["schemas"]["ProposalReviewSummary"];
                 };
             };
             /** @description Bad request error envelope */
@@ -28345,7 +27714,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ClaimTypeMigrationRequestV1"] | components["schemas"]["ClaimTypeMigrationRequestV2"] | components["schemas"]["ClaimTypeMigrationRequest"];
+                "application/json": components["schemas"]["ClaimTypeMigrationRequest"];
             };
         };
         responses: {
@@ -28355,7 +27724,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClaimTypeMigrationResultV1"] | components["schemas"]["ClaimTypeMigrationPreflight"] | components["schemas"]["ClaimTypeMigrationResultV2"] | components["schemas"]["ClaimTypeMigrationResult"];
+                    "application/json": components["schemas"]["ClaimTypeMigrationPreflight"] | components["schemas"]["ClaimTypeMigrationResult"];
                 };
             };
             /** @description Bad request error envelope */
@@ -28965,7 +28334,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AuthoringIntentCompileRequestV1"] | components["schemas"]["AuthoringIntentCompileRequest"] | components["schemas"]["AuthoringInputCompileRequest"];
+                "application/json": components["schemas"]["AuthoringIntentCompileRequest"] | components["schemas"]["AuthoringInputCompileRequest"];
             };
         };
         responses: {
@@ -30574,95 +29943,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QueryResultRecord"];
-                };
-            };
-            /** @description Bad request error envelope */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Authentication error envelope */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Permission error envelope */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not found error envelope */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict error envelope */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation error envelope */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Internal server error envelope */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    procedure_source_preview_api_v1__instance_id__procedures_source_preview_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                instance_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProcedureSourcePreviewRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProcedureSourcePreview"];
                 };
             };
             /** @description Bad request error envelope */
@@ -33229,9 +32509,9 @@ export interface operations {
     };
 }
 
-export type RecursiveQueryCell = components["schemas"]["TruncatedText"] | components["schemas"]["ExactContentRef"] | components["schemas"]["ShownObject"] | string | boolean | number | RecursiveQueryCell[] | {
+export type RecursiveQueryCell = components["schemas"]["TruncatedText"] | components["schemas"]["ShownObject"] | string | boolean | number | RecursiveQueryCell[] | {
             [key: string]: components["schemas"]["QueryClaim"][];
         } | {
             [key: string]: components["schemas"]["QueryNone"][];
         } | null;
-export type RecursiveShownValue = components["schemas"]["TruncatedText"] | components["schemas"]["ExactContentRef"] | components["schemas"]["ShownObject"] | string | boolean | number | RecursiveShownValue[] | null;
+export type RecursiveShownValue = components["schemas"]["TruncatedText"] | components["schemas"]["ShownObject"] | string | boolean | number | RecursiveShownValue[] | null;
