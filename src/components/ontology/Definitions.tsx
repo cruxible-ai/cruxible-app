@@ -9,6 +9,7 @@ import { FieldList, type FieldItem } from "@/components/FieldList";
 import { useAtLink } from "@/lib/at";
 import {
   contractRefText,
+  hostOf,
   logicalSourceText,
   procedureSlots,
   stepView,
@@ -18,6 +19,7 @@ import {
   type Retention,
   type StepView,
 } from "@/lib/definitions";
+import { bytesWords, nameWords } from "@/lib/step-words";
 
 type Slot = ReturnType<typeof procedureSlots>[number];
 import { providerName } from "@/lib/ontology";
@@ -231,59 +233,47 @@ export function LineDefinitionPanel({
   return (
     <Panel title="Line definition">
       <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-[13px]">
-        <dt className="text-zinc-500">Parameters</dt>
-        <dd className="min-w-0 break-words text-zinc-300">
-          {parameters.length === 0 && <span className="text-zinc-600">None</span>}
-          {parameters.map(([key, value]) => (
-            <div key={key}>
-              <span className="font-mono text-zinc-400">{key}</span> ={" "}
-              <span className="font-mono text-zinc-200">{typeof value === "string" ? value : JSON.stringify(value)}</span>
+        <dt className="text-zinc-500">Source</dt>
+        <dd className="text-zinc-300">
+          {retains.length === 0 && <span className="text-zinc-600">Keeps nothing</span>}
+          {retains.map((r, i) => (
+            <div key={i}>
+              <RetentionWords retention={r} />
             </div>
           ))}
         </dd>
-        <dt className="text-zinc-500" title="The call that reads the Capture whose landing started the run">
-          Trigger input
-        </dt>
-        <dd className="text-zinc-300">
-          {line.triggerInput ? (
-            <span>
-              Step <span className="font-mono">{line.triggerInput}</span>
+        {line.triggerInput && (
+          <>
+            <dt className="text-zinc-500" title="The call that reads the Capture whose landing started the run">
+              Starts from
+            </dt>
+            <dd className="text-zinc-300">
+              <span title={`Trigger input: step ${line.triggerInput}`}>The Capture that landed</span>
               {line.triggerContract && (
                 <span>
                   {" "}
-                  reads <NamedRef kind="contract" name={line.triggerContract} />
+                  as <ContractWords name={line.triggerContract} />
                 </span>
               )}
-            </span>
-          ) : (
-            <span className="text-zinc-600">None</span>
-          )}
-        </dd>
-        <dt className="text-zinc-500">Bindings</dt>
-        <dd className="text-zinc-300">
-          {bindings.length === 0 ? (
-            <span className="text-zinc-600">None</span>
-          ) : (
-            bindings.map(([slot, provider]) => (
-              <div key={slot}>
-                <span className="font-mono text-zinc-400">{slot}</span> →{" "}
-                <RefLink value={`Provider:${provider}`}>
-                  <span className="font-mono text-[12px]" title={provider}>{providerName(provider)}</span>
-                </RefLink>
-              </div>
-            ))
-          )}
-        </dd>
-        <dt className="text-zinc-500">Retains</dt>
-        <dd className="text-zinc-300">
-          {retains.length === 0 && <span className="text-zinc-600">Nothing</span>}
-          {retains.map((r, i) => (
-            <div key={i}>
-              {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : <span className="text-zinc-500">{r.emitted ? "Its output" : r.given ? `The source given as ${r.given}` : "A Capture naming no logical source"}</span>}{" "}
-              <span className="text-zinc-500">under</span> <NamedRef kind="contract" name={r.contract} />
-            </div>
-          ))}
-        </dd>
+            </dd>
+          </>
+        )}
+        {bindings.length > 0 && (
+          <>
+            <dt className="text-zinc-500" title="The Provider build each slot binds">
+              {bindings.length === 1 ? "Provider" : "Providers"}
+            </dt>
+            <dd className="text-zinc-300">
+              {bindings.map(([slot, provider]) => (
+                <div key={slot} title={`Slot ${slot} binds ${provider}`}>
+                  <RefLink value={`Provider:${provider}`}>
+                    <span className="font-mono text-[12px]">{providerName(provider)}</span>
+                  </RefLink>
+                </div>
+              ))}
+            </dd>
+          </>
+        )}
         {triggers.length > 0 && (
           <>
             <dt className="text-zinc-500">Starts on</dt>
@@ -300,8 +290,66 @@ export function LineDefinitionPanel({
             </dd>
           </>
         )}
+        {parameters.length > 0 && (
+          <>
+            <dt className="text-zinc-500">Parameters</dt>
+            <dd className="min-w-0 break-words text-zinc-300">
+              <details>
+                <summary className="cursor-pointer text-[12px] text-zinc-500 hover:text-zinc-300">Show {parameters.length === 1 ? "the parameter" : `the ${parameters.length} parameters`}</summary>
+                {parameters.map(([key, value]) => (
+                  <div key={key}>
+                    <span className="font-mono text-zinc-400">{key}</span> ={" "}
+                    <span className="font-mono text-zinc-200">{typeof value === "string" ? value : JSON.stringify(value)}</span>
+                  </div>
+                ))}
+              </details>
+            </dd>
+          </>
+        )}
       </dl>
     </Panel>
+  );
+}
+
+/** A CaptureKind in words ("the kev catalog"), linking its page; its name on hover. */
+function ContractWords({ name }: { name: string }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const bare = name.replace(/^CaptureContract:/, "");
+  return (
+    <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(bare)}`)} title={`CaptureKind ${bare}`} className="text-zinc-200 underline decoration-zinc-600 underline-offset-2 hover:text-white">
+      the {nameWords(bare)}
+    </Link>
+  );
+}
+
+/**
+ * What a Line keeps, in words: "Fetches cisa.gov · up to 4 MB, kept as the
+ * kev catalog" (the URL on hover, the source linking its CaptureKind page,
+ * the logical source and contract names on hover).
+ */
+function RetentionWords({ retention: r }: { retention: Retention }) {
+  const host = hostOf(r.url);
+  const cap = r.maxBytes !== null ? ` · up to ${bytesWords(r.maxBytes)}` : "";
+  const kept = (
+    <span title={r.source ? `Logical source ${r.source}, retained under CaptureKind ${r.contract}` : `Retained under CaptureKind ${r.contract}`}>
+      <ContractWords name={r.contract} />
+    </span>
+  );
+  if (r.emitted) return <>Keeps its output as {kept}</>;
+  if (host || r.url) {
+    return (
+      <>
+        Fetches <span title={r.url ?? undefined} className="text-zinc-100">{host ?? r.url}</span>
+        {cap}, kept as {kept}
+      </>
+    );
+  }
+  return (
+    <>
+      Keeps {r.source ? <span className="font-mono text-zinc-200">{r.source}</span> : r.given ? `the source given as ${r.given}` : "a Capture naming no logical source"}
+      {cap} as {kept}
+    </>
   );
 }
 

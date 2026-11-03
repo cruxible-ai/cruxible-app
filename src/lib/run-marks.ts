@@ -6,7 +6,8 @@ import { term, type Term } from "./vocabulary.ts";
  * the run: the run card's finished nodes (each with its verdict; the card
  * lists only the latest ones), the node it is running, the inputs it waits
  * on, its terminal (the node that refused, failed or halted) and terminal
- * egress (what became of each output), and from the run's state its
+ * egress (what became of each output), each finished node's summary (what
+ * flowed through it), and from the run's state its
  * journal's fired nodes, the Captures each node read and, in the receipt,
  * the Provider build pinned for each node. A step none of these mention did
  * not run (once the run is over). Words come from the glossary; only a
@@ -15,6 +16,7 @@ import { term, type Term } from "./vocabulary.ts";
 
 type RunCard = Schemas["GetProcedureRunCard"];
 type RunState = Schemas["ProcedureRunState"];
+type RunSummary = NonNullable<Schemas["GetRunNode"]["summary"]>;
 
 export interface StepMark {
   /** What happened at the step (the run outcome words). */
@@ -25,6 +27,8 @@ export interface StepMark {
   hints: string[];
   /** The Provider build the receipt pins for this node (source and call steps). */
   provider: string | null;
+  /** What flowed through the node, from the run card (absent for older runs, a refusal or a kind that keeps none). */
+  summary?: RunSummary | null;
 }
 
 export interface RunMarks {
@@ -69,10 +73,13 @@ export function runMarks(nodeIds: readonly string[], card: RunCard, state: RunSt
     if (note) notes.push(note);
     // A signal (refused, failed, waiting) wins over a plain word.
     const keep = prev && prev.term.signal && !t.signal ? prev.term : t;
-    marks.set(node, { term: keep, notes, hints: prev?.hints ?? [], provider: providers.get(node) ?? prev?.provider ?? null });
+    marks.set(node, { term: keep, notes, hints: prev?.hints ?? [], provider: providers.get(node) ?? prev?.provider ?? null, summary: prev?.summary ?? null });
   };
   const cardNodes = card.nodes ?? [];
-  for (const n of cardNodes) mark(n.node, n.verdict ? term("run", n.verdict) : term("step", "fired"));
+  for (const n of cardNodes) {
+    mark(n.node, n.verdict ? term("run", n.verdict) : term("step", "fired"));
+    if (n.summary) marks.get(n.node)!.summary = n.summary;
+  }
   // The journal's fired nodes: every node the run finished, past the card's latest few.
   for (const outcome of state?.outcomes ?? []) {
     const o = record(outcome);
@@ -100,6 +107,7 @@ export function runMarks(nodeIds: readonly string[], card: RunCard, state: RunSt
       notes: [...(prev?.notes ?? []), e.word.toLowerCase()],
       hints: [...(prev?.hints ?? []), `${e.word}: ${authority}`],
       provider: prev?.provider ?? null,
+      summary: prev?.summary ?? null,
     });
   }
   const reads = new Map<string, number>();

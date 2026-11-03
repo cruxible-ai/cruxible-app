@@ -297,7 +297,13 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
 
   const upcoming: Upcoming[] = on.map((row, i) => {
     const card = (cards[i]?.card ?? undefined) as LineCard | undefined;
-    const wakes = (card?.triggers ?? []).map((t) => wakeOf(t.fires, now));
+    // Only a Trigger the running enablement armed has a next fire.
+    const enablement = card?.enablements?.[0];
+    const armed = new Set(enablement?.state === "running" ? (enablement.triggers ?? []).map((t) => t.trigger.replace(/^Trigger:/, "")) : []);
+    const wakes = (card?.triggers ?? []).map((t) => {
+      const wake = wakeOf(t.fires, now);
+      return armed.has(t.trigger.replace(/^Trigger:/, "")) ? wake : { ...wake, next: null };
+    });
     const scheduled = (card?.occurrences ?? []).map((o) => new Date(o.eligible_at));
     const due = (row.due ?? 0) > 0 || (card?.occurrences ?? []).some((o) => o.state === "due");
     const times = [...scheduled, ...wakes.flatMap((w) => (w.next ? [w.next] : []))].sort((a, b) => a.getTime() - b.getTime());

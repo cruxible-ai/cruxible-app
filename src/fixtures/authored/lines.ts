@@ -93,6 +93,52 @@ const CVE_CARD: Schemas["GetLineCard"] = {
   runs_total: 0,
 };
 
+/** run-7: refused at the guard after the extract; its nodes carry the run card's summaries. */
+const RUN_7: Schemas["GetProcedureRunCard"] = {
+  run: "run-7",
+  procedure: `Procedure:${PROCEDURE}`,
+  status: "node_refused",
+  nodes_done: 4,
+  nodes_total: 6,
+  started_at: "2026-10-18T06:00:04Z",
+  elapsed_us: 8_400_000,
+  elapsed_basis: "measured_wall_clock",
+  nodes: [
+    { node: "catalog", kind: "call", verdict: "ok", sequence: 1, duration_us: 1_200_000, summary: { kind: "call", captures: 1 } },
+    { node: "watched", kind: "read", verdict: "ok", sequence: 2, duration_us: 400_000, summary: { kind: "read", rows: 3 } },
+    {
+      node: "entries",
+      kind: "extract",
+      verdict: "ok",
+      sequence: 3,
+      duration_us: 6_100_000,
+      summary: { kind: "extract", records: 1766, invalid_records: 0, duplicates: 0, invalid_fields: 0, complete: true },
+    },
+    { node: "changed", kind: "guard", verdict: "refused", sequence: 4, duration_us: 2_000 },
+  ],
+  triggered_by: { line: `Line:${KEV}`, occurrence: "occ-2026-10-18", enablement: "enb-1", principal_kind: "runtime_credential", enabled_by_withheld: true },
+  terminal: {
+    tag: "playbill-procedure-node-refusal-v1",
+    classification: "node_refusal",
+    code: "guard_refused",
+    message: "The settle target is outside the mandate's ClaimType scope.",
+    node_id: "changed",
+    repair: { operation: "cruxible.authoring.example" },
+  },
+  terminal_egress: [
+    {
+      node_id: "settle",
+      kind: "claims",
+      verdict: "delivered",
+      required_authority: "propose",
+      effective_authority: "settle",
+      proposal_id: "sha256:" + "a".repeat(64),
+      settle_outcome: "proposed",
+      target_paths: ["claims/00/CLM-000000000000000000000000000000a3.json"],
+    },
+  ],
+};
+
 export default [
   defineFixture({
     method: "get",
@@ -334,52 +380,37 @@ export default [
       payload: { cve: "CVE-2024-6387", release: "rel-1", message: "KEV-listed; no assessment exists for rel-1." },
     },
   }),
+  batch(["ProcedureRun:run-7"], [result("ProcedureRun:run-7", "procedure_run", RUN_7)]),
+  // The runs page's cards, for what each run changed: run-8 settled Claims, run-7 refused before writing, run-6 predates node summaries.
   batch(
-    ["ProcedureRun:run-7"],
+    ["ProcedureRun:run-8", "ProcedureRun:run-7", "ProcedureRun:run-6"],
     [
-      result("ProcedureRun:run-7", "procedure_run", {
-        run: "run-7",
+      result("ProcedureRun:run-8", "procedure_run", {
+        run: "run-8",
         procedure: `Procedure:${PROCEDURE}`,
-        status: "node_refused",
-        nodes_done: 4,
+        status: "succeeded",
+        nodes_done: 6,
         nodes_total: 6,
-        started_at: "2026-10-18T06:00:04Z",
-        elapsed_us: 8_400_000,
-        elapsed_basis: "measured_wall_clock",
+        started_at: "2026-10-19T06:00:05Z",
         nodes: [
-          { node: "catalog", kind: "call", verdict: "ok", sequence: 1, duration_us: 1_200_000, summary: { kind: "call", captures: 1 } },
-          { node: "watched", kind: "read", verdict: "ok", sequence: 2, duration_us: 400_000, summary: { kind: "read", rows: 3 } },
           {
-            node: "entries",
-            kind: "extract",
-            verdict: "ok",
-            sequence: 3,
-            duration_us: 6_100_000,
-            summary: { kind: "extract", records: 1766, invalid_records: 0, duplicates: 0, invalid_fields: 0, complete: true },
-          },
-          { node: "changed", kind: "guard", verdict: "refused", sequence: 4, duration_us: 2_000 },
-        ],
-        triggered_by: { line: `Line:${KEV}`, occurrence: "occ-2026-10-18", enablement: "enb-1", principal_kind: "runtime_credential", enabled_by_withheld: true },
-        terminal: {
-          tag: "playbill-procedure-node-refusal-v1",
-          classification: "node_refusal",
-          code: "guard_refused",
-          message: "The settle target is outside the mandate's ClaimType scope.",
-          node_id: "changed",
-          repair: { operation: "cruxible.authoring.example" },
-        },
-        terminal_egress: [
-          {
-            node_id: "settle",
+            node: "settle",
             kind: "claims",
-            verdict: "delivered",
-            required_authority: "propose",
-            effective_authority: "settle",
-            proposal_id: "sha256:" + "a".repeat(64),
-            settle_outcome: "proposed",
-            target_paths: ["claims/00/CLM-000000000000000000000000000000a3.json"],
+            verdict: "succeeded",
+            sequence: 9,
+            summary: { kind: "claims", written: 32, revised: 0, inverse_written: 2, subjects_created: 0, re_observed: 0, no_op: 0, retired: 0, surfaced: 0, downgraded: 0, delivery: "settled" },
           },
         ],
+      }),
+      result("ProcedureRun:run-7", "procedure_run", RUN_7),
+      result("ProcedureRun:run-6", "procedure_run", {
+        run: "run-6",
+        procedure: `Procedure:${PROCEDURE}`,
+        status: "succeeded",
+        nodes_done: 6,
+        nodes_total: 6,
+        started_at: "2026-10-17T06:00:03Z",
+        nodes: [{ node: "settle", kind: "claims", verdict: "succeeded", sequence: 9 }],
       }),
     ],
   ),

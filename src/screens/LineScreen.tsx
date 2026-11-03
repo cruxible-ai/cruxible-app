@@ -25,10 +25,13 @@ import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextTable } from "@/components/next/NextTable";
 import { LineDefinitionPanel } from "@/components/ontology/Definitions";
+import { PhraseText } from "@/components/PhraseText";
 import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
 import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
 import { buildProcedureGraph, INPUT_NODE } from "@/lib/procedure-graph";
 import { runMarks } from "@/lib/run-marks";
+import { mandateContext, mandateWords, type MandateContext } from "@/lib/mandate-words";
+import { runChangedWords } from "@/lib/step-words";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime, formatWhen, sentence } from "@/lib/text";
@@ -117,8 +120,9 @@ export function LineScreen() {
         runs={<RunsPanel line={line} total={lineCard.runs_total ?? 0} />}
       />
       <LineNextPanel line={line} />
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <MandatesPanel line={line} />
+      {/* A lone panel (no track record to show) takes the whole row. */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 xl:[&>:only-child]:col-span-2">
+        <MandatesPanel line={line} procedure={procedure} />
         <ProcedurePanel procedure={procedure} />
       </div>
     </Page>
@@ -388,12 +392,12 @@ function triggerColumns(current: LineEnablement | undefined, armed: ReadonlySet<
       className: "whitespace-nowrap text-[12px] text-zinc-400",
       cell: (trigger) => {
         const { wake, on } = view(trigger);
-        return (
-          <>
-            {wake.landing ? "On landing" : wake.next ? <span title={wake.next.toISOString()}>{formatWhen(wake.next.toISOString())}</span> : "–"}
-            {!on && !wake.landing && wake.next && <span className="text-zinc-600"> (if armed)</span>}
-          </>
-        );
+        // Only an armed Trigger fires: one that is not shows a dash, and when it would fire on hover.
+        if (!on) {
+          const would = wake.landing ? "on a landing" : wake.next ? `at ${formatWhen(wake.next.toISOString())}` : null;
+          return <span title={would ? `Would fire ${would} if armed` : "Not armed"}>—</span>;
+        }
+        return wake.landing ? "On landing" : wake.next ? <span title={wake.next.toISOString()}>{formatWhen(wake.next.toISOString())}</span> : "—";
       },
     },
   ];
@@ -482,6 +486,18 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
   const [cursors, setCursors] = useState<string[]>([]);
   const read = useLineRuns(line, cursors[cursors.length - 1]);
   const runs = read.data?.runs?.runs ?? [];
+  // Each run's card, for what it changed (its nodes' summaries).
+  const runCards = useGetBatch(runs.map((run) => `ProcedureRun:${runId(run.run)}`));
+  const changedKey = JSON.stringify(runCards.results.map((r) => [r.ref, cardOf(r, "procedure_run")?.nodes?.map((n) => n.summary ?? null) ?? null]));
+  const changed = useMemo(() => {
+    const out = new Map<string, string | null>();
+    for (const result of runCards.results) {
+      const card = cardOf(result, "procedure_run");
+      if (card) out.set(runId(card.run), runChangedWords(card.nodes));
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the cards returned
+  }, [changedKey]);
   const runColumns = useMemo<Column<RunRow>[]>(
     () => [
       {
@@ -491,7 +507,7 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
         sortValue: (run) => runId(run.run),
         filter: { kind: "text", text: (run) => runId(run.run) },
         cell: (run) => (
-          <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="font-mono text-zinc-200 hover:underline" title={runId(run.run)}>
+          <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="whitespace-nowrap font-mono text-zinc-200 hover:underline" title={runId(run.run)}>
             {shortRunId(run.run)}
           </Link>
         ),
@@ -512,6 +528,14 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
         cell: (run) => <span title={run.started_at}>{formatWhen(run.started_at)}</span>,
       },
       {
+        id: "changed",
+        header: "Changed",
+        title: "What the run changed, from its steps' counts (blank for a run that kept none)",
+        sortValue: (run) => changed.get(runId(run.run)) ?? null,
+        className: "whitespace-nowrap text-[12px] text-zinc-300",
+        cell: (run) => changed.get(runId(run.run)) ?? "",
+      },
+      {
         id: "nodes",
         header: "Nodes done",
         numeric: true,
@@ -520,7 +544,7 @@ function RunsPanel({ line, total }: { line: string; total: number }) {
         cell: (run) => run.nodes_done,
       },
     ],
-    [instanceId, link],
+    [instanceId, link, changed],
   );
   return (
     <Panel
@@ -577,9 +601,20 @@ function LineNextPanel({ line }: { line: string }) {
   );
 }
 
+/** The Procedure's track record, measurement reviews and readings; nothing at all when it has none of them. */
 function ProcedurePanel({ procedure }: { procedure: string }) {
   const read = useCard(`Procedure:${procedure}`);
   const card = cardOf(read.data, "procedure");
+  const readings = useReadings(procedure, READINGS_PAGE);
+  const empty =
+    card != null &&
+    readings.data !== undefined &&
+    (card.track_record ?? []).length === 0 &&
+    (card.measurement_reviews ?? []).length === 0 &&
+    readings.data.contracts.length === 0 &&
+    readings.data.readings.length === 0 &&
+    !readings.data.cursor;
+  if (empty || (read.isPending && !read.error)) return null;
   return (
     <Panel title="Track record and measurements">
       {read.isPending && <LoadState />}
@@ -636,96 +671,64 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
   );
 }
 
-function MandatesPanel({ line }: { line: string }) {
+/**
+ * What the Line's Mandates let it do, in plain words (mandate-words.ts):
+ * what it may settle without review and for which Subjects, what happens when
+ * a Subject leaves the source, and that the rest goes to review when a
+ * propose Mandate covers everything. Settle Mandates first.
+ */
+function MandatesPanel({ line, procedure }: { line: string; procedure: string }) {
   const mandates = useMandates();
-  const rows = (mandates.data?.rows ?? []).filter((m) => lineName(m.line) === line);
+  const spec = cardOf(useCard(`Procedure:${procedure}`).data, "procedure")?.authored ?? null;
+  const ctx = useMemo(() => mandateContext(spec), [spec]);
+  const rows = (mandates.data?.rows ?? [])
+    .filter((m) => lineName(m.line) === line)
+    .sort((a, b) => (a.grants === b.grants ? (a.mandate < b.mandate ? -1 : 1) : a.grants === "settle" ? -1 : 1));
+  const restToReview = rows.some((m) => m.grants === "propose" && (m.scope ?? []).length === 0 && !m.suspended);
   return (
     <Panel title="Mandates" meta={<span>{rows.length}</span>}>
       {mandates.isPending && <LoadState />}
       {mandates.data && rows.length === 0 && <EmptyState>No mandate binds this Line: its runs can at most propose.</EmptyState>}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {rows.map((mandate) => (
-          <MandateDetail key={mandate.mandate} mandate={mandate} />
+          <MandateDetail key={mandate.mandate} mandate={mandate} ctx={ctx} restToReview={restToReview} />
         ))}
       </div>
     </Panel>
   );
 }
 
-/** A Mandate scope's changes: each change it permits, with the bases it accepts (`create (extracted, measured)`). */
-function scopeChanges(changes: Schemas["MandateChanges"]): string {
-  const parts = (["create", "revise", "retire"] as const).flatMap((change) => {
-    const permitted = changes[change];
-    return permitted ? [`${change} (${permitted.basis.join(", ")})`] : [];
-  });
-  return parts.join(", ") || "no changes";
-}
-
-function MandateDetail({ mandate }: { mandate: Schemas["OrientMandate"] }) {
+function MandateDetail({ mandate, ctx, restToReview }: { mandate: Schemas["OrientMandate"]; ctx: MandateContext; restToReview: boolean }) {
   const name = mandate.mandate.replace(/^(Procedure)?Mandate:/, "");
   const read = useCard(`Mandate:${name}`);
   const card = cardOf(read.data, "mandate");
-  const condition = card?.condition ?? null;
-  const query = useCard(condition?.query ?? null);
-  const queryCard = cardOf(query.data, "query");
+  const words = card ? mandateWords(card, ctx, restToReview) : null;
+  // A condition's Query says in its own words what it holds for.
+  const condition = cardOf(useCard(card?.condition?.query ?? null).data, "query");
   return (
-    <div className="text-[12px]">
+    <div className="text-[13px]">
       <div className="flex flex-wrap items-baseline gap-x-3">
-        <span className="font-mono text-zinc-200">{name}</span>
-        <span className="text-zinc-400" title={term("authority", mandate.grants).meaning}>{term("authority", mandate.grants).word.toLowerCase()}</span>
+        <span title={`Mandate ${name} grants ${mandate.grants}`}>
+          <RefLink value={`Mandate:${name}`}>
+            <span className="font-medium text-zinc-100">{words?.heading ?? term("authority", mandate.grants).word}</span>
+          </RefLink>
+        </span>
         <Chip concept="mandate" value={mandate.suspended ? "suspended" : mandate.state} />
-        <span className="text-zinc-500">expires {formatDateTime(mandate.expires_at)}</span>
+        <span className="text-[12px] text-zinc-500" title={mandate.expires_at}>
+          until {formatDateTime(mandate.expires_at)}
+        </span>
       </div>
       {read.error && <div className="text-red-400/80">{read.error.message}</div>}
-      {card && (
-        <dl className="mt-0.5 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 pl-2">
-          <dt className="text-zinc-600">Namespace</dt>
-          <dd className="font-mono text-zinc-400">{(card.namespace ?? []).join(", ") || "—"}</dd>
-          <dt className="text-zinc-600">Scope</dt>
-          <dd>
-            {(card.scope ?? []).length === 0 && <span className="text-zinc-600">—</span>}
-            {(card.scope ?? []).map((scope) => (
-              <div key={scope.claim_type}>
-                <RefLink value={scope.claim_type} /> <span className="text-zinc-500">{scopeChanges(scope.changes)} · binds {scope.binds}</span>
-              </div>
-            ))}
-          </dd>
-          <dt className="text-zinc-600">Subjects</dt>
-          <dd className="text-zinc-400">
-            {card.subjects === "expected"
-              ? "The run's expected Subjects"
-              : card.subject_scope == null
-                ? "Any in scope"
-                : card.subject_scope.map((path) => <RefLink key={path} value={path} />)}
-          </dd>
-          <dt className="text-zinc-600">Condition</dt>
-          <dd className="text-zinc-400">
-            {condition ? (
-              <>
-                <RefLink value={condition.query} /> binds <span className="font-mono">{condition.binding_parameter}</span>, requires{" "}
-                <span className="font-mono">{condition.required_fields.join(", ")}</span>, otherwise {condition.fallback}
-                {Object.keys(condition.fixed_parameters ?? {}).length > 0 && (
-                  <code className="ml-1 font-mono text-zinc-500">{JSON.stringify(condition.fixed_parameters)}</code>
-                )}
-                {queryCard?.description && <div className="text-zinc-500">{queryCard.description}</div>}
-                {(queryCard?.params ?? []).length > 0 && (
-                  <div className="text-zinc-600">
-                    Params: {queryCard!.params!.map((p) => `${p.name}: ${p.type}${p.required ? "" : "?"}`).join(", ")}
-                  </div>
-                )}
-              </>
-            ) : (
-              "None (unconditional)"
-            )}
-          </dd>
-          {(card.subject_creation ?? []).length > 0 && (
-            <>
-              <dt className="text-zinc-600">May create</dt>
-              <dd className="font-mono text-zinc-400">{card.subject_creation!.join(", ")}</dd>
-            </>
-          )}
-        </dl>
+      {words && words.sentences.length > 0 && (
+        <ul className="mt-0.5 space-y-0.5 text-zinc-300">
+          {words.sentences.map((sentence, i) => (
+            <li key={i}>
+              <PhraseText phrase={sentence} />
+            </li>
+          ))}
+        </ul>
       )}
+      {condition?.description && <div className="text-[12px] text-zinc-500">{condition.description}</div>}
     </div>
   );
 }

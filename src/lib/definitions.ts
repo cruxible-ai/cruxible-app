@@ -86,6 +86,15 @@ export function resolvedSource(ref: LogicalSourceRef | null, parameters: Record<
   return null;
 }
 
+/** A number a Line gives a call's input: a literal, or a `{$ref: param}` to a numeric parameter; null otherwise. */
+export function resolvedNumber(value: unknown, parameters: Record<string, unknown> | undefined): number | null {
+  if (typeof value === "number") return value;
+  const ref = templateRef(value);
+  const head = ref?.$ref === "param" ? ref.path?.[0] : undefined;
+  const given = head ? parameters?.[head] : undefined;
+  return typeof given === "number" ? given : null;
+}
+
 /** How a logical source reference reads as authored: the literal, `$params.x` or `$input.x`. */
 export function logicalSourceText(ref: LogicalSourceRef): string {
   return "literal" in ref ? ref.literal : "param" in ref ? `$params.${ref.param}` : `$input.${ref.input}`;
@@ -195,6 +204,8 @@ export interface SourceStep {
   logicalSource: LogicalSourceRef | null;
   /** The URL the call fetches (its input's `url`), for where a source comes from. */
   url: LogicalSourceRef | null;
+  /** The most bytes the call accepts (its input's `max_bytes`, a number or a parameter), as authored. */
+  maxBytes: unknown;
   emitted: boolean;
 }
 
@@ -211,11 +222,12 @@ export function sourceSteps(procedure: string, spec: ProcedureSpec): SourceStep[
           slotIn,
           logicalSource: logicalSourceRef(step.input),
           url: logicalSourceRef(step.input, "url"),
+          maxBytes: record(step.input)?.max_bytes ?? null,
           emitted: false,
         });
       }
     } else if ("emit" in step) {
-      out.push({ procedure, alias: null, contract: step.emit, slotIn: null, logicalSource: null, url: null, emitted: true });
+      out.push({ procedure, alias: null, contract: step.emit, slotIn: null, logicalSource: null, url: null, maxBytes: null, emitted: true });
     }
   }
   return out;
@@ -277,6 +289,8 @@ export interface Retention {
   slotIn: string | null;
   /** The URL the call fetches, when its input names one (literally or through a Line parameter). */
   url: string | null;
+  /** The most bytes the call accepts, when its input says (literally or through a Line parameter). */
+  maxBytes: number | null;
 }
 
 /**
@@ -309,6 +323,7 @@ export function retentions(
         given,
         slotIn: step.slotIn,
         url: resolvedSource(step.url ?? null, line?.parameters),
+        maxBytes: resolvedNumber(step.maxBytes, line?.parameters),
       });
     }
   }

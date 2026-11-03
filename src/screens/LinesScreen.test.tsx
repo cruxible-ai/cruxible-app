@@ -53,9 +53,19 @@ describe("Line page", () => {
     expect(await main.findByRole("link", { name: "run-6" })).toBeInTheDocument();
     expect(main.getAllByRole("link", { name: "run-7" })[0]).toHaveAttribute("href", "/i/inst_fixture/runs/run-7");
     expect(main.getByRole("button", { name: "Older →" })).toBeInTheDocument();
+    // what each run changed, from its nodes' summaries; blank for a run with none that write
+    const runs = within(main.getByRole("table", { name: "Runs" }));
+    expect(await runs.findByText("32 written · 2 recorded absent")).toBeInTheDocument();
+    expect(runs.getByRole("columnheader", { name: /Changed/ })).toBeInTheDocument();
     expect(await main.findByText("kev-triage-agreement")).toBeInTheDocument();
     expect(main.getByText("Missed a vendor backport.")).toBeInTheDocument();
-    expect(await main.findByText(/otherwise propose/)).toBeInTheDocument();
+    // the settle Mandate in words: what it settles, when a Subject leaves the source, under which condition
+    expect(await main.findByText("May settle without review")).toBeInTheDocument();
+    expect(await main.findByText(/otherwise it goes to review/)).toBeInTheDocument();
+    const sentences = main.getAllByRole("listitem").map((li) => li.textContent);
+    expect(sentences).toContain("New values extracted from the kev http v1 for status.");
+    expect(sentences).toContain("When a Subject leaves the kev http v1: retire its status.");
+    expect(main.getAllByRole("link", { name: "status" })[0]).toHaveAttribute("href", "/i/inst_fixture/claim-types/security.assessment.status");
     expect(await main.findByText("Assessments whose vulnerability is KEV-listed and whose release is shipped.")).toBeInTheDocument();
     expect(await main.findByText("Contradicted")).toBeInTheDocument();
     const item = await main.findByRole("button", { name: /^INB-7777/ });
@@ -101,10 +111,12 @@ describe("Line definitions", () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const main = within(await screen.findByRole("main"));
     // the panel shows while the Line's envelope loads; read it once its rows are in
-    const line = within((await main.findByText("Trigger input")).closest("section")!);
-    expect(await line.findByText("catalog")).toBeInTheDocument(); // trigger input step
-    expect(line.getByText("security.kev-http-v1")).toBeInTheDocument();
+    const line = within((await main.findByText("Starts from")).closest("section")!);
+    // the trigger input in words, the step on hover, the CaptureKind linked
+    expect(line.getByText("The Capture that landed")).toHaveAttribute("title", "Trigger input: step catalog");
+    expect(line.getByRole("link", { name: "the kev http v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
     expect(line.getByText("cruxible-provider-web")).toBeInTheDocument(); // the build the Line binds
+    expect(line.getByText("Keeps nothing")).toBeInTheDocument(); // its only call reads the landing
     // the Procedure as authored is on the steps graph: a clicked step names its contract, slot, binding and query
     const node = async (id: string) => {
       await waitFor(() => expect(document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`)).not.toBeNull(), { timeout: 8000 });

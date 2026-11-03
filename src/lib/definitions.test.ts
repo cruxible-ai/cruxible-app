@@ -139,7 +139,7 @@ describe("definitions", () => {
   it("retains through Lines (resolving a param logical source by parameters), skips a Line's trigger input, keeps direct runs", () => {
     const steps = [FETCH, TRIAGE, SBOM, EPSS].flatMap((spec) => sourceSteps(spec.procedure, spec));
     const all = retentions(steps, LINES);
-    expect(all.map(({ slotIn: _, url: __, ...rest }) => rest)).toEqual([
+    expect(all.map(({ slotIn: _, url: __, maxBytes: ___, ...rest }) => rest)).toEqual([
       { contract: "sec.fetched-v1", source: "cisa.kev.catalog", procedure: "sec.fetch-observed", line: "kev-daily", emitted: false, given: null },
       { contract: "sec.observation-output-v1", source: null, procedure: "sec.fetch-observed", line: "kev-daily", emitted: true, given: null },
       // kev-triage reads its catalog from the landing: no retention
@@ -211,9 +211,17 @@ describe("gists", () => {
 
 describe("Procedures that run only as Lines", () => {
   it("retain nothing until a Line runs them", () => {
-    const call = { procedure: "log-import", alias: "log", contract: "file-v1", slotIn: "workspace.file.request", logicalSource: { literal: "log-read" }, url: null, emitted: false };
+    const call = { procedure: "log-import", alias: "log", contract: "file-v1", slotIn: "workspace.file.request", logicalSource: { literal: "log-read" }, url: null, maxBytes: null, emitted: false };
     expect(retentions([call], [], (procedure) => procedure !== "log-import")).toEqual([]);
     expect(retentions([call], [], () => true)).toHaveLength(1);
+  });
+
+  it("resolve a call's byte cap through the Line's parameters", () => {
+    const call = { procedure: "p", alias: "c", contract: "k", slotIn: null, logicalSource: { literal: "s" }, url: null, maxBytes: param("max_bytes"), emitted: false };
+    const line = { line: "l", procedure: "p", parameters: { max_bytes: 4194304 }, triggerInput: null, triggerContract: null, bindings: {}, maxAuthority: null, occurrenceEpoch: null };
+    expect(retentions([call], [line])[0]!.maxBytes).toBe(4194304);
+    expect(retentions([{ ...call, maxBytes: 1024 }], [])[0]!.maxBytes).toBe(1024);
+    expect(retentions([{ ...call, maxBytes: "big" }], [])[0]!.maxBytes).toBeNull();
   });
 });
 

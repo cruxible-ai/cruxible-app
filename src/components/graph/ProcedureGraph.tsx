@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Link } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { ArrowRightLeft, ArrowUpDown, Clock, Cpu, CornerDownRight, Database, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
-import { useInstanceId } from "@/api/hooks";
+import { useGetBatch, useInstanceId } from "@/api/hooks";
+import { cardOf } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
 import { CONTROL_CLASS, GraphCanvas, type GraphSelection } from "@/components/graph/GraphCanvas";
@@ -14,6 +15,7 @@ import { type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/de
 import { providerName } from "@/lib/ontology";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
+import { flowWords, nameWords, queryShape, stepPurpose, summaryWords, type Phrase, type QueryShape, type RunSummary } from "@/lib/step-words";
 import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
 import { ROLE_COLOR } from "@/lib/palette";
@@ -23,11 +25,15 @@ import { sentence } from "@/lib/text";
  * A Procedure as a left-to-right graph: one node per step, typed by its role
  * with one visual per role (an icon and a border), edges wherever a step
  * names another (a `{$ref: step}` reference, labelled with its path when
- * short; a guard's then/else as a dashed edge). Each node shows its id and
- * kind and the definitions its step names. On a Line page the graph is
- * wrapped by the Line: its Triggers and parameters on the left, and a run's
- * marks (what happened at each step) when one is picked. Clicking a step focuses everything upstream and downstream of it
- * (the focus chip and Esc clear it) and tells the page which step it is.
+ * short; a guard's then/else as a dashed edge). Each node shows its kind and
+ * name and what the step is for in plain words (step-words.ts), with the
+ * named things linked and the internal names on hover. On a Line page the
+ * graph is wrapped by the Line: its Triggers and parameters on the left, and
+ * a run's marks when one is picked: what happened at each step, in counts
+ * where the run card's node summary gives them ("1,766 records · complete"),
+ * and the count flowing along an edge. Clicking a step focuses everything
+ * upstream and downstream of it (the focus chip and Esc clear it) and tells
+ * the page which step it is.
  */
 
 /** A Line's Trigger as the graph shows it: its schedule in words, and whether its landing feeds the trigger input. */
@@ -79,8 +85,12 @@ interface NodeDisplay {
   kindWord: string;
   kindMeaning: string;
   name: string | null;
+  /** What the step is for, in words (at most two lines on the node; all of it on hover). */
+  purpose: (Phrase & { routes: (string | null)[] }) | null;
   lines: NodeLine[];
   mark: StepMark | null;
+  /** The mark's words: the run's counts for the node when its summary gives them. */
+  markWords: { text: string; title: string } | null;
 }
 
 type StepNodeData = NodeDisplay & { vertical?: boolean; [key: string]: unknown };
@@ -90,6 +100,10 @@ const HEAD_HEIGHT = 20;
 const PAD = 12;
 const MIN_WIDTH = 130;
 const MAX_WIDTH = 210;
+/** A node with a purpose may grow wider, so two lines say most of it. */
+const PURPOSE_MAX_WIDTH = 340;
+/** Roboto Flex at 11px runs about this wide per character on average. */
+const SANS_EM = 0.48;
 
 function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
   const Icon = ROLE_ICON[data.role];
@@ -105,10 +119,11 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
         <span style={{ color: ROLE_COLOR[data.role].color }}>{data.kindWord}</span>
         {data.name && <span className="truncate font-mono text-[12px] text-zinc-100">{data.name}</span>}
       </div>
+      {data.purpose && <PurposeText purpose={data.purpose} />}
       {data.lines.map((line, i) => (
         <NodeText key={i} line={line} />
       ))}
-      {data.mark && <MarkLine mark={data.mark} />}
+      {data.mark && <MarkLine mark={data.mark} words={data.markWords} />}
       <Handle type="source" position={data.vertical ? Position.Bottom : Position.Right} className="!pointer-events-none !opacity-0" />
     </div>
   );
@@ -131,10 +146,41 @@ function NodeText({ line }: { line: NodeLine }) {
   );
 }
 
-function MarkLine({ mark }: { mark: StepMark }) {
-  const text = [mark.term.word, ...mark.notes].join(" · ");
+/** A step's purpose: plain words, payload and definition names as code, named things linked; two lines at most, all of it on hover. */
+function PurposeText({ purpose }: { purpose: NonNullable<NodeDisplay["purpose"]> }) {
   return (
-    <div className="mt-0.5 flex h-[15px] items-center gap-1.5 border-t border-zinc-800 pt-0.5 text-[11px] leading-[15px] text-zinc-300" title={[mark.term.meaning, ...mark.notes, ...mark.hints].join("\n")}>
+    <div className="line-clamp-2 break-words text-[11px] leading-[15px] text-zinc-300" title={purpose.title}>
+      {purpose.parts.map((part, i) => {
+        const text = part.code ? <code className="font-mono text-[10.5px] text-zinc-200">{part.text}</code> : part.text;
+        const to = purpose.routes[i];
+        return to ? (
+          <Link key={i} to={to} title={part.title} className="nodrag nopan text-zinc-100 underline decoration-zinc-600 underline-offset-2 hover:text-white hover:decoration-zinc-300" onClick={(e) => e.stopPropagation()}>
+            {text}
+          </Link>
+        ) : (
+          <span key={i} title={part.title}>
+            {text}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The mark's text: the run's counts for the node when its summary gives them (a signal word still leads), else what happened. */
+function markText(mark: StepMark, words: NodeDisplay["markWords"]): string {
+  // The counts say it all; the verdict, the egress and the Captures read stay on hover.
+  if (words && !mark.term.signal) return words.text;
+  return [mark.term.word, ...(words ? [words.text] : []), ...mark.notes].join(" · ");
+}
+
+function MarkLine({ mark, words }: { mark: StepMark; words: NodeDisplay["markWords"] }) {
+  const text = markText(mark, words);
+  return (
+    <div
+      className="mt-0.5 flex h-[15px] items-center gap-1.5 border-t border-zinc-800 pt-0.5 text-[11px] leading-[15px] text-zinc-300"
+      title={[mark.term.meaning, ...(words ? [words.title] : []), ...mark.notes, ...mark.hints].join("\n")}
+    >
       {mark.term.signal && <SignalDot signal={mark.term.signal} title={mark.term.meaning} />}
       <span className="truncate">{text}</span>
     </div>
@@ -143,13 +189,24 @@ function MarkLine({ mark }: { mark: StepMark }) {
 
 const nodeTypes = { step: StepNode };
 
-/** The node box: the widest line in 11px mono (the header in 12px) between the bounds. */
-function boxOf(name: string | null, kindWord: string, lines: NodeLine[], mark: StepMark | null) {
-  const head = monoWidth(name ?? "", 12) + monoWidth(kindWord, 11) + 56;
-  const body = Math.max(0, ...lines.map((l) => monoWidth(l.text, 11) + (l.signal ? 12 : 0)));
-  const markWidth = mark ? monoWidth([mark.term.word, ...mark.notes].join(" · "), 11) + 12 : 0;
-  const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, head, body + PAD + 6, markWidth + PAD));
-  const height = HEAD_HEIGHT + lines.length * LINE_HEIGHT + (mark ? LINE_HEIGHT + 3 : 0) + PAD;
+/** A purpose's width on one line: code in 10.5px mono, the rest in 11px sans. */
+const purposeWidth = (purpose: Phrase) =>
+  Math.ceil(purpose.parts.reduce((w, p) => w + (p.code ? monoWidth(p.text, 10.5) : p.text.length * 11 * SANS_EM), 0));
+
+/**
+ * The node box: the widest line in 11px mono (the header in 12px) between the
+ * bounds; a purpose widens it up to PURPOSE_MAX_WIDTH and wraps to a second
+ * line past that.
+ */
+function boxOf(d: NodeDisplay) {
+  const inner = PAD + 6;
+  const head = monoWidth(d.name ?? "", 12) + monoWidth(d.kindWord, 11) + 56;
+  const body = Math.max(0, ...d.lines.map((l) => monoWidth(l.text, 11) + (l.signal ? 12 : 0)));
+  const markWidth = d.mark ? monoWidth(markText(d.mark, d.markWords), 11) + 12 : 0;
+  const purpose = d.purpose ? purposeWidth(d.purpose) : 0;
+  const width = Math.min(d.purpose ? PURPOSE_MAX_WIDTH : MAX_WIDTH, Math.max(MIN_WIDTH, head, body + inner, markWidth + PAD, purpose + inner));
+  const purposeLines = d.purpose ? (purpose + inner > width ? 2 : 1) : 0;
+  const height = HEAD_HEIGHT + (purposeLines + d.lines.length) * LINE_HEIGHT + (d.mark ? LINE_HEIGHT + 3 : 0) + PAD;
   return { width, height };
 }
 
@@ -190,27 +247,40 @@ export function ProcedureGraph({
   );
 
   // Every node's id and kind, and what its step names (the Line's binding and the run's marks when given).
+  // The Queries the read steps name, and their row Contracts: what a read returns, in words.
+  const queryNames = useMemo(() => [...new Set(spec.steps.flatMap((step) => ("read" in step && step.query ? [step.query] : [])))].sort(), [spec]);
+  const queryReads = useGetBatch(queryNames.map((name) => `QueryDefinition:${name}`));
+  const queryCards = queryNames.map((_, i) => cardOf(queryReads.results[i], "query"));
+  const rowNames = [...new Set(queryCards.flatMap((card) => queryShape(card, null)?.row ?? []))].sort();
+  const rowReads = useGetBatch(rowNames.map((row) => `Contract:${row}`));
+  const queriesKey = JSON.stringify([queryCards, rowReads.results]);
+  const queries = useMemo(() => {
+    const out = new Map<string, QueryShape>();
+    queryNames.forEach((name, i) => {
+      const card = queryCards[i];
+      const row = queryShape(card, null)?.row;
+      const contract = row ? cardOf(rowReads.results[rowNames.indexOf(row)], "contract") : null;
+      const shape = queryShape(card, contract);
+      if (shape) out.set(name, shape);
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
+  }, [queriesKey]);
+
+  // Every node's kind and name, what its step is for, and the run's marks and counts when one is picked.
   const display = useMemo(() => {
     const out = new Map<string, NodeDisplay>();
-    const bindingLine = (slot: string, mark: StepMark | null): NodeLine[] => {
-      const provider = mark?.provider ?? definition?.bindings[slot] ?? null;
-      if (!provider) return [{ text: `slot ${slot}`, tone: "dim" }];
-      const pinned = Boolean(mark?.provider);
-      return [
-        {
-          text: `slot ${slot} → ${providerName(provider)}`,
-          title: pinned ? `This run's receipt pins ${provider}` : `The Line binds slot ${slot} to ${provider}`,
-          to: routeOf(`Provider:${provider}`),
-          tone: "plain",
-        },
-      ];
-    };
+    const summaries = new Map<string, RunSummary>();
+    for (const [id, m] of run?.marks ?? []) if (m.summary) summaries.set(id, m.summary);
+    const ctx = { parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, summaries };
+    const partRoute = (ref: string | undefined) => (ref ? (ref.startsWith("CaptureContract:") ? contractRoute(ref) : routeOf(ref)) : null);
 
     for (const node of model.nodes) {
       const mark = run?.marks.get(node.id) ?? null;
       const lines: NodeLine[] = [];
       let kind: string = node.kind;
       let name: string | null = node.unnamed ? null : node.id;
+      let purpose: NodeDisplay["purpose"] = null;
       const v = node.view;
       if (node.kind === "input") {
         const parameters = Object.entries(definition?.parameters ?? {});
@@ -222,26 +292,29 @@ export function ProcedureGraph({
           for (const field of node.detail) lines.push({ text: field, tone: "dim" });
           if (node.detail.length === 0) lines.push({ text: "Given at run", tone: "plain" });
         }
-      } else if (v) {
-        for (const contract of v.contracts) lines.push({ text: contract, title: `CaptureContract ${contract}`, to: contractRoute(contract) });
-        if (v.slot) lines.push(...bindingLine(v.slot, mark));
-        if (v.query) lines.push({ text: v.query, title: `Query ${v.query}`, to: routeOf(`QueryDefinition:${v.query}`) });
-        if (v.procedure) lines.push({ text: v.procedure, title: `Procedure ${v.procedure}`, to: routeOf(`Procedure:${v.procedure}`) });
-        if (v.detail) lines.push({ text: v.detail });
-        if (definition?.triggerInput && definition.triggerInput === (v.name ?? v.id)) {
-          lines.push({ text: "Reads the landing", title: "This Line's trigger input: the step reads the Capture whose landing started the run", tone: "plain" });
+      } else if (v && node.index !== null) {
+        const words = stepPurpose(spec, node.index, ctx);
+        if (words) {
+          // A call's Provider is named on hover: the run's pinned build, else the Line's binding.
+          const provider = v.slot ? (mark?.provider ?? definition?.bindings[v.slot] ?? null) : null;
+          const via = provider ? `\n${mark?.provider ? "This run's receipt pins" : `The Line binds slot ${v.slot} to`} ${providerName(provider)} (${provider})` : "";
+          purpose = { ...words, title: `${words.title}${via}`, routes: words.parts.map((p) => partRoute(p.ref)) };
         }
+        if (v.detail) lines.push({ text: v.detail, title: `Halts with code ${v.detail}` });
       } else if (node.kind === "halt") {
-        if (node.detail[0]) lines.push({ text: node.detail[0] });
+        purpose = { parts: [{ text: "Stops the run here" }], title: "Stops the run here, with no result", routes: [null] };
+        if (node.detail[0]) lines.push({ text: node.detail[0], title: `Halts with code ${node.detail[0]}` });
       } else if (node.kind === "returns") {
-        lines.push({ text: `${node.detail.length} ${node.detail.length === 1 ? "field" : "fields"}`, title: node.detail.join(", "), tone: "plain" });
+        lines.push({ text: `Returns ${node.detail.length} ${node.detail.length === 1 ? "field" : "fields"}`, title: node.detail.join(", "), tone: "plain" });
       }
       if (node.unresolved.length > 0) {
         const names = [...new Set(node.unresolved.map((r) => r.name))];
         lines.push({ text: `names ${names.join(", ")}`, title: `${names.join(", ")}: no step of this Procedure declares ${names.length === 1 ? "it" : "them"}`, tone: "dim" });
       }
+      // A read's rows are named after its Query ("10 watched vulnerabilities").
+      const markWords = mark?.summary ? summaryWords(mark.summary, v?.query ? nameWords(v.query) : null) : null;
       const word = term("stepKind", kind);
-      out.set(node.id, { role: node.role, kindWord: word.word, kindMeaning: word.meaning, name, lines, mark });
+      out.set(node.id, { role: node.role, kindWord: word.word, kindMeaning: word.meaning, name, purpose, lines, mark, markWords });
     }
     for (const trigger of line?.triggers ?? []) {
       const word = term("stepKind", "trigger");
@@ -250,19 +323,25 @@ export function ProcedureGraph({
         kindWord: word.word,
         kindMeaning: word.meaning,
         name: null,
+        purpose: null,
         lines: [
           { text: trigger.name, to: routeOf(`Trigger:${trigger.name}`), title: `Trigger:${trigger.name}` },
           { text: sentence(trigger.words), tone: "plain" },
         ],
         mark: null,
+        markWords: null,
       });
     }
     return out;
-  }, [model, line, definition, run, routeOf, contractRoute]);
+  }, [model, spec, line, definition, run, routeOf, contractRoute, queries]);
 
   // The edges: the definition's, plus a landing Trigger into the step that reads the landing.
   const edges = useMemo(() => {
-    const out = model.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, control: e.kind === "control", label: e.kind === "control" ? e.fields.join(", ") : edgeLabel(e) }));
+    // A data edge carries the run's count of what flows along it when the source's summary gives one.
+    const out = model.edges.map((e) => {
+      const flow = e.kind === "data" ? flowWords(run?.marks.get(e.source)?.summary, e.fields) : null;
+      return { id: e.id, source: e.source, target: e.target, control: e.kind === "control", label: e.kind === "control" ? e.fields.join(", ") : (flow ?? edgeLabel(e)) };
+    });
     const inputStep = definition?.triggerInput
       ? model.nodes.find((n) => n.view?.kind === "call" && (n.view.name ?? n.view.id) === definition.triggerInput)
       : undefined;
@@ -272,14 +351,14 @@ export function ProcedureGraph({
       }
     }
     return out;
-  }, [model, definition, line]);
+  }, [model, definition, line, run]);
 
   const layoutInput = useMemo(() => {
     const ids = [...(line?.triggers ?? []).map((t) => `${TRIGGER_PREFIX}${t.name}`), ...model.nodes.map((n) => n.id)];
     return {
       nodes: ids.map((id) => {
         const d = display.get(id)!;
-        const box = boxOf(d.name, d.kindWord, d.lines, d.mark);
+        const box = boxOf(d);
         return { id, ...box, first: id.startsWith(TRIGGER_PREFIX) || id === INPUT_NODE };
       }),
       edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
@@ -392,7 +471,9 @@ export function ProcedureGraph({
         renderPanel={(selection) => {
           if (selection.kind !== "node") return null;
           const view = model.nodes.find((n) => n.id === selection.id)?.view;
-          return view ? <StepPanel view={view} binding={view.slot ? (definition?.bindings[view.slot] ?? null) : null} /> : null;
+          return view ? (
+            <StepPanel view={view} binding={view.slot ? (definition?.bindings[view.slot] ?? null) : null} purpose={display.get(selection.id)?.purpose?.title ?? null} />
+          ) : null;
         }}
         className=""
         height={canvasHeight}
@@ -435,7 +516,7 @@ function RoleLegend({ roles }: { roles: StepRole[] }) {
 }
 
 /** A clicked step: what it is, what it names (linked), and the build the Line binds its slot to. */
-function StepPanel({ view, binding }: { view: StepView; binding: string | null }) {
+function StepPanel({ view, binding, purpose }: { view: StepView; binding: string | null; purpose: string | null }) {
   const row = (label: string, value: ReactNode) => (
     <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2">
       <dt className="text-zinc-500">{label}</dt>
@@ -448,6 +529,7 @@ function StepPanel({ view, binding }: { view: StepView; binding: string | null }
         <div className="t-meta">{term("stepKind", view.kind).word}</div>
         <div className="font-mono text-[13px] text-zinc-100">{view.id}</div>
         <div className="mt-0.5 text-zinc-500">{term("stepKind", view.kind).meaning}</div>
+        {purpose && <div className="mt-1 whitespace-pre-line text-zinc-300">{purpose}</div>}
       </div>
       <dl className="space-y-1">
         {view.name && view.name !== view.id && row("Name", <span className="font-mono">{view.name}</span>)}

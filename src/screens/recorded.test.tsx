@@ -107,7 +107,12 @@ describe("recorded reference world", () => {
     expect(await m.findByText(/Read the CISA KEV catalog and write each watched CVE/)).toBeInTheDocument();
     const line = within((await m.findByText("Line definition")).closest("section")!);
     expect(await line.findByText("cruxible-provider-web")).toBeInTheDocument(); // the build slot fetch binds
-    expect(within(line.getByText("Retains").nextElementSibling as HTMLElement).getByText("cisa.kev.catalog")).toBeInTheDocument();
+    // where it gets its source, in words: the host (the URL on hover), the cap, the CaptureKind it keeps it as (linked)
+    const source = line.getByText("Source").nextElementSibling as HTMLElement;
+    expect(source).toHaveTextContent("Fetches cisa.gov · up to 4 MB, kept as the kev catalog");
+    expect(within(source).getByText("cisa.gov")).toHaveAttribute("title", expect.stringMatching(/^https:\/\/www\.cisa\.gov\//));
+    expect(within(source).getByRole("link", { name: "the kev catalog" })).toHaveAttribute("href", `${I}/contracts/security.kev-catalog`);
+    expect(line.getByText(/^Show the 3 parameters$/)).toBeInTheDocument();
     // the Procedure as authored is on the steps graph: each node its id and kind
     await waitFor(() => expect(node("write")).not.toBeNull(), { timeout: 8000 });
     const kinds = { catalog: "Call", watched: "Read", entries: "Extract", write: "Claims" };
