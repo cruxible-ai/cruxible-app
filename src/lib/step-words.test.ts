@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Schemas } from "@/api/schemas";
 import type { ProcedureSlot, ProcedureSpec } from "./definitions";
-import { bytesWords, flowWords, partsText, pointerText, queryShape, runChangedWords, shortName, stepBrief, stepRow, stepSections, summaryWords, type RunSummary } from "./step-words";
+import { bytesWords, flowWords, partsText, pointerText, queryShape, runChangedWords, shortName, stepBrief, stepSections, summaryWords, type RunSummary } from "./step-words";
 
 const FETCH_SLOT: ProcedureSlot = { in: { name: "web.fetch.request", version: 1 }, out: { name: "web.fetch.result", version: 1 }, effect: "external_read" };
 const param = (name: string) => ({ $ref: "param" as const, path: [name] });
@@ -92,18 +92,6 @@ describe("step labels", () => {
     expect(stepBrief(KEV, 3).at(-1)!.ref).toBe("SubjectKind:security.vulnerability");
   });
 
-  it("the steps table: what each step reads, returns and which fields, named directly and linked", () => {
-    const rows = KEV.steps.map((_, i) => stepRow(KEV, i, { parameters: PARAMETERS, queries: QUERIES }));
-    expect(rows.map((r) => [r.id, partsText(r.reads), partsText(r.returns), partsText(r.fields)])).toEqual([
-      ["catalog", "cisa.gov", "kev-catalog", ""],
-      ["watched", "watched_vulnerabilities", "1 row / vulnerability", "cve_id"],
-      ["entries", "catalog", "1 record / /vulnerabilities/* · key cveID", "dateAdded, dueDate, knownRansomwareCampaignUse"],
-      ["write", "entries, watched", "vulnerability", "listed_in, kev_date_added, kev_due_date, kev_ransomware_use"],
-    ]);
-    expect(rows[0]!.reads[0]).toMatchObject({ href: PARAMETERS.url });
-    expect(rows[0]!.returns[0]).toMatchObject({ ref: "CaptureContract:security.kev-catalog" });
-    expect(rows[3]!.fields[0]).toMatchObject({ ref: "ClaimType:security.vulnerability.listed_in" });
-  });
 
   it("the side panel: every field of a step in titled groups", () => {
     const sections = (i: number) =>

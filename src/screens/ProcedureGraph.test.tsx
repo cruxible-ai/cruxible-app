@@ -76,14 +76,6 @@ describe("Procedure graph", () => {
     expect(within(node("entries")).getByText("1,766 records · complete")).toBeInTheDocument();
     expect(within(node("settle")).getByText(/Not run|delivered/)).toBeInTheDocument();
     expect(screen.getByText("Marked with run")).toBeInTheDocument();
-    // the steps table under the graph: what each step reads, returns and which fields, and this run's counts
-    const steps = within(screen.getByRole("table", { name: "Steps" }));
-    const row = (id: string) => within(steps.getByText(id, { selector: "span.font-mono" }).closest("tr")!);
-    expect(row("entries").getByText("catalog")).toBeInTheDocument();
-    expect(row("entries").getByText("dateAdded")).toBeInTheDocument();
-    expect(row("entries").getByText("1,766 records · complete")).toBeInTheDocument();
-    expect(row("settle").getByText("kev_date_added").closest("a")).toHaveAttribute("href", "/i/inst_fixture/claim-types/security.vulnerability.kev_date_added");
-    expect(row("catalog").getByText("landing")).toBeInTheDocument();
     // a clicked step opens its fields in groups
     fireEvent.click(node("entries"));
     const panel = within(await screen.findByRole("list", { name: "Records" }, SLOW));

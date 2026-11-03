@@ -36,7 +36,7 @@ const stateRank = (row: LineRow) => {
 /**
  * Every Line at the pinned generation, read like its Evidence flow card: what
  * starts it, what it ends in (the ClaimTypes it proposes or settles, the
- * sources it lands, its inbox; in its authority's color), its last run, and
+ * Subject kinds it writes onto, its inbox; in its authority's color), its last run, and
  * what needs a person (its `next` rows and unread inbox, from the first `next`
  * page). Running Lines first; Procedure, mandates, max
  * authority and due work are columns to switch on. Reads: the evidence-flow
@@ -130,13 +130,13 @@ export function LinesScreen() {
       {
         id: "ends",
         header: "Ends in",
-        title: "What a run leaves: the ClaimTypes it proposes or settles, the sources it lands, its inbox; in its authority's color",
+        title: "The Subject kinds its runs write onto (settles or proposes), and its inbox",
         sortValue: (row) => ["observe", "propose", "settle"].indexOf(row.authority),
         filter: {
           kind: "text",
           text: (row) => {
             const end = ends?.get(nameOf(row));
-            return end ? [...end.claimTypes.map((c) => c.name), ...end.lands, end.inbox ? "inbox" : ""].join(" ") : "";
+            return end ? [...end.claimTypes.map((c) => `${c.kind} ${c.name}`), end.inbox ? "inbox" : ""].join(" ") : "";
           },
         },
         className: "min-w-[14rem] text-[12px]",
@@ -364,10 +364,9 @@ function MandateLabel({ name, procedure, grants }: { name: string; procedure: st
   );
 }
 
-/** What a Line ends in, read off the evidence flow: the ClaimTypes it writes, the sources it lands, its inbox. */
+/** What a Line ends in, read off the evidence flow: the ClaimTypes it writes (and their kinds), its inbox. */
 interface LineEnd {
-  claimTypes: { name: string; predicate: string }[];
-  lands: string[];
+  claimTypes: { name: string; predicate: string; kind: string }[];
   inbox: boolean;
 }
 
@@ -376,16 +375,15 @@ function endsOf(model: FlowModel): Map<string, LineEnd> {
   const out = new Map<string, LineEnd>();
   const entry = (line: string) => {
     let end = out.get(line);
-    if (!end) out.set(line, (end = { claimTypes: [], lands: [], inbox: false }));
+    if (!end) out.set(line, (end = { claimTypes: [], inbox: false }));
     return end;
   };
   for (const edge of model.edges) {
     const from = byId.get(edge.from);
     const to = byId.get(edge.to);
     if (!from || !to) continue;
-    if (from.kind === "source" && to.kind === "line" && edge.lands) entry(to.label).lands.push(from.label);
     if (from.kind === "line" && to.kind === "claim_type")
-      entry(from.label).claimTypes.push({ name: to.label, predicate: to.detail ?? to.label });
+      entry(from.label).claimTypes.push({ name: to.label, predicate: to.detail ?? to.label, kind: to.group ?? "" });
     if (from.kind === "line" && to.id === nodeId.inbox) entry(from.label).inbox = true;
   }
   return out;
@@ -393,26 +391,26 @@ function endsOf(model: FlowModel): Map<string, LineEnd> {
 
 const VERB: Record<string, string> = { settle: "settles", propose: "proposes" };
 
-/** A Line's end in its authority's color: "proposes KEV listing +1", "lands cisa.kev.catalog", "inbox". */
+/** A Line's end in its authority's color: "settles vulnerability", "posts to its inbox". */
 function EndsIn({ end, authority }: { end: LineEnd | undefined; authority: string }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const kindHref = (kind: string) => link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}`);
   const parts: ReactNode[] = [];
   if (end?.claimTypes.length) {
-    const [first, ...more] = end.claimTypes;
+    // what it writes onto: the Subject kinds, each linked, its ClaimTypes on hover
+    const kinds = [...new Set(end.claimTypes.map((c) => c.kind).filter(Boolean))].sort();
     parts.push(
-      <span key="claims" title={end.claimTypes.map((c) => c.name).join(", ")}>
+      <span key="claims">
         <span className="text-zinc-500">{VERB[authority] ?? "writes"}</span>{" "}
-        <RefLink value={`ClaimType:${first!.predicate}`}>
-          <span className="text-zinc-200">{first!.name}</span>
-        </RefLink>
-        {more.length > 0 && <span className="text-zinc-500"> +{more.length}</span>}
-      </span>,
-    );
-  }
-  if (end?.lands.length) {
-    parts.push(
-      <span key="lands" title={end.lands.join(", ")}>
-        <span className="text-zinc-500">lands</span> <span className="font-mono text-zinc-200">{end.lands[0]}</span>
-        {end.lands.length > 1 && <span className="text-zinc-500"> +{end.lands.length - 1}</span>}
+        {kinds.map((kind, i) => (
+          <span key={kind} title={end.claimTypes.filter((c) => c.kind === kind).map((c) => c.name).join(", ")}>
+            {i > 0 && <span className="text-zinc-600">, </span>}
+            <Link to={kindHref(kind)} className="text-zinc-200 hover:underline">
+              {kind.split(".").pop()}
+            </Link>
+          </span>
+        ))}
       </span>,
     );
   }

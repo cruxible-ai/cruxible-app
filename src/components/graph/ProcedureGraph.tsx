@@ -13,8 +13,7 @@ import { parseRef, refRoute } from "@/lib/cruxible-ref";
 import { type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
-import { flowWords, partsText, queryShape, stepBrief, stepRow, stepSections, summaryWords, type DetailSection, type Part, type QueryShape, type StepRow, type StepWordsContext } from "@/lib/step-words";
-import { DataTable, type Column } from "@/components/DataTable";
+import { flowWords, partsText, queryShape, stepBrief, stepSections, summaryWords, type DetailSection, type Part, type QueryShape } from "@/lib/step-words";
 import { FieldList } from "@/components/FieldList";
 import { PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
 import { Parts } from "@/components/Parts";
@@ -551,49 +550,3 @@ export function useQueryShapes(spec: ProcedureSpec): ReadonlyMap<string, QuerySh
   }, [key]);
 }
 
-/**
- * The steps as a table under the graph: each step, what it reads, what it
- * returns and which fields; with a run picked, that run's counts per step.
- */
-export function StepsTable({ spec, line, run }: { spec: ProcedureSpec; line?: LineGraphContext | null | undefined; run?: RunMarks | null | undefined }) {
-  const queries = useQueryShapes(spec);
-  const definition = line?.definition ?? null;
-  const ctx = useMemo<StepWordsContext>(
-    () => ({ parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, bindings: definition?.bindings }),
-    [definition, queries],
-  );
-  const rows = useMemo(() => spec.steps.map((_, i) => stepRow(spec, i, ctx)), [spec, ctx]);
-  const columns = useMemo<Column<StepRow>[]>(() => {
-    const cell = (pick: (row: StepRow) => Part[]) => (row: StepRow) => <Parts parts={pick(row)} />;
-    const out: Column<StepRow>[] = [
-      {
-        id: "step",
-        header: "Step",
-        hideable: false,
-        cell: (row) => (
-          <span className="whitespace-nowrap" title={term("stepKind", row.kind).meaning}>
-            <span className="font-mono text-zinc-100">{row.id}</span> <span className="text-[11px] text-zinc-500">{term("stepKind", row.kind).word.toLowerCase()}</span>
-          </span>
-        ),
-      },
-      { id: "reads", header: "Reads", className: "text-zinc-300", cell: cell((r) => r.reads) },
-      { id: "returns", header: "Returns", className: "text-zinc-300", cell: cell((r) => r.returns) },
-      { id: "fields", header: "Fields", className: "text-zinc-300", cell: cell((r) => r.fields) },
-    ];
-    if (run) {
-      out.push({
-        id: "run",
-        header: "This run",
-        className: "whitespace-nowrap text-zinc-300",
-        cell: (row) => {
-          const mark = run.marks.get(row.id);
-          if (!mark) return null;
-          const words = mark.summary ? summaryWords(mark.summary) : null;
-          return <span title={[mark.term.meaning, words?.title].filter(Boolean).join("\n")}>{words && !mark.term.signal ? words.text : mark.term.word}</span>;
-        },
-      });
-    }
-    return out;
-  }, [run]);
-  return <DataTable rows={rows} columns={columns} rowKey={(row) => row.id} urlKey="steps" label="Steps" toolbar={false} maxHeight="none" />;
-}

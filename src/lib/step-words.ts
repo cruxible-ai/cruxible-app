@@ -1,6 +1,6 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
 import type { Schemas } from "../api/schemas.ts";
-import { hostOf, stepAlias, stepId, stepKind, templateRef, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
+import { hostOf, stepAlias, templateRef, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
 
 /**
  * A Procedure's steps as terse labels: each step's key fields for its graph
@@ -211,50 +211,6 @@ export function stepBrief(spec: ProcedureSpec, index: number, ctx: StepWordsCont
   return [];
 }
 
-/** One step as a row of the steps table: what it reads, what it returns, which fields. */
-export interface StepRow {
-  id: string;
-  kind: string;
-  reads: Part[];
-  returns: Part[];
-  fields: Part[];
-}
-
-export function stepRow(spec: ProcedureSpec, index: number, ctx: StepWordsContext = {}): StepRow {
-  const step = spec.steps[index]!;
-  const refs = [...stepRefs(step)].map((name) => code(name));
-  const row: StepRow = { id: stepId(step, index), kind: stepKind(step), reads: list(refs), returns: [], fields: [] };
-  if ("call" in step) {
-    const { url, host } = callInput(step, ctx);
-    row.reads =
-      ctx.triggerInput === stepAlias(step, index)
-        ? [{ text: "landing", title: "The Capture whose landing started the run" }]
-        : host && url
-          ? [{ text: host, href: url, title: url }]
-          : [{ text: step.slot, title: `slot ${step.slot}` }];
-    row.returns = list(Object.values(step.captures ?? {}).map(contractPart));
-  } else if ("read" in step) {
-    const shape = step.query ? ctx.queries?.get(step.query) : undefined;
-    row.reads = step.query ? [queryPart(step.query)] : step.claim_type ? [claimTypePart(step.claim_type)] : [];
-    row.returns = shape ? [{ text: `1 row / ${shape.kind ? lastSegment(shape.kind) : "result"}`, title: shape.row ? `Row Contract ${shape.row}` : undefined }] : [];
-    row.fields = shape ? list(shape.fields.map((f) => code(f))) : [];
-  } else if ("extract" in step) {
-    const { keys, fields } = extractShape(step);
-    row.returns = joined([[{ text: "1 record / " }, code(step.records)], keys.length ? [{ text: "key " }, ...list(keys.map((k) => code(k)))] : []]);
-    row.fields = list(fields.map((f) => code(f)));
-  } else if ("claims" in step) {
-    row.returns = [kindPart(step.subject.kind)];
-    row.fields = list([...new Set(step.claims.map((c) => c.type))].map(claimTypePart));
-  } else if ("emit" in step) {
-    row.returns = [contractPart(step.emit)];
-  } else if ("invoke" in step) {
-    row.returns = stepBrief(spec, index, ctx);
-  } else if ("transform" in step) {
-    row.returns = [{ text: step.kind }];
-    row.fields = step.kind === "shape" ? list(Object.keys(record(record(step.spec)?.fields) ?? {}).map((f) => code(f))) : [];
-  }
-  return row;
-}
 
 /** One row of a step's side panel: a label (a word, or a name set as code and maybe linked) and its value. */
 export interface DetailRow {

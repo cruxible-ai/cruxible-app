@@ -27,7 +27,7 @@ import { NextTable } from "@/components/next/NextTable";
 import { LineDefinitionPanel } from "@/components/ontology/Definitions";
 import { Parts } from "@/components/Parts";
 import { InfoButton } from "@/components/InfoButton";
-import { ProcedureGraph, StepsTable, type GraphTrigger } from "@/components/graph/ProcedureGraph";
+import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
 import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
 import { buildProcedureGraph, INPUT_NODE } from "@/lib/procedure-graph";
 import { runMarks } from "@/lib/run-marks";
@@ -311,9 +311,6 @@ function LineGraphPanel({
           )}
         </div>
       )}
-      <div className="mt-3">
-        <StepsTable spec={spec} line={context} run={marks} />
-      </div>
     </Panel>
   );
 }
