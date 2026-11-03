@@ -183,7 +183,7 @@ describe("Contract page", () => {
     renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
     const main = within(await screen.findByRole("main"));
     expect(
-      await main.findByText("An HTTP response Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased."),
+      await main.findByText("A web response body Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased."),
     ).toBeInTheDocument();
     expect(main.getByText("For at least 30 days")).toHaveAttribute("title", "body retention required_for_duration · minimum 2592000000000 µs");
     expect(main.getByText("Never erased")).toBeInTheDocument();

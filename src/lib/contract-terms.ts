@@ -37,6 +37,16 @@ export interface ContractTerms {
   erasureRule: string | null;
   selectorPrivacy: SelectorPrivacy | null;
   grade: Grade | null;
+  /** How a Capture's bytes are read: format, compression and the decoder's limits. */
+  decoding: ContractDecoding | null;
+}
+
+export interface ContractDecoding {
+  format: string;
+  encoding: string | null;
+  decodedBytes: number | null;
+  depth: number | null;
+  records: number | null;
 }
 
 const record = (value: unknown): Record<string, unknown> | null =>
@@ -75,7 +85,34 @@ export function readContractTerms(proof: unknown): ContractTerms | null {
     erasureRule: pinName(retention?.erasure_rule),
     selectorPrivacy: oneOf(retention?.selector_privacy, ["direct_allowed", "pseudonymous_required"] as const),
     grade: oneOf(envelope.epistemic_grade, ["observed", "derived", "predicted"] as const),
+    decoding: readDecoding(envelope.decoding),
   };
+}
+
+function readDecoding(value: unknown): ContractDecoding | null {
+  const decoding = record(value);
+  if (!decoding || typeof decoding.format !== "string") return null;
+  const limits = record(decoding.limits);
+  return {
+    format: decoding.format,
+    encoding: typeof decoding.encoding === "string" ? decoding.encoding : null,
+    decodedBytes: count(limits?.decoded_bytes),
+    depth: count(limits?.depth),
+    records: count(limits?.records),
+  };
+}
+
+const FORMAT: Record<string, string> = { json: "JSON", csv: "CSV", text: "Text", bytes: "Raw bytes" };
+
+/** "JSON, as received, gzip-compressed · read up to 16 MiB, 100,000 records". */
+export function decodingWords(decoding: ContractDecoding): string {
+  const what = FORMAT[decoding.format] ?? decoding.format;
+  const packed = decoding.encoding && decoding.encoding !== "identity" ? `, ${decoding.encoding}-compressed` : "";
+  const limits = [
+    decoding.decodedBytes !== null ? `up to ${formatBytes(decoding.decodedBytes)}` : null,
+    decoding.records !== null ? `${decoding.records.toLocaleString()} records` : null,
+  ].filter(Boolean);
+  return `${what}, exactly as received${packed}${limits.length ? ` · read ${limits.join(", ")}` : ""}`;
 }
 
 /** 16777216 -> "16 MiB". */
@@ -109,7 +146,7 @@ export function formatDuration(microseconds: number): string {
 }
 
 const SHAPE: Record<ContractShape, string> = {
-  http_response: "An HTTP response",
+  http_response: "A web response body",
   procedure_output: "A Procedure's output",
   foreign_span: "A span of an outside document",
   database_snapshot: "A database snapshot",
@@ -135,7 +172,16 @@ export interface TermRow {
 
 export function termRows(terms: ContractTerms): TermRow[] {
   const rows: TermRow[] = [];
-  if (terms.shape) rows.push({ label: "Holds", words: SHAPE[terms.shape], raw: `shape ${terms.shape}` });
+  if (terms.shape)
+    rows.push({
+      label: "Holds",
+      words: terms.shape === "http_response" ? "The body of a web response; its address, status and type are recorded with it" : SHAPE[terms.shape],
+      raw: `shape ${terms.shape}`,
+    });
+  if (terms.decoding) {
+    const d = terms.decoding;
+    rows.push({ label: "Format", words: decodingWords(d), raw: `decoding ${d.format} · ${d.encoding ?? "identity"}${d.depth !== null ? ` · depth ${d.depth}` : ""}` });
+  }
   if (terms.provenanceRule) {
     const words = PROVENANCE[terms.provenanceRule];
     rows.push({
@@ -199,7 +245,7 @@ export function termRows(terms: ContractTerms): TermRow[] {
   return rows;
 }
 
-/** "An HTTP response Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased." */
+/** "A web response body Cruxible obtains itself, kept whole, up to 16 MiB, for at least 30 days, never erased." */
 export function contractSentence(terms: ContractTerms): string | null {
   if (!terms.shape) return null;
   const provenance = terms.provenanceRule ? PROVENANCE[terms.provenanceRule] : undefined;

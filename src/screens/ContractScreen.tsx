@@ -1,19 +1,18 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useCaptureContracts, useCard, useClaimTypes, useGet, useInstanceId, useLines, usePins, useSourceModel } from "@/api/hooks";
+import { useCaptureContracts, useCaptures, useCard, useClaimTypes, useGet, useInstanceId, useLines, usePins, useSourceModel } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { FieldList } from "@/components/FieldList";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
-import { Pending } from "@/components/ontology/Pending";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
-import { retainedByWords, type LandingTrigger, type LogicalSource, type Retention } from "@/lib/definitions";
+import { contractReadings, retainedByWords, type ContractReading, type LandingTrigger, type LogicalSource, type Retention } from "@/lib/definitions";
 import { contractName, contractProducers, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
-import { sentence } from "@/lib/text";
+import { formatDateTime, formatRelative, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { contractSentence, readContractTerms, termRows } from "@/lib/contract-terms";
 import { roleWord, term } from "@/lib/vocabulary";
@@ -57,6 +56,15 @@ export function ContractScreen() {
   const lines = useLines();
   const pins = usePins();
   const model = useSourceModel();
+  const captures = useCaptures();
+  const held = useMemo(
+    () =>
+      (captures.data?.rows ?? [])
+        .filter((row) => contractName(row.contract) === name)
+        .sort((a, b) => (a.observed_at < b.observed_at ? 1 : -1)),
+    [captures.data, name],
+  );
+  const readings = useMemo(() => (model.data ? contractReadings(name, model.data.specs) : []), [model.data, name]);
 
   const definition = contract ? readContractDefinition(contract.captures) : null;
   const admitting = useMemo(() => {
@@ -128,9 +136,6 @@ export function ContractScreen() {
           {producers && producers.length === 0 && <EmptyState>No Procedure pins this contract.</EmptyState>}
           {producers && producers.length > 0 && <ProducersTable producers={producers} retaining={retaining} />}
           {pins.data?.truncated && <div className="mt-1 text-[12px] text-zinc-500">The pins listing stopped at its page cap.</div>}
-          <div className="mt-2 text-[12px] text-zinc-500">
-            Landings, cited Captures and citing Claims <Pending gap="K4" />
-          </div>
         </Panel>
       </div>
 
@@ -157,6 +162,19 @@ export function ContractScreen() {
             }))}
           />
         )}
+      </Panel>
+
+      <Panel title="Read as" meta={<span>{readings.length}</span>}>
+        {model.isPending && <LoadState />}
+        {model.data && readings.length === 0 && <EmptyState>No Procedure reads fields out of it.</EmptyState>}
+        {readings.length > 0 && <ReadingsList readings={readings} />}
+      </Panel>
+
+      <Panel title="Captures" meta={<span>{held.length}</span>}>
+        {captures.isPending && <LoadState />}
+        {captures.error && <LoadState error={captures.error} />}
+        {captures.data && held.length === 0 && <EmptyState>None held yet.</EmptyState>}
+        {held.length > 0 && <CapturesTable rows={held} />}
       </Panel>
 
       <FlowHeading step="Output" words="What its landings start, and the ClaimTypes that admit it as evidence" />
@@ -520,4 +538,57 @@ export function ContractsScreen() {
       )}
     </Page>
   );
+}
+
+const fieldWords = (field: string) => field.replace(/_/g, " ");
+
+/** What each Procedure reads out of Captures of this kind, in words. */
+function ReadingsList({ readings }: { readings: ContractReading[] }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  return (
+    <FieldList
+      density="compact"
+      labels="words"
+      fields={readings.map((r) => ({
+        key: `${r.procedure}:${r.records ?? ""}`,
+        label: r.procedure,
+        labelHref: link(`/i/${instanceId}/ref/${encodeURIComponent(`Procedure:${r.procedure}`)}`),
+        value: (
+          <span className="text-zinc-300" title={[r.records ? `records at ${r.records}` : null, r.row ? `typed by ${r.row}` : null].filter(Boolean).join(" · ")}>
+            {r.records ? "One record per entry" : "One record"}
+            {r.fields.length > 0 && <>, with {r.fields.map(fieldWords).join(", ")}</>}
+          </span>
+        ),
+      }))}
+    />
+  );
+}
+
+type CaptureRow = { capture: string; contract: string; observed_at: string; citing?: number | null };
+
+/** The Captures held under this kind, newest first. */
+function CapturesTable({ rows }: { rows: CaptureRow[] }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const columns: Column<CaptureRow>[] = [
+    {
+      id: "capture",
+      header: "Capture",
+      hideable: false,
+      cell: (row) => (
+        <Link to={link(`/i/${instanceId}/ref/${encodeURIComponent(row.capture)}`)} className="font-mono text-zinc-200 hover:underline">
+          {row.capture}
+        </Link>
+      ),
+    },
+    {
+      id: "observed",
+      header: "Fetched",
+      sortValue: (row) => row.observed_at,
+      cell: (row) => <span title={formatDateTime(row.observed_at)}>{formatRelative(row.observed_at)}</span>,
+    },
+    { id: "citing", header: "Cited by", numeric: true, sortValue: (row) => row.citing ?? 0, cell: (row) => `${row.citing ?? 0} Claims` },
+  ];
+  return <DataTable rows={rows} columns={columns} rowKey={(row) => row.capture} urlKey="cap" label="Captures" toolbar={rows.length > TOOLBAR_AT} />;
 }

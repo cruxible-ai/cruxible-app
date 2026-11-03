@@ -488,3 +488,41 @@ export function claimTypeWriters(
   }
   return out;
 }
+
+/** A Procedure's extract over Captures of one contract: what it reads out of them. */
+export interface ContractReading {
+  procedure: string;
+  /** Where the records are in the payload (`/vulnerabilities/*`), or null for one record. */
+  records: string | null;
+  /** The fields it reads, by name. */
+  fields: string[];
+  /** The row Contract they are typed by (`security.kev-record@1`). */
+  row: string | null;
+}
+
+/** For one CaptureKind, every Procedure extract that reads Captures of it. */
+export function contractReadings(contract: string, specs: ReadonlyMap<string, ProcedureSpec>): ContractReading[] {
+  const out: ContractReading[] = [];
+  for (const [procedure, spec] of specs) {
+    const capturing = new Set<string>();
+    spec.steps.forEach((step, index) => {
+      const captures = record((step as Record<string, unknown>).captures);
+      if ("call" in step && captures && Object.values(captures).includes(contract)) capturing.add(stepAlias(step, index));
+    });
+    if (capturing.size === 0) continue;
+    for (const step of spec.steps) {
+      if (!("extract" in step)) continue;
+      const raw = step as Record<string, unknown>;
+      const ref = templateRef(raw.capture);
+      const from = ref?.$ref === "step" ? (ref as unknown as { step?: string }).step : str(raw.capture)?.replace(/^\$steps\.([^.]+).*$/, "$1");
+      if (!from || !capturing.has(from)) continue;
+      out.push({
+        procedure,
+        records: str(raw.records),
+        fields: Object.keys(record(raw.fields) ?? {}).sort(),
+        row: str(raw.row),
+      });
+    }
+  }
+  return out.sort((a, b) => (a.procedure < b.procedure ? -1 : a.procedure > b.procedure ? 1 : 0));
+}

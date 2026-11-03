@@ -271,7 +271,7 @@ export function useOntologyKinds() {
 
 /** All rows of one paged orient section, following next_cursor. */
 function useOrientSectionAll<
-  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins" | "procedures" | "documents",
+  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins" | "procedures" | "documents" | "captures",
 >(
   section: K,
   enabled = true,
@@ -315,6 +315,11 @@ export function useSourceLandings(enabled = true) {
     }
     return { rows, unattributed, truncated: true };
   }, enabled);
+}
+
+/** Every retained Capture: its contract, when it was observed and how many Claims cite it. */
+export function useCaptures(enabled = true) {
+  return useOrientSectionAll("captures", enabled);
 }
 
 /** Every ClaimType with cardinality, value type, evidence and staleness rules. */
