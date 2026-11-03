@@ -26,7 +26,7 @@ describe("Type map", () => {
       "/i/inst_fixture/kinds/security.vulnerability?claim_type=security.vulnerability.kev_listed",
     );
     // the kind's key reads without its kind prefix; evidence contracts are no longer listed
-    expect(panel.getByText("Key")).toBeInTheDocument();
+    expect(panel.getByText("Identified by")).toBeInTheDocument();
     expect(panel.queryByRole("link", { name: "security.kev-http-v1" })).toBeNull();
     expect(panel.getByText("security", { selector: "span.font-mono" })).toBeInTheDocument(); // owning kit
     expect(panel.getByText("assessment")).toBeInTheDocument(); // pointed at by (namespace dropped)

@@ -414,7 +414,24 @@ export function urlWords(parameters: Record<string, unknown> | undefined): strin
 /** A Line that writes a ClaimType, and the logical sources its Procedure's calls read. */
 export interface ClaimTypeWriter {
   line: string;
+  /** The logical sources its calls read (`cisa.kev.catalog`). */
   sources: string[];
+  /** The web hosts its parameters name (`www.cisa.gov`), the plain-words "where from". */
+  hosts: string[];
+}
+
+/** Hosts of the http(s) URLs among a Line's parameters, `www.` dropped. */
+function parameterHosts(parameters: Record<string, unknown>): string[] {
+  const hosts = new Set<string>();
+  for (const value of Object.values(parameters)) {
+    if (typeof value !== "string" || !/^https?:\/\//.test(value)) continue;
+    try {
+      hosts.add(new URL(value).host.replace(/^www\./, ""));
+    } catch {
+      // not a URL after all
+    }
+  }
+  return [...hosts].sort();
 }
 
 /**
@@ -438,7 +455,7 @@ export function claimTypeWriters(
       })),
     ];
     for (const predicate of new Set(views.flatMap((view) => (view.kind === "claims" ? view.claimTypes : [])))) {
-      out.set(predicate, [...(out.get(predicate) ?? []), { line: line.line, sources }]);
+      out.set(predicate, [...(out.get(predicate) ?? []), { line: line.line, sources, hosts: parameterHosts(line.parameters) }]);
     }
   }
   return out;
