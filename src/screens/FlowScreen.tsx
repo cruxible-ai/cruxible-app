@@ -311,7 +311,7 @@ function FlowCell({
           title={["Your statements", "What people and agents write on their own word, without a source to cite"].join("\n")}
           name={<span className="truncate text-[12.5px] font-medium text-zinc-100">Your statements</span>}
           about="Written by people or agents"
-          focus={<FocusButton id={node.id} label="Your statements" onFocus={onFocus} always />}
+          focus={<FocusButton id={node.id} label="Your statements" onFocus={onFocus} />}
           facts={[]}
         />
       );
@@ -337,7 +337,7 @@ function FlowCell({
         name={
           <span className={`truncate text-[12.5px] font-medium text-zinc-100 ${node.host ? "" : "font-mono"}`}>{node.host ?? node.label}</span>
         }
-        focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} always />}
+        focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} />}
         facts={[["Fetched", node.when ?? "not on a schedule"], landedFact(landingsOf, node.label, instanceId, link)]}
       />
     );
@@ -352,7 +352,12 @@ function FlowCell({
         dim={dim}
         hover={hover}
         kindLabel="Line"
-        state={<LineStateDot state={node.enablement} running={runningLines.has(node.label)} />}
+        state={
+          <>
+            <LineStateDot state={node.enablement} running={runningLines.has(node.label)} />
+            {runningLines.has(node.label) ? "Running" : node.enablement ? term("line", node.enablement).word : "Not enabled"}
+          </>
+        }
         title={[
           node.label,
           node.authority ? `At most ${node.authority}: ${term("authority", node.authority).meaning}` : null,
@@ -367,7 +372,7 @@ function FlowCell({
           </Link>
         }
         about={node.about ?? null}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
         facts={[lastRunFact(lastRuns, node.label, instanceId, link)]}
       />
     );
@@ -427,7 +432,7 @@ function landedFact(landingsOf: ReadonlyMap<string, SourceLandings> | null, sour
       ) : (
         when
       )}
-      {gone} · {row.landings.toLocaleString()}
+      {gone} · {row.landings.toLocaleString()} total
     </span>,
   ];
 }
@@ -492,12 +497,12 @@ function FlowCard({
     >
       <div className="flex min-w-0 items-center gap-1 text-[9.5px] font-semibold uppercase leading-3 tracking-wider text-zinc-500">
         {kindLabel}
-        <span className="ml-auto flex shrink-0 items-center gap-1.5 normal-case tracking-normal">
-          {state}
-          {focus}
-        </span>
+        <span className="ml-auto flex shrink-0 items-center normal-case tracking-normal">{focus}</span>
       </div>
-      <div className="mt-1 flex min-w-0 items-center leading-4">{name}</div>
+      <div className="mt-1 flex min-w-0 items-center gap-2 leading-4">
+        <span className="min-w-0 flex-1 truncate">{name}</span>
+        {state && <span className="flex shrink-0 items-center gap-1 text-[10.5px] text-zinc-400">{state}</span>}
+      </div>
       {about && <div className="mt-0.5 truncate text-[11px] leading-4 text-zinc-400">{about}</div>}
       <dl className="mt-auto flex min-w-0 flex-col whitespace-nowrap text-[10.5px] leading-4">
         {facts.map(([label, value]) => (
