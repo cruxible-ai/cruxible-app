@@ -7,6 +7,7 @@ import { useInstanceId, useOntologyKinds, useSourceModel, useSubjectKinds } from
 import type { OrientPredicate, OrientSubjectKind } from "@/api/schemas";
 import { actionChipClass } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
+import { FieldList } from "@/components/FieldList";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import { PanelActions, PanelHeading, PanelSection } from "@/components/graph/PanelBits";
 import { LayerLegend } from "@/components/graph/LayerLegend";
@@ -475,27 +476,19 @@ function KindPanel({
           {rule.rule === "minted" ? (
             <div className="text-[12px] text-zinc-400">minted ids</div>
           ) : (
-            (rule.keys ?? []).map((key) => {
-              const field = predicates.find((p) => p.predicate === key);
-              return (
-                <div key={key} className="px-1 py-0.5 text-[12px]">
-                  <span className="break-all font-mono text-zinc-300">{key.startsWith(`${kind}.`) ? key.slice(kind.length + 1) : key}</span>
-                  {field && <span className="block break-words text-zinc-500">{valueTypeWords(field.type, label)}</span>}
-                </div>
-              );
-            })
+            <ClaimTypeLinks predicates={predicates.filter((p) => (rule.keys ?? []).includes(p.predicate))} kind={kind} label={label} />
           )}
         </PanelSection>
       )}
       {groupByWriter(predicates.filter((p) => !(rule?.keys ?? []).includes(p.predicate)), writers).map((group) => (
-        <PanelSection key={group.title} title={group.title}>
-          {group.sources.length > 0 && (
-            <div className="mb-1 text-[12px] text-zinc-500">
-              from <span className="font-mono text-zinc-400">{group.sources.join(", ")}</span>
-            </div>
-          )}
+        <div key={group.title} className="mt-4 border-t border-zinc-800 pt-3">
+          <div className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-[12px]">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">{group.line ? "Written by" : group.title}</span>
+            {group.line && <span className="font-mono text-zinc-200">{group.line}</span>}
+            {group.sources.length > 0 && <span className="text-zinc-500">← <span className="font-mono">{group.sources.join(", ")}</span></span>}
+          </div>
           <ClaimTypeLinks predicates={group.predicates} kind={kind} label={label} />
-        </PanelSection>
+        </div>
       ))}
       {incoming.length > 0 && (
         <PanelSection title="Pointed at by">
@@ -535,28 +528,27 @@ function EdgePanel({ edge, api, label }: { edge: TypeGraphEdge; api: GraphPanelA
   );
 }
 
-/** ClaimType names linking to their rows on the kind page (the ontology view). */
+/** ClaimTypes as a compact field list: the name (linking to its row on the kind page) and its type in words. */
 function ClaimTypeLinks({ predicates, kind, label }: { predicates: OrientPredicate[]; kind: string; label: (kind: string) => string }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   if (predicates.length === 0) return <div className="text-[12px] text-zinc-600">None.</div>;
   return (
-    <div className="space-y-0.5">
-      {predicates.map((p) => (
-        <Link
-          key={p.predicate}
-          to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(p.predicate)}`)}
-          className="block px-1 py-1 text-[12px] hover:bg-zinc-900"
-          title={p.predicate}
-        >
-          <span className="font-mono text-zinc-200">{fieldName(p)}</span>
-          <span className="block break-words text-zinc-500">
+    <FieldList
+      density="compact"
+      fields={predicates.map((p) => ({
+        key: p.predicate,
+        label: fieldName(p),
+        labelHref: link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(p.predicate)}`),
+        labelTitle: p.predicate,
+        value: (
+          <span className="break-words text-zinc-400">
             {valueTypeWords(p.type, label)}
-            {p.cardinality === "many" && " · many"}
+            {p.cardinality === "many" && <span className="text-zinc-600"> · many</span>}
           </span>
-        </Link>
-      ))}
-    </div>
+        ),
+      }))}
+    />
   );
 }
 
@@ -568,8 +560,8 @@ function ClaimTypeLinks({ predicates, kind, label }: { predicates: OrientPredica
 function groupByWriter(
   predicates: readonly OrientPredicate[],
   writers: Map<string, ClaimTypeWriter[]> | undefined,
-): { title: string; sources: string[]; predicates: OrientPredicate[] }[] {
-  const groups = new Map<string, { title: string; sources: string[]; predicates: OrientPredicate[] }>();
+): { title: string; line: string | null; sources: string[]; predicates: OrientPredicate[] }[] {
+  const groups = new Map<string, { title: string; line: string | null; sources: string[]; predicates: OrientPredicate[] }>();
   const rest: OrientPredicate[] = [];
   for (const p of predicates) {
     const writer = writers?.get(p.predicate)?.[0];
@@ -577,11 +569,11 @@ function groupByWriter(
       rest.push(p);
       continue;
     }
-    const group = groups.get(writer.line) ?? { title: `Written by ${writer.line}`, sources: writer.sources, predicates: [] };
+    const group = groups.get(writer.line) ?? { title: writer.line, line: writer.line, sources: writer.sources, predicates: [] };
     group.predicates.push(p);
     groups.set(writer.line, group);
   }
   const out = [...groups.values()];
-  if (rest.length > 0) out.push({ title: out.length > 0 ? "Other ClaimTypes" : `ClaimTypes (${rest.length})`, sources: [], predicates: rest });
+  if (rest.length > 0) out.push({ title: out.length > 0 ? "Other ClaimTypes" : "ClaimTypes", line: null, sources: [], predicates: rest });
   return out;
 }
