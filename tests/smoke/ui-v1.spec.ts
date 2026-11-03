@@ -1,13 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-// Runs against `VITE_CRUXIBLE_FIXTURES=1` (playwright.config.ts): the MSW
-// worker serves src/fixtures/recorded/ at the network layer, offline.
+// Runs against `VITE_CRUXIBLE_FIXTURES=authored` (playwright.config.ts's
+// default, overridable with UI_SMOKE_WORLD): the MSW worker serves
+// src/fixtures/authored/ at the network layer, offline.
 test("fixture-backed inspection flow: overview, kind table, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   const main = page.getByRole("main");
-  // What needs you, then each enabled Line with what wakes it (prefix dropped); kinds stay in the sidebar.
+  // What needs you, then each enabled Line with what wakes it (prefix dropped); kinds live on the type map, not the sidebar.
   await expect(main.getByRole("region", { name: "Needs you" }).getByRole("link", { name: /Next \d/ })).toBeVisible();
   const comingUp = main.locator("section", { has: page.getByRole("heading", { name: "Coming up" }) });
   await expect(comingUp.getByRole("link", { name: "kev-triage", exact: true })).toBeVisible();
@@ -17,9 +18,11 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   await expect(main.getByText("security.kev-catalog")).toBeVisible();
   await expect(page.locator("aside").getByText("Generation")).toBeVisible();
 
-  // Sidebar kind -> its kind page; a row expands to its evidence rules; its
-  // contract opens the contract page; the type map stays the overview.
-  await page.locator("aside").getByRole("link", { name: /security\.assessment/ }).click();
+  // Type map node -> its panel's "Open kind page" link -> the kind page; a
+  // row expands to its evidence rules; its contract opens the contract page.
+  await page.locator("aside").getByRole("link", { name: "Type map" }).click();
+  await page.locator(".react-flow__node").filter({ hasText: "assessment" }).first().click();
+  await page.getByRole("link", { name: "Open kind page" }).click();
   await expect(page).toHaveURL(/\/kinds\/security\.assessment$/);
   await expect(page.getByRole("heading", { name: "security.assessment" })).toBeVisible();
   // The kind as a table: a row per Subject; a contested value carries the amber dot and links to its Claim.
@@ -44,7 +47,7 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   await expect(page).toHaveURL(/\/contracts\/security\.osv-applicability-v1$/);
   // the Trigger row links its card; the logical sources section also names it as selecting osv.query
   await expect(page.getByRole("link", { name: "security.osv-landed" })).toBeVisible();
-  await expect(page.getByText("osv.query", { exact: true })).toBeVisible();
+  await expect(page.getByText("osv.query", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Procedure:security.osv-acquire" })).toBeVisible();
 
   // Evidence flow: hover lights a path, focus keeps it, clear restores.
@@ -76,13 +79,17 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   await page.getByRole("button", { name: "Expand status" }).click();
   await expect(page.getByText("OSV lists the release's xz package within the affected range.")).toBeVisible();
 
-  // Its neighborhood, then one more hop.
-  await page.getByRole("link", { name: "Neighborhood" }).click();
-  await expect(page.getByText(/3 Subjects · 2 links/)).toBeVisible();
-  await page.getByRole("button", { name: "Depth 2" }).click();
-  await expect(page).toHaveURL(/graph\?depth=2$/);
-  await expect(page.getByText(/5 Subjects · 4 links/)).toBeVisible();
-  await expect(page.locator(".react-flow__node")).toHaveCount(5);
+  // Its one-hop Connections panel (drawn in the State graph's dots; headless
+  // WebGL reveals a small lit set's labels as plain text), then the full
+  // State graph for one more hop.
+  const connections = page.locator("section", { has: page.getByRole("heading", { name: "Connections" }) });
+  await connections.scrollIntoViewIfNeeded();
+  await expect(connections.getByText("cve-2024-3094", { exact: true })).toBeVisible();
+  await expect(connections.getByText("release", { exact: true })).toBeVisible();
+  await expect(connections.getByText("vulnerability", { exact: true })).toBeVisible();
+  await connections.getByRole("link", { name: "Open in State graph →" }).click();
+  await expect(page).toHaveURL(/\/graph\?focus=security\.assessment%2Frel-1-cve-2024-3094$/);
+  await expect(page.getByRole("heading", { name: "State graph" })).toBeVisible();
 
   // Next queue -> a proposal awaiting approval -> its review; the ledger.
   await page.locator("aside").getByRole("link", { name: /^Next/ }).click();
@@ -126,7 +133,7 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   // State graph: pages the whole graph (headless WebGL draws no dots, but
   // the read, counts and kind filter run).
   await page.locator("aside").getByRole("link", { name: "State graph" }).click();
-  await expect(page.getByText(/640 Subjects · 733 Subject-valued Claims · 3 pages/)).toBeVisible();
+  await expect(page.getByText(/640 Subjects.*733 Subject-valued Claims.*read in 3 pages/)).toBeVisible();
   await expect(page.getByRole("button", { name: /security\.vulnerability/ })).toBeVisible();
 
   // Pin a generation from the generation box's list: links keep it, the box names it, back to head drops it.
