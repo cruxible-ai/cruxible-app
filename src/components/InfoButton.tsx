@@ -1,16 +1,39 @@
-import { useId, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
+const WIDTH = 288; // px, the tooltip's width
+const GAP = 6;
 
 /**
  * A small ⓘ that explains a Cruxible concept or a note in words, on hover or
- * click, so labels and tables stay terse. The text is the only prose a row
- * or a node carries, and it stays out of the way until asked for.
+ * click, so labels and tables stay terse. The tooltip renders in a portal at
+ * a fixed position, so a table cell, a scrolling container or a no-wrap
+ * header around the button never clips, widens or reflows.
  */
 export function InfoButton({ children, label = "What this means" }: { children: ReactNode; label?: string }) {
   const [open, setOpen] = useState(false);
+  const [at, setAt] = useState<{ top: number; left: number } | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
   const id = useId();
+  useLayoutEffect(() => {
+    if (!open || !button.current) return;
+    const place = () => {
+      const r = button.current!.getBoundingClientRect();
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - WIDTH - 8));
+      setAt({ top: r.bottom + GAP, left });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open]);
   return (
-    <span className="relative inline-flex align-baseline" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+    <span className="inline-flex align-baseline" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button
+        ref={button}
         type="button"
         aria-label={label}
         aria-expanded={open}
@@ -23,15 +46,19 @@ export function InfoButton({ children, label = "What this means" }: { children: 
       >
         i
       </button>
-      {open && (
-        <span
-          id={id}
-          role="tooltip"
-          className="absolute left-0 top-5 z-50 w-72 border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-[12px] font-normal normal-case leading-5 tracking-normal text-zinc-300 shadow-lg"
-        >
-          {children}
-        </span>
-      )}
+      {open &&
+        at &&
+        createPortal(
+          <span
+            id={id}
+            role="tooltip"
+            style={{ position: "fixed", top: at.top, left: at.left, width: WIDTH }}
+            className="pointer-events-none z-[1000] whitespace-normal border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-left text-[12px] font-normal normal-case leading-5 tracking-normal text-zinc-300 shadow-lg"
+          >
+            {children}
+          </span>,
+          document.body,
+        )}
     </span>
   );
 }
