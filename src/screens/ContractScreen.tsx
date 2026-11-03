@@ -12,7 +12,7 @@ import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
 import { retainedByWords, type LandingTrigger, type LogicalSource, type Retention } from "@/lib/definitions";
-import { contractName, contractProducers, providerName, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
+import { contractName, contractProducers, readContractDefinition, sourceKindLabel } from "@/lib/ontology";
 import { sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { contractSentence, readContractTerms, termRows } from "@/lib/contract-terms";
@@ -23,12 +23,12 @@ const UNNAMED: { test: (r: Retention) => boolean; words: string; title: string }
   {
     test: (r) => !r.emitted && r.given === null,
     words: "under a source named at run time",
-    title: "The source step's request names no logical source: the Provider names it at run time, and the daemon does not serve which",
+    title: "The call's input names no logical source, so the definitions do not say which source it is",
   },
   {
     test: (r) => r.given !== null,
-    words: "under the logical source a direct run is given",
-    title: "The source step takes its logical source from the run's input ($input.<field>)",
+    words: "under the logical source a run is given",
+    title: "The call takes its logical source from a parameter or the run's input, which no Line here gives",
   },
   { test: (r) => r.emitted, words: "as the run's own output (emitted)", title: "An emit step retains the run's output under this contract" },
 ];
@@ -37,7 +37,7 @@ const UNNAMED: { test: (r: Retention) => boolean; words: string; title: string }
  * One CaptureContract: what it captures (grade, source kinds) and the logical
  * sources Captures land under it from (the source steps that retain each and
  * the Triggers that select it: contracts no longer list sources), the
- * Procedures that capture under it (their pins: interfaces, Lines), the
+ * Procedures that capture under it (their pins: Lines), the
  * Triggers that fire on its landings, the logical sources they select and
  * the Lines they start, and the ClaimTypes that admit or require it. Landing
  * and citation numbers are post-v1 (K4). Reads: the contract card, the
@@ -237,7 +237,7 @@ function producerRoles(p: Producer, retaining: ReadonlySet<string>): string[] {
   return [...(retaining.has(p.source) ? ["retains Captures under it"] : []), ...(p.startedByLanding.length > 0 ? ["reads its landings"] : [])];
 }
 
-/** The Procedures that capture under the contract (from their pins): what each does with it, its interfaces and Lines. */
+/** The Procedures that capture under the contract (from their pins): what each does with it, and its Lines. */
 function ProducersTable({ producers, retaining }: { producers: Producer[]; retaining: ReadonlySet<string> }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
@@ -252,29 +252,14 @@ function ProducersTable({ producers, retaining }: { producers: Producer[]; retai
         cell: (p) => (
           <span className="flex flex-wrap items-baseline gap-x-2">
             <RefLink value={p.source} />
-            {p.source.startsWith("Blueprint:") && <span className="text-[12px] text-zinc-600">Blueprint</span>}
             {producerRoles(p, retaining).map((role) => (
               <span
                 key={role}
                 className="text-[12px] text-zinc-500"
-                title={role === "reads its landings" ? "Its Lines start on this contract's landings: it reads what landed" : "A source or emit step retains Captures under it"}
+                title={role === "reads its landings" ? "Its Lines start on this contract's landings: it reads what landed" : "A call or emit step retains Captures under it"}
               >
                 {role}
               </span>
-            ))}
-          </span>
-        ),
-      },
-      {
-        id: "interfaces",
-        header: "Interfaces",
-        className: "text-[12px]",
-        cell: (p) => (
-          <span className="flex flex-wrap gap-x-3">
-            {p.providers.map((provider) => (
-              <RefLink key={provider} value={provider} className="text-zinc-400">
-                <span className="font-mono text-[12px]">{providerName(provider)}</span>
-              </RefLink>
             ))}
           </span>
         ),

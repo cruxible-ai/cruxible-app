@@ -98,10 +98,8 @@ export function pinnedBy(pins: readonly Pin[], source: string, roles?: readonly 
 }
 
 export interface ContractProducer {
-  /** `Procedure:<name>` (or a historical `Blueprint:<name>`). */
+  /** `Procedure:<name>`. */
   source: string;
-  /** ProviderInterfaces its slots take (Procedure grain: every step's), as `ProviderInterface:<name>/v<major>`. */
-  providers: string[];
   /** Live Lines running it (Procedures only). */
   lines: string[];
   /** Lines among them that its landings start: the Procedure reads what landed. */
@@ -109,37 +107,35 @@ export interface ContractProducer {
 }
 
 /**
- * Procedures that capture under a contract: each has a source or emit step
- * naming it (pin role `capture-contract`). Since compiler revision 36 Lines,
- * Triggers and ClaimTypes pin the contracts they name under the same role,
- * so only Procedures (and historical Blueprints) count here; a Line pins the
- * contract its trigger input reads, which marks a Procedure whose Lines start
- * on this contract's landings. Pins are at Procedure grain: a Procedure with
- * two source steps names both interfaces. Whether a step retains a Capture or
- * reads the one that landed comes from the definitions (lib/definitions).
+ * Procedures that capture under a contract: each has a call or emit step
+ * naming it (pin role `capture-contract`). Lines, Triggers and ClaimTypes
+ * pin the contracts they name under the same role, so only Procedures count
+ * here; a Line pins the contract its trigger input reads, which marks a
+ * Procedure whose Lines start on this contract's landings. Whether a step
+ * retains a Capture or reads the one that landed comes from the definitions
+ * (lib/definitions).
  */
 export function contractProducers(pins: readonly Pin[], contract: string): ContractProducer[] {
   const ref = contract.startsWith("CaptureContract:") ? contract : `CaptureContract:${contract}`;
   const pinners = pinnersOf(pins, ref, ["capture-contract", "trigger-capture-contract"]).map((p) => p.source);
   const landingLines = new Set(pinners.filter((s) => s.startsWith("Line:")));
   return pinners
-    .filter((source) => source.startsWith("Procedure:") || source.startsWith("Blueprint:"))
+    .filter((source) => source.startsWith("Procedure:"))
     .filter((source, i, all) => all.indexOf(source) === i)
     .sort()
     .map((source) => {
-      const lines = source.startsWith("Procedure:") ? pinnersOf(pins, source, ["procedure"]).map((p) => p.source).filter((s) => s.startsWith("Line:")).sort() : [];
+      const lines = pinnersOf(pins, source, ["procedure"]).map((p) => p.source).filter((s) => s.startsWith("Line:")).sort();
       return {
         source,
-        providers: [...new Set(pinnedBy(pins, source, ["provider-interface", "provider"]).map((p) => p.target))].sort(),
         lines,
         startedByLanding: lines.filter((line) => landingLines.has(line)),
       };
     });
 }
 
-/** Display name of a Provider or ProviderInterface ref: its id without the build digest. */
+/** Display name of a Provider build ref: its id without the build digest. */
 export function providerName(ref: string): string {
-  return ref.replace(/^(Provider|ProviderInterface):/, "").replace(/\/[0-9a-f]{64}$/, "");
+  return ref.replace(/^Provider:/, "").replace(/\/[0-9a-f]{64}$/, "");
 }
 
 // -- value types --------------------------------------------------------------
