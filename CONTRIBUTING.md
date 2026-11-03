@@ -76,6 +76,17 @@ quiet line under the value (since when, by whom, why).
   sentence around each value read once (`sharedReason`).
 - `children`: anything after (a disclosure into the full change set).
 
+## Side panels and wording (the v1 standard)
+
+Every graph side panel (Type map, State graph, Line steps, …) follows the Type map's kind panel (`src/screens/TypeMapScreen.tsx`, `KindPanel`):
+
+- `PanelHeading`: a kicker (what it is) and the title (its name).
+- Short uppercase section labels (`IDENTIFIED BY`, `PRODUCED BY`); a group divided from the next by a hairline rule.
+- Facts as a compact `FieldList` (name | value), or labelled rows (`Source`, `Line`); never sentences.
+- Every named thing that has a page links to it; internal ids, paths and grammar go in hover titles.
+
+Wording everywhere: terse labels and tables, no explanatory sentences on nodes, rows or panels; every word must justify itself; name things directly (`vulnerability.cve_id`, not "vulnerability's cve id"). A Cruxible concept a newcomer needs explained gets an info button (`src/components/InfoButton.tsx`), not inline prose.
+
 ## Pull Requests
 
 - Keep changes focused; one concern per PR.
