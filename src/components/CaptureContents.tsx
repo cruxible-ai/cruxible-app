@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { Download } from "lucide-react";
 import { useCaptureRead } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
@@ -7,15 +7,23 @@ import { Panel, LoadState } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
 import { CAPTURE_READ_MAX_BYTES } from "@/api/requests";
 import { BodyView } from "@/components/BodyView";
-import { ExchangeList } from "@/components/ExchangeList";
-import { captureFormat, downloadName, formatSize, unwrapCaptureBody, type CaptureBody } from "@/lib/capture-body";
+import { FieldList } from "@/components/FieldList";
+import {
+  captureCoordinate,
+  captureFormat,
+  downloadName,
+  formatSize,
+  readCaptureBody,
+  type CaptureBody,
+  type CaptureCoordinate,
+} from "@/lib/capture-body";
 import { formatDateTime } from "@/lib/text";
 
 /**
- * What a Capture holds: its retained body read through captures/read,
- * unwrapped from core's fetch and file formats (a provider's request bundle
- * becomes a table of its requests, each response decoded), shown inline (markdown and
- * HTML rendered, with a Raw toggle; JSON pretty-printed; the first 200k
+ * What a Capture holds: where its source says it came from (the typed
+ * coordinate on its envelope, field by field), and its body read through
+ * captures/read: the payload bytes as stored, shown inline (markdown and HTML
+ * rendered, with a Raw toggle; JSON pretty-printed; the first 200k
  * characters) with a download of the whole thing. An erased body, one past
  * the read cap, or a token that may not read bodies each say so, with the CLI
  * read to run instead.
@@ -25,96 +33,87 @@ export function CaptureContents({ card }: { card: Schemas["GetCaptureCard"] }) {
   const read = useCaptureRead(erased ? null : card.capture);
   const material = read.data?.material ?? null;
   const base64 = material?.body_access?.status === "available" ? material.body_access.body_base64 ?? null : null;
-  const body = useMemo(() => (base64 ? unwrapCaptureBody(base64) : null), [base64]);
+  const body = useMemo(() => (base64 ? readCaptureBody(base64) : null), [base64]);
+  const coordinate = captureCoordinate(read.data?.envelope?.source);
   const cli = `cruxible capture read ${card.capture}`;
 
-  const meta = body ? <ContentsMeta body={body} source={card.source ?? null} capture={card.capture} /> : null;
+  const meta = body ? <ContentsMeta body={body} coordinate={coordinate} source={card.source ?? null} capture={card.capture} /> : null;
   return (
-    <Panel title="Contents" meta={meta}>
-      {erased ? (
-        <Note>
-          Erased{erased.by ? ` by ${erased.by}` : ""} {formatDateTime(erased.at)}
-          {erased.because ? `: ${erased.because}` : ""}. The envelope and its citations stay; the bytes are gone.
-        </Note>
-      ) : read.isPending ? (
-        <LoadState />
-      ) : read.error ? (
-        read.error instanceof ApiError && read.error.status === 403 ? (
-          <Note cli={cli}>This console's token can't read Capture contents: that takes governed_write. Read it from a terminal:</Note>
+    <>
+      {coordinate && <CoordinatePanel coordinate={coordinate} />}
+      <Panel title="Contents" meta={meta}>
+        {erased ? (
+          <Note>
+            Erased{erased.by ? ` by ${erased.by}` : ""} {formatDateTime(erased.at)}
+            {erased.because ? `: ${erased.because}` : ""}. The envelope and its citations stay; the bytes are gone.
+          </Note>
+        ) : read.isPending ? (
+          <LoadState />
+        ) : read.error ? (
+          read.error instanceof ApiError && read.error.status === 403 ? (
+            <Note cli={cli}>This console's token can't read Capture contents: that takes governed_write. Read it from a terminal:</Note>
+          ) : (
+            <LoadState error={read.error} />
+          )
+        ) : read.data?.status === "unavailable" ? (
+          <Note cli={cli}>The body is unavailable{read.data.reason ? ` (${read.data.reason.replace(/_/g, " ")})` : ""}.</Note>
+        ) : material?.coverage.reason_codes?.includes("resource_budget_exceeded") ? (
+          <Note cli={`${cli} --max-bytes ${card.size ?? CAPTURE_READ_MAX_BYTES * 4}`}>
+            Larger than the {formatSize(CAPTURE_READ_MAX_BYTES)} the page reads. Read it from a terminal:
+          </Note>
+        ) : body ? (
+          <BodyView
+            format={captureFormat(body, coordinate, card.source ?? null)}
+            text={body.text}
+            json={body.json}
+            size={body.bytes.length}
+            title={`Contents of ${card.capture}`}
+          />
         ) : (
-          <LoadState error={read.error} />
-        )
-      ) : read.data?.status === "unavailable" ? (
-        <Note cli={cli}>The body is unavailable{read.data.reason ? ` (${read.data.reason.replace(/_/g, " ")})` : ""}.</Note>
-      ) : material?.coverage.reason_codes?.includes("resource_budget_exceeded") ? (
-        <Note cli={`${cli} --max-bytes ${card.size ?? CAPTURE_READ_MAX_BYTES * 4}`}>
-          Larger than the {formatSize(CAPTURE_READ_MAX_BYTES)} the page reads. Read it from a terminal:
-        </Note>
-      ) : body?.exchanges ? (
-        <ExchangesOrRaw body={body} title={`Contents of ${card.capture}`} />
-      ) : body ? (
-        <BodyView
-          format={captureFormat(body, card.source ?? null)}
-          text={body.text}
-          json={body.json}
-          size={body.bytes.length}
-          title={`Contents of ${card.capture}`}
-        />
-      ) : (
-        <Note cli={cli}>The daemon returned no body for this Capture{material ? ` (${material.status.replace(/_/g, " ")})` : ""}.</Note>
-      )}
+          <Note cli={cli}>The daemon returned no body for this Capture{material ? ` (${material.status.replace(/_/g, " ")})` : ""}.</Note>
+        )}
+      </Panel>
+    </>
+  );
+}
+
+/** An external source's coordinate as stored: its type and each field. */
+function CoordinatePanel({ coordinate }: { coordinate: CaptureCoordinate }) {
+  const fields = Object.entries(coordinate.fields).map(([key, value]) => ({
+    key,
+    label: key,
+    value: (
+      <span className="break-words font-mono text-[12px] text-zinc-300">
+        {typeof value === "string" ? value : JSON.stringify(value, null, 1)}
+      </span>
+    ),
+  }));
+  return (
+    <Panel title="Coordinate" meta={<span className="font-mono">{coordinate.type}</span>}>
+      {fields.length ? <FieldList fields={fields} label="Coordinate" /> : <span className="text-[13px] text-zinc-500">No fields</span>}
     </Panel>
   );
 }
 
-/** A request bundle as its requests, with a Raw toggle back to the stored JSON. */
-function ExchangesOrRaw({ body, title }: { body: CaptureBody; title: string }) {
-  const [raw, setRaw] = useState(false);
-  return (
-    <div className="space-y-2">
-      <div role="group" aria-label="Show as" className="flex gap-px text-[12px]">
-        {(["Requests", "Raw"] as const).map((label) => {
-          const pressed = (label === "Raw") === raw;
-          return (
-            <button
-              key={label}
-              type="button"
-              aria-pressed={pressed}
-              onClick={() => setRaw(label === "Raw")}
-              className={`border px-2 py-0.5 ${pressed ? "border-zinc-500 bg-zinc-800 text-zinc-100" : "border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-      {raw ? (
-        <BodyView format="json" text={body.text} json={body.json} size={body.bytes.length} title={title} />
-      ) : (
-        <ExchangeList exchanges={body.exchanges ?? []} context={body.context} title={title} />
-      )}
-    </div>
-  );
-}
-
-function ContentsMeta({ body, source, capture }: { body: CaptureBody; source: string | null; capture: string }) {
+function ContentsMeta({
+  body,
+  coordinate,
+  source,
+  capture,
+}: {
+  body: CaptureBody;
+  coordinate: CaptureCoordinate | null;
+  source: string | null;
+  capture: string;
+}) {
   const href = useMemo(() => URL.createObjectURL(new Blob([body.bytes as BlobPart])), [body]);
   useEffect(() => () => URL.revokeObjectURL(href), [href]);
   return (
     <span className="flex min-w-0 items-center gap-3 text-[12px] text-zinc-500">
-      {body.url && (
-        <span className="min-w-0 truncate" title={body.url}>
-          From{" "}
-          <a href={body.url} target="_blank" rel="noreferrer" className="text-zinc-300 hover:underline">
-            {body.url}
-          </a>
-          {body.status !== null && <> · HTTP {body.status}</>}
-        </span>
-      )}
       <span className="shrink-0">{formatSize(body.bytes.length)}</span>
       <a
         href={href}
-        download={downloadName(body, source, capture)}
+        download={downloadName(body, coordinate, source, capture)}
         className="inline-flex shrink-0 items-center gap-1 border border-zinc-700 px-2 py-0.5 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
       >
         <Download className="h-3 w-3" /> Download
