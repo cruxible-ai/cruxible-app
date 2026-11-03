@@ -70,17 +70,25 @@ export interface TypeGraphEdge {
 const SUBJECT_TYPE = "subject";
 
 /** The kinds a Subject-valued type may point at; [] for literals and for "any kind". */
+/**
+ * The Subject kinds a value type points at: `subject<a>` or a union
+ * `subject<a | b>` (orient), or `subject:a|b` (query pages); [] for literals.
+ */
 export function objectKinds(type: string): string[] {
-  if (!type.startsWith(`${SUBJECT_TYPE}:`)) return [];
-  return type
-    .slice(SUBJECT_TYPE.length + 1)
-    .split(",")
+  const t = type.trim();
+  // Core spells it `subject<a | b>` in orient and `subject:a|b` on query pages.
+  const angled = /^subject<(.+)>$/.exec(t);
+  const listed = angled ? angled[1]! : t.startsWith("subject:") ? t.slice("subject:".length) : null;
+  if (listed === null) return [];
+  return listed
+    .split(/[|,]/)
     .map((kind) => kind.trim())
     .filter(Boolean);
 }
 
 export function isSubjectValued(type: string): boolean {
-  return type === SUBJECT_TYPE || type.startsWith(`${SUBJECT_TYPE}:`);
+  const t = type.trim();
+  return t === SUBJECT_TYPE || t.startsWith(`${SUBJECT_TYPE}<`) || t.startsWith(`${SUBJECT_TYPE}:`);
 }
 
 export function edgeId(source: string, target: string): string {

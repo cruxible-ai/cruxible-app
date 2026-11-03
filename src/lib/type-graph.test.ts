@@ -18,12 +18,12 @@ const ct = (kind: string, name: string, cardinality: "one" | "many", type: strin
   ...(evidence ? { evidence } : {}),
 });
 const claimTypes: OrientPredicate[] = [
-  ct("a.assessment", "release", "one", "subject:a.release", ["c.osv"]),
-  ct("a.assessment", "vuln", "one", "subject:a.vuln", ["c.kev", "c.osv"]),
-  ct("a.assessment", "also", "many", "subject:a.release"),
+  ct("a.assessment", "release", "one", "subject<a.release>", ["c.osv"]),
+  ct("a.assessment", "vuln", "one", "subject<a.vuln>", ["c.kev", "c.osv"]),
+  ct("a.assessment", "also", "many", "subject<a.release>"),
   ct("a.assessment", "status", "one", "enum"),
   ct("a.assessment", "about", "one", "subject"),
-  ct("a.vuln", "rel", "many", "subject:a.vuln,b.ext"),
+  ct("a.vuln", "rel", "many", "subject<a.vuln | b.ext>"),
 ];
 const kinds = ontologyKinds(summaries, claimTypes);
 
@@ -38,7 +38,7 @@ describe("ontology kinds", () => {
   });
 
   it("lists a ClaimType shared by several kinds under each, and skips kinds orient does not list", () => {
-    const shared: OrientPredicate = { ...ct("a.work", "owner", "one", "subject:a.team"), subject_kinds: ["a.release", "a.vuln", "a.unlisted"] };
+    const shared: OrientPredicate = { ...ct("a.work", "owner", "one", "subject<a.team>"), subject_kinds: ["a.release", "a.vuln", "a.unlisted"] };
     const joined = ontologyKinds(summaries, [...claimTypes, shared]);
     expect(joined.map((k) => [k.kind, k.predicates.map((p) => p.predicate)])).toEqual([
       ["a.assessment", ["a.assessment.release", "a.assessment.vuln", "a.assessment.also", "a.assessment.status", "a.assessment.about"]],
@@ -54,7 +54,7 @@ describe("ontology kinds", () => {
 
 describe("type graph", () => {
   it("parses Subject-valued types", () => {
-    expect(objectKinds("subject:a.b,c.d")).toEqual(["a.b", "c.d"]);
+    expect(objectKinds("subject<a.b | c.d>")).toEqual(["a.b", "c.d"]);
     expect(objectKinds("subject")).toEqual([]);
     expect(objectKinds("enum")).toEqual([]);
   });

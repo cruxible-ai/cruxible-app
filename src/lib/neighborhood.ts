@@ -11,7 +11,7 @@ import { isSubjectValued, type OntologyKind } from "./type-graph.ts";
  * own indexed Claims; a load is bounded by the node cap, never the instance.
  *
  * An outgoing edge is a card Claim whose ClaimType is Subject-valued by its
- * orient type ("subject:<kinds>"), never by the shape of the displayed string.
+ * orient type ("subject<kinds>"), never by the shape of the displayed string.
  * The root's incoming links come from one page of `get detail=incoming`
  * (keyset-paged over the indexed claims_by_object_subject); every node also
  * carries its indexed `incoming_count`.

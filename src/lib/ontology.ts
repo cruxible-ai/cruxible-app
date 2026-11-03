@@ -1,3 +1,4 @@
+import { objectKinds } from "./type-graph.ts";
 import type { OrientPredicate, Schemas } from "../api/schemas.ts";
 
 /**
@@ -140,9 +141,9 @@ export function providerName(ref: string): string {
 
 // -- value types --------------------------------------------------------------
 
-/** Subject kinds a value type points at ("subject:<a>,<b>"); [] for literals. */
+/** Subject kinds a value type points at (`subject<a>`, `subject<a | b>`); [] for literals. */
 export function targetKinds(type: string): string[] {
-  return type.startsWith("subject:") ? type.slice("subject:".length).split(",").filter(Boolean) : [];
+  return objectKinds(type);
 }
 
 /** How a ClaimType's own words relate to evidence. */
