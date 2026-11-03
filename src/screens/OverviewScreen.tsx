@@ -498,7 +498,7 @@ function UpcomingRow({
         ) : (
           <ul>
             {u.wakes.map((w) => (
-              <li key={w.words} className="truncate" title={w.words}>
+              <li key={w.words} className="truncate" title={w.definedWords !== w.words ? `${w.words} (as defined: ${w.definedWords})` : w.words}>
                 {sentence(w.words)}
                 {w.next && (
                   <span className="text-zinc-500" title={formatDateTime(w.next.toISOString())}>

@@ -8,7 +8,10 @@ import { cronWords } from "./procedure-graph.ts";
  */
 
 export interface Wake {
+  /** In the viewer's timezone for a UTC schedule ("daily at 2:15 PM EDT"). */
   words: string;
+  /** The schedule as it is defined, in UTC ("daily at 18:15 UTC"); for a title. */
+  definedWords: string;
   /** The next fire time, for a schedule this page can compute (UTC cron). */
   next: Date | null;
   landing: boolean;
@@ -23,8 +26,10 @@ export function wakeOf(fires: string, now: Date = new Date()): Wake {
   const landing = LANDING.exec(fires);
   if (landing) {
     const [, contract, sources] = landing;
+    const words = sources ? `when ${sources} lands` : `when a ${contract} Capture lands`;
     return {
-      words: sources ? `when ${sources} lands` : `when a ${contract} Capture lands`,
+      words,
+      definedWords: words,
       next: null,
       landing: true,
       sources: sources ? sources.split(/,\s*|\s+or\s+/).filter(Boolean) : [],
@@ -34,14 +39,33 @@ export function wakeOf(fires: string, now: Date = new Date()): Wake {
   if (cron) {
     const [, expression, zone] = cron;
     const utc = zone === undefined || zone === "UTC";
+    const definedWords = `${cronWords(expression!)}${zone ? ` ${zone}` : utc ? " UTC" : ""}`;
     return {
-      words: `${cronWords(expression!)}${zone ? ` ${zone}` : ""}`,
+      words: utc ? localCronWords(expression!, now) : definedWords,
+      definedWords,
       next: utc ? nextCronFire(expression!, now) : null,
       landing: false,
       sources: [],
     };
   }
-  return { words: fires, next: null, landing: false, sources: [] };
+  return { words: fires, definedWords: fires, next: null, landing: false, sources: [] };
+}
+
+/**
+ * A UTC cron in the viewer's timezone: "daily at 18:15" UTC reads
+ * "daily at 2:15 PM EDT" (the local time of its next fire, so it follows
+ * daylight saving), a weekly one names the local weekday. Expressions that
+ * are not one fixed time a day or week read as cronWords, with "UTC".
+ */
+export function localCronWords(expression: string, now: Date = new Date()): string {
+  const words = cronWords(expression);
+  const fixed = /^(daily|every (\w+)) at \d\d:\d\d$/.exec(words);
+  const next = fixed ? nextCronFire(expression, now) : null;
+  if (!fixed || !next) return /^(hourly|every \d+ minutes)/.test(words) ? words : `${words} UTC`;
+  const time = next.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+  if (fixed[1] === "daily") return `daily at ${time}`;
+  const day = next.toLocaleDateString(undefined, { weekday: "long" });
+  return `every ${day} at ${time}`;
 }
 
 function field(spec: string, min: number, max: number): Set<number> | null {

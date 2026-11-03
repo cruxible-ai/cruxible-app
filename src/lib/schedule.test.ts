@@ -8,6 +8,7 @@ describe("when a Line wakes", () => {
   it("reads a landing as its logical sources, or its contract when it names none", () => {
     expect(wakeOf("when CaptureContract:security.fetched-v1 from cisa.kev.catalog lands")).toEqual({
       words: "when cisa.kev.catalog lands",
+      definedWords: "when cisa.kev.catalog lands",
       next: null,
       landing: true,
       sources: ["cisa.kev.catalog"],
@@ -15,14 +16,15 @@ describe("when a Line wakes", () => {
     expect(wakeOf("when CaptureContract:security.file-v1 lands").words).toBe("when a security.file-v1 Capture lands");
   });
 
-  it("reads a UTC cron in words with its next fire time", () => {
+  it("reads a UTC cron in the viewer's zone, as defined in the title, with its next fire time", () => {
     const wake = wakeOf("on cron 40 7 * * * (UTC)", at("2026-10-26T21:00:00Z"));
-    expect(wake.words).toBe("daily at 07:40 UTC");
+    expect(wake.words).toMatch(/^daily at 3:40\s?AM EDT$/);
+    expect(wake.definedWords).toBe("daily at 07:40 UTC");
     expect(wake.next?.toISOString()).toBe("2026-10-27T07:40:00.000Z");
   });
 
   it("keeps text it does not read as it is", () => {
-    expect(wakeOf("daily at 06:00 UTC")).toEqual({ words: "daily at 06:00 UTC", next: null, landing: false, sources: [] });
+    expect(wakeOf("daily at 06:00 UTC")).toEqual({ words: "daily at 06:00 UTC", definedWords: "daily at 06:00 UTC", next: null, landing: false, sources: [] });
   });
 });
 

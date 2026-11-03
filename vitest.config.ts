@@ -11,6 +11,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     css: false,
+    // A fixed zone with daylight saving, so local-time wording is deterministic.
+    env: { TZ: "America/New_York" },
     exclude: [...configDefaults.exclude, "tests/smoke/**"],
   },
 });

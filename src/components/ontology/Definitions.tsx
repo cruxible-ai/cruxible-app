@@ -1,3 +1,4 @@
+import { localCronWords } from "@/lib/schedule";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useInstanceId } from "@/api/hooks";
@@ -21,7 +22,6 @@ import {
 type Slot = ReturnType<typeof procedureSlots>[number];
 import { providerName } from "@/lib/ontology";
 import { term } from "@/lib/vocabulary";
-import { cronWords } from "@/lib/procedure-graph";
 import { sentence } from "@/lib/text";
 import { ProcedureGraph } from "@/components/graph/ProcedureGraph";
 
@@ -339,7 +339,7 @@ export function TriggerDefinition({ schedule, target }: { schedule: Record<strin
             label: "Schedule",
             value: (
               <span className="text-zinc-300">
-                {sentence(cronWords(cron))} <span className="font-mono text-zinc-500">({cron})</span>
+                {sentence(localCronWords(cron))} <span className="font-mono text-zinc-500" title="as defined, in UTC">({cron} UTC)</span>
               </span>
             ),
           },

@@ -51,7 +51,8 @@ describe("Procedure graph", () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const g = await graph();
     await waitFor(() => expect(node("trigger:security.kev-daily")).not.toBeNull(), SLOW);
-    expect(g.getByText("Daily at 06:00 UTC")).toBeInTheDocument();
+    // a UTC schedule reads in the viewer's zone (the suite runs in America/New_York)
+    expect(g.getByText(/^Daily at 1:00\s?AM EST$|^Daily at 2:00\s?AM EDT$/)).toBeInTheDocument();
     await waitFor(() => expect(within(node("catalog")).getByText("slot fetch → cruxible-provider-web")).toBeInTheDocument(), SLOW);
 
     const picker = await screen.findByRole("combobox", { name: "Mark the steps with a run" }, SLOW);

@@ -27,14 +27,14 @@ import { NextTable } from "@/components/next/NextTable";
 import { LineDefinitionPanel } from "@/components/ontology/Definitions";
 import { ProcedureGraph, type GraphTrigger } from "@/components/graph/ProcedureGraph";
 import { readLineEnvelope, retentions, sourceSteps, type LandingTrigger, type ProcedureSpec } from "@/lib/definitions";
-import { buildProcedureGraph, cronWords, INPUT_NODE } from "@/lib/procedure-graph";
+import { buildProcedureGraph, INPUT_NODE } from "@/lib/procedure-graph";
 import { runMarks } from "@/lib/run-marks";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
 import { formatDateTime, formatWhen, sentence } from "@/lib/text";
 import { LineStateDot } from "@/components/LineStateDot";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { wakeOf } from "@/lib/schedule";
+import { localCronWords, wakeOf } from "@/lib/schedule";
 import { term } from "@/lib/vocabulary";
 
 const READINGS_PAGE = 50;
@@ -184,8 +184,7 @@ function DefinitionPanels({
       return { name, words: `when ${what} lands`, landing: true };
     }
     const cron = typeof schedule.expression === "string" ? schedule.expression : typeof schedule.cron === "string" ? schedule.cron : null;
-    const utc = t.fires.includes("UTC") ? " UTC" : "";
-    return { name, words: cron ? `${cronWords(cron)}${utc}` : t.fires, landing: false };
+    return { name, words: cron ? localCronWords(cron) : t.fires, landing: false };
   });
   const retains = definition && spec ? retentions(sourceSteps(procedure, spec), [definition]).filter((r) => r.line === line) : [];
   if (!definition && !spec && proof.error) return <LoadState error={proof.error} />;
