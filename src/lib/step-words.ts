@@ -318,12 +318,20 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
       return [{ text: typeof value === "string" ? value : JSON.stringify(value) }, { text: " (fixed)" }];
     };
     section("ClaimTypes");
-    current!.columns = [{ header: "From" }, ...(step.expect ? [{ header: "If missing", info: "When a complete read of the source no longer has a watched Subject's value." }] : [])];
+    current!.columns = [
+      { header: "From" },
+      {
+        header: "If missing",
+        info: step.expect
+          ? "When a complete read of the source no longer has a watched Subject's value."
+          : "This step names no expected Subjects, so a value missing from the source changes nothing.",
+      },
+    ];
     current!.cells = [];
     for (const claim of step.claims) {
       const from = fromItem(claim.value) ?? fixed(claim.value);
       const since = fromItem((claim as { effective_from?: unknown }).effective_from);
-      const missing = step.expect ? WHEN_ABSENT[claim.when_absent ?? "surface"] ?? claim.when_absent ?? "flag for review" : null;
+      const missing = step.expect ? WHEN_ABSENT[claim.when_absent ?? "surface"] ?? claim.when_absent ?? "flag for review" : "not checked";
       current!.rows.push({ label: lastSegment(claim.type), name: true, ref: `ClaimType:${claim.type}`, title: claim.type, value: from });
       current!.cells.push([
         since ? [...from, { text: " · since " }, ...since] : from,
@@ -331,9 +339,24 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
       ]);
     }
   } else if ("transform" in step) {
+    const body = record(step.spec) ?? {};
     section("Transform");
     add("Kind", [{ text: step.kind }]);
-    add("Reads", list([...stepRefs(step)].map((s) => code(s))));
+    add("Input", refText(body.input) ?? list([...stepRefs(step)].map((s) => code(s))));
+    // what it does, per kind: the fields it makes, what it keeps, what it joins on
+    const shaped = record(body.fields);
+    if (shaped && Object.keys(shaped).length) {
+      section("Fields");
+      for (const [name, field] of Object.entries(shaped)) {
+        const f = record(field);
+        const from = f ? templateRef(f.from) : null;
+        const source = from?.path?.length ? [code((from.$ref === "item" ? from.path.filter((p) => p !== "fields") : [from.step ?? "", ...from.path]).filter(Boolean).join("."))] : f && "value" in f ? [{ text: JSON.stringify(f.value) }] : null;
+        add(name, source ? [...source, ...(f && typeof f.as === "string" ? [{ text: ` · as ${f.as}` }] : [])] : [{ text: "—" }], { name: true });
+      }
+    }
+    add("Keeps where", body.where !== undefined ? [code(JSON.stringify(body.where))] : null);
+    add("By", Array.isArray(body.by) ? list((body.by as unknown[]).map((b) => code(String(b)))) : null);
+    add("On", body.on !== undefined ? [code(JSON.stringify(body.on))] : null);
   } else if ("emit" in step) {
     section("Keeps");
     add("CaptureKind", [contractPart(step.emit)]);

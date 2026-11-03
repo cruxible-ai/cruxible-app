@@ -210,3 +210,30 @@ describe("run words", () => {
     expect(runChangedWords(undefined)).toBeNull();
   });
 });
+
+describe("side panel: transforms and unchecked absence", () => {
+  const EPSS = {
+    steps: [
+      { read: "watched", query: "security.watched_vulnerabilities" },
+      { transform: "watch_keys", kind: "shape", spec: { input: { $ref: "step", step: "watched", path: ["rows"] }, fields: { cve_id: { from: { $ref: "item", path: ["fields", "cve_id"] } } } } },
+      {
+        id: "write",
+        claims: [{ type: "security.vulnerability.epss_score", value: { $ref: "item", path: ["fields", "score"] } }],
+        for_each: { $ref: "step", step: "scores", path: ["records"] },
+        subject: { kind: "security.vulnerability", key: { cve_id: { $ref: "item", path: ["key", "cve_id"] } } },
+      },
+    ],
+  } as unknown as Parameters<typeof stepSections>[0];
+  it("a shape transform lists its input and the fields it makes, each with its source", () => {
+    const sections = stepSections(EPSS, 1);
+    const flat = sections.map((s) => [s.title, s.rows.map((r) => `${r.label}: ${r.value.map((p) => p.text).join("")}`)]);
+    expect(flat).toEqual([
+      ["Transform", ["Kind: shape", "Input: watched.rows"]],
+      ["Fields", ["cve_id: cve_id"]],
+    ]);
+  });
+  it("a claims step with no expected Subjects says absence is not checked", () => {
+    const claims = stepSections(EPSS, 2).find((s) => s.title === "ClaimTypes")!;
+    expect(claims.cells![0]!.map((cell) => cell.map((p) => p.text).join(""))).toEqual(["score", "not checked"]);
+  });
+});
