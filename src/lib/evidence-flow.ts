@@ -355,7 +355,7 @@ export const COLUMNS = [
 const HEIGHT: Record<PlacedKind, number> = {
   inbox: 44,
   source: 84,
-  line: 84,
+  line: 100,
   claim_type: 18,
   kind: 20,
   heading: 22,

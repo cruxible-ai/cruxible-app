@@ -160,8 +160,9 @@ export function FlowScreen() {
                 const to = layout.byId.get(edge.to);
                 if (!from || !to) return null;
                 const on = lit ? lit.has(edge.from) && lit.has(edge.to) : null;
-                // Edges stay neutral; a traced path lights up in the hovered node's color.
-                const traced = on ? traceColor(layout.byId.get(hover ?? "")?.node) : null;
+                // Edges stay neutral; a traced edge lights up in the color of the Line it runs through,
+                // the same whichever card is hovered.
+                const traced = on ? edgeColor(layout.byId.get(edge.from)?.node, layout.byId.get(edge.to)?.node) : null;
                 return (
                   <path
                     key={`${edge.from}\n${edge.to}`}
@@ -403,8 +404,10 @@ function FlowCell({
 }
 
 /** The color a traced path takes: the hovered Line's or ClaimType's authority; a bright neutral otherwise. */
-function traceColor(node: FlowNode | undefined): string {
-  if (node && (node.kind === "line" || node.kind === "claim_type") && node.authority) return AUTHORITY_COLOR[node.authority];
+/** A traced edge's color: the authority of the Line it runs into or out of; neutral light otherwise. */
+function edgeColor(from: FlowNode | undefined, to: FlowNode | undefined): string {
+  const line = from?.kind === "line" ? from : to?.kind === "line" ? to : undefined;
+  if (line?.authority) return AUTHORITY_COLOR[line.authority];
   return "rgb(222 219 208)";
 }
 
@@ -500,7 +503,7 @@ function FlowCard({
         {state && <span className="ml-auto flex shrink-0 items-center normal-case tracking-normal">{state}</span>}
       </div>
       <div className="mt-1 flex min-w-0 items-center leading-4">{name}</div>
-      {about && <div className="mt-0.5 truncate text-[11px] leading-4 text-zinc-400">{about}</div>}
+      {about && <div className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-zinc-400">{about}</div>}
       <div className="mt-auto flex min-w-0 items-end gap-2">
         <dl className="flex min-w-0 flex-1 flex-col whitespace-nowrap text-[10.5px] leading-4">
           {facts.map(([label, value]) => (
