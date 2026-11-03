@@ -7,15 +7,17 @@ import { lineName } from "@/lib/lines";
 import { isCoreIdentity } from "@/lib/ontology";
 import { wakeOf } from "@/lib/schedule";
 import { sentence } from "@/lib/text";
+import { useDependenciesOf } from "@/lib/useLineDependencies";
 
 type RunRow = Schemas["RunRow"];
 
 /**
  * The evidence-flow model (sources, the Lines that fetch them, the ClaimTypes
- * those Lines write, the inbox) with each Line's Triggers in words and its
- * newest run. Shared by Evidence flow and the Lines table. Reads: the
- * claim_types and lines sections, the source model, every Line's card, and
- * one get-batch of ClaimType proofs.
+ * those Lines write, the inbox, the links between Lines) with each Line's
+ * Triggers in words and its newest run. Shared by Evidence flow and the Lines
+ * table. Reads: the claim_types, lines and subject_kinds sections, the source
+ * model, every Line's card, one get-batch of ClaimType proofs and one of the
+ * Query cards the Lines read.
  */
 export function useFlowModel() {
   const subjectKinds = useSubjectKinds();
@@ -55,8 +57,11 @@ export function useFlowModel() {
     "proof",
   );
 
+  // Which Lines read what other Lines write (or what is entered directly).
+  const dependencies = useDependenciesOf(sources.data, subjectKinds.error ? [] : subjectKinds.data?.rows);
+
   const model = useMemo<FlowModel | null>(() => {
-    if (!claimTypes.data || !lines.data || !sources.data || proofs.isPending) return null;
+    if (!claimTypes.data || !lines.data || !sources.data || proofs.isPending || dependencies === null) return null;
     const accepts = new Map<string, AcceptedEvidence[]>();
     for (const result of proofs.results) {
       const read = readClaimTypeAccepts((result as { proof?: unknown }).proof);
@@ -112,8 +117,9 @@ export function useFlowModel() {
       claimTypes: claimTypes.data.rows.filter((row) => !isCoreIdentity(row.predicate)),
       accepts,
       keys: new Set((subjectKinds.data?.rows ?? []).flatMap((kind) => kind.keys ?? [])),
+      dependencies,
     });
-  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords, subjectKinds.data]);
+  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords, subjectKinds.data, dependencies]);
 
   const error = claimTypes.error ?? lines.error ?? sources.error;
   const capped = Boolean(sources.data?.truncated || claimTypes.data?.truncated);

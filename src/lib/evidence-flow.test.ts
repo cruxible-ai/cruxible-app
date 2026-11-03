@@ -3,7 +3,9 @@ import type { OrientPredicate } from "@/api/schemas";
 import {
   buildFlow,
   COLUMNS,
+  edgeKey,
   focusFlow,
+  linkPath,
   layoutFlow,
   nodeId,
   OWN_WORD,
@@ -187,5 +189,60 @@ describe("short names", () => {
     expect(label("security.job")).toBe("security.job");
     expect(label("job")).toBe("job");
     expect(shortNames(["a.x", "b.y"]).prefix).toBe("");
+  });
+});
+
+describe("evidence flow: links between Lines", () => {
+  const dep = (producer: string | null, reader: string, query = "sec.watched") => ({
+    producer,
+    reader,
+    step: "watched",
+    query,
+    claimTypes: producer ? ["sec.vuln.kev_listed"] : ["sec.vuln.cve_id"],
+    kinds: producer ? [] : ["sec.vuln"],
+    writes: producer ? ["settle"] : [],
+  });
+  // epss-triage reads what kev-triage writes (and what is entered directly); repo-parse's Query is fed only by direct entry.
+  const model = buildFlow({
+    ...INPUTS,
+    dependencies: [dep("kev-triage", "epss-triage"), dep(null, "epss-triage"), dep(null, "repo-parse", "sec.jobs")],
+  });
+  const link = (from: string, to: string) => model.edges.find((e) => e.from === from && e.to === to && e.dependencies);
+
+  it("links the producer Line to the reader, carrying what its Query reads from it", () => {
+    expect(link(nodeId.line("kev-triage"), nodeId.line("epss-triage"))?.dependencies?.map((d) => d.query)).toEqual(["sec.watched"]);
+    // a Line feeds that Query: no link from Entered directly as well
+    expect(link(OWN_WORD, nodeId.line("epss-triage"))).toBeUndefined();
+    // only direct entry feeds repo-parse's Query: the dashed card links to it
+    expect(link(OWN_WORD, nodeId.line("repo-parse"))?.dependencies?.[0]?.kinds).toEqual(["sec.vuln"]);
+  });
+
+  it("creates Entered directly when only a link needs it", () => {
+    const bare = buildFlow({ ...INPUTS, accepts: new Map(), claimTypes: INPUTS.claimTypes.filter((c) => !c.evidence?.includes(SELF)), dependencies: [dep(null, "repo-parse")] });
+    expect(bare.nodes.find((n) => n.id === OWN_WORD)?.ownWord).toBe(true);
+    expect(bare.edges.filter((e) => e.from === OWN_WORD).map((e) => e.to)).toEqual([nodeId.line("repo-parse")]);
+  });
+
+  it("hover tracing walks the links: a producer's trace reaches the Line that reads from it", () => {
+    expect(related(model, nodeId.source("cisa.kev")).has(nodeId.line("epss-triage"))).toBe(true);
+    expect(related(model, nodeId.line("epss-triage")).has(nodeId.line("kev-triage"))).toBe(true);
+  });
+
+  it("lays the producer out above the reader, the link in a lane left of the Line column", () => {
+    // epss-triage alone would sit first (its rows come first); reading from kev-triage, it goes below it
+    const plain = layoutFlow(buildFlow(INPUTS));
+    expect(plain.byId.get(nodeId.line("epss-triage"))!.y).toBeLessThan(plain.byId.get(nodeId.line("kev-triage"))!.y);
+    const layout = layoutFlow(model);
+    const from = layout.byId.get(nodeId.line("kev-triage"))!;
+    const to = layout.byId.get(nodeId.line("epss-triage"))!;
+    expect(from.y).toBeLessThan(to.y);
+    const key = edgeKey({ from: from.id, to: to.id });
+    expect(layout.lanes.get(key)).toBe(0);
+    // out of the producer's left edge near its bottom, down the lane, into the reader's left edge near its top
+    const d = linkPath(from, to, 0);
+    expect(d.startsWith(`M${COLUMNS[1].x},${from.y + from.h - 18}`)).toBe(true);
+    expect(d).toContain(`V`);
+    expect(d.endsWith(`,${to.y + 18} H${COLUMNS[1].x}`)).toBe(true);
+    expect(Math.min(...[...d.matchAll(/[HQ ](\d+)/g)].map((m) => Number(m[1])))).toBeGreaterThan(COLUMNS[0].x + COLUMNS[0].w);
   });
 });

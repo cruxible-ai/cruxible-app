@@ -1,4 +1,5 @@
 import type { OrientPredicate } from "../api/schemas.ts";
+import type { LineDependency } from "./line-dependencies.ts";
 
 /**
  * The evidence-flow view's model and layout: how evidence moves.
@@ -13,6 +14,10 @@ import type { OrientPredicate } from "../api/schemas.ts";
  * calls name the source, Line → ClaimType where its claims steps name the
  * ClaimType (a Line capped at observe writes no Claims), Line → inbox where
  * its Procedure posts items.
+ *
+ * A Line whose Query reads what another Line writes (or creates) links from
+ * that Line, in the Line column (line-dependencies.ts); a Query only direct
+ * entry feeds links from "Entered directly" instead.
  *
  * The pseudo source "Entered directly" is for what people and agents write on
  * their own word: it links to the ClaimTypes whose evidence rules accept a
@@ -76,6 +81,8 @@ export interface FlowEdge {
   direct?: boolean;
   /** line → inbox: the Line posts items for someone to judge. */
   inbox?: boolean;
+  /** line → line, or Entered directly → line: what the reading Line's Queries read from it. */
+  dependencies?: LineDependency[];
 }
 
 export interface FlowModel {
@@ -128,6 +135,8 @@ export interface FlowInputs {
   accepts?: ReadonlyMap<string, readonly AcceptedEvidence[]>;
   /** Identity-key predicates: a Subject's id, shown as its key with no source. */
   keys?: ReadonlySet<string>;
+  /** Line dependencies (line-dependencies.ts): drawn as links into the reading Line. */
+  dependencies?: readonly LineDependency[];
 }
 
 const bareContract = (value: string) => value.replace(/^CaptureContract:/, "");
@@ -144,6 +153,9 @@ export const nodeId = {
   claimType: (predicate: string) => `claim_type:${predicate}`,
   kind: (kind: string) => `kind:${kind}`,
 };
+
+/** An edge's key (its ends). */
+export const edgeKey = (edge: { from: string; to: string }) => `${edge.from}\n${edge.to}`;
 
 export function buildFlow(inputs: FlowInputs): FlowModel {
   const nodes = new Map<string, FlowNode>();
@@ -273,6 +285,35 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       required,
     });
   }
+
+  // Dependencies: producer Line → reading Line; a Query only direct entry feeds links from Entered directly.
+  const links = new Map<string, FlowEdge>();
+  const link = (from: string, to: string, dependency: LineDependency) => {
+    const key = edgeKey({ from, to });
+    const edge = links.get(key) ?? { from, to, dependencies: [] };
+    edge.dependencies!.push(dependency);
+    links.set(key, edge);
+  };
+  const reads = new Map<string, LineDependency[]>();
+  for (const d of inputs.dependencies ?? []) {
+    if (!nodes.has(nodeId.line(d.reader))) continue;
+    const key = `${d.reader}\n${d.step}\n${d.query}`;
+    reads.set(key, [...(reads.get(key) ?? []), d]);
+  }
+  for (const group of reads.values()) {
+    const fromLines = group.filter((d) => d.producer !== null && nodes.has(nodeId.line(d.producer)));
+    if (fromLines.length) {
+      for (const d of fromLines) link(nodeId.line(d.producer!), nodeId.line(d.reader), d);
+      continue;
+    }
+    for (const d of group.filter((d) => d.producer === null)) {
+      if (!nodes.has(OWN_WORD)) {
+        nodes.set(OWN_WORD, { id: OWN_WORD, kind: "source", label: "Entered directly", detail: "Facts people or agents enter directly, on their own word", contracts: [], ownWord: true });
+      }
+      link(OWN_WORD, nodeId.line(d.reader), d);
+    }
+  }
+  for (const edge of links.values()) if (!edgeKeys.has(edgeKey(edge))) edges.push(edge);
   return { nodes: [...nodes.values()], edges };
 }
 
@@ -341,9 +382,14 @@ export interface FlowLayout {
   placed: Placed[];
   byId: ReadonlyMap<string, Placed>;
   edges: FlowEdge[];
+  /** Line → Line links: the lane each runs in, left of the Line column (0 nearest it), by edge key. */
+  lanes: ReadonlyMap<string, number>;
   width: number;
   height: number;
 }
+
+/** A dependency link between two Lines (both ends in the Line column). */
+export const isLineLink = (edge: FlowEdge) => Boolean(edge.dependencies) && edge.from.startsWith("line:") && edge.to.startsWith("line:");
 
 /** Column boxes: sources, Lines, what they produce; the wider gutter carries the Line fan-out. */
 export const COLUMNS = [
@@ -364,6 +410,42 @@ const GAP: Record<PlacedKind, number> = { inbox: 14, source: 8, line: 8, claim_t
 const KIND_GAP = 8;
 
 const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : Number.POSITIVE_INFINITY);
+
+/**
+ * Order nodes by their desired centre, but a node another links to from it
+ * (a producer Line) before the one it feeds, where the links allow (a cycle
+ * keeps the desired order).
+ */
+function orderBefore<T extends { id: string; desired: number }>(items: T[], links: readonly { from: string; to: string }[]): T[] {
+  const byDesired = [...items].sort((a, b) => a.desired - b.desired || byText(a.id, b.id));
+  const ids = new Set(items.map((i) => i.id));
+  const before = new Map<string, Set<string>>();
+  for (const l of links) {
+    if (l.from === l.to || !ids.has(l.from) || !ids.has(l.to)) continue;
+    before.set(l.to, new Set([...(before.get(l.to) ?? []), l.from]));
+  }
+  const out: T[] = [];
+  const done = new Set<string>();
+  while (out.length < byDesired.length) {
+    const ready =
+      byDesired.find((i) => !done.has(i.id) && [...(before.get(i.id) ?? [])].every((id) => done.has(id))) ??
+      byDesired.find((i) => !done.has(i.id))!;
+    out.push(ready);
+    done.add(ready.id);
+  }
+  return out;
+}
+
+/** Stack nodes from the top in the given order, with no gaps. */
+function packOrdered<T extends { id: string; kind: PlacedKind }>(items: T[], top: number): Map<string, number> {
+  const out = new Map<string, number>();
+  let y = top;
+  for (const item of items) {
+    out.set(item.id, y);
+    y += HEIGHT[item.kind] + GAP[item.kind];
+  }
+  return out;
+}
 
 /** Stack nodes from the top in order of their desired centre, with no gaps. */
 function packTop<T extends { id: string; desired: number; kind: PlacedKind }>(items: T[], top: number): Map<string, number> {
@@ -413,9 +495,13 @@ export function layoutFlow(model: FlowModel): FlowLayout {
   const centres = (id: string, at: (to: string) => number | undefined) =>
     (outgoing.get(id) ?? []).map(at).filter((v): v is number => v !== undefined);
 
-  // Lines, ordered by the rows they write, packed from the top.
-  const lineY = packTop(
-    of("line").map((n) => ({ id: n.id, kind: "line" as const, desired: mean(centres(n.id, (to) => rowY.get(to))) })),
+  // Lines, ordered by the rows they write (a Line another reads from above it, where the links allow), packed from the top.
+  const lineLinks = model.edges.filter(isLineLink);
+  const lineY = packOrdered(
+    orderBefore(
+      of("line").map((n) => ({ id: n.id, kind: "line" as const, desired: mean(centres(n.id, (to) => rowY.get(to))) })),
+      lineLinks,
+    ),
     top,
   );
   const centreOf = (id: string) => {
@@ -450,13 +536,53 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     ...rows,
   ];
   const height = Math.max(...placed.map((p) => p.y + p.h), top) + 8;
+  // Line → Line links run in lanes left of the Line column: the shortest nearest it, overlapping spans apart.
+  const lanes = new Map<string, number>();
+  const spans = lineLinks
+    .map((e) => {
+      const a = lineY.get(e.from)!;
+      const b = lineY.get(e.to)!;
+      return { key: edgeKey(e), lo: Math.min(a, b), hi: Math.max(a, b) + HEIGHT.line };
+    })
+    .sort((a, b) => a.hi - a.lo - (b.hi - b.lo) || a.lo - b.lo || byText(a.key, b.key));
+  const taken: { lo: number; hi: number; lane: number }[] = [];
+  for (const span of spans) {
+    let lane = 0;
+    while (taken.some((t) => t.lane === lane && t.lo < span.hi && span.lo < t.hi)) lane += 1;
+    taken.push({ ...span, lane });
+    lanes.set(span.key, lane);
+  }
   return {
     placed,
     byId: new Map(placed.map((p) => [p.id, p] as const)),
     edges: model.edges,
+    lanes,
     width: COLUMNS[2].x + COLUMNS[2].w,
     height,
   };
+}
+
+/** How far a Line → Line link's ends sit from the card's top or bottom (clear of the mid-height edges). */
+const LINK_INSET = 18;
+/** The first lane's distance left of the Line column, and the step between lanes. */
+const LANE_GAP = 12;
+const LANE_STEP = 7;
+
+/**
+ * A Line → Line link's path: out of the producer's left edge near its bottom
+ * (its top when it sits below), along its lane left of the column, and into
+ * the reader's left edge near its top (or bottom): clear of the source → Line
+ * edges, which meet the cards at mid-height, and of the fan-out on the right.
+ */
+export function linkPath(from: Placed, to: Placed, lane: number): string {
+  const x = from.x;
+  const laneX = x - LANE_GAP - lane * LANE_STEP;
+  const down = from.y < to.y;
+  const y1 = down ? from.y + from.h - LINK_INSET : from.y + LINK_INSET;
+  const y2 = down ? to.y + LINK_INSET : to.y + to.h - LINK_INSET;
+  const r = Math.min(5, Math.abs(y2 - y1) / 2);
+  const s = down ? 1 : -1;
+  return `M${x},${y1} H${laneX + r} Q${laneX},${y1} ${laneX},${y1 + s * r} V${y2 - s * r} Q${laneX},${y2} ${laneX + r},${y2} H${to.x}`;
 }
 
 /** An edge's path between two placed nodes (right edge to left edge, a horizontal S-curve). */
@@ -465,6 +591,16 @@ export function edgePath(from: Placed, to: Placed): string {
   const y1 = from.y + from.h / 2;
   const x2 = to.x;
   const y2 = to.y + to.h / 2;
+  const dx = (x2 - x1) / 2;
+  return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+}
+
+/** A link from Entered directly into a Line: an S-curve into the card's left edge near its bottom, clear of the source edges at mid-height. */
+export function directLinkPath(from: Placed, to: Placed): string {
+  const x1 = from.x + from.w;
+  const y1 = from.y + from.h / 2;
+  const x2 = to.x;
+  const y2 = to.y + to.h - LINK_INSET;
   const dx = (x2 - x1) / 2;
   return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
 }

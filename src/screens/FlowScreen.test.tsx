@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 
 afterEach(cleanup);
@@ -51,5 +51,30 @@ describe("Evidence flow", () => {
     expect(flow.queryByText("osv.query")).toBeNull();
     expect(flow.queryByRole("link", { name: "cve-applicability" })).toBeNull();
     expect(screen.getByRole("button", { name: "Clear: Focused on example.invalid" })).toBeInTheDocument();
+  });
+
+  it("links a Line from the Line whose writes its Query reads; a click opens the Query and what it connects", async () => {
+    renderApp(`${I}/flow`);
+    await screen.findByTestId("flow", {}, { timeout: 8000 });
+    // kev-triage's kev_exposure walks assessments and their status: cve-applicability creates and writes them
+    const link = await screen.findByRole("button", { name: "Link cve-applicability → kev-triage" }, { timeout: 8000 });
+    expect(link).toHaveAttribute("data-testid", "dependency-link");
+    // the reader also reads what no Line writes, but a Line feeds its Query: no link from Entered directly
+    expect(screen.queryByRole("button", { name: "Link Entered directly → kev-triage" })).toBeNull();
+    // the producer sits above the reader
+    const card = (name: string) => screen.getByRole("link", { name }).closest("[title]") as HTMLElement;
+    expect(parseFloat(card("cve-applicability").style.top)).toBeLessThan(parseFloat(card("kev-triage").style.top));
+
+    fireEvent.click(link);
+    const popover = within(await screen.findByRole("dialog", { name: "cve-applicability → kev-triage" }));
+    expect(popover.getByRole("link", { name: "kev_exposure" })).toHaveAttribute("href", `${I}/ref/${encodeURIComponent("query:security.kev_exposure")}`);
+    expect(popover.getByRole("link", { name: "assessment.status" })).toHaveAttribute("title", "ClaimType security.assessment.status");
+    expect(popover.getByText("Kinds")).toBeInTheDocument();
+    expect(popover.getByRole("link", { name: "assessment" })).toBeInTheDocument();
+    // what no Line writes stays off this link
+    expect(popover.queryByText("vulnerability.kev_listed")).toBeNull();
+    // Esc closes it (and leaves the page as it was)
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });

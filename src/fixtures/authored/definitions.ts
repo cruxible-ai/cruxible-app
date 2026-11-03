@@ -95,7 +95,8 @@ const CVE_SPEC: Spec = {
       id: "propose",
       claims: [{ type: "security.assessment.status", value: item("fields", "status") }],
       for_each: step("answers", "records"),
-      subject: { kind: "security.assessment", key: { assessment_id: item("key", "assessment") } },
+      // Creates the assessments it answers for: what kev-triage's Query walks (with their status) comes from this Line.
+      subject: { kind: "security.assessment", key: { assessment_id: item("key", "assessment") }, create: "if_absent" },
     },
   ],
 };
@@ -159,6 +160,12 @@ const KEV_TRIAGE_PROOF = lineProof("kev-triage", "security.kev-triage", {
   bindings: { fetch: { build: { role: "provider", target: { kind: "Provider", name: "cruxible-provider-web/" + "a".repeat(64) } }, operation: "web.fetch" } },
 });
 
+const CVE_PROOF = lineProof("cve-applicability", "security.cve-applicability", {
+  max_authority: "propose",
+  trigger_input: "record",
+  trigger_event: { capture_contract_identity: { kind: "CaptureContract", name: OSV } },
+});
+
 const triggerBatch = (name: string, schedule: Record<string, unknown>, target: string) =>
   defineFixture({
     method: "post",
@@ -178,6 +185,23 @@ export default [
     path: "/api/v1/{instance_id}/get",
     body: getBody({ ref: "Line:kev-triage", coordinate: COORDINATE, detail: "proof" }),
     response: KEV_TRIAGE_PROOF,
+  }),
+  // cve-applicability's page reads its envelope and its Procedure's card alone.
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get",
+    body: getBody({ ref: "Line:cve-applicability", coordinate: COORDINATE, detail: "proof" }),
+    response: CVE_PROOF,
+  }),
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get-batch",
+    body: getBatchBody([`Procedure:${CVE_SPEC.procedure}`], COORDINATE),
+    response: {
+      tag: "playbill-get-batch-result-v1",
+      coordinate: COORDINATE,
+      results: [result(`Procedure:${CVE_SPEC.procedure}`, "procedure", { card: procedureCard(CVE_SPEC) })],
+    },
   }),
   triggerBatch("security.kev-daily", { kind: "cron", cron: "0 6 * * *" }, "Line:kev-triage"),
   triggerBatch(
@@ -219,11 +243,7 @@ export default [
       tag: "playbill-get-batch-result-v1",
       coordinate: COORDINATE,
       results: [
-        lineProof("cve-applicability", "security.cve-applicability", {
-          max_authority: "propose",
-          trigger_input: "record",
-          trigger_event: { capture_contract_identity: { kind: "CaptureContract", name: OSV } },
-        }),
+        CVE_PROOF,
         KEV_TRIAGE_PROOF,
       ],
     },

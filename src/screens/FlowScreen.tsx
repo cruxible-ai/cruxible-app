@@ -8,15 +8,22 @@ import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
 import {
+  directLinkPath,
+  edgeKey,
   edgePath,
   focusFlow,
+  isLineLink,
+  linkPath,
   layoutFlow,
   related,
   shortNames,
+  type FlowEdge,
+  type FlowLayout,
   type FlowModel,
   type FlowNode,
   type Placed,
 } from "@/lib/evidence-flow";
+import { DependencyPopover, producerName, type PopoverAt } from "@/components/DependencyPopover";
 import { AUTHORITY_COLOR } from "@/lib/palette";
 import { term } from "@/lib/vocabulary";
 import { contractName } from "@/lib/ontology";
@@ -33,7 +40,9 @@ import type { Schemas } from "@/api/schemas";
  * Evidence flow, three columns: where data comes from (a source: its host,
  * when it is fetched, when it last landed; and your own statements) -> the
  * Line that fetches it (its authority as a stripe, its state, its last run)
- * -> the ClaimTypes that Line writes, under their Subject kinds. Source cards
+ * -> the ClaimTypes that Line writes, under their Subject kinds; a Line whose
+ * Query reads what another Line writes links from it (left of the Line
+ * column), a click on the link names the Query and what it connects. Source cards
  * and Line cards share one shape, each with its kind on top. Reads
  * are ontology-sized: the claim_types and lines sections, the source model
  * (Procedure cards, Line envelopes, landing Triggers), the Line cards, and
@@ -47,6 +56,9 @@ export function FlowScreen() {
   const [params, setParams] = useSearchParams();
   const focus = params.get("focus");
   const [hover, setHover] = useState<string | null>(null);
+  // The dependency link whose popover is open, and where it was clicked.
+  const [opened, setOpened] = useState<{ key: string; at: PopoverAt } | null>(null);
+  const closeLink = useCallback(() => setOpened(null), []);
 
   const { model, triggerWords, lastRuns, runningLines, proofs, error, capped } = useFlowModel();
 
@@ -160,8 +172,10 @@ export function FlowScreen() {
             // A click on the empty canvas clears the focus.
             onClick={(event) => focus && event.target === event.currentTarget && setFocus(null)}
           >
-            <svg width={layout.width} height={layout.height} className="pointer-events-none absolute inset-0" aria-hidden>
+            <svg width={layout.width} height={layout.height} className="pointer-events-none absolute inset-0">
               {layout.edges.map((edge) => {
+                if (edge.dependencies) return null; // drawn over the edges, below
+
                 const from = layout.byId.get(edge.from);
                 const to = layout.byId.get(edge.to);
                 if (!from || !to) return null;
@@ -181,6 +195,18 @@ export function FlowScreen() {
                   />
                 );
               })}
+              {layout.edges.map((edge) =>
+                edge.dependencies ? (
+                  <LinkEdge
+                    key={edgeKey(edge)}
+                    edge={edge}
+                    layout={layout}
+                    lit={lit}
+                    open={opened?.key === edgeKey(edge)}
+                    onOpen={(at) => setOpened({ key: edgeKey(edge), at })}
+                  />
+                ) : null,
+              )}
             </svg>
             {layout.placed.map((p) => (
               <FlowCell
@@ -202,7 +228,87 @@ export function FlowScreen() {
           </div>
         </div>
       )}
+      {opened &&
+        (() => {
+          const edge = layout.edges.find((e) => edgeKey(e) === opened.key);
+          const from = edge && layout.byId.get(edge.from)?.node;
+          const to = edge && layout.byId.get(edge.to)?.node;
+          if (!edge?.dependencies || !from || !to) return null;
+          return (
+            <DependencyPopover at={opened.at} from={from.ownWord ? null : from.label} to={to.label} dependencies={edge.dependencies} onClose={closeLink} />
+          );
+        })()}
     </div>
+  );
+}
+
+/**
+ * A dependency link: Line → Line in a lane left of the Line column, or
+ * Entered directly → Line; unlabeled, with an arrowhead into the reader and
+ * a wide transparent stroke to click (Enter on focus) for its popover.
+ */
+function LinkEdge({
+  edge,
+  layout,
+  lit,
+  open,
+  onOpen,
+}: {
+  edge: FlowEdge;
+  layout: FlowLayout;
+  lit: Set<string> | null;
+  open: boolean;
+  onOpen: (at: PopoverAt) => void;
+}) {
+  const from = layout.byId.get(edge.from);
+  const to = layout.byId.get(edge.to);
+  if (!from || !to) return null;
+  const key = edgeKey(edge);
+  const d = isLineLink(edge) ? linkPath(from, to, layout.lanes.get(key) ?? 0) : directLinkPath(from, to);
+  const on = open ? true : lit ? lit.has(edge.from) && lit.has(edge.to) : null;
+  const color = on ? edgeColor(from.node, to.node) : "rgb(163 160 148)";
+  const marker = `link-arrow-${key.replace(/[^\w-]/g, "_")}`;
+  const label = `${producerName(from.node?.ownWord ? null : (from.node?.label ?? null))} → ${to.node?.label ?? ""}`;
+  return (
+    <g>
+      <defs>
+        <marker id={marker} viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0,0.5 L8,4 L0,7.5 z" fill={color} />
+        </marker>
+      </defs>
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth={on ? 1.75 : 1.25}
+        strokeDasharray={from.node?.ownWord ? "4 3" : undefined}
+        opacity={on === null ? 0.55 : on ? 1 : 0.08}
+        markerEnd={`url(#${marker})`}
+      />
+      <path
+        d={d}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={12}
+        style={{ pointerEvents: "stroke", cursor: "pointer", outline: "none" }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Link ${label}`}
+        data-testid="dependency-link"
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen({ x: event.clientX, y: event.clientY });
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          const box = (event.currentTarget as SVGPathElement).getBoundingClientRect();
+          onOpen({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
+        }}
+      >
+        <title>{label}</title>
+      </path>
+    </g>
   );
 }
 

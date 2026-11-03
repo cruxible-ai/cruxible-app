@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import {
   Background,
   ReactFlow,
@@ -77,6 +77,8 @@ export function GraphCanvas(props: {
   controls?: ReactNode;
   /** Show every edge label while nothing is selected (a graph already cut down to a few nodes, like a focus). */
   revealAll?: boolean;
+  /** Told of an edge click first; returning true handles it (no edge selection). */
+  onEdgeClick?: (edgeId: string, event: ReactMouseEvent) => boolean;
 }) {
   return (
     <ReactFlowProvider>
@@ -104,6 +106,7 @@ function Canvas({
   revealAll = false,
   height,
   controls,
+  onEdgeClick,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
@@ -341,7 +344,10 @@ function Canvas({
           nodesConnectable={false}
           proOptions={{ hideAttribution: true }}
           onNodeClick={(_, node) => select(node.id)}
-          onEdgeClick={(_, edge) => setSelection({ kind: "edge", id: edge.id })}
+          onEdgeClick={(event, edge) => {
+            if (onEdgeClick?.(edge.id, event)) return;
+            setSelection({ kind: "edge", id: edge.id });
+          }}
           onPointerDownCapture={() => {
             pannedRef.current = false;
           }}

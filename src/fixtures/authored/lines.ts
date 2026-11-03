@@ -8,6 +8,7 @@ import { getBatchBody, getBody, inboxQuery, LINE_RUNS_PAGE, orientQuery, reading
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./world";
 import { KEV_TRIAGE_SPEC, procedureCard } from "./definitions";
+import { KEV_EXPOSURE_CARD } from "./queries";
 
 const ORIENT_PAGE = 500;
 const KEV = "kev-triage";
@@ -175,6 +176,8 @@ export default [
   }),
   batch([`Line:${CVE}`, `Line:${KEV}`], [result(`Line:${CVE}`, "line", CVE_CARD), result(`Line:${KEV}`, "line", KEV_CARD)]),
   batch([`Line:${KEV}`], [result(`Line:${KEV}`, "line", KEV_CARD)]),
+  // cve-applicability's page: its card (the Line whose writes kev-triage's Query reads).
+  batch([`Line:${CVE}`], [result(`Line:${CVE}`, "line", CVE_CARD)]),
   defineFixture({
     method: "post",
     path: "/api/v1/{instance_id}/get",
@@ -253,6 +256,8 @@ export default [
         query: "security.kev_exposure",
         description: "Assessments whose vulnerability is KEV-listed and whose release is shipped.",
         params: [{ name: "assessment", type: "subject:security.assessment", required: true }],
+        // What it reads (assessment status, the assessments themselves) cve-applicability writes: the Lines' dependency.
+        definition: KEV_EXPOSURE_CARD.definition ?? null,
       }),
     ],
   ),

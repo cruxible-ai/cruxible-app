@@ -22,6 +22,9 @@ import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
 import { ROLE_COLOR } from "@/lib/palette";
 import { sentence } from "@/lib/text";
+import type { LineDependency } from "@/lib/line-dependencies";
+import { useLineDependencies } from "@/lib/useLineDependencies";
+import { DependencyPopover, producerName, type PopoverAt } from "@/components/DependencyPopover";
 
 /**
  * A Procedure as a left-to-right graph: one node per step, typed by its role
@@ -35,7 +38,11 @@ import { sentence } from "@/lib/text";
  * where the run card's node summary gives them ("1,766 records · complete"),
  * and the count flowing along an edge. Clicking a step focuses everything
  * upstream and downstream of it (the focus chip and Esc clear it) and tells
- * the page which step it is.
+ * the page which step it is. On a Line page, small chips name the Lines
+ * (or Entered directly) that produce what each read step's Query reads, left
+ * of the read, and the Lines whose Queries read what this Line writes, right
+ * of its claims steps; a click on a chip's edge names the Query and what it
+ * connects.
  */
 
 /** A Line's Trigger as the graph shows it: its schedule in words, and whether its landing feeds the trigger input. */
@@ -185,7 +192,74 @@ function MarkLine({ mark, words }: { mark: StepMark; words: NodeDisplay["markWor
   );
 }
 
-const nodeTypes = { step: StepNode };
+/** A Line (or Entered directly) upstream of a read or downstream of a claims step. */
+type ChipNodeData = { line: string | null; to: string | null; vertical?: boolean; [key: string]: unknown };
+
+const CHIP_HEIGHT = 24;
+
+function ChipNode({ data }: NodeProps<Node<ChipNodeData>>) {
+  const name = producerName(data.line);
+  return (
+    <div
+      className={`flex h-full w-full items-center overflow-hidden border px-2 text-[11px] leading-4 ${data.line ? "border-zinc-600 bg-zinc-900" : "border-dashed border-zinc-700 bg-zinc-950"}`}
+      title={data.line ? `Line ${data.line}` : "Entered directly by people or agents"}
+    >
+      <Handle type="target" position={data.vertical ? Position.Top : Position.Left} className="!pointer-events-none !opacity-0" />
+      {data.to ? (
+        <Link to={data.to} className="nodrag nopan truncate font-mono text-zinc-200 hover:text-white hover:underline" onClick={(e) => e.stopPropagation()}>
+          {name}
+        </Link>
+      ) : (
+        <span className="truncate text-zinc-400">{name}</span>
+      )}
+      <Handle type="source" position={data.vertical ? Position.Bottom : Position.Right} className="!pointer-events-none !opacity-0" />
+    </div>
+  );
+}
+
+const nodeTypes = { step: StepNode, chip: ChipNode };
+
+const CHIP_UP = "dep-up:";
+const CHIP_DOWN = "dep-down:";
+
+/** A chip: its node id, who it names, its box, and the edges into or out of it with what each carries. */
+interface Chip {
+  id: string;
+  line: string | null;
+  width: number;
+  edges: { id: string; source: string; target: string; dependencies: LineDependency[] }[];
+}
+
+/**
+ * The chips around a Line's steps: per read step, one per producer (Lines,
+ * then Entered directly) with an edge into the read; per reading Line, one
+ * right of the claims steps that write or create what its Query reads.
+ */
+function dependencyChips(line: string, dependencies: readonly LineDependency[], steps: ReadonlySet<string>): Chip[] {
+  const width = (name: string, mono: boolean) => Math.min(MAX_WIDTH, Math.ceil((mono ? monoWidth(name, 11) : name.length * 6) + 22));
+  const chips = new Map<string, Chip>();
+  const chip = (id: string, producer: string | null) => {
+    let found = chips.get(id);
+    if (!found) chips.set(id, (found = { id, line: producer, width: width(producerName(producer), producer !== null), edges: [] }));
+    return found;
+  };
+  const edge = (c: Chip, id: string, source: string, target: string, d: LineDependency) => {
+    const found = c.edges.find((e) => e.id === id);
+    if (found) found.dependencies.push(d);
+    else c.edges.push({ id, source, target, dependencies: [d] });
+  };
+  for (const d of dependencies) {
+    if (d.reader === line && steps.has(d.step)) {
+      const c = chip(`${CHIP_UP}${d.step}:${d.producer ?? ""}`, d.producer);
+      edge(c, `dep:${c.id}`, c.id, d.step, d);
+    }
+    if (d.producer === line) {
+      const c = chip(`${CHIP_DOWN}${d.reader}`, d.reader);
+      for (const step of d.writes.filter((w) => steps.has(w))) edge(c, `dep:${step}:${c.id}`, step, c.id, d);
+    }
+  }
+  return [...chips.values()].filter((c) => c.edges.length > 0);
+}
 
 /**
  * The node box: the widest line (11px mono, the header 12px) between the
@@ -239,6 +313,24 @@ export function ProcedureGraph({
   );
 
   const queries = useQueryShapes(spec);
+  // On a Line page: the Lines (or direct entry) upstream of its reads, and the Lines downstream of its writes.
+  const lineName = definition?.line ?? null;
+  const dependencies = useLineDependencies(lineName !== null);
+  const chips = useMemo(
+    () => (lineName && dependencies ? dependencyChips(lineName, dependencies, new Set(model.nodes.map((n) => n.id))) : []),
+    [lineName, dependencies, model],
+  );
+  const chipEdges = useMemo(() => new Map(chips.flatMap((c) => c.edges.map((e) => [e.id, e] as const))), [chips]);
+  const [opened, setOpened] = useState<{ edge: string; at: PopoverAt } | null>(null);
+  const closeLink = useCallback(() => setOpened(null), []);
+  const onEdgeClick = useCallback(
+    (id: string, event: { clientX: number; clientY: number }) => {
+      if (!chipEdges.has(id)) return false;
+      setOpened({ edge: id, at: { x: event.clientX, y: event.clientY } });
+      return true;
+    },
+    [chipEdges],
+  );
 
   // Every node's kind and name, its key fields, and the run's marks and counts when one is picked.
   const ctx = useMemo(() => ({ parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, bindings: definition?.bindings }), [definition, queries]);
@@ -318,20 +410,25 @@ export function ProcedureGraph({
         out.push({ id: `landing:${trigger.name}`, source: `${TRIGGER_PREFIX}${trigger.name}`, target: inputStep.id, control: false, label: "lands" });
       }
     }
+    // Unlabeled: a click names what it carries.
+    for (const chip of chips) for (const e of chip.edges) out.push({ id: e.id, source: e.source, target: e.target, control: false, label: "" });
     return out;
-  }, [model, definition, line, run]);
+  }, [model, definition, line, run, chips]);
 
   const layoutInput = useMemo(() => {
     const ids = [...(line?.triggers ?? []).map((t) => `${TRIGGER_PREFIX}${t.name}`), ...model.nodes.map((n) => n.id)];
     return {
-      nodes: ids.map((id) => {
-        const d = display.get(id)!;
-        const box = boxOf(d);
-        return { id, ...box, first: id.startsWith(TRIGGER_PREFIX) || id === INPUT_NODE };
-      }),
+      nodes: [
+        ...ids.map((id) => {
+          const d = display.get(id)!;
+          const box = boxOf(d);
+          return { id, ...box, first: id.startsWith(TRIGGER_PREFIX) || id === INPUT_NODE };
+        }),
+        ...chips.map((c) => ({ id: c.id, width: c.width, height: CHIP_HEIGHT, first: false })),
+      ],
       edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
     };
-  }, [model, display, edges, line]);
+  }, [model, display, edges, line, chips]);
   // Which way the steps run: left to right (default) or top to bottom, a wide Procedure's better fit; remembered per browser.
   const [vertical, setVertical] = useState(() => {
     try {
@@ -381,23 +478,36 @@ export function ProcedureGraph({
     if (!laidOut) return { nodes: [] as Node<StepNodeData>[], flowEdges: [] as Edge[], width: 0, height: 0 };
     const sizes = new Map(layoutInput.nodes.map((n) => [n.id, n]));
     const at = (id: string, i: number) => laidOut.result?.positions.get(id) ?? { x: i * (MAX_WIDTH + 60), y: 0 };
-    const nodes: Node<StepNodeData>[] = layoutInput.nodes.map((n, i) => ({
-      id: n.id,
-      type: "step",
-      position: at(n.id, i),
-      style: { width: n.width, height: n.height },
-      data: { ...display.get(n.id)!, vertical },
-    }));
+    const chipOf = new Map(chips.map((c) => [c.id, c] as const));
+    const nodes: Node<StepNodeData | ChipNodeData>[] = layoutInput.nodes.map((n, i) => {
+      const chip = chipOf.get(n.id);
+      return chip
+        ? {
+            id: n.id,
+            type: "chip",
+            position: at(n.id, i),
+            style: { width: n.width, height: n.height },
+            data: { line: chip.line, to: chip.line ? link(`/i/${instanceId}/lines/${encodeURIComponent(chip.line)}`) : null, vertical },
+          }
+        : {
+            id: n.id,
+            type: "step",
+            position: at(n.id, i),
+            style: { width: n.width, height: n.height },
+            data: { ...display.get(n.id)!, vertical },
+          };
+    });
     const positions = new Map(nodes.map((n) => [n.id, n.position]));
     const flowEdges: Edge[] = edges.map((e) => {
-      const stroke = "#726f63";
+      const stroke = chipEdges.has(e.id) ? "#8f8b7c" : "#726f63";
       const route = laidOut.result?.routes.get(e.id);
       const base = {
         id: e.id,
         source: e.source,
         target: e.target,
         markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
-        style: { stroke, strokeWidth: 1.25, ...(e.control ? { strokeDasharray: "4 3" } : {}) },
+        style: { stroke, strokeWidth: 1.25, ...(e.control || chipEdges.get(e.id)?.dependencies[0]?.producer === null ? { strokeDasharray: "4 3" } : {}) },
+        ...(chipEdges.has(e.id) ? { interactionWidth: 14 } : {}),
       };
       return route
         ? {
@@ -410,7 +520,7 @@ export function ProcedureGraph({
     const bottom = Math.max(0, ...nodes.map((n) => n.position.y + (sizes.get(n.id)?.height ?? 0)));
     const right = Math.max(0, ...nodes.map((n) => n.position.x + (sizes.get(n.id)?.width ?? 0)));
     return { nodes, flowEdges, width: right, height: bottom };
-  }, [laidOut, layoutInput, display, edges, vertical]);
+  }, [laidOut, layoutInput, display, edges, vertical, chips, chipEdges, link, instanceId]);
 
   const neighborhood = useCallback((nodeId: string, all: Edge[]) => lineage(nodeId, all), []);
   const stepIds = useMemo(() => new Set(model.nodes.filter((n) => n.index !== null).map((n) => n.id)), [model]);
@@ -419,8 +529,13 @@ export function ProcedureGraph({
     [onSelectStep, stepIds],
   );
   const nodeName = useCallback(
-    (id: string) => (id === INPUT_NODE ? display.get(id)?.kindWord.toLowerCase() ?? "input" : id.startsWith(TRIGGER_PREFIX) ? id.slice(TRIGGER_PREFIX.length) : id),
-    [display],
+    (id: string) => {
+      if (id === INPUT_NODE) return display.get(id)?.kindWord.toLowerCase() ?? "input";
+      if (id.startsWith(TRIGGER_PREFIX)) return id.slice(TRIGGER_PREFIX.length);
+      const chip = chips.find((c) => c.id === id);
+      return chip ? producerName(chip.line) : id;
+    },
+    [display, chips],
   );
 
   if (!laidOut) return <LoadState />;
@@ -436,6 +551,7 @@ export function ProcedureGraph({
         nodes={nodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
+        onEdgeClick={onEdgeClick}
         renderPanel={(selection) => {
           if (selection.kind !== "node") return null;
           const view = model.nodes.find((n) => n.id === selection.id)?.view;
@@ -450,7 +566,7 @@ export function ProcedureGraph({
         recenter={false}
         nodeName={nodeName}
         fitPadding={FIT_PADDING}
-        overlay={<RoleLegend roles={nodes.map((n) => n.data.role)} />}
+        overlay={<RoleLegend roles={nodes.flatMap((n) => (n.type === "step" ? [(n.data as StepNodeData).role] : []))} />}
         controls={
           <button
             onClick={toggleVertical}
@@ -462,6 +578,13 @@ export function ProcedureGraph({
           </button>
         }
       />
+      {opened &&
+        (() => {
+          const edge = chipEdges.get(opened.edge);
+          if (!edge) return null;
+          const d = edge.dependencies[0]!;
+          return <DependencyPopover at={opened.at} from={d.producer} to={d.reader} dependencies={edge.dependencies} onClose={closeLink} />;
+        })()}
     </div>
   );
 }
