@@ -383,7 +383,7 @@ function endsOf(model: FlowModel): Map<string, LineEnd> {
     const from = byId.get(edge.from);
     const to = byId.get(edge.to);
     if (!from || !to) continue;
-    if (from.kind === "acquirer" && from.runs === "line" && to.kind === "source") entry(from.label).lands.push(to.label);
+    if (from.kind === "source" && to.kind === "line" && edge.lands) entry(to.label).lands.push(from.label);
     if (from.kind === "line" && to.kind === "claim_type")
       entry(from.label).claimTypes.push({ name: to.label, predicate: to.detail ?? to.label });
     if (from.kind === "line" && to.id === nodeId.inbox) entry(from.label).inbox = true;

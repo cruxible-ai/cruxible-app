@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   arrivalWords,
   gist,
+  hostOf,
+  lineFlows,
   lineGist,
   logicalSources,
   procedureSlots,
   readLineEnvelope,
-  urlWords,
   retainedByWords,
   retentions,
   sourceSteps,
@@ -138,7 +139,7 @@ describe("definitions", () => {
   it("retains through Lines (resolving a param logical source by parameters), skips a Line's trigger input, keeps direct runs", () => {
     const steps = [FETCH, TRIAGE, SBOM, EPSS].flatMap((spec) => sourceSteps(spec.procedure, spec));
     const all = retentions(steps, LINES);
-    expect(all.map(({ slotIn: _, ...rest }) => rest)).toEqual([
+    expect(all.map(({ slotIn: _, url: __, ...rest }) => rest)).toEqual([
       { contract: "sec.fetched-v1", source: "cisa.kev.catalog", procedure: "sec.fetch-observed", line: "kev-daily", emitted: false, given: null },
       { contract: "sec.observation-output-v1", source: null, procedure: "sec.fetch-observed", line: "kev-daily", emitted: true, given: null },
       // kev-triage reads its catalog from the landing: no retention
@@ -147,6 +148,8 @@ describe("definitions", () => {
       { contract: "sec.fetched-v1", source: null, procedure: "sec.epss-acquire", line: null, emitted: false, given: null },
     ]);
     expect(all[0]!.slotIn).toBe("web.fetch.request");
+    // the URL it fetches, resolved through the Line's parameters
+    expect(all[0]!.url).toBe("https://x");
     // A Procedure no Line runs is given its logical source at the direct run.
     expect(retentions(sourceSteps(FETCH.procedure, FETCH), []).find((r) => !r.emitted)).toMatchObject({ source: null, given: "logical_source", line: null });
   });
@@ -200,15 +203,34 @@ describe("gists", () => {
     expect(arrivalWords({ slotIn: "workspace.file.request", emitted: false })).toBe("Workspace file");
     expect(arrivalWords({ slotIn: "security.release-asset.request", emitted: false })).toBe("release-asset");
     expect(arrivalWords({ slotIn: null, emitted: true })).toBe("Run output");
-    expect(urlWords({ url: "https://www.cisa.gov/sites/default/files/feeds/kev.json" })).toBe("From www.cisa.gov");
-    expect(urlWords({})).toBeNull();
+    expect(hostOf("https://www.cisa.gov/sites/default/files/feeds/kev.json")).toBe("cisa.gov");
+    expect(hostOf("api.first.org/data")).toBeNull();
+    expect(hostOf(undefined)).toBeNull();
   });
 });
 
 describe("Procedures that run only as Lines", () => {
   it("retain nothing until a Line runs them", () => {
-    const call = { procedure: "log-import", alias: "log", contract: "file-v1", slotIn: "workspace.file.request", logicalSource: { literal: "log-read" }, emitted: false };
+    const call = { procedure: "log-import", alias: "log", contract: "file-v1", slotIn: "workspace.file.request", logicalSource: { literal: "log-read" }, url: null, emitted: false };
     expect(retentions([call], [], (procedure) => procedure !== "log-import")).toEqual([]);
     expect(retentions([call], [], () => true)).toHaveLength(1);
+  });
+});
+
+describe("what a Line's run does", () => {
+  it("reads the sources its calls name (through its parameters), writes the ClaimTypes its claims steps name", () => {
+    const specs = new Map([FETCH, TRIAGE].map((spec) => [spec.procedure, spec] as const));
+    expect(lineFlows(specs, LINES)).toEqual([
+      { line: "kev-daily", sources: ["cisa.kev.catalog"], hosts: ["x"], writes: [], inbox: false },
+      {
+        line: "kev-triage",
+        sources: ["cisa.kev.catalog"],
+        hosts: [],
+        writes: ["sec.vulnerability.kev_date_added", "sec.vulnerability.listed_in"],
+        inbox: false,
+      },
+    ]);
+    // a Line whose Procedure isn't served is left out
+    expect(lineFlows(new Map(), LINES)).toEqual([]);
   });
 });

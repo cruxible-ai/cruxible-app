@@ -10,7 +10,10 @@ export function AuthorityBar({ authority }: { authority: string | undefined }) {
   return <span aria-hidden className="inline-block h-2.5 w-[3px] shrink-0" style={{ background: color }} />;
 }
 
-/** What the authority colors and the state dots mean (Evidence flow, Lines). */
+/**
+ * What the authority colors and the state dots mean (Evidence flow, Lines).
+ * `byHand`: also name the neutral color a ClaimType no Line writes takes.
+ */
 export function AuthorityLegend({ byHand = true }: { byHand?: boolean }) {
   const swatch = (color: string, label: string, help: string) => (
     <span className="inline-flex items-center gap-1.5" title={help}>
@@ -23,7 +26,7 @@ export function AuthorityLegend({ byHand = true }: { byHand?: boolean }) {
       {swatch(AUTHORITY_COLOR.settle, "May settle", term("authority", "settle").meaning)}
       {swatch(AUTHORITY_COLOR.propose, "Proposes for review", term("authority", "propose").meaning)}
       {swatch(AUTHORITY_COLOR.observe, "Observes only", "Observe: writes no Claims; posts to its inbox")}
-      {byHand && swatch(AUTHORITY_COLOR.none, "By hand", "No Line writes it: written by an agent or a person")}
+      {byHand && swatch(AUTHORITY_COLOR.none, "Written by people or agents", "A ClaimType no Line writes: people and agents write it")}
       <span className="inline-flex items-center gap-1.5">
         <HealthDot tone="ok" title="Armed: enabled; its Triggers start runs" /> Armed
       </span>

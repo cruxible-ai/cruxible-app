@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Crosshair } from "lucide-react";
+import { Crosshair, Database, FileText, Globe, Inbox as InboxIcon, UserRound, Workflow } from "lucide-react";
 import { useInbox, useInstanceId, useSourceLandings } from "@/api/hooks";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
@@ -15,7 +15,7 @@ import {
   type FlowNode,
   type Placed,
 } from "@/lib/evidence-flow";
-import { AUTHORITY_COLOR } from "@/lib/palette";
+import { AUTHORITY_COLOR, FLOW_COLOR } from "@/lib/palette";
 import { term } from "@/lib/vocabulary";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -24,15 +24,19 @@ import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { AuthorityLegend } from "@/components/AuthorityLegend";
 import { LineStateDot } from "@/components/LineStateDot";
 import { formatRelative } from "@/lib/text";
+import { runId } from "@/lib/lines";
+import type { Schemas } from "@/api/schemas";
 
 /**
- * Evidence flow: sources -> the Lines that read their landings -> the
- * ClaimTypes those Lines may write; a source no Line reads, and statements on
- * their author's own word, go straight to the ClaimTypes that accept them.
- * The contract a source is captured under is a tag on the source. Reads are
- * ontology-sized: the claim_types and lines sections, the source model
- * (Procedure cards, Line envelopes, landing Triggers) and one get-batch of
- * ClaimType proofs for what each ClaimType's evidence rules accept.
+ * Evidence flow, three columns: where data comes from (a source: its host,
+ * when it is fetched, when it last landed; and your own statements) -> the
+ * Line that fetches it (its authority as a stripe, its state, its last run)
+ * -> the ClaimTypes that Line writes, under their Subject kinds. Source cards
+ * are outlined, Line cards filled, each with its kind and icon on top. Reads
+ * are ontology-sized: the claim_types and lines sections, the source model
+ * (Procedure cards, Line envelopes, landing Triggers), the Line cards, and
+ * one get-batch of ClaimType proofs for what each ClaimType's evidence rules
+ * accept.
  */
 export function FlowScreen() {
   const instanceId = useInstanceId();
@@ -42,7 +46,7 @@ export function FlowScreen() {
   const focus = params.get("focus");
   const [hover, setHover] = useState<string | null>(null);
 
-  const { model, triggerWords, runningLines, proofs, error, capped } = useFlowModel();
+  const { model, triggerWords, lastRuns, runningLines, proofs, error, capped } = useFlowModel();
 
   const clearFocus = useCallback(() => {
     const next = new URLSearchParams(params);
@@ -60,7 +64,7 @@ export function FlowScreen() {
     if (!shown || q.length < 2) return null;
     return new Set(
       shown.nodes
-        .filter((n) => [n.label, n.about, n.detail].some((text) => text?.toLowerCase().includes(q)))
+        .filter((n) => [n.label, n.host, n.about, n.detail].some((text) => text?.toLowerCase().includes(q)))
         .map((n) => n.id),
     );
   }, [shown, query]);
@@ -72,7 +76,7 @@ export function FlowScreen() {
   // Names share the kit namespace ("security."): say it once, drop it from labels.
   // (Line, Procedure and Trigger names only: Subject kinds can come from other namespaces, such as core's semantic.*.)
   const prefix = useMemo(
-    () => shortNames((model?.nodes ?? []).filter((n) => n.kind === "line" || n.kind === "acquirer").map((n) => n.label)).prefix,
+    () => shortNames((model?.nodes ?? []).filter((n) => n.kind === "line").map((n) => n.label)).prefix,
     [model],
   );
 
@@ -87,8 +91,7 @@ export function FlowScreen() {
     setParams(next, { replace: false });
     setHover(null);
   };
-  const count = (kind: string) => shown.nodes.filter((n) => n.kind === kind).length;
-  const fetching = shown.nodes.filter((n) => n.kind === "acquirer" && n.runs === "line").length;
+  const count = (kind: string) => shown.nodes.filter((n) => n.kind === kind && !n.ownWord).length;
   const focused = focus ? layout.byId.get(focus) ?? null : null;
 
   return (
@@ -96,8 +99,9 @@ export function FlowScreen() {
       <header>
         <h1 className="t-title">Evidence flow</h1>
         <p className="t-lede measure mt-1">
-          Where your evidence comes from and what it turns into. Each source is fetched on a schedule or added by an agent;
-          Lines read what arrives and propose facts or post items for review. Hover a card to trace its path.
+          Where your evidence comes from and what it turns into. A Line fetches each source on its schedule, reads what
+          arrives and writes facts (or posts items for review); people and agents add their own statements. Hover a card
+          to trace its path.
         </p>
         <StatsRow
           search={
@@ -112,7 +116,6 @@ export function FlowScreen() {
           }
         >
           <Stat n={count("source")} label={count("source") === 1 ? "source" : "sources"} />
-          <Stat n={fetching} label={`fetching ${fetching === 1 ? "Line" : "Lines"}`} />
           <Stat n={count("line")} label={count("line") === 1 ? "Line" : "Lines"} />
           <Stat n={count("claim_type")} label={count("claim_type") === 1 ? "ClaimType" : "ClaimTypes"} />
           {prefix && (
@@ -125,7 +128,7 @@ export function FlowScreen() {
         {capped && <div className="mt-1 text-[12px] text-zinc-500">A listing stopped at its page cap: the flow may be incomplete.</div>}
         {proofs.error && (
           <div className="mt-1 text-[12px] text-zinc-500">
-            The ClaimTypes' evidence rules couldn't be read, so a Line links to every ClaimType that accepts its contract, whatever the source.
+            The ClaimTypes' evidence rules couldn't be read, so what people and agents may write is matched by contract alone.
           </div>
         )}
       </header>
@@ -133,7 +136,10 @@ export function FlowScreen() {
       {focus && (
         // Sticky: the flow is long, and the way out of a focus stays in reach.
         <div className="sticky top-0 z-10 py-1">
-          <FocusChip label={focused?.node ? focused.node.label : focus.startsWith("kind:") ? focus.slice(5) : focus} onClear={() => setFocus(null)} />
+          <FocusChip
+            label={focused?.node ? (focused.node.host ?? focused.node.label) : focus.startsWith("kind:") ? focus.slice(5) : focus}
+            onClear={() => setFocus(null)}
+          />
         </div>
       )}
 
@@ -182,6 +188,7 @@ export function FlowScreen() {
                 unread={unread.data ? { count: unread.data.entries.length, more: unread.data.truncated === true } : null}
                 triggerWords={triggerWords}
                 runningLines={runningLines}
+                lastRuns={lastRuns}
                 landingsOf={landings.data ? landingsOf : null}
               />
             ))}
@@ -212,6 +219,8 @@ function FocusButton({ id, label, onFocus, always = false }: { id: string; label
 
 const strip = (name: string, prefix: string) => (prefix && name.startsWith(prefix) ? name.slice(prefix.length) : name);
 
+type RunRow = Schemas["RunRow"];
+
 function FlowCell({
   placed,
   prefix,
@@ -223,6 +232,7 @@ function FlowCell({
   unread,
   triggerWords,
   runningLines,
+  lastRuns,
   landingsOf,
 }: {
   /** Each source's landings (null while the read loads). */
@@ -231,6 +241,8 @@ function FlowCell({
   /** Each Line's Triggers in words (null while its card loads). */
   triggerWords: ReadonlyMap<string, readonly string[] | null>;
   runningLines: ReadonlySet<string>;
+  /** Each Line's newest run (null while the cards load). */
+  lastRuns: ReadonlyMap<string, RunRow> | null;
   placed: Placed;
   prefix: string;
   dim: boolean;
@@ -267,130 +279,110 @@ function FlowCell({
   }
   if (!node) return null;
 
-  // Sources, Lines and what fetches them share one card: name and state on top,
-  // what it is in two lines, label/value facts pinned to the bottom.
-  if (node.kind === "acquirer") {
-    const href = node.runs === "line" ? `/i/${instanceId}/lines/${encodeURIComponent(node.label)}` : `/i/${instanceId}/ref/${encodeURIComponent(`Procedure:${node.label}`)}`;
-    return (
-      <FlowCard
-        style={style}
-        dim={dim}
-        hover={hover}
-        accent={AUTHORITY_COLOR.none}
-        title={[node.label, node.about, node.when].filter(Boolean).join("\n")}
-        name={
-          <Link to={link(href)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
-            {strip(node.label, prefix)}
-          </Link>
-        }
-        state={node.runs === "line" ? <LineStateDot state={node.enablement} running={runningLines.has(node.label)} /> : null}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
-        about={node.about ?? null}
-        facts={[
-          node.runs === "line"
-            ? triggerFact(triggerWords.get(node.label), node.when ?? "")
-            : ["Trigger", "none"],
-        ]}
-      />
-    );
-  }
   if (node.kind === "inbox") {
     return (
-      <FlowCard
-        style={style}
-        dim={dim}
-        hover={hover}
-        accent={AUTHORITY_COLOR.observe}
-        dashed
+      <div
+        style={{ ...style, borderLeft: `3px solid ${AUTHORITY_COLOR.observe}` }}
+        className={`group absolute flex items-center gap-2 overflow-hidden border border-dashed border-zinc-700 bg-zinc-900 px-2 transition-opacity ${dim ? "opacity-25" : ""}`}
         title="Items Lines post for an agent or a person to judge: not accepted state"
-        name={
-          <Link to={link(`/i/${instanceId}/lines`)} className="truncate text-[12px] font-medium text-zinc-100 hover:underline">
-            Inbox
-          </Link>
-        }
-        state={null}
-        focus={<FocusButton id={node.id} label="Inbox" onFocus={onFocus} always />}
-        about={null}
-        facts={[["Unread", unread ? `${unread.count}${unread.more ? "+" : ""}` : "…"]]}
-      />
+        {...hover}
+      >
+        <InboxIcon className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+        <Link to={link(`/i/${instanceId}/lines`)} className="truncate text-[12px] font-medium text-zinc-100 hover:underline">
+          Inbox
+        </Link>
+        <span className="text-[11px] text-zinc-500">{unread ? `${unread.count}${unread.more ? "+" : ""} unread` : "…"}</span>
+        <span className="ml-auto">
+          <FocusButton id={node.id} label="Inbox" onFocus={onFocus} always />
+        </span>
+      </div>
     );
   }
   if (node.kind === "source") {
+    // Outlined: where data comes from. Named in plain words (its host); the logical source id is on hover.
+    if (node.ownWord) {
+      return (
+        <FlowCard
+          variant="statements"
+          style={style}
+          dim={dim}
+          hover={hover}
+          kindLabel="Source"
+          icon={<UserRound className="h-3 w-3" aria-hidden />}
+          title={["Your statements", "What people and agents write on their own word, without a source to cite"].join("\n")}
+          name={<span className="truncate text-[12.5px] font-medium text-zinc-100">Your statements</span>}
+          about="Written by people or agents"
+          focus={<FocusButton id={node.id} label="Your statements" onFocus={onFocus} always />}
+          facts={[]}
+        />
+      );
+    }
     const tags = (node.contracts ?? []).map(contractName);
+    const Icon = node.arrives === "HTTP fetch" ? Globe : node.arrives === "Workspace file" ? FileText : node.arrives === "Run output" ? Workflow : Database;
     return (
       <FlowCard
+        variant="source"
         style={style}
         dim={dim}
         hover={hover}
-        accent="#3f3f46"
-        dashed={node.ownWord === true}
-        title={[node.label, node.about, node.detail, tags.length ? `Captured under ${tags.join(", ")}` : null].filter(Boolean).join("\n")}
-        name={<span className={`truncate text-[12px] ${node.ownWord ? "font-sans text-zinc-200" : "font-mono text-zinc-100"}`}>{strip(node.label, prefix)}</span>}
-        state={null}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
-        about={node.acquired || node.ownWord ? null : node.about ?? node.detail ?? null}
-        aboutLines={1}
-        stacked
-        facts={
-          node.ownWord
-            ? [["On", "their author's own word"]]
-            : [
-                landedFact(landingsOf, node.label, instanceId, link),
-                ...(node.arrives ? [["Arrives", node.arrives] as [string, string]] : []),
-                [
-                  tags.length === 1 ? "Contract" : "Contracts",
-                  <span key="c">
-                    {tags.map((t, i) => (
-                      <span key={t}>
-                        {i > 0 && ", "}
-                        <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(t)}`)} className="hover:text-zinc-200 hover:underline">
-                          {strip(t, prefix)}
-                        </Link>
-                      </span>
-                    ))}
-                  </span>,
-                ],
-              ]
-        }
-      />
-    );
-  }
-  if (node.kind === "line") {
-    return (
-      <FlowCard
-        style={style}
-        dim={dim}
-        hover={hover}
-        accent={authorityColor(node.authority)}
+        kindLabel="Source"
+        icon={<Icon className="h-3 w-3" aria-hidden />}
         title={[
-          node.label,
-          node.authority ? `At most ${node.authority}: ${term("authority", node.authority).meaning}` : null,
+          node.host ?? node.label,
+          `Logical source ${node.label}`,
           node.about,
+          node.arrives ? `Arrives by ${node.arrives}` : null,
           node.detail,
-          triggerWords.get(node.label)?.length ? `Triggers: ${triggerWords.get(node.label)!.join("; ")}` : null,
+          tags.length ? `Captured under ${tags.join(", ")}` : null,
         ]
           .filter(Boolean)
           .join("\n")}
         name={
-          <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.label)}`)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
-            {strip(node.label, prefix)}
-          </Link>
+          <span className={`truncate text-[12.5px] font-medium text-zinc-100 ${node.host ? "" : "font-mono"}`}>{node.host ?? node.label}</span>
         }
-        state={<LineStateDot state={node.enablement} running={runningLines.has(node.label)} />}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
-        about={node.about ?? null}
-        // Its authority is the card's color (and the tooltip's first line after the name).
-        facts={[triggerFact(triggerWords.get(node.label), (node.detail ?? "").replace(/^When /, ""))]}
+        focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} always />}
+        facts={[["Fetched", node.when ?? "not on a schedule"], landedFact(landingsOf, node.label, instanceId, link)]}
       />
     );
   }
-  // claim_type: tinted by the strongest Line that may write it (neutral: written only by hand)
+  if (node.kind === "line") {
+    const triggers = triggerWords.get(node.label);
+    return (
+      <FlowCard
+        variant="line"
+        accent={authorityColor(node.authority)}
+        style={style}
+        dim={dim}
+        hover={hover}
+        kindLabel="Line"
+        icon={<Workflow className="h-3 w-3" aria-hidden />}
+        state={<LineStateDot state={node.enablement} running={runningLines.has(node.label)} />}
+        title={[
+          node.label,
+          node.authority ? `At most ${node.authority}: ${term("authority", node.authority).meaning}` : null,
+          node.about,
+          triggers?.length ? `Triggers: ${triggers.join("; ")}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n")}
+        name={
+          <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.label)}`)} className="truncate font-mono text-[12.5px] text-zinc-100 hover:underline">
+            {strip(node.label, prefix)}
+          </Link>
+        }
+        about={node.about ?? null}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
+        facts={[lastRunFact(lastRuns, node.label, instanceId, link)]}
+      />
+    );
+  }
+  // claim_type: tinted by the strongest Line that may write it (neutral: written by people or agents)
   const kind = node.group ?? "";
   return (
     <div
       style={{ ...style, borderLeft: `2px solid ${authorityColor(node.authority)}` }}
       className={`${base} pl-3 text-[12px]`}
-      title={[node.detail, node.about, node.authority ? `Written by Lines that may ${node.authority}` : "Written by hand only"].filter(Boolean).join("\n")}
+      title={[node.detail, node.about, node.authority ? `Written by Lines that may ${node.authority}` : "Written by people or agents"].filter(Boolean).join("\n")}
       {...hover}
     >
       <Link
@@ -409,14 +401,6 @@ function FlowCell({
   );
 }
 
-/** What the colors mean: a Line's max authority (and the ClaimTypes its edges reach); the dot, whether it runs. */
-/** A Line's Triggers as one fact: the first in words, and how many more ("cisa.kev.catalog lands +1"). */
-function triggerFact(words: readonly string[] | null | undefined, fallback: string): Fact {
-  if (!words) return ["Trigger", fallback];
-  if (words.length === 0) return ["Trigger", "none"];
-  return [words.length === 1 ? "Trigger" : "Triggers", `${words[0]}${words.length > 1 ? ` +${words.length - 1}` : ""}`];
-}
-
 /** The color a traced path takes: the hovered Line's or ClaimType's authority; a bright neutral otherwise. */
 function traceColor(node: FlowNode | undefined): string {
   if (node && (node.kind === "line" || node.kind === "claim_type") && node.authority) return AUTHORITY_COLOR[node.authority];
@@ -425,7 +409,6 @@ function traceColor(node: FlowNode | undefined): string {
 
 const authorityColor = (authority: string | undefined) =>
   authority === "settle" || authority === "propose" || authority === "observe" ? AUTHORITY_COLOR[authority] : AUTHORITY_COLOR.none;
-
 
 type Fact = [label: string, value: ReactNode];
 type SourceLandings = NonNullable<ReturnType<typeof useSourceLandings>["data"]>["rows"][number];
@@ -453,60 +436,90 @@ function landedFact(landingsOf: ReadonlyMap<string, SourceLandings> | null, sour
   ];
 }
 
+/** A Line's newest run: when it started (linked to the run) and how it ended. */
+function lastRunFact(lastRuns: ReadonlyMap<string, RunRow> | null, line: string, instanceId: string, link: (path: string) => string): Fact {
+  if (!lastRuns) return ["Last run", "…"];
+  const run = lastRuns.get(line);
+  if (!run) return ["Last run", "never"];
+  return [
+    "Last run",
+    <span key="run" title={`${term("run", run.status).word}, started ${run.started_at}`}>
+      <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId(run.run))}`)} className="hover:text-zinc-200 hover:underline">
+        {formatRelative(run.started_at)}
+      </Link>
+      {run.status !== "succeeded" && ` · ${term("run", run.status).word.toLowerCase()}`}
+    </span>,
+  ];
+}
+
+/**
+ * A source or Line card: its kind and icon on top (with a Line's state), its
+ * name, what a Line does, and label/value facts pinned to the bottom. A source
+ * is outlined; your statements dashed; a Line filled, with its authority as
+ * the left stripe.
+ */
 function FlowCard({
+  variant,
+  accent,
   style,
   dim,
   hover,
-  accent,
-  dashed = false,
+  kindLabel,
+  icon,
+  state = null,
   title,
   name,
-  state,
+  about = null,
   focus,
-  about,
-  aboutLines = 2,
-  stacked = false,
   facts,
 }: {
+  variant: "source" | "statements" | "line";
+  accent?: string;
   style: CSSProperties;
   dim: boolean;
   hover: { onMouseEnter: () => void; onMouseLeave: () => void };
-  accent: string;
-  dashed?: boolean;
+  kindLabel: string;
+  icon: ReactNode;
+  state?: ReactNode;
   title: string;
   name: ReactNode;
-  state: ReactNode;
+  about?: string | null;
   focus: ReactNode;
-  about: string | null;
-  aboutLines?: 1 | 2;
-  /** One fact per row (sources) instead of one row of facts, the last truncating. */
-  stacked?: boolean;
   facts: Fact[];
 }) {
+  const shape =
+    variant === "line"
+      ? "border border-zinc-700 bg-zinc-800"
+      : variant === "statements"
+        ? "rounded-lg border border-dashed border-zinc-600 bg-transparent"
+        : "rounded-lg border border-zinc-600 bg-transparent";
   return (
     <div
-      style={{ ...style, borderLeft: `3px solid ${accent}` }}
-      className={`group absolute flex flex-col overflow-hidden border border-zinc-800 ${dashed ? "border-dashed bg-zinc-950" : "bg-zinc-900"} px-2 pb-1.5 pt-1.5 transition-opacity ${dim ? "opacity-25" : ""}`}
+      style={{ ...style, ...(accent ? { borderLeft: `3px solid ${accent}` } : {}) }}
+      className={`group absolute flex flex-col overflow-hidden px-2.5 pb-1.5 pt-1.5 transition-opacity ${shape} ${dim ? "opacity-25" : ""}`}
       title={title}
       {...hover}
     >
-      {/* The name, with its state at the top right; the focus control at the bottom right, beside the facts. */}
-      <div className="flex min-w-0 items-center gap-1.5 leading-4">
-        {name}
-        {state && <span className="ml-auto flex shrink-0 items-center">{state}</span>}
+      <div className="flex min-w-0 items-center gap-1 text-[9.5px] font-semibold uppercase leading-3 tracking-wider text-zinc-500">
+        <span className={variant === "line" ? "text-zinc-400" : ""} style={variant === "source" ? { color: FLOW_COLOR.source } : undefined}>
+          {icon}
+        </span>
+        {kindLabel}
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 normal-case tracking-normal">
+          {state}
+          {focus}
+        </span>
       </div>
-      {about && <div className={`mt-0.5 text-[11px] leading-4 text-zinc-400 ${aboutLines === 1 ? "truncate" : "line-clamp-2"}`}>{about}</div>}
-      <div className="mt-auto flex min-w-0 items-end gap-1.5">
-        <dl className={`flex min-w-0 flex-1 whitespace-nowrap text-[10.5px] leading-4 ${stacked ? "flex-col" : "gap-x-3"}`}>
-          {facts.map(([label, value], i) => (
-            <div key={label} className={`flex min-w-0 gap-1 ${stacked || i === facts.length - 1 ? "" : "shrink-0"}`}>
-              <dt className="shrink-0 uppercase tracking-wide text-zinc-600">{label}</dt>
-              <dd className="min-w-0 truncate text-zinc-400">{value}</dd>
-            </div>
-          ))}
-        </dl>
-        <span className="flex shrink-0 items-center pb-0.5">{focus}</span>
-      </div>
+      <div className="mt-1 flex min-w-0 items-center leading-4">{name}</div>
+      {about && <div className="mt-0.5 truncate text-[11px] leading-4 text-zinc-400">{about}</div>}
+      <dl className="mt-auto flex min-w-0 flex-col whitespace-nowrap text-[10.5px] leading-4">
+        {facts.map(([label, value]) => (
+          <div key={label} className="flex min-w-0 gap-1">
+            <dt className="shrink-0 uppercase tracking-wide text-zinc-600">{label}</dt>
+            <dd className="min-w-0 truncate text-zinc-400">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

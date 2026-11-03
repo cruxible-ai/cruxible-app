@@ -63,8 +63,8 @@ export const contractRefText = (ref: ContractRef) => `${ref.name}@${ref.version}
 /** A call's logical source: a literal, a Line parameter, or a run input field. */
 export type LogicalSourceRef = { literal: string } | { param: string } | { input: string };
 
-export function logicalSourceRef(input: unknown): LogicalSourceRef | null {
-  const value = record(input)?.logical_source;
+export function logicalSourceRef(input: unknown, key = "logical_source"): LogicalSourceRef | null {
+  const value = record(input)?.[key];
   const literal = str(value);
   if (literal !== null) return { literal };
   const ref = templateRef(value);
@@ -193,6 +193,8 @@ export interface SourceStep {
   /** The Contract the call's slot takes in (`web.fetch.request`); null for an emit. */
   slotIn: string | null;
   logicalSource: LogicalSourceRef | null;
+  /** The URL the call fetches (its input's `url`), for where a source comes from. */
+  url: LogicalSourceRef | null;
   emitted: boolean;
 }
 
@@ -202,10 +204,18 @@ export function sourceSteps(procedure: string, spec: ProcedureSpec): SourceStep[
     if ("call" in step) {
       const slotIn = spec.slots?.[step.slot]?.in.name ?? null;
       for (const contract of Object.values(step.captures ?? {})) {
-        out.push({ procedure, alias: step.call, contract, slotIn, logicalSource: logicalSourceRef(step.input), emitted: false });
+        out.push({
+          procedure,
+          alias: step.call,
+          contract,
+          slotIn,
+          logicalSource: logicalSourceRef(step.input),
+          url: logicalSourceRef(step.input, "url"),
+          emitted: false,
+        });
       }
     } else if ("emit" in step) {
-      out.push({ procedure, alias: null, contract: step.emit, slotIn: null, logicalSource: null, emitted: true });
+      out.push({ procedure, alias: null, contract: step.emit, slotIn: null, logicalSource: null, url: null, emitted: true });
     }
   }
   return out;
@@ -265,6 +275,8 @@ export interface Retention {
   given: string | null;
   /** The Contract the capturing call's slot takes in (null for an emit). */
   slotIn: string | null;
+  /** The URL the call fetches, when its input names one (literally or through a Line parameter). */
+  url: string | null;
 }
 
 /**
@@ -288,7 +300,16 @@ export function retentions(
       const ref = step.logicalSource;
       const source = resolvedSource(ref, line?.parameters);
       const given = source === null && ref && !("literal" in ref) ? ("param" in ref ? ref.param : ref.input) : null;
-      out.push({ contract: step.contract, source, procedure: step.procedure, line: line?.line ?? null, emitted: step.emitted, given, slotIn: step.slotIn });
+      out.push({
+        contract: step.contract,
+        source,
+        procedure: step.procedure,
+        line: line?.line ?? null,
+        emitted: step.emitted,
+        given,
+        slotIn: step.slotIn,
+        url: resolvedSource(step.url ?? null, line?.parameters),
+      });
     }
   }
   return out;
@@ -399,40 +420,58 @@ export function arrivalWords(step: { slotIn: string | null; emitted: boolean } |
   return name.replace(/^[a-z]+\./, "");
 }
 
-/** Where a fetch Line reads from: the host and path of its `url` parameter. */
-export function urlWords(parameters: Record<string, unknown> | undefined): string | null {
-  const url = parameters?.url;
-  if (typeof url !== "string") return null;
+/** A web address in plain words: its host, `www.` dropped ("cisa.gov"); null when it is not an http(s) URL. */
+export function hostOf(url: unknown): string | null {
+  if (typeof url !== "string" || !/^https?:\/\//.test(url)) return null;
   try {
-    const parsed = new URL(url);
-    return `From ${parsed.host}`;
+    return new URL(url).host.replace(/^www\./, "");
   } catch {
     return null;
   }
 }
 
-/** A Line that writes a ClaimType, and the logical sources its Procedure's calls read. */
-export interface ClaimTypeWriter {
+/** What a Line's run does, from its Procedure: the sources its calls read, the ClaimTypes it writes, whether it posts. */
+export interface LineFlow {
   line: string;
-  /** The logical sources its calls read (`cisa.kev.catalog`). */
+  /** The logical sources its calls read (`cisa.kev.catalog`), resolved against its parameters. */
   sources: string[];
-  /** The web hosts its parameters name (`www.cisa.gov`), the plain-words "where from". */
+  /** The web hosts its parameters name (`cisa.gov`), the plain-words "where from". */
   hosts: string[];
+  /** The ClaimTypes its claims steps name. */
+  writes: string[];
+  /** Whether its Procedure has an inbox step. */
+  inbox: boolean;
 }
 
-/** Hosts of the http(s) URLs among a Line's parameters, `www.` dropped. */
-function parameterHosts(parameters: Record<string, unknown>): string[] {
-  const hosts = new Set<string>();
-  for (const value of Object.values(parameters)) {
-    if (typeof value !== "string" || !/^https?:\/\//.test(value)) continue;
-    try {
-      hosts.add(new URL(value).host.replace(/^www\./, ""));
-    } catch {
-      // not a URL after all
-    }
+export function lineFlow(spec: ProcedureSpec, line: LineDefinition): LineFlow {
+  const views = spec.steps.map((step, index) => stepView(step, index));
+  const sources = new Set<string>();
+  for (const view of views) {
+    const source = resolvedSource(view.logicalSource, line.parameters);
+    if (source) sources.add(source);
   }
-  return [...hosts].sort();
+  const hosts = new Set(Object.values(line.parameters).flatMap((value) => hostOf(value) ?? []));
+  return {
+    line: line.line,
+    sources: [...sources],
+    hosts: [...hosts].sort(),
+    writes: [...new Set(views.flatMap((view) => (view.kind === "claims" ? view.claimTypes : [])))],
+    inbox: views.some((view) => view.kind === "inbox"),
+  };
 }
+
+/** Every Line's flow (Lines whose Procedure isn't served are left out), in Line name order. */
+export function lineFlows(specs: ReadonlyMap<string, ProcedureSpec>, lines: readonly LineDefinition[]): LineFlow[] {
+  return [...lines]
+    .sort((a, b) => (a.line < b.line ? -1 : a.line > b.line ? 1 : 0))
+    .flatMap((line) => {
+      const spec = specs.get(line.procedure);
+      return spec ? [lineFlow(spec, line)] : [];
+    });
+}
+
+/** A Line that writes a ClaimType, and the logical sources its Procedure's calls read. */
+export type ClaimTypeWriter = Omit<LineFlow, "writes" | "inbox">;
 
 /**
  * Who writes each ClaimType: for every Line, the ClaimTypes its Procedure's
@@ -444,19 +483,8 @@ export function claimTypeWriters(
   lines: readonly LineDefinition[],
 ): Map<string, ClaimTypeWriter[]> {
   const out = new Map<string, ClaimTypeWriter[]>();
-  for (const line of [...lines].sort((a, b) => (a.line < b.line ? -1 : a.line > b.line ? 1 : 0))) {
-    const spec = specs.get(line.procedure);
-    if (!spec) continue;
-    const views = spec.steps.map((step, index) => stepView(step, index));
-    const sources = [
-      ...new Set(views.flatMap((view) => {
-        const source = resolvedSource(view.logicalSource, line.parameters);
-        return source ? [source] : [];
-      })),
-    ];
-    for (const predicate of new Set(views.flatMap((view) => (view.kind === "claims" ? view.claimTypes : [])))) {
-      out.set(predicate, [...(out.get(predicate) ?? []), { line: line.line, sources, hosts: parameterHosts(line.parameters) }]);
-    }
+  for (const { line, sources, hosts, writes } of lineFlows(specs, lines)) {
+    for (const predicate of writes) out.set(predicate, [...(out.get(predicate) ?? []), { line, sources, hosts }]);
   }
   return out;
 }

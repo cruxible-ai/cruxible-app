@@ -168,16 +168,21 @@ describe("recorded reference world", () => {
   it("evidence flow: the pilot's sources, the Lines that fetch them and the ClaimTypes they may write", async () => {
     renderApp(`${I}/flow`, RECORDED);
     const flow = within(await screen.findByTestId("flow"));
-    // where each source comes from: the Line that fetches it, its host and schedule
+    // a source is named by its host; its schedule (the fetching Line's Trigger) and last landing on its face
+    const catalog = flow.getByText("cisa.gov").closest("[title]") as HTMLElement;
+    expect(within(catalog).getByText("Source")).toBeInTheDocument();
+    expect(within(catalog).getByText("Fetched")).toBeInTheDocument();
+    expect(within(catalog).getByText(/^Daily at /)).toBeInTheDocument();
+    expect(within(catalog).getByText("Landed")).toBeInTheDocument();
+    // the logical source, who fetches it, how it arrives and its contract are on hover
+    expect(catalog).toHaveAttribute("title", expect.stringContaining("Logical source cisa.kev.catalog"));
+    expect(catalog).toHaveAttribute("title", expect.stringContaining("Fetched by Line security.kev-triage"));
+    expect(catalog).toHaveAttribute("title", expect.stringContaining("Arrives by HTTP fetch"));
+    expect(catalog).toHaveAttribute("title", expect.stringContaining("Captured under security.kev-catalog"));
+    // the Line that fetches it: its own card, linked, with its last run
     const kev = within(flow.getByRole("link", { name: "kev-triage" }).closest("[title]") as HTMLElement);
-    expect(kev.getByText("From www.cisa.gov")).toBeInTheDocument();
-    expect(kev.getByText("Trigger")).toBeInTheDocument();
-    // a source says how it arrives; who retains it is on hover
-    const catalog = flow.getByText("cisa.kev.catalog").closest("[title]") as HTMLElement;
-    expect(within(catalog).getByText("HTTP fetch")).toBeInTheDocument();
-    expect(catalog).toHaveAttribute("title", expect.stringContaining("Retained by Line security.kev-triage"));
-    // the contract is a tag on the source, linked
-    expect(flow.getAllByRole("link", { name: "kev-catalog" })[0]).toHaveAttribute("href", `${I}/contracts/security.kev-catalog`);
+    expect(kev.getByText("Line")).toBeInTheDocument();
+    expect(kev.getByText("Last run")).toBeInTheDocument();
     expect(screen.getByText("Names under", { exact: false })).toHaveTextContent("Names under security.");
     expect(flow.getByRole("link", { name: "listed_in" })).toHaveAttribute(
       "href",

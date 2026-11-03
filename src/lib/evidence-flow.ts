@@ -3,28 +3,21 @@ import type { OrientPredicate } from "../api/schemas.ts";
 /**
  * The evidence-flow view's model and layout: how evidence moves.
  *
- *   Where it comes from ──► Sources ──► Lines that read their landings ──► ClaimTypes they may write
- *                                   └────────────── (no Line reads it) ──────────────┘
+ *   Source ──► the Line that fetches (or reads) it ──► the ClaimTypes that Line writes
+ *   Your statements ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄► ClaimTypes that take own-word statements
  *
- * Where a source comes from: the Lines that fetch it on a schedule and the
- * direct runs that retain it (an agent runs the Procedure), from the calls
- * that name the logical source in their definitions.
+ * A source is a logical source: where data comes from (a web host, a
+ * workspace file, a run's output), when it is fetched and when it last
+ * landed. A Line runs a Procedure that calls a Provider (web.fetch), extracts
+ * what came back and writes Claims: an edge source → Line where the Line's
+ * calls name the source, Line → ClaimType where its claims steps name the
+ * ClaimType (a Line capped at observe writes no Claims), Line → inbox where
+ * its Procedure posts items.
  *
- * A source is a logical source the definitions name (from the calls
- * that retain it and the landing Triggers that select it), plus one pseudo
- * source, "your statements", for what a ClaimType admits on its author's own
- * word. The contract a source is captured under is a tag on the source, not a
- * column.
- *
- * A Line is in the middle column when a landing Trigger starts it; it reads
- * the (contract, logical sources) its Triggers select. A ClaimType accepts
- * the (contract, logical sources) its evidence rules name (from its proof; an
- * empty source list accepts any source under that contract). An edge
- * Line → ClaimType means the Line reads a landing the ClaimType accepts, so
- * the Line may write it: the definitions don't say which Claims a run writes
- * (Procedures build their changes at run time), only which evidence each
- * ClaimType would accept. A source no Line reads, and the pseudo source,
- * connect straight to the ClaimTypes that accept them.
+ * The pseudo source "Your statements" is for what people and agents write on
+ * their own word: it links to the ClaimTypes whose evidence rules accept a
+ * self-source contract. A ClaimType no Line writes but whose rules accept a
+ * source links straight from that source (an agent writes it, citing it).
  *
  * Layered: every edge runs to the right; the ClaimType column is stacked in
  * fixed rows under its Subject kind, and the Lines and sources are ordered by
@@ -32,38 +25,31 @@ import type { OrientPredicate } from "../api/schemas.ts";
  * down the page. Pure and deterministic: same inputs, same pixels.
  */
 
-export type FlowNodeKind = "acquirer" | "source" | "line" | "inbox" | "claim_type";
+export type FlowNodeKind = "source" | "line" | "inbox" | "claim_type";
 
 export interface FlowNode {
   id: string;
   kind: FlowNodeKind;
-  /** Display label: a logical source, a Line name, or a ClaimType's short name. */
+  /** A logical source id, a Line name, or a ClaimType's short name. */
   label: string;
-  /** source: who retains it, in words; line: what starts it; claim_type: predicate. */
+  /** source: who fetches it, in words; claim_type: its predicate. */
   detail?: string;
-  /** source, line: what it is or does, in a line (from its Procedure's description, or a fetch Line's URL). */
+  /** line: what it does, in a line; source: what retains it; claim_type: its description. */
   about?: string;
+  /** source: where it comes from in plain words (`cisa.gov`). */
+  host?: string;
   /** source: how it arrives (HTTP fetch, Workspace file, Run output, an interface). */
   arrives?: string;
-  /** acquirer: a Line that fetches, or a Procedure an agent runs directly. */
-  runs?: "line" | "direct";
-  /** acquirer: when it runs, in words ("Daily at 06:00 UTC", "When an agent runs it"). */
+  /** source: when it is fetched, in words ("Daily at 1:15 PM EST"). */
   when?: string;
-  /** source: an acquirer on the flow says where it comes from. */
-  acquired?: boolean;
   /** source: the bare contracts it is captured under. */
   contracts?: string[];
   /** source: the pseudo source for statements on their author's own word. */
   ownWord?: boolean;
-  /**
-   * line, acquirer: the Line's max authority; claim_type: the highest max
-   * authority of the Lines that may write it (absent: only written by hand).
-   */
+  /** line: its max authority; claim_type: the highest of the Lines that write it (absent: no Line writes it). */
   authority?: Authority;
-  /** line, acquirer: whether the Line is enabled (null: never enabled). */
+  /** line: whether the Line is enabled (null: never enabled). */
   enablement?: string | null;
-  /** line: its landing Triggers. */
-  triggers?: string[];
   /** claim_type: its first Subject kind (the group it renders under). */
   group?: string;
   /** claim_type: a Capture is required. */
@@ -72,19 +58,19 @@ export interface FlowNode {
 
 export type Authority = "observe" | "propose" | "settle";
 const RANK: Record<Authority, number> = { observe: 0, propose: 1, settle: 2 };
-const asAuthority = (value: string | undefined): Authority | undefined =>
+const asAuthority = (value: string | null | undefined): Authority | undefined =>
   value === "observe" || value === "propose" || value === "settle" ? value : undefined;
 
 export interface FlowEdge {
   from: string;
   to: string;
-  /** The max authority of the Line the edge leaves (line → ClaimType, fetching Line → source). */
+  /** line → claim_type: the Line's max authority. */
   authority?: Authority;
-  /** The logical sources this edge carries (absent: any under the contract). */
-  sources?: string[];
+  /** source → line: the Line's run fetches and retains the source (not only reads a landing). */
+  lands?: boolean;
   /** → claim_type where the ClaimType requires a Capture. */
   required?: boolean;
-  /** source → claim_type directly (no Line reads the source). */
+  /** source → claim_type with no Line between (written by people or agents). */
   direct?: boolean;
   /** line → inbox: the Line posts items for someone to judge. */
   inbox?: boolean;
@@ -101,43 +87,43 @@ export interface AcceptedEvidence {
   sources: readonly string[];
 }
 
+export interface SourceInput {
+  id: string;
+  /** The contracts it is captured under. */
+  contracts: readonly string[];
+  host?: string | null | undefined;
+  arrives?: string | null | undefined;
+  when?: string | null | undefined;
+  /** Who fetches it, in words (the tooltip). */
+  fetchedBy?: string | null | undefined;
+  /** What retains it, in a line (its Procedure's description). */
+  about?: string | null | undefined;
+}
+
+export interface LineInput {
+  name: string;
+  authority?: string | null | undefined;
+  /** null: never enabled. */
+  enablement?: string | null | undefined;
+  about?: string | null | undefined;
+  /** The logical sources its calls name. */
+  reads: readonly string[];
+  /** The ones its run retains (it fetches them, rather than reading what landed). */
+  lands?: readonly string[];
+  /** The ClaimTypes its claims steps name. */
+  writes: readonly string[];
+  postsInbox?: boolean;
+}
+
 export interface FlowInputs {
-  /** Logical sources: id, the bare contract names it is captured under, who retains it (words). */
-  sources: readonly {
-    id: string;
-    contracts: readonly string[];
-    retainedBy?: string | undefined;
-    about?: string | null | undefined;
-    arrives?: string | null | undefined;
-  }[];
+  sources: readonly SourceInput[];
+  lines: readonly LineInput[];
   claimTypes: readonly OrientPredicate[];
   /**
    * Per predicate, what its evidence rules accept. A ClaimType missing here
    * falls back to its `evidence` contracts with any source.
    */
   accepts?: ReadonlyMap<string, readonly AcceptedEvidence[]>;
-  /** Capture-landing Triggers: name, bare contract name, target ref, the logical sources it selects. */
-  triggers: readonly { name: string; contract: string; target: string; logicalSources?: readonly string[] }[];
-  /** Max authority per bare Line name. */
-  lineAuthority?: ReadonlyMap<string, string>;
-  /** What each Line does, in a line, per bare Line name. */
-  lineAbout?: ReadonlyMap<string, string>;
-  /** Each Line's enablement per bare Line name (null: never enabled). */
-  lineEnablement?: ReadonlyMap<string, string | null>;
-  /** The Lines whose Procedure posts inbox items (has an inbox step), by bare name. */
-  postsInbox?: ReadonlySet<string>;
-  /** Where sources come from: the Lines and direct runs that retain them. */
-  acquirers?: readonly AcquirerInput[];
-}
-
-export interface AcquirerInput {
-  /** A Line name, or a Procedure name for a direct run. */
-  name: string;
-  runs: "line" | "direct";
-  about?: string | null | undefined;
-  when?: string | null | undefined;
-  /** The logical sources it retains. */
-  sources: readonly string[];
 }
 
 const bareContract = (value: string) => value.replace(/^CaptureContract:/, "");
@@ -148,22 +134,12 @@ export const isSelfSource = (contract: string) => /self-source/.test(contract);
 export const OWN_WORD = "source:own-word";
 
 export const nodeId = {
-  acquirer: (runs: "line" | "direct", name: string) => `acquirer:${runs}:${name}`,
   inbox: "inbox",
   source: (source: string) => `source:${source}`,
   line: (name: string) => `line:${name}`,
   claimType: (predicate: string) => `claim_type:${predicate}`,
   kind: (kind: string) => `kind:${kind}`,
 };
-
-/** Does a read (contract, sources | null = any) meet an acceptance (contract, sources | [] = any)? The shared sources, null for "any", false for no. */
-function meet(read: { contract: string; sources: readonly string[] | null }, accept: AcceptedEvidence): string[] | null | false {
-  if (read.contract !== accept.contract) return false;
-  if (read.sources === null) return accept.sources.length ? [...accept.sources] : null;
-  if (accept.sources.length === 0) return [...read.sources];
-  const shared = read.sources.filter((s) => accept.sources.includes(s));
-  return shared.length ? shared : false;
-}
 
 export function buildFlow(inputs: FlowInputs): FlowModel {
   const nodes = new Map<string, FlowNode>();
@@ -186,136 +162,94 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     if (list.length) accepts.set(row.predicate, list);
   }
 
-  // Sources (and the own-word pseudo source when anything accepts a self-source contract).
-  for (const source of [...inputs.sources].sort((a, b) => byText(a.id, b.id))) {
+  // Sources: the ones the definitions retain, and any a Line's calls name.
+  const addSource = (source: SourceInput) => {
     const id = nodeId.source(source.id);
+    if (nodes.has(id)) return;
     nodes.set(id, {
       id,
       kind: "source",
       label: source.id,
       contracts: [...source.contracts].map(bareContract).sort(byText),
-      ...(source.retainedBy ? { detail: source.retainedBy } : {}),
-      ...(source.about ? { about: source.about } : {}),
+      ...(source.host ? { host: source.host } : {}),
       ...(source.arrives ? { arrives: source.arrives } : {}),
+      ...(source.when ? { when: source.when } : {}),
+      ...(source.fetchedBy ? { detail: source.fetchedBy } : {}),
+      ...(source.about ? { about: source.about } : {}),
     });
-  }
+  };
+  for (const source of [...inputs.sources].sort((a, b) => byText(a.id, b.id))) addSource(source);
+  const lines = [...inputs.lines].sort((a, b) => byText(a.name, b.name));
+  for (const line of lines) for (const source of [...line.reads].sort(byText)) addSource({ id: source, contracts: [] });
+
+  // The own-word pseudo source, when anything accepts a self-source contract.
   const selfContracts = [...new Set([...accepts.values()].flat().map((a) => a.contract).filter(isSelfSource))];
   if (selfContracts.length) {
     nodes.set(OWN_WORD, {
       id: OWN_WORD,
       kind: "source",
       label: "Your statements",
-      detail: "On their author's own word",
+      detail: "Written by people or agents on their own word",
       contracts: selfContracts,
       ownWord: true,
     });
   }
 
-  // Where sources come from: each acquirer links to the sources it retains.
-  for (const acquirer of [...(inputs.acquirers ?? [])].sort((a, b) => byText(a.name, b.name))) {
-    const targets = [...new Set(acquirer.sources)].map(nodeId.source).filter((id) => nodes.has(id));
-    if (!targets.length) continue;
-    const id = nodeId.acquirer(acquirer.runs, acquirer.name);
-    const authority = acquirer.runs === "line" ? asAuthority(inputs.lineAuthority?.get(acquirer.name)) : undefined;
-    nodes.set(id, {
-      id,
-      kind: "acquirer",
-      label: acquirer.name,
-      runs: acquirer.runs,
-      ...(authority ? { authority } : {}),
-      ...(acquirer.runs === "line" && inputs.lineEnablement?.has(acquirer.name)
-        ? { enablement: inputs.lineEnablement.get(acquirer.name) ?? null }
-        : {}),
-      ...(acquirer.about ? { about: acquirer.about } : {}),
-      ...(acquirer.when ? { when: acquirer.when } : {}),
-    });
-    for (const to of targets.sort(byText)) {
-      addEdge({ from: id, to, ...(authority ? { authority } : {}) });
-      nodes.get(to)!.acquired = true;
-    }
-  }
-
-  // Lines that landing Triggers start, with what they read.
-  const reads = new Map<string, { contract: string; sources: string[] | null }[]>();
-  const triggersOf = new Map<string, string[]>();
-  for (const trigger of [...inputs.triggers].sort((a, b) => byText(a.name, b.name))) {
-    const contract = bareContract(trigger.contract);
-    const line = trigger.target.replace(/^Line:/, "");
-    if (!contract || !line) continue;
-    const sources = trigger.logicalSources?.length ? [...trigger.logicalSources].sort(byText) : null;
-    reads.set(line, [...(reads.get(line) ?? []), { contract, sources }]);
-    triggersOf.set(line, [...(triggersOf.get(line) ?? []), trigger.name]);
-  }
-  for (const [line, lineReads] of [...reads].sort(([a], [b]) => byText(a, b))) {
-    const id = nodeId.line(line);
-    const what = lineReads.map((r) => (r.sources ? r.sources.join(" or ") : `any ${r.contract} landing`)).join("; ");
-    const authority = asAuthority(inputs.lineAuthority?.get(line));
-    const about = inputs.lineAbout?.get(line);
+  // Lines, and the sources they fetch or read.
+  for (const line of lines) {
+    const id = nodeId.line(line.name);
+    const authority = asAuthority(line.authority);
     nodes.set(id, {
       id,
       kind: "line",
-      label: line,
-      detail: `When ${what} lands`,
-      triggers: triggersOf.get(line) ?? [],
+      label: line.name,
       ...(authority ? { authority } : {}),
-      ...(about ? { about } : {}),
-      ...(inputs.lineEnablement?.has(line) ? { enablement: inputs.lineEnablement.get(line) ?? null } : {}),
+      ...(line.about ? { about: line.about } : {}),
+      ...(line.enablement !== undefined ? { enablement: line.enablement } : {}),
     });
-    // source → line
-    for (const node of nodes.values()) {
-      if (node.kind !== "source" || node.ownWord) continue;
-      for (const r of lineReads) {
-        if (!node.contracts?.includes(r.contract)) continue;
-        if (r.sources && !r.sources.includes(node.label)) continue;
-        addEdge({ from: node.id, to: id, sources: [node.label] });
-      }
+    for (const source of [...line.reads].sort(byText)) {
+      addEdge({ from: nodeId.source(source), to: id, ...(line.lands?.includes(source) ? { lands: true } : {}) });
     }
   }
 
   // The inbox: what Lines post for an agent or a person to judge, instead of (or beside) Claims.
-  const posting = [...reads.keys()].filter((line) => inputs.postsInbox?.has(line)).sort(byText);
+  const posting = lines.filter((line) => line.postsInbox);
   if (posting.length) {
     nodes.set(nodeId.inbox, { id: nodeId.inbox, kind: "inbox", label: "Inbox" });
-    for (const line of posting) addEdge({ from: nodeId.line(line), to: nodeId.inbox, inbox: true });
+    for (const line of posting) addEdge({ from: nodeId.line(line.name), to: nodeId.inbox, inbox: true });
   }
 
-  // ClaimTypes, and the edges into them.
-  const readSources = new Set(edges.filter((e) => !e.inbox).map((e) => e.from));
-  for (const row of [...inputs.claimTypes].sort((a, b) => byText(a.predicate, b.predicate))) {
-    const accepted = accepts.get(row.predicate);
-    if (!accepted) continue;
+  // ClaimTypes: written by Lines, by people or agents on their own word, or by an agent citing a source.
+  // One a Line writes but the listing lacks (a capped page) is named by its predicate: `kind.name`.
+  const listed = new Set(inputs.claimTypes.map((row) => row.predicate));
+  const unlisted = [...new Set(lines.flatMap((line) => line.writes))]
+    .filter((predicate) => !listed.has(predicate) && predicate.includes("."))
+    .map((predicate): OrientPredicate => {
+      const dot = predicate.lastIndexOf(".");
+      return { name: predicate.slice(dot + 1), predicate, cardinality: "one", type: "string", subject_kinds: [predicate.slice(0, dot)] };
+    });
+  for (const row of [...inputs.claimTypes, ...unlisted].sort((a, b) => byText(a.predicate, b.predicate))) {
     const id = nodeId.claimType(row.predicate);
     const required = row.evidence_requirement === "captured";
     const before = edges.length;
     let strongest: Authority | undefined;
-    // line → claim_type: the Line reads a landing it accepts (a Line capped at observe writes no Claims).
-    for (const [line, lineReads] of reads) {
-      const authority = asAuthority(inputs.lineAuthority?.get(line));
-      if (authority === "observe") continue;
-      for (const r of lineReads) {
-        for (const a of accepted) {
-          const shared = meet(r, a);
-          if (shared === false) continue;
-          addEdge({
-            from: nodeId.line(line),
-            to: id,
-            ...(shared ? { sources: shared } : {}),
-            ...(required ? { required } : {}),
-            ...(authority ? { authority } : {}),
-          });
-          if (authority && (!strongest || RANK[authority] > RANK[strongest])) strongest = authority;
-        }
-      }
+    for (const line of lines) {
+      const authority = asAuthority(line.authority);
+      if (authority === "observe" || !line.writes.includes(row.predicate)) continue;
+      addEdge({ from: nodeId.line(line.name), to: id, ...(authority ? { authority } : {}), ...(required ? { required } : {}) });
+      if (authority && (!strongest || RANK[authority] > RANK[strongest])) strongest = authority;
     }
-    // source → claim_type directly: a source no Line reads, or the own-word pseudo source.
-    for (const node of nodes.values()) {
-      if (node.kind !== "source") continue;
-      if (!node.ownWord && readSources.has(node.id)) continue;
-      for (const a of accepted) {
-        const ok = node.ownWord
-          ? isSelfSource(a.contract)
-          : (node.contracts?.includes(a.contract) ?? false) && (a.sources.length === 0 || a.sources.includes(node.label));
-        if (ok) addEdge({ from: node.id, to: id, direct: true, ...(required ? { required } : {}) });
+    const written = edges.length > before;
+    for (const a of accepts.get(row.predicate) ?? []) {
+      if (isSelfSource(a.contract)) {
+        if (nodes.has(OWN_WORD)) addEdge({ from: OWN_WORD, to: id, direct: true, ...(required ? { required } : {}) });
+        continue;
+      }
+      if (written) continue; // a Line writes it: its sources reach it through the Line
+      for (const node of nodes.values()) {
+        if (node.kind !== "source" || node.ownWord || !node.contracts?.includes(a.contract)) continue;
+        if (a.sources.length && !a.sources.includes(node.label)) continue;
+        addEdge({ from: node.id, to: id, direct: true, ...(required ? { required } : {}) });
       }
     }
     if (edges.length === before) continue; // nothing reaches it: leave it off the flow
@@ -336,8 +270,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
 /**
  * The nodes a focus keeps: the node, everything upstream and downstream (not
  * its siblings). A `kind:` focus keeps that kind's ClaimTypes and their
- * upstream. From a source, a Line's onward edges are followed only where they
- * carry that source (or any source).
+ * upstream.
  */
 export function related(model: FlowModel, focus: string): Set<string> {
   const keep = new Set<string>();
@@ -346,7 +279,6 @@ export function related(model: FlowModel, focus: string): Set<string> {
     : model.nodes.some((n) => n.id === focus)
       ? [focus]
       : [];
-  const byId = new Map(model.nodes.map((n) => [n.id, n] as const));
   const walk = (start: string, step: (id: string) => string[]) => {
     const stack = [start];
     while (stack.length) {
@@ -359,14 +291,9 @@ export function related(model: FlowModel, focus: string): Set<string> {
       }
     }
   };
+  const ups = (id: string) => model.edges.filter((e) => e.to === id).map((e) => e.from);
+  const downs = (id: string) => model.edges.filter((e) => e.from === id).map((e) => e.to);
   for (const seed of seeds) {
-    const node = byId.get(seed);
-    const fromSource = node?.kind === "source" && !node.ownWord ? node.label : null;
-    const ups = (id: string) => model.edges.filter((e) => e.to === id).map((e) => e.from);
-    const downs = (id: string) =>
-      model.edges
-        .filter((e) => e.from === id && (!fromSource || byId.get(id)?.kind !== "line" || !e.sources || e.sources.includes(fromSource)))
-        .map((e) => e.to);
     keep.add(seed);
     walk(seed, ups);
     walk(seed, downs);
@@ -409,16 +336,14 @@ export interface FlowLayout {
   height: number;
 }
 
-/** Column boxes: where sources come from, sources, Lines, ClaimTypes; the widest gutter carries the Line fan-out. */
+/** Column boxes: sources, Lines, what they produce; the wider gutter carries the Line fan-out. */
 export const COLUMNS = [
-  { x: 0, w: 210 },
-  { x: 255, w: 240 },
-  { x: 545, w: 280 },
-  { x: 880, w: 270 },
+  { x: 0, w: 230 },
+  { x: 300, w: 260 },
+  { x: 650, w: 280 },
 ] as const;
 
 const HEIGHT: Record<PlacedKind, number> = {
-  acquirer: 84,
   inbox: 44,
   source: 84,
   line: 84,
@@ -426,7 +351,7 @@ const HEIGHT: Record<PlacedKind, number> = {
   kind: 20,
   heading: 22,
 };
-const GAP: Record<PlacedKind, number> = { acquirer: 6, inbox: 14, source: 6, line: 6, claim_type: 2, kind: 2, heading: 4 };
+const GAP: Record<PlacedKind, number> = { inbox: 14, source: 8, line: 8, claim_type: 2, kind: 2, heading: 4 };
 const KIND_GAP = 8;
 
 const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : Number.POSITIVE_INFINITY);
@@ -452,12 +377,10 @@ export function layoutFlow(model: FlowModel): FlowLayout {
   }
   const top = HEIGHT.heading + GAP.heading;
 
-  // ClaimTypes: kinds ordered by the Lines/sources that feed them, stacked in rows.
+  // What they produce: the inbox, then ClaimTypes under their kinds, ordered by the Lines/sources that feed them.
   const rows: Placed[] = [];
-  const x = COLUMNS[3].x;
-  const w = COLUMNS[3].w;
+  const { x, w } = COLUMNS[2];
   let y = top;
-  // The inbox heads the last column, above the ClaimTypes.
   for (const node of of("inbox")) {
     rows.push({ id: node.id, kind: "inbox", node, x, y, w, h: HEIGHT.inbox });
     y += HEIGHT.inbox + GAP.inbox;
@@ -478,52 +401,43 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     y += KIND_GAP;
   }
   const rowY = new Map(rows.map((r) => [r.id, r.y + r.h / 2] as const));
+  const centres = (id: string, at: (to: string) => number | undefined) =>
+    (outgoing.get(id) ?? []).map(at).filter((v): v is number => v !== undefined);
 
-  // Lines, ordered by the rows they feed, packed from the top.
+  // Lines, ordered by the rows they write, packed from the top.
   const lineY = packTop(
-    of("line").map((n) => ({
-      id: n.id,
-      kind: "line" as const,
-      desired: mean((outgoing.get(n.id) ?? []).map((to) => rowY.get(to)).filter((v): v is number => v !== undefined)),
-    })),
+    of("line").map((n) => ({ id: n.id, kind: "line" as const, desired: mean(centres(n.id, (to) => rowY.get(to))) })),
     top,
   );
   const centreOf = (id: string) => {
     const ly = lineY.get(id);
     return ly !== undefined ? ly + HEIGHT.line / 2 : rowY.get(id);
   };
-  // Sources, ordered by what they feed (Lines, or ClaimTypes directly), packed from the top; the own-word source last.
+  // Sources, ordered by what they feed (Lines, or ClaimTypes directly), packed from the top; your statements last.
   const sourceY = packTop(
     of("source").map((n) => ({
       id: n.id,
       kind: "source" as const,
-      desired: n.ownWord ? Number.MAX_SAFE_INTEGER : mean((outgoing.get(n.id) ?? []).map(centreOf).filter((v): v is number => v !== undefined)),
+      desired: n.ownWord ? Number.MAX_SAFE_INTEGER : mean(centres(n.id, centreOf)),
     })),
     top,
   );
 
-  // Where sources come from, ordered by the sources they retain.
-  const sourceCentre = (id: string) => {
-    const sy = sourceY.get(id);
-    return sy !== undefined ? sy + HEIGHT.source / 2 : undefined;
-  };
-  const acquirerY = packTop(
-    of("acquirer").map((n) => ({
-      id: n.id,
-      kind: "acquirer" as const,
-      desired: mean((outgoing.get(n.id) ?? []).map(sourceCentre).filter((v): v is number => v !== undefined)),
-    })),
-    top,
-  );
-
+  const heading = (id: string, label: string, column: (typeof COLUMNS)[number]): Placed => ({
+    id: `heading:${id}`,
+    kind: "heading",
+    label,
+    x: column.x,
+    y: 0,
+    w: column.w,
+    h: HEIGHT.heading,
+  });
   const placed: Placed[] = [
-    { id: "heading:acquirers", kind: "heading", label: "Where it comes from", x: COLUMNS[0].x, y: 0, w: COLUMNS[0].w, h: HEIGHT.heading },
-    { id: "heading:sources", kind: "heading", label: "Sources", x: COLUMNS[1].x, y: 0, w: COLUMNS[1].w, h: HEIGHT.heading },
-    { id: "heading:lines", kind: "heading", label: "Lines that read them", x: COLUMNS[2].x, y: 0, w: COLUMNS[2].w, h: HEIGHT.heading },
-    { id: "heading:claims", kind: "heading", label: "What they produce", x: COLUMNS[3].x, y: 0, w: COLUMNS[3].w, h: HEIGHT.heading },
-    ...of("acquirer").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[0].x, y: acquirerY.get(node.id)!, w: COLUMNS[0].w, h: HEIGHT.acquirer })),
-    ...of("source").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[1].x, y: sourceY.get(node.id)!, w: COLUMNS[1].w, h: HEIGHT.source })),
-    ...of("line").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[2].x, y: lineY.get(node.id)!, w: COLUMNS[2].w, h: HEIGHT.line })),
+    heading("sources", "Source", COLUMNS[0]),
+    heading("lines", "Line", COLUMNS[1]),
+    heading("claims", "What it produces", COLUMNS[2]),
+    ...of("source").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[0].x, y: sourceY.get(node.id)!, w: COLUMNS[0].w, h: HEIGHT.source })),
+    ...of("line").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[1].x, y: lineY.get(node.id)!, w: COLUMNS[1].w, h: HEIGHT.line })),
     ...rows,
   ];
   const height = Math.max(...placed.map((p) => p.y + p.h), top) + 8;
@@ -531,7 +445,7 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     placed,
     byId: new Map(placed.map((p) => [p.id, p] as const)),
     edges: model.edges,
-    width: COLUMNS[3].x + COLUMNS[3].w,
+    width: COLUMNS[2].x + COLUMNS[2].w,
     height,
   };
 }
