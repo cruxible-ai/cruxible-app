@@ -311,7 +311,7 @@ function FlowCell({
           title={["Entered directly", "Facts people or agents enter directly, on their own word, without a source to cite"].join("\n")}
           name={<span className="truncate text-[12.5px] font-medium text-zinc-100">Entered directly</span>}
           about="by people or agents"
-          focus={<FocusButton id={node.id} label="Entered directly" onFocus={onFocus} always />}
+          focus={<FocusButton id={node.id} label="Entered directly" onFocus={onFocus} />}
           facts={[]}
         />
       );
@@ -337,7 +337,7 @@ function FlowCell({
         name={
           <span className={`truncate text-[12.5px] font-medium text-zinc-100 ${node.host ? "" : "font-mono"}`}>{node.host ?? node.label}</span>
         }
-        focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} always />}
+        focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} />}
         facts={[["Fetched", node.when ?? "not on a schedule"], landedFact(landingsOf, node.label, instanceId, link)]}
       />
     );
@@ -367,7 +367,7 @@ function FlowCell({
           </Link>
         }
         about={node.about ?? null}
-        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} always />}
+        focus={<FocusButton id={node.id} label={node.label} onFocus={onFocus} />}
         facts={[lastRunFact(lastRuns, node.label, instanceId, link)]}
       />
     );
