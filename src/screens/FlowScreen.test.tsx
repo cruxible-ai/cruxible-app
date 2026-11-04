@@ -59,8 +59,8 @@ describe("Evidence flow", () => {
     // kev-triage's kev_exposure walks assessments and their status: cve-applicability creates and writes them
     const link = await screen.findByRole("button", { name: "Link cve-applicability → kev-triage" }, { timeout: 8000 });
     expect(link).toHaveAttribute("data-testid", "dependency-link");
-    // the reader also reads what no Line writes, but a Line feeds its Query: no link from Entered directly
-    expect(screen.queryByRole("button", { name: "Link Entered directly → kev-triage" })).toBeNull();
+    // the reader also reads what no Line writes: Entered directly links to it as well
+    expect(screen.getByRole("button", { name: "Link Entered directly → kev-triage" })).toBeInTheDocument();
     // the producer sits above the reader
     const card = (name: string) => screen.getByRole("link", { name }).closest("[title]") as HTMLElement;
     expect(parseFloat(card("cve-applicability").style.top)).toBeLessThan(parseFloat(card("kev-triage").style.top));

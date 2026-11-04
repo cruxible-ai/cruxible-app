@@ -211,8 +211,8 @@ describe("evidence flow: links between Lines", () => {
 
   it("links the producer Line to the reader, carrying what its Query reads from it", () => {
     expect(link(nodeId.line("kev-triage"), nodeId.line("epss-triage"))?.dependencies?.map((d) => d.query)).toEqual(["sec.watched"]);
-    // a Line feeds that Query: no link from Entered directly as well
-    expect(link(OWN_WORD, nodeId.line("epss-triage"))).toBeUndefined();
+    // a Line feeds that Query; Entered directly links only where direct entry feeds part of it
+    expect(link(OWN_WORD, nodeId.line("epss-triage"))?.dependencies?.every((d) => d.producer === null) ?? true).toBe(true);
     // only direct entry feeds repo-parse's Query: the dashed card links to it
     expect(link(OWN_WORD, nodeId.line("repo-parse"))?.dependencies?.[0]?.kinds).toEqual(["sec.vuln"]);
   });

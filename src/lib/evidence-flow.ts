@@ -286,7 +286,7 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     });
   }
 
-  // Dependencies: producer Line → reading Line; a Query only direct entry feeds links from Entered directly.
+  // Dependencies: producer Line → reading Line; whatever direct entry feeds links from Entered directly.
   const links = new Map<string, FlowEdge>();
   const link = (from: string, to: string, dependency: LineDependency) => {
     const key = edgeKey({ from, to });
@@ -301,10 +301,8 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     reads.set(key, [...(reads.get(key) ?? []), d]);
   }
   for (const group of reads.values()) {
-    const fromLines = group.filter((d) => d.producer !== null && nodes.has(nodeId.line(d.producer)));
-    if (fromLines.length) {
-      for (const d of fromLines) link(nodeId.line(d.producer!), nodeId.line(d.reader), d);
-      continue;
+    for (const d of group.filter((d) => d.producer !== null && nodes.has(nodeId.line(d.producer)))) {
+      link(nodeId.line(d.producer!), nodeId.line(d.reader), d);
     }
     for (const d of group.filter((d) => d.producer === null)) {
       if (!nodes.has(OWN_WORD)) {
