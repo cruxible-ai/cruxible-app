@@ -16,7 +16,7 @@ describe("Overview", () => {
     expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", I);
     expect(nav.getByRole("link", { name: "Overview" })).toHaveAttribute("href", `${I}/overview`);
     const main = within(screen.getByRole("main"));
-    expect(main.getByRole("button", { name: "About the Overview" })).toBeInTheDocument();
+    expect(main.getByText(/^What this instance knows/)).toBeInTheDocument();
     // the state's size: Subjects, accepted / conflicted Claims, what waits for review
     expect(main.getByText("Claims accepted")).toBeInTheDocument();
     expect(main.getByText("Waiting for review").nextSibling).toHaveTextContent("1");

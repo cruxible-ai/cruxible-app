@@ -419,7 +419,7 @@ function TriggersPanel({ card }: { card: LineCard }) {
         {(card.triggers ?? []).length === 0 ? (
           <div className="flex items-center gap-1.5 text-[13px] text-zinc-600">
             None
-            <InfoButton label="Without Triggers">No Trigger is aimed at this Line: it runs only when started by hand.</InfoButton>
+            <span className="t-meta">No Trigger is aimed at this Line: it runs only when started by hand.</span>
           </div>
         ) : (
           <DataTable
@@ -704,7 +704,7 @@ function MandatesPanel({ line, procedure }: { line: string; procedure: string })
         <EmptyState>
           <span className="inline-flex items-center gap-1.5">
             None
-            <InfoButton label="Without Mandates">Without a Mandate, its runs at most propose.</InfoButton>
+            <span className="t-meta">Without a Mandate, its runs at most propose.</span>
           </span>
         </EmptyState>
       )}

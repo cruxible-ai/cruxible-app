@@ -14,9 +14,12 @@ export function Panel({
   collapsible = false,
   defaultOpen = true,
   summary,
+  description,
 }: {
   title: ReactNode;
   meta?: ReactNode;
+  /** What the card holds, in a muted line under the heading (shown, never behind an ⓘ). */
+  description?: ReactNode;
   children: ReactNode;
   collapsible?: boolean;
   defaultOpen?: boolean;
@@ -46,6 +49,7 @@ export function Panel({
         )}
         {meta && <div className="t-meta shrink-0">{meta}</div>}
       </header>
+      {shown && description && <p className="t-meta measure -mt-1.5 mb-2.5">{description}</p>}
       {shown && <div id={bodyId}>{children}</div>}
     </section>
   );

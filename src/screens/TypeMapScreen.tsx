@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair } from "lucide-react";
-import { PageInfo } from "@/components/Page";
+import { PageDescription } from "@/components/Page";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useInstanceId, useOntologyKinds, useSourceModel, useSubjectKinds } from "@/api/hooks";
@@ -321,13 +321,11 @@ export function TypeMapScreen() {
   return (
     <div className="flex h-full min-h-[80vh] flex-col">
       <header className="mb-3">
-        <div className="flex items-center">
-          <h1 className="t-title">Type map</h1>
-          <PageInfo label="About the type map">
+        <h1 className="t-title">Type map</h1>
+        <PageDescription>
             The kinds of Subject this instance knows about, and how they point at each other: an arrow means a field on one kind
             names a Subject of another. Click a kind or an arrow for its ClaimTypes.
-          </PageInfo>
-        </div>
+        </PageDescription>
         <StatsRow
           search={
             <SearchBox

@@ -59,8 +59,7 @@ export function ProposalsScreen() {
     <Page>
       <PageHeader
         title="Proposals"
-        info="Changes submitted for acceptance, by status. Approving, activating and rejecting stay on the CLI and MCP."
-        infoLabel="About proposals"
+        description="Changes submitted for acceptance, by status. Approving, activating and rejecting stay on the CLI and MCP."
         actions={<Pager index={index} older={older} newer={newer} />}
       >
         <div className="mt-3 flex gap-1.5">

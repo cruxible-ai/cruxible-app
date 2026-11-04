@@ -49,8 +49,7 @@ export function NextScreen() {
             )
           ) : undefined
         }
-        info="What needs a person, worst first: problems with the repair to run, then setup choices that are yours to make. Repairs are shown as text; run them from the CLI or MCP."
-        infoLabel="About Next"
+        description="What needs a person, worst first: problems with the repair to run, then setup choices that are yours to make. Repairs are shown as text; run them from the CLI or MCP."
         actions={<PageNav index={index} total={page.data?.total_items} newer={newer} older={older} />}
       />
       {page.isPending && <LoadState />}

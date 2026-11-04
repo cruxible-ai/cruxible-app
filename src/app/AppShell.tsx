@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from "react";
+import { Fragment, useState, type ComponentType } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   CircleAlert,
@@ -69,6 +69,8 @@ interface Tab {
   icon: ComponentType<{ className?: string }>;
   end?: boolean;
   waiting?: { count: number; title: string } | null;
+  /** A rule under this tab: Dashboard and Overview are set apart from the views below. */
+  dividerAfter?: boolean;
 }
 
 /**
@@ -88,7 +90,8 @@ export function AppShell() {
 
   const tabs: Tab[] = [
     { path: "", label: "Dashboard", icon: LayoutDashboard, end: true },
-    { path: "/overview", label: "Overview", icon: Library },
+    // Dashboard and Overview read the whole instance; a divider sets them apart from the views below.
+    { path: "/overview", label: "Overview", icon: Library, dividerAfter: true },
     { path: "/map", label: "Type map", icon: Network },
     { path: "/flow", label: "Evidence flow", icon: Route },
     { path: "/graph", label: "State graph", icon: Waypoints },
@@ -148,8 +151,8 @@ export function AppShell() {
         <div className="min-h-0 flex-1 overflow-y-auto pb-4">
           <nav className="space-y-0.5">
             {tabs.map((tab) => (
+              <Fragment key={tab.label}>
               <NavLink
-                key={tab.label}
                 to={link(`/i/${instanceId}${tab.path}`)}
                 end={tab.end ?? false}
                 className={({ isActive }) => item(isActive)}
@@ -161,6 +164,8 @@ export function AppShell() {
                 </span>
                 {tab.waiting && <WaitingCount count={tab.waiting.count} title={tab.waiting.title} compact={collapsed} />}
               </NavLink>
+              {tab.dividerAfter && <hr className="!my-2 border-zinc-800" />}
+              </Fragment>
             ))}
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("cruxible:jump"))}

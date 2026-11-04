@@ -18,7 +18,6 @@ import type { OrientPredicate, Schemas } from "@/api/schemas";
 import { ChangeMark } from "@/components/Chip";
 import { ChangeValue, GenerationLink } from "@/components/ChangeLog";
 import { DataTable, type Column } from "@/components/DataTable";
-import { InfoButton } from "@/components/InfoButton";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
@@ -44,16 +43,6 @@ const ABOUT = {
   documents: "Documents the instance holds: reference text Claims and definitions can cite.",
 };
 
-/** A Panel title with its ⓘ. */
-function Titled({ children, info, label }: { children: string; info: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      {children}
-      <InfoButton label={label}>{info}</InfoButton>
-    </span>
-  );
-}
-
 /**
  * What this instance knows, at a glance: its kinds (Subjects, ClaimTypes,
  * Claims, who feeds them), its sources, recent changes to beliefs, coverage
@@ -76,8 +65,7 @@ export function OverviewScreen() {
     <Page>
       <PageHeader
         title="Overview"
-        info={ABOUT.page}
-        infoLabel="About the Overview"
+        description={ABOUT.page}
         facts={
           <>
             <Fact label="Generation" title={o.accepted_at}>
@@ -198,7 +186,7 @@ function KindsAndChanges() {
 
   return (
     <>
-      <Panel title={<Titled info={ABOUT.kinds} label="About kinds">Kinds</Titled>} meta={kinds.data ? <span>{rows.length}</span> : undefined}>
+      <Panel title="Kinds" description={ABOUT.kinds} meta={kinds.data ? <span>{rows.length}</span> : undefined}>
         {kinds.isPending && <LoadState />}
         {kinds.error && <LoadState error={kinds.error} />}
         {kinds.data && (
@@ -429,7 +417,7 @@ function ChangesPanel({
   );
   const meta = window ? <span title="The generations this read covers">{`g${window.from}–g${window.to}${truncated ? " (partial)" : ""}`}</span> : undefined;
   return (
-    <Panel title={<Titled info={ABOUT.changes} label="About recent changes">Recent changes to beliefs</Titled>} meta={meta}>
+    <Panel title="Recent changes to beliefs" description={ABOUT.changes} meta={meta}>
       {pending && <LoadState />}
       {error && <LoadState error={error} />}
       {changes &&
@@ -555,7 +543,7 @@ function CoveragePanel({ rows, pending, error }: { rows: KindRow[]; pending: boo
     [],
   );
   return (
-    <Panel title={<Titled info={ABOUT.coverage} label="About coverage">Coverage</Titled>}>
+    <Panel title="Coverage" description={ABOUT.coverage}>
       {pending && <LoadState />}
       {error && <LoadState error={error} />}
       {!pending && !error && (
@@ -710,7 +698,7 @@ function SourcesPanel() {
   const pending = landings.isPending && model.isPending;
   const error = landings.error ?? model.error;
   return (
-    <Panel title={<Titled info={ABOUT.sources} label="About sources">Sources</Titled>} meta={rows ? <span>{rows.length}</span> : undefined}>
+    <Panel title="Sources" description={ABOUT.sources} meta={rows ? <span>{rows.length}</span> : undefined}>
       {pending && <LoadState />}
       {error && <LoadState error={error} />}
       {rows && <DataTable rows={rows} columns={columns} rowKey={(s) => s.id} urlKey="src" label="Sources" toolbar={rows.length > 10} maxHeight="none" />}
@@ -753,7 +741,7 @@ function DocumentsPanel() {
     [instanceId, link],
   );
   return (
-    <Panel title={<Titled info={ABOUT.documents} label="About documents">Documents</Titled>} meta={documents.data ? <span>{rows.length}</span> : undefined}>
+    <Panel title="Documents" description={ABOUT.documents} meta={documents.data ? <span>{rows.length}</span> : undefined}>
       {documents.isPending && <LoadState />}
       {documents.error && <LoadState error={documents.error} />}
       {documents.data && <DataTable rows={rows} columns={columns} rowKey={(d) => d.name} urlKey="doc" label="Documents" toolbar={rows.length > 10} maxHeight="24rem" />}

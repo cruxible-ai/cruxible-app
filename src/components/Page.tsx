@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { InfoButton } from "@/components/InfoButton";
 
 /**
  * The page frame every screen uses: the full content width up to a wide cap
@@ -12,11 +11,11 @@ export function Page({ children, width = "wide" }: { children: ReactNode; width?
 }
 
 /**
- * The standard page header: what this is (kind), the title (with an ⓘ when
- * the page needs the console's own explanation), a subtitle (counts and
- * names, or the thing's authored description as written; never prose the
- * console generates), then the key facts as a labelled strip. Detail follows
- * in cards.
+ * The standard page header: what this is (kind), the title, the page's
+ * description (what the page shows, as a visible muted line), a subtitle
+ * (counts and names, or the thing's authored description as written; never
+ * prose generated from typed fields), then the key facts as a labelled strip.
+ * Detail follows in cards.
  */
 export function PageHeader({
   kind,
@@ -24,8 +23,7 @@ export function PageHeader({
   title,
   mono = false,
   id,
-  info,
-  infoLabel,
+  description,
   summary,
   facts,
   actions,
@@ -40,10 +38,8 @@ export function PageHeader({
   mono?: boolean;
   /** A machine id shown under the title when the title is words (with copy). */
   id?: ReactNode;
-  /** The console's own explanation of the page or concept: shown behind an ⓘ beside the title. */
-  info?: ReactNode;
-  /** The ⓘ's accessible name. */
-  infoLabel?: string;
+  /** What the page shows: a visible muted line under the title (page descriptions are never hidden behind an ⓘ). */
+  description?: ReactNode;
   /** The subtitle: counts, state, names, or the author's description as written; never console-generated prose. */
   summary?: ReactNode;
   facts?: ReactNode;
@@ -65,15 +61,9 @@ export function PageHeader({
           {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
         </div>
       )}
-      {info ? (
-        <div className="flex items-center">
-          <h1 className={`${mono ? "t-title-mono" : "t-title"} min-w-0 break-words`}>{title}</h1>
-          <PageInfo label={infoLabel}>{info}</PageInfo>
-        </div>
-      ) : (
-        <h1 className={`${mono ? "t-title-mono" : "t-title"} break-words`}>{title}</h1>
-      )}
+      <h1 className={`${mono ? "t-title-mono" : "t-title"} break-words`}>{title}</h1>
       {id && <div className="mt-0.5">{id}</div>}
+      {description && <PageDescription>{description}</PageDescription>}
       {summary && <div className="t-lede measure mt-1.5">{summary}</div>}
       {facts && <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">{facts}</dl>}
       {children}
@@ -81,13 +71,9 @@ export function PageHeader({
   );
 }
 
-/** The ⓘ beside a page title (PageHeader's, or a hand-built header's `<h1>`): a sibling, so the heading's name stays the title. */
-export function PageInfo({ children, label = "About this page" }: { children: ReactNode; label?: string | undefined }) {
-  return (
-    <span className="ml-2 inline-flex shrink-0 font-sans">
-      <InfoButton label={label}>{children}</InfoButton>
-    </span>
-  );
+/** A page's description under its title (PageHeader's, or a hand-built header's `<h1>`): visible, muted. */
+export function PageDescription({ children }: { children: ReactNode }) {
+  return <p className="t-meta measure mt-1">{children}</p>;
 }
 
 /** One labelled fact in a header strip or a card: label above, value below. */

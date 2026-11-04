@@ -89,7 +89,7 @@ Wording everywhere: terse labels and tables; every word must justify itself; nam
 
 - Generated prose from typed fields: no. The console never interprets typed fields into sentences; it shows them as labels, values and tables.
 - Authored prose: shown as written. Text an author or agent wrote as prose is content and stays visible: kind, ClaimType, Query, Procedure, Line and Document descriptions, Claim rationales, proposal words, review notes.
-- The console's own explanations (what a page shows, what a Cruxible concept means) go behind an info button (`src/components/InfoButton.tsx`; beside a page title, `PageHeader`'s `info` or `PageInfo`), not inline prose.
+- What a page or card shows, and why its state is what it is (nothing to show, withheld, runs only by hand), is visible: a muted line under the heading (`PageHeader`'s `description`, `PageDescription` for a hand-built header, `Panel`'s `description`). An info button (`src/components/InfoButton.tsx`) only defines a Cruxible concept beside the label or column header that names it (what a Mandate is, what basis means); never hide a page's description or its data behind one.
 
 ## Pull Requests
 

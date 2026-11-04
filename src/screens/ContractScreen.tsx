@@ -89,8 +89,7 @@ export function ContractScreen() {
         kind="Capture contract"
         title={name}
         mono
-        info={CONTRACT_INFO}
-        infoLabel="What a Capture contract is"
+        description={CONTRACT_INFO}
         facts={
           <>
             <Fact label="State">
@@ -458,12 +457,12 @@ function evidenceWord(row: Schemas["OrientPredicate"] | undefined): string {
   return row?.evidence_requirement === "captured" ? "Required" : "Admitted";
 }
 
-/** A step of the page's Input → Contract → Output reading order; what the step holds behind an ⓘ. */
+/** A step of the page's Input → Contract → Output reading order, with what the step holds under it. */
 function FlowHeading({ step, info }: { step: string; info: string }) {
   return (
-    <div className="flex items-center gap-1.5 border-b border-zinc-800/70 pb-1 pt-2">
+    <div className="border-b border-zinc-800/70 pb-1 pt-2">
       <h2 className="text-[13px] font-semibold text-zinc-200">{step}</h2>
-      <InfoButton label={`What ${step} holds`}>{info}</InfoButton>
+      <p className="t-meta measure">{info}</p>
     </div>
   );
 }
@@ -528,8 +527,7 @@ export function ContractsScreen() {
     <Page width="narrow">
       <PageHeader
         title="Capture contracts"
-        info="What each kind of evidence is, where it comes from, and how many ClaimTypes admit it."
-        infoLabel="About Capture contracts"
+        description="What each kind of evidence is, where it comes from, and how many ClaimTypes admit it."
       />
       {contracts.isPending && <LoadState />}
       {contracts.error && <LoadState error={contracts.error} />}

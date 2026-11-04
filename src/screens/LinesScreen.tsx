@@ -297,8 +297,7 @@ export function LinesScreen() {
     <Page>
       <PageHeader
         title="Lines"
-        info="What starts each Line, what it ends in, and how its last run went."
-        infoLabel="About Lines"
+        description="What starts each Line, what it ends in, and how its last run went."
         summary={
           lines.data ? (
             <>

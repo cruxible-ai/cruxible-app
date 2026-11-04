@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCard, useGraphFirstPage, useInstanceId, useWholeGraph, type GraphProgress } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { PageInfo } from "@/components/Page";
+import { PageDescription } from "@/components/Page";
 import { InfoButton } from "@/components/InfoButton";
 import { ShownSlot } from "@/components/ShownValue";
 import { actionChipClass, Chip, toggleChipClass } from "@/components/Chip";
@@ -118,13 +118,11 @@ export function StateGraphScreen() {
   return (
     <div className="flex h-full min-h-[85vh] flex-col">
       <header className="mb-2">
-        <div className="flex items-center">
-          <h1 className="t-title">State graph</h1>
-          <PageInfo label="About the state graph">
+        <h1 className="t-title">State graph</h1>
+        <PageDescription>
             Every Subject and the Claims that link them; a dot's color is its kind. Click a dot to read it here, hover a line for
             its ClaimType.
-          </PageInfo>
-        </div>
+        </PageDescription>
         {graph.data && (
           <StatsRow
             search={

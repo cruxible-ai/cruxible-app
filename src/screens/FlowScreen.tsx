@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } fr
 import { Link, useSearchParams } from "react-router-dom";
 import { Crosshair, Inbox as InboxIcon } from "lucide-react";
 import { useInbox, useInstanceId, useSourceLandings } from "@/api/hooks";
-import { PageInfo } from "@/components/Page";
+import { PageDescription } from "@/components/Page";
 import { InfoButton } from "@/components/InfoButton";
 import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
@@ -111,13 +111,11 @@ export function FlowScreen() {
   return (
     <div className="space-y-3">
       <header>
-        <div className="flex items-center">
-          <h1 className="t-title">Evidence flow</h1>
-          <PageInfo label="About the evidence flow">
+        <h1 className="t-title">Evidence flow</h1>
+        <PageDescription>
             Where evidence comes from and what it turns into. A Line fetches each source on its schedule, reads what arrives and
             writes facts (or posts items for review); people and agents add their own statements. Hover a card to trace its path.
-          </PageInfo>
-        </div>
+        </PageDescription>
         <StatsRow
           search={
             <SearchBox

@@ -46,8 +46,7 @@ export function BeliefsScreen() {
     <Page>
       <PageHeader
         title="Beliefs"
-        info={TAB_NOTE[tab]}
-        infoLabel={`About ${FAMILY_LABEL[tab].toLowerCase()}`}
+        description={TAB_NOTE[tab]}
         actions={<PageNav index={index} total={page.data?.total_items} newer={newer} older={older} />}
       >
         <div className="mt-3 flex flex-wrap items-baseline gap-1.5">

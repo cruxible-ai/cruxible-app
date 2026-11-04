@@ -36,8 +36,7 @@ export function LedgerScreen() {
     <Page>
       <PageHeader
         title="Ledger"
-        info="Accepted generations, newest first. Open a generation to read the instance as it stood there."
-        infoLabel="About the ledger"
+        description="Accepted generations, newest first. Open a generation to read the instance as it stood there."
         actions={
           <Pager
             index={cursors.length}

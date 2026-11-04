@@ -7,7 +7,7 @@ import { DOCUMENT_READ_MAX_BYTES } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { FieldList } from "@/components/FieldList";
 import { InfoButton } from "@/components/InfoButton";
-import { PageInfo } from "@/components/Page";
+import { PageDescription } from "@/components/Page";
 import { BodyView } from "@/components/BodyView";
 import { Disclosure, LoadState, Panel } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
@@ -75,13 +75,11 @@ export function DocsScreen() {
   return (
     <div className="w-full max-w-[1760px]">
       <header className="mb-4">
-        <div className="flex items-center">
-          <h1 className="t-title">Docs</h1>
-          <PageInfo label="About Docs">
+        <h1 className="t-title">Docs</h1>
+        <PageDescription>
             The Documents this instance holds: design notes, runbooks and references accepted into state, each at its revision at this
             generation.
-          </PageInfo>
-        </div>
+        </PageDescription>
         {documents.data && (
           <StatsRow
             search={

@@ -182,8 +182,8 @@ describe("Contract page", () => {
   it("says what the contract is, in terse terms from the stored contract, between its input and its output", async () => {
     renderApp("/i/inst_fixture/contracts/security.osv-applicability-v1");
     const main = within(await screen.findByRole("main"));
-    // no explanatory lede: what a Capture contract is sits behind the title's ⓘ
-    expect(await main.findByRole("button", { name: "What a Capture contract is" })).toBeInTheDocument();
+    // what a Capture contract is: the page's description, shown under the title
+    expect(await main.findByText(/^A Capture contract says what a kind of evidence is/)).toBeInTheDocument();
     expect(main.queryByText(/A web response body Cruxible obtains itself/)).toBeNull();
     // the terms, terse; the stored value on hover; what a term means behind its ⓘ
     expect(await main.findByText("≥ 30 days")).toHaveAttribute("title", "body retention required_for_duration · minimum 2592000000000 µs");
