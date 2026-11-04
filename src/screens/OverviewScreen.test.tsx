@@ -1,93 +1,109 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
+import { LARGE_HEAD, OVERVIEW_LARGE } from "@/fixtures/overview-large";
 
 afterEach(cleanup);
 
 const I = "/i/inst_fixture";
-const section = async (name: string) => within((await screen.findByRole("heading", { name: new RegExp(`^${name}`) })).closest("section")!);
-const row = (table: ReturnType<typeof within>, text: string) => within(table.getByText(text, { selector: "a, span" }).closest("tr")!);
+const section = async (name: string) => within((await screen.findByRole("heading", { name })).closest("section")!);
 
 describe("Overview", () => {
-  it("is its own page beside the Dashboard, in the nav", async () => {
+  it("is its own page beside the Dashboard, in the nav, with no tables", async () => {
     renderApp(`${I}/overview`);
     expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
     const nav = within(screen.getByRole("navigation"));
     expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", I);
     expect(nav.getByRole("link", { name: "Overview" })).toHaveAttribute("href", `${I}/overview`);
-    const main = within(screen.getByRole("main"));
-    expect(main.getByText(/^What this instance knows/)).toBeInTheDocument();
-    // the state's size: Subjects, accepted / conflicted Claims, what waits for review
-    expect(main.getByText("Claims accepted")).toBeInTheDocument();
-    expect(main.getByText("Waiting for review").nextSibling).toHaveTextContent("1");
+    expect(screen.getByText(/^A snapshot of this instance/)).toBeInTheDocument();
+    await section("How it grew");
+    expect(screen.queryAllByRole("table")).toHaveLength(0);
   });
 
-  it("lists every kind: Subjects, ClaimTypes, Claims, what feeds it and its last change", async () => {
+  it("opens on the instance's size, each number linked to the view that lists it", async () => {
     renderApp(`${I}/overview`);
-    const kinds = await section("Kinds");
-    const assessment = await kinds.findByRole("link", { name: "security.assessment" });
-    expect(assessment).toHaveAttribute("href", `${I}/kinds/security.assessment`);
-    const r = within(assessment.closest("tr")!);
-    // Claims sums the kind's live Claims (orient kind=K counters)
-    expect(await r.findByText("6")).toBeInTheDocument();
-    // a Line creates assessments and writes their status
-    expect(await r.findByRole("link", { name: "cve-applicability" })).toHaveAttribute("href", `${I}/lines/cve-applicability`);
-    expect(await r.findByRole("link", { name: "g42" })).toBeInTheDocument();
-    // no Line creates products: entered directly
-    const product = within((await kinds.findByRole("link", { name: "security.product" })).closest("tr")!);
-    expect(await product.findByText("Entered directly")).toBeInTheDocument();
-    // a kind no change in the read touched says how far back the read went
-    const packages = within((await kinds.findByRole("link", { name: "security.package" })).closest("tr")!);
-    expect(await packages.findByText("before g41")).toBeInTheDocument();
+    const hero = within(await screen.findByRole("region", { name: "At a glance" }));
+    const subjects = await hero.findByRole("link", { name: /^Subjects/ });
+    expect(subjects).toHaveAttribute("href", `${I}/map`);
+    await waitFor(() => expect(subjects).toHaveTextContent("138"));
+    expect(hero.getByRole("link", { name: /^Beliefs/ })).toHaveTextContent("16");
+    expect(hero.getByRole("link", { name: /^Beliefs/ })).toHaveAttribute("href", `${I}/beliefs`);
+    expect(hero.getByRole("link", { name: /^Lines/ })).toHaveAttribute("href", `${I}/lines`);
+    expect(hero.getByRole("link", { name: /^Generations/ })).toHaveTextContent("42");
+    expect(await hero.findByRole("link", { name: /^Sources/ })).toHaveAttribute("href", `${I}/flow`);
+    // the instance, its kit and when it began (genesis on the generations page)
+    expect(hero.getByText("inst_fixture")).toBeInTheDocument();
+    expect(await hero.findByText("security")).toBeInTheDocument();
+    expect(hero.getByText("0.3.0")).toBeInTheDocument();
+    expect(hero.getByText("since")).toBeInTheDocument();
   });
 
-  it("lists recent changes to beliefs, newest first, each linked to its Subject, ClaimType and Claim", async () => {
+  it("maps what it knows: a bubble per kind opens the kind, an arrow opens its ClaimType", async () => {
     renderApp(`${I}/overview`);
-    const changes = await section("Recent changes to beliefs");
-    const table = within(await changes.findByRole("table", { name: "Recent changes to beliefs" }));
-    expect(changes.getByText("g41–g42")).toBeInTheDocument();
-    const rows = table.getAllByRole("row").slice(1);
-    // g42's revision first: from → to, the principal who proposed it
-    const first = within(rows[0]!);
-    expect(first.getByRole("link", { name: "g42" })).toBeInTheDocument();
-    expect(first.getByRole("link", { name: "rel-1-cve-2024-3094" })).toHaveAttribute("href", `${I}/s/${encodeURIComponent("security.assessment/rel-1-cve-2024-3094")}`);
-    expect(first.getByRole("link", { name: "status" })).toHaveAttribute("href", `${I}/claim-types/security.assessment.status`);
-    expect(first.getByText("Value changed")).toBeInTheDocument();
-    expect(first.getByText("affected")).toBeInTheDocument();
-    expect(first.getByText("not_affected")).toBeInTheDocument();
-    expect(first.getByText("release-owner")).toBeInTheDocument();
-    expect(first.getByRole("link", { name: /CLM-/ }).getAttribute("href")).toMatch(/CLM-0+a3/);
-    // only Claim members: the release Subject's own member is not a belief change
-    expect(rows).toHaveLength(4);
-    expect(within(rows[3]!).getByText("First stated")).toBeInTheDocument();
+    const map = await section("What it knows");
+    const bubble = await map.findByRole("link", { name: "security.vulnerability: 3 Subjects" });
+    expect(bubble).toHaveAttribute("href", `${I}/kinds/security.vulnerability`);
+    expect(map.getByRole("link", { name: "security.package: 130 Subjects" })).toBeInTheDocument();
+    const arrow = map.getByRole("link", { name: /^security\.release\.product: release to product/ });
+    expect(arrow).toHaveAttribute("href", `${I}/claim-types/security.release.product`);
+    // hover detail is reachable by focus too
+    fireEvent.focus(bubble);
+    const tip = within(await map.findByRole("tooltip"));
+    expect(tip.getByText("Subjects").nextSibling).toHaveTextContent("3");
   });
 
-  it("shows coverage per ClaimType against the kind's Subjects", async () => {
+  it("draws where the evidence comes from: sources to Lines to kinds, each band and node linked", async () => {
     renderApp(`${I}/overview`);
-    const coverage = await section("Coverage");
-    const table = within(await coverage.findByRole("table", { name: "Coverage" }));
-    const status = row(table, "status");
-    expect(status.getByText("of 2")).toBeInTheDocument();
-    expect(status.getByText("100%")).toBeInTheDocument();
+    const flow = await section("Where it comes from");
+    const source = await flow.findByRole("link", { name: /^Source cisa\.kev\.catalog/ });
+    expect(source).toHaveAttribute("href", `${I}/flow?focus=${encodeURIComponent("source:cisa.kev.catalog")}`);
+    expect(flow.getByRole("link", { name: /^Line kev-triage/ })).toHaveAttribute("href", `${I}/lines/kev-triage`);
+    // a band from a source opens the Line that reads it; a Line's band into a kind opens the Line
+    expect(flow.getByRole("link", { name: "osv.query to cve-applicability: 2 Claims" })).toHaveAttribute("href", `${I}/lines/cve-applicability`);
+    expect(flow.getByRole("link", { name: "cve-applicability to assessment: 2 Claims" })).toHaveAttribute("href", `${I}/lines/cve-applicability`);
+    // a source no landing has reached yet still shows
+    expect(flow.getByRole("link", { name: /^Source osv\.query/ })).toBeInTheDocument();
+    // Claims no Line writes enter directly; their band opens the kind
+    expect(flow.getByRole("link", { name: "Entered directly to product: 1 Claim" })).toHaveAttribute("href", `${I}/kinds/security.product`);
+    expect(flow.getByText("Source last landed")).toBeInTheDocument();
   });
 
-  it("lists each source: what it is captured under, when it last landed, how often, and the Lines that read it", async () => {
+  it("shows how it stands: per kind by evidence rule, then every Claim by state, each segment linked", async () => {
     renderApp(`${I}/overview`);
-    const sources = await section("Sources");
-    const kev = within((await sources.findByRole("link", { name: "cisa.kev.catalog" })).closest("tr")!);
-    expect(kev.getByRole("link", { name: "cisa.kev.catalog" })).toHaveAttribute("href", `${I}/flow?focus=${encodeURIComponent("source:cisa.kev.catalog")}`);
-    expect(kev.getByRole("link", { name: "security.kev-http-v1" })).toHaveAttribute("href", `${I}/contracts/security.kev-http-v1`);
-    expect(kev.getByText("3")).toBeInTheDocument();
-    expect(kev.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/kev-triage`);
-    // a source no landing has reached yet still lists, with its readers
-    const osv = within((await sources.findByRole("link", { name: "osv.query" })).closest("tr")!);
-    expect(osv.getByText("never")).toBeInTheDocument();
+    const stands = await section("How it stands");
+    const captured = await stands.findByRole("link", { name: "security.assessment: 2 Claims, evidence Captured" });
+    expect(captured).toHaveAttribute("href", `${I}/kinds/security.assessment?view=claim-types`);
+    expect(stands.getByRole("link", { name: "Conflicted: 1 Claim" })).toHaveAttribute("href", `${I}/beliefs?tab=contested`);
+    expect(stands.getByRole("link", { name: /Waiting for review/ })).toHaveAttribute("href", `${I}/proposals?status=open`);
+    fireEvent.mouseEnter(captured);
+    expect(within(await stands.findByRole("tooltip")).getByText("2 of 6")).toBeInTheDocument();
   });
 
-  it("lists the documents, each linked to the Docs page", async () => {
+  it("shows how it grew: live Claims at sampled generations, each opening the Overview as it stood then", async () => {
     renderApp(`${I}/overview`);
-    const documents = await section("Documents");
-    const table = within(await documents.findByRole("table", { name: "Documents" }));
-    expect(table.getAllByRole("link")[0]!.getAttribute("href")).toMatch(new RegExp(`^${I}/docs\\?doc=`));
+    const grew = await section("How it grew");
+    expect(grew.getByText("g0–g42")).toBeInTheDocument();
+    const head = await grew.findByRole("link", { name: "Generation 42: 725 live Claims" });
+    expect(head).toHaveAttribute("href", `${I}/overview?at=42`);
+    expect(grew.getByRole("link", { name: "Generation 0: 0 live Claims" })).toBeInTheDocument();
+  });
+
+  it("scales to a larger instance: ten kinds, nine sources, eight Lines, run and kit marks", async () => {
+    renderApp(`${I}/overview`, OVERVIEW_LARGE);
+    const map = await section("What it knows");
+    await waitFor(() => expect(map.getAllByRole("link", { name: /Subjects?$/ })).toHaveLength(10));
+    const flow = await section("Where it comes from");
+    await waitFor(() => expect(flow.getAllByRole("link", { name: /^Source / })).toHaveLength(9));
+    expect(flow.getAllByRole("link", { name: /^Line / })).toHaveLength(8);
+    // a stale source and one that never landed
+    expect(flow.getByText("Older")).toBeInTheDocument();
+    expect(flow.getByText("Never landed")).toBeInTheDocument();
+    const grew = await section("How it grew");
+    expect(grew.getByText(`g${LARGE_HEAD - 49}–g${LARGE_HEAD}`)).toBeInTheDocument();
+    await waitFor(() => expect(grew.getAllByRole("link", { name: /^Generation \d+: \d+ live Claims?$/ })).toHaveLength(12));
+    const run = grew.getAllByRole("link", { name: /: run of ops\./ })[0]!;
+    expect(run.getAttribute("href")).toMatch(new RegExp(`^${I}/runs/RUN-`));
+    expect(grew.getByRole("link", { name: `Generation ${LARGE_HEAD - 12}: Upgrade kit platform from 1.2.0 to 1.3.0` })).toBeInTheDocument();
+    expect(screen.queryAllByRole("table")).toHaveLength(0);
   });
 });

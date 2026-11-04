@@ -1,11 +1,13 @@
 /**
  * Hand-authored reads the Overview makes beyond the rest of the world: the
  * product and release kind details, each logical source's landings, and the
- * since read over the generations page's newest generations (41 and 42).
+ * earlier generations its growth chart samples (each resolved by number, then
+ * orient's first page and one orient(kind=K) per kind holding Subjects there).
  */
-import { defineFixture } from "../fixture";
-import { orientQuery, sinceBody } from "@/api/requests";
-import type { Schemas } from "@/api/schemas";
+import { defineFixture, type RecordedFixture } from "../fixture";
+import { headQuery, orientQuery } from "@/api/requests";
+import type { AcceptedCoordinate } from "@/api/schemas";
+import { growthSequences, GROWTH_WINDOW } from "@/lib/overview";
 import { FETCHED } from "./captures";
 import { ACCEPTED_AT, AT, COORDINATE, kindDescriptors, KIND_ROWS, NOW } from "./world";
 
@@ -26,31 +28,44 @@ const kindDetail = (index: number, kind: string, sample: string[]) =>
     response: { ...BASE_ORIENT, kind_detail: { ...KIND_ROWS[index]!, predicates: kindDescriptors(kind), incoming: [], sample_subject_ids: sample } },
   });
 
-const CLAIM_STATUS = `CLM-${(0xa3).toString(16).padStart(32, "0")}`;
-const CLAIM_CVE = `CLM-${(0xb1).toString(16).padStart(32, "0")}`;
-const CLAIM_PRODUCT = `CLM-${(0xb2).toString(16).padStart(32, "0")}`;
-const ASSESSMENT = "security.assessment/rel-1-cve-2024-3094";
-
-const row = (
-  generation: number,
-  member_path: string,
-  artifact_kind: string,
-  disposition: Schemas["SinceRow"]["disposition"],
-  statement?: Schemas["ClaimLine"],
-): Schemas["SinceRow"] => ({
-  tag: "playbill-since-row-v1",
-  generation,
-  changeset_digest: "sha256:" + (generation === 42 ? "c" : "3").repeat(64),
-  candidate_digest: "sha256:" + "d".repeat(64),
-  member_path,
-  artifact_kind,
-  disposition,
-  artifact_digest: "sha256:" + "a".repeat(64),
-  predecessor_artifact_digest: disposition === "create" ? null : "sha256:" + "b".repeat(64),
-  ...(statement ? { statement } : {}),
-});
-
-const claimPath = (id: string) => `claims/${id.slice(4, 6)}/${id}.json`;
+/**
+ * The growth chart's earlier generations: each kind arrives by g12 and its
+ * live Claims grow to the head's (kind rows' counts, scaled; KIND_ROWS order).
+ */
+function growthSample(sequence: number): RecordedFixture[] {
+  const coordinate: AcceptedCoordinate = { ...COORDINATE, git_oid: sequence.toString(16).padStart(40, "e") };
+  const share = (index: number) => (sequence < 4 + index * 2 ? 0 : Math.min(1, (sequence + 6) / (AT.generation + 6)));
+  const held = KIND_ROWS.map((row, index) => ({ row: { ...row, subjects: Math.round(row.subjects * share(index)) }, share: share(index) })).filter(({ row }) => row.subjects > 0);
+  const base = { ...BASE_ORIENT, coordinate, generation: sequence, accepted_at: new Date(Date.parse("2026-10-17T09:00:00Z") + sequence * 3_600_000).toISOString() };
+  return [
+    defineFixture({
+      method: "get",
+      path: "/api/v1/{instance_id}/head",
+      query: headQuery(String(sequence)),
+      response: { tag: "playbill-head-v1", instance: "inst_fixture", coordinate, generation: sequence },
+    }),
+    defineFixture({
+      method: "get",
+      path: "/api/v1/{instance_id}/orient",
+      query: orientQuery({ coordinate, limit: 500 }),
+      response: { ...base, kinds: held.map(({ row: { kind, subjects, identity } }) => ({ kind, subjects, identity })) },
+    }),
+    ...held.map(({ row, share }) =>
+      defineFixture({
+        method: "get",
+        path: "/api/v1/{instance_id}/orient",
+        query: orientQuery({ coordinate, kind: row.kind }),
+        response: {
+          ...base,
+          kind_detail: {
+            ...row,
+            predicates: kindDescriptors(row.kind).map((p) => ({ ...p, live_claims: Math.round((p.live_claims ?? 0) * share) })),
+          },
+        },
+      }),
+    ),
+  ];
+}
 
 export default [
   kindDetail(1, "security.product", ["cruxible"]),
@@ -84,29 +99,7 @@ export default [
     },
   }),
 
-  // since(40): the ChangeSet members of g41 and g42, oldest first, as since reads them.
-  defineFixture({
-    method: "post",
-    path: "/api/v1/{instance_id}/since",
-    body: sinceBody(40, COORDINATE),
-    response: {
-      tag: "playbill-since-result-v1",
-      coordinate: COORDINATE,
-      generation: AT.generation,
-      rows: [
-        row(41, claimPath(CLAIM_STATUS), "claim", "create", { claim: CLAIM_STATUS, subject: ASSESSMENT, field: "status", value: "affected" }),
-        row(41, claimPath(CLAIM_CVE), "claim", "create", {
-          claim: CLAIM_CVE,
-          subject: "security.vulnerability/cve-2024-3094",
-          field: "cve_id",
-          value: "CVE-2024-3094",
-        }),
-        row(41, claimPath(CLAIM_PRODUCT), "claim", "create", { claim: CLAIM_PRODUCT, subject: "security.release/cruxible-0.3.1", field: "product", value: "security.product/cruxible" }),
-        row(41, "subjects/security.release/cruxible-0.3.1.json", "subject", "create"),
-        row(42, claimPath(CLAIM_STATUS), "claim", "replace", { claim: CLAIM_STATUS, subject: ASSESSMENT, field: "status", value: "not_affected" }),
-      ],
-      truncated: false,
-      result_digest: "sha256:" + "e".repeat(64),
-    },
-  }),
+  ...growthSequences(Math.max(0, AT.generation - GROWTH_WINDOW + 1), AT.generation)
+    .filter((sequence) => sequence !== AT.generation)
+    .flatMap(growthSample),
 ];
