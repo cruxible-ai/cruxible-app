@@ -204,10 +204,12 @@ describe("recorded reference world", () => {
     cleanup();
     renderApp(`${I}/p/${encodeURIComponent(REVIEWED)}`, RECORDED);
     const m = await main();
-    // the changes as a fact, not a sentence; one row per change, its stored fields behind the row
-    expect(await m.findByText("+1 provider")).toBeInTheDocument();
-    expect(m.getByRole("table", { name: "Changes" })).toBeInTheDocument();
-    fireEvent.click(m.getAllByRole("button", { name: /^Expand / })[0]!);
-    expect(await m.findByText("/artifact_format")).toBeInTheDocument();
+    // a definitions proposal: one row per definition, the one opened to its fields, the raw record behind a disclosure
+    const defs = within(await m.findByRole("table", { name: "Definitions" }));
+    expect(defs.getByText("Provider")).toBeInTheDocument();
+    expect(m.queryByRole("table", { name: "Changes" })).toBeNull();
+    expect(defs.queryByTitle("/artifact_format")).toBeNull();
+    fireEvent.click(defs.getByRole("button", { name: "Stored fields" }));
+    expect(await defs.findByTitle("/artifact_format")).toBeInTheDocument();
   });
 });

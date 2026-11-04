@@ -1,42 +1,55 @@
-import { claimCaptures, claimObject, readProposalOrigin } from "@/components/ProposalChanges";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useCard, useInstanceId, useReview } from "@/api/hooks";
+import { useCard, useClaimTypes, useGetBatch, useInstanceId, useReview } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { ChangeMark, SignalDot } from "@/components/Chip";
+import { BeliefDiffView, PriorRefusals, type DiffContext } from "@/components/BeliefDiff";
+import { ChangeMark } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
-import { InfoButton } from "@/components/InfoButton";
+import { DefinitionChanges } from "@/components/DefinitionChanges";
+import { readProposalOrigin } from "@/components/ProposalChanges";
 import { ProposalStateChip } from "@/components/ProposalList";
 import { LongText } from "@/components/LongText";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShortId, shortId } from "@/components/ShortId";
-import { ShownValue } from "@/components/ShownValue";
+import { DeltaTable } from "@/components/StoredFields";
 import { withAt } from "@/lib/at";
 import { parseRef } from "@/lib/cruxible-ref";
-import { captureHandle } from "@/lib/next-reasons";
-import { groupDeltas, memberSummary, readAttestations, readGovernance, readProvenance, type MemberSummary } from "@/lib/review";
+import { memberSummary, readAttestations, readGovernance, readProvenance } from "@/lib/review";
 import { lineName } from "@/lib/lines";
-import { useAtLink } from "@/lib/at";
-import { formatDateTime, formatWhen } from "@/lib/text";
+import {
+  beliefDiff,
+  citedCaptures,
+  claimIdOfPath,
+  hasReason,
+  proposalEgress,
+  reviewReason,
+  subjectOfPath,
+  type ReviewReason,
+} from "@/lib/proposal-diff";
+import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { artifactNoun, changeMark } from "@/lib/vocabulary";
 
 type Member = Schemas["ReviewedMember"];
 type Review = Schemas["ProposalReview"];
 type ProposalCard = Schemas["GetProposalCard"];
+type CaptureCard = Schemas["GetCaptureCard"];
 
 /**
- * One proposal, read-only: its card (status, verdict, who, when, why, the
- * change set) through get, and its review (members with field-level deltas
- * and prior refusals, governance, approvals recorded, item reasons paged).
- * A proposal page is for the decision: what would change (one row per
- * change, the stored record's fields behind a row's disclosure), who must
- * approve it and what happened to it. The Ledger is the history of what was
- * accepted; it links here for the decision behind a generation. Approving, activating,
- * rejecting and withdrawing stay on the CLI/MCP; the console has no route
- * for them (READ_ROUTES).
+ * One proposal, read-only, for deciding it: the header answers the review
+ * questions (status, who and which run, when, why it is in review, who must
+ * approve, refused before), then what it changes. Beliefs read as a diff
+ * grid (one row per Subject, one column per ClaimType; a cell opens the
+ * change, its evidence and rationale in a side panel); definitions as their
+ * own rows, each opening to a readable before/after. The Ledger is the
+ * history of what was accepted and links here. Approving, activating,
+ * rejecting and withdrawing stay on the CLI/MCP: the console has no route for
+ * them (READ_ROUTES).
+ *
+ * Reads per load: the card, the review, the origin run's card (why in
+ * review), the ClaimTypes section (cardinality, cached), and one get-batch per
+ * 64 distinct cited Captures. Never a read per Claim.
  */
 export function ProposalScreen() {
   const { id = "" } = useParams();
@@ -46,8 +59,36 @@ export function ProposalScreen() {
   const review = useReview(id === "" ? null : id, reasonCursors[reasonCursors.length - 1]);
   usePageTitle(`Proposal ${id.slice(0, 19)}`);
   // The proposal's own words (never its terminal reason, which the Status shows).
-  const words = proposal?.rationale ?? null;
+  const words = proposal?.rationale ?? review.data?.rationale ?? null;
   const origin = readProposalOrigin(words);
+  const runId = origin?.run ?? review.data?.item_reasons?.[0]?.run_id ?? null;
+  const run = cardOf(useCard(runId ? `ProcedureRun:${runId}` : null).data, "procedure_run");
+  const reason = useMemo(() => reviewReason(proposalEgress(run?.terminal_egress, id)), [run, id]);
+
+  const members = review.data?.members;
+  const hasClaims = members?.some((m) => m.artifact_kind === "claim") ?? false;
+  const claimTypes = useClaimTypes(hasClaims);
+  const cardinality = useMemo(
+    () => (claimTypes.data ? new Map(claimTypes.data.rows.map((p) => [p.predicate, p.cardinality])) : undefined),
+    [claimTypes.data],
+  );
+  const diff = useMemo(() => (members ? beliefDiff(members, cardinality) : null), [members, cardinality]);
+  const captureRefs = useMemo(() => (members ? citedCaptures(members).map((d) => `Capture:${d}`) : []), [members]);
+  const captureReads = useGetBatch(captureRefs);
+  const captures = useMemo(() => {
+    const out = new Map<string, CaptureCard>();
+    for (const result of captureReads.results) {
+      const capture = cardOf(result, "capture");
+      if (capture) out.set(capture.digest, capture);
+    }
+    return out;
+  }, [captureReads.results]);
+  const reasons = useMemo(() => new Map((review.data?.item_reasons ?? []).map((r) => [r.path, r])), [review.data]);
+  const context = useMemo<DiffContext>(
+    () => ({ captures, reasons, accepted: proposal?.status === "settled" && proposal.reason === "accepted" }),
+    [captures, reasons, proposal],
+  );
+
   const only = review.data?.members.length === 1 ? memberSummary(review.data.members[0]!) : null;
   // Titled by the Procedure that proposed it, else its short words, else its one change.
   const headline = origin
@@ -57,6 +98,9 @@ export function ProposalScreen() {
       : only?.name
         ? `${only.kind ?? "Change"} ${only.name}`
         : null;
+  // Item reasons read in the side panel; the list stays only when they page past what is loaded.
+  const paged = (review.data?.item_reason_count ?? 0) > (review.data?.item_reasons?.length ?? 0) || reasonCursors.length > 0;
+  const beliefs = diff !== null && diff.rows.length > 0;
 
   return (
     <Page>
@@ -72,7 +116,7 @@ export function ProposalScreen() {
           )
         }
         id={headline ? <ShortId value={id} className="text-zinc-500" /> : undefined}
-        facts={<ProposalFacts proposal={proposal} review={review.data} origin={origin} />}
+        facts={<ProposalFacts proposal={proposal} review={review.data} origin={origin} runId={runId} reason={reason} />}
       >
         {words && !headline && !origin && (
           <div className="mt-2">
@@ -104,10 +148,26 @@ export function ProposalScreen() {
       )}
       {/* Without a review, the card's change set is all there is. */}
       {proposal && !review.data && !review.isPending && <ChangeSetPanel proposal={proposal} />}
-      {review.data && (
+      {review.data && diff && (
         <>
-          <ChangesPanel review={review.data} />
-          {(review.data.item_reason_count ?? 0) > 0 && (
+          {diff.definitions.length > 0 && (
+            <Panel title="Definitions" meta={<span>{diff.definitions.length}</span>}>
+              <DefinitionChanges definitions={diff.definitions} />
+            </Panel>
+          )}
+          {beliefs && (
+            <Panel title="Changes">
+              <BeliefDiffView diff={diff} context={context} />
+              {review.data.prior_refusal_coverage && (
+                <div className="t-meta mt-3" title="How far the refusal index has read; refusals after this are not yet shown">
+                  Refusals indexed to g{review.data.prior_refusal_coverage.indexed_through_generation} of g
+                  {review.data.prior_refusal_coverage.accepted_generation}
+                </div>
+              )}
+            </Panel>
+          )}
+          {diff.unreadable.length > 0 && <WithheldPanel members={diff.unreadable} reasons={reasons} />}
+          {paged && (
             <ItemReasonsPanel
               review={review.data}
               page={reasonCursors.length}
@@ -125,27 +185,64 @@ export function ProposalScreen() {
   );
 }
 
-/** "+34 Claims, +2 Subjects": the changes by mark and artifact kind, in first-seen order. */
-function changeCounts(proposal: ProposalCard, review: Review | undefined): string {
-  const counts = new Map<string, Map<string, number>>();
-  for (const member of review?.members ?? []) {
-    const mark = changeMark(member.disposition).mark;
-    const byKind = counts.get(mark) ?? new Map<string, number>();
-    byKind.set(member.artifact_kind, (byKind.get(member.artifact_kind) ?? 0) + 1);
-    counts.set(mark, byKind);
-  }
-  const parts = [...counts.entries()].flatMap(([mark, byKind]) => [...byKind.entries()].map(([kind, count]) => `${mark}${artifactNoun(kind, count)}`));
-  return parts.length > 0 ? parts.join(", ") : String(review?.members.length ?? proposal.changes?.length ?? 0);
+const SCOPE_TERM: Record<string, string> = {
+  claim_type: "ClaimType",
+  change_kind: "change kind",
+  basis: "basis",
+  value: "value",
+  subject: "Subject",
+};
+
+/** Why in review: each change the settle grant's scope left out (`epss_score · revise · extracted`), then what capped the terminal. */
+function WhyInReview({ reason }: { reason: ReviewReason }) {
+  const short = (claimType: string) => claimType.split(".").slice(-1)[0] ?? claimType;
+  return (
+    <span className="flex flex-col gap-1">
+      {reason.gaps.length > 0 && (
+        <span className="flex flex-wrap gap-1">
+          {reason.gaps.map((gap, i) => (
+            <span
+              key={`${gap.claim_type}-${gap.change}-${gap.basis ?? ""}-${gap.term}-${i}`}
+              className="border border-zinc-700 px-1.5 py-px font-mono text-[12px] text-zinc-200"
+              title={`${gap.claim_type} · outside the grant's ${SCOPE_TERM[gap.term] ?? gap.term}`}
+            >
+              {[short(gap.claim_type), gap.change, gap.basis].filter(Boolean).join(" · ")}
+            </span>
+          ))}
+        </span>
+      )}
+      {reason.proposesOnly && reason.gaps.length === 0 && (
+        <span>
+          <span className="t-meta">Terminal</span> <span className="font-mono">propose</span>
+        </span>
+      )}
+      {reason.limitingTerm && (
+        <span>
+          <span className="t-meta">Limited by</span> <span className="font-mono">{reason.limitingTerm}</span>
+        </span>
+      )}
+      {reason.cappedBy && (
+        <span>
+          <span className="t-meta">Capped by</span> <span className="font-mono">{reason.cappedBy}</span>
+        </span>
+      )}
+      {reason.fallbackReason && <span className="text-zinc-300">{reason.fallbackReason}</span>}
+    </span>
+  );
 }
 
 function ProposalFacts({
   proposal,
   review,
   origin,
+  runId,
+  reason,
 }: {
   proposal: ProposalCard | null;
   review: Review | undefined;
   origin: { procedure: string; run: string } | null;
+  runId: string | null;
+  reason: ReviewReason | null;
 }) {
   const instanceId = useInstanceId();
   const governance = review ? readGovernance(review) : null;
@@ -153,6 +250,8 @@ function ProposalFacts({
   const approvals = review ? readAttestations(review) : [];
   const base = review?.settlement_base.git_oid.slice(0, 12);
   const proposer = proposal?.actor ?? provenance?.actorId ?? null;
+  const line = proposal?.originating_line ?? review?.originating_line ?? null;
+  const refused = review ? review.members.filter((m) => (m.prior_refusals?.length ?? 0) > 0).length : null;
   return (
     <>
       {proposal && (
@@ -160,13 +259,13 @@ function ProposalFacts({
           <ProposalStateChip status={proposal.status} verdict={proposal.verdict} outcome={proposal.reason} incomplete={proposal.incomplete} />
         </Fact>
       )}
-      {proposal?.originating_line ? (
+      {line ? (
         <Fact label="Line">
           <Link
-            to={withAt(`/i/${instanceId}/lines/${encodeURIComponent(lineName(proposal.originating_line.identity.name))}`, null)}
+            to={withAt(`/i/${instanceId}/lines/${encodeURIComponent(lineName(line.identity.name))}`, null)}
             className="font-mono hover:underline"
           >
-            {lineName(proposal.originating_line.identity.name)}
+            {lineName(line.identity.name)}
           </Link>
         </Fact>
       ) : (
@@ -176,9 +275,9 @@ function ProposalFacts({
           </Fact>
         )
       )}
-      {origin && (
+      {runId && (
         <Fact label="Run">
-          <RefLink value={origin.run} short />
+          <RefLink value={runId} short />
         </Fact>
       )}
       {proposer && (
@@ -191,7 +290,11 @@ function ProposalFacts({
           {formatDateTime(proposal.admitted_at)}
         </Fact>
       )}
-      {proposal && <Fact label="Changes">{changeCounts(proposal, review)}</Fact>}
+      {hasReason(reason) && (
+        <Fact label="Why in review">
+          <WhyInReview reason={reason} />
+        </Fact>
+      )}
       {governance && (
         <>
           <Fact label="Approvals needed">
@@ -215,6 +318,11 @@ function ProposalFacts({
             )}
           </Fact>
         </>
+      )}
+      {refused !== null && (
+        <Fact label="Refused before" title="Changes an earlier decision refused: read why before approving them again">
+          {refused === 0 ? "None" : <span className="font-mono">{refused}</span>}
+        </Fact>
       )}
       {governance && (
         <Fact label="Write tier" title={`Activation: ${governance.activationPolicy ?? "—"}`}>
@@ -248,8 +356,9 @@ function ReviewNotes({ review }: { review: Review }) {
 
 /** A member or change path as a link when it names a Subject or Claim. */
 function PathLink({ path, short = false }: { path: string; short?: boolean }) {
-  return parseRef(path) ? (
-    <RefLink value={path} short={short} />
+  const ref = claimIdOfPath(path) ?? subjectOfPath(path) ?? path;
+  return parseRef(ref) ? (
+    <RefLink value={ref} short={short} />
   ) : (
     <span className="break-all font-mono text-[12px] text-zinc-400" title={path}>
       {short ? shortId(path) : path}
@@ -272,315 +381,43 @@ function ChangeSetPanel({ proposal }: { proposal: ProposalCard }) {
   );
 }
 
-/** One change, read for the table: what it is about, its value before and after, what it cites. */
-interface ChangeRow {
-  member: Member;
-  summary: MemberSummary;
-  subject: string | null;
-  what: string;
-  before: { text: string; ref: string | null } | null;
-  after: { text: string; ref: string | null } | null;
-  captures: string[];
-  /** The Subject is created by this proposal: its own creation is folded into this row. */
-  newSubject: Member | null;
-}
-
-/** "subjects/security.vulnerability/cve-1.json" -> "security.vulnerability/cve-1" */
-function subjectOfPath(path: string | null): string | null {
-  return path ? (/^subjects\/(.+)\.json$/.exec(path)?.[1] ?? path) : null;
-}
-
-function changeRow(member: Member): ChangeRow {
-  const summary = memberSummary(member);
-  const claim = summary.claim;
-  if (claim) {
-    const subject = subjectOfPath(claim.subject);
-    const kind = subject?.split("/")[0] ?? "";
-    const predicate = claim.predicate ?? "Claim";
-    return {
-      member,
-      summary,
-      subject,
-      what: predicate.startsWith(`${kind}.`) ? predicate.slice(kind.length + 1) : predicate,
-      before: claimObject(member.base_semantic_artifact),
-      after: claimObject(member.candidate_semantic_artifact),
-      captures: claimCaptures(member.candidate_semantic_artifact ?? member.base_semantic_artifact),
-      newSubject: null,
-    };
-  }
-  if (summary.kind === "Subject" && summary.name) {
-    return { member, summary, subject: summary.name, what: "Subject", before: null, after: null, captures: [], newSubject: null };
-  }
-  return { member, summary, subject: null, what: summary.kind ?? member.artifact_kind, before: null, after: null, captures: [], newSubject: null };
-}
-
 /**
- * One row per change, except that a created Subject folds into its Claims'
- * rows (marked new) instead of a row of its own; a Subject created with no
- * Claim in this proposal keeps its row.
+ * Members this read cannot place in the grid (their artifacts are withheld
+ * or not served): one row each, by path, with its rationale; a row opens to
+ * the stored fields the review does carry and any prior refusals.
  */
-export function changeRows(members: Member[]): ChangeRow[] {
-  const all = members.map(changeRow);
-  const created = new Map(all.filter((r) => r.what === "Subject" && r.subject !== null).map((r) => [r.subject!, r.member]));
-  const withClaims = new Set(all.filter((r) => r.summary.claim && r.subject !== null && created.has(r.subject)).map((r) => r.subject!));
-  // The Subject's creation rides on its first Claim row (the key Claim sorts with the rest).
-  const folded = new Set<string>();
-  return all
-    .filter((r) => !(r.what === "Subject" && r.subject !== null && withClaims.has(r.subject)))
-    .sort((a, b) => (a.subject ?? "").localeCompare(b.subject ?? "") || a.what.localeCompare(b.what))
-    .map((r) => {
-      if (!r.summary.claim || r.subject === null || !withClaims.has(r.subject) || folded.has(r.subject)) return r;
-      folded.add(r.subject);
-      return { ...r, newSubject: created.get(r.subject) ?? null };
-    });
-}
-
-function ShownChange({ value, muted = false }: { value: { text: string; ref: string | null }; muted?: boolean }) {
-  if (value.ref) return <RefLink value={value.ref} />;
-  return <span className={`break-words ${muted ? "text-zinc-500" : "text-zinc-100"}`}>{value.text}</span>;
-}
-
-/**
- * The proposal's changes, one row each: the change, the Subject it is about,
- * the ClaimType (or definition), the value (before -> after when revised), the
- * Captures it cites and whether it was refused before. A row opens to the
- * stored record's fields as the review diffs them, and any prior refusals.
- */
-function ChangesPanel({ review }: { review: Review }) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
-  // By Subject, then ClaimType, so one Subject's changes read together.
-  const rows = useMemo(() => changeRows(review.members), [review.members]);
-  const columns = useMemo<Column<ChangeRow>[]>(
-    () => [
-      {
-        id: "change",
-        header: "",
-        label: "Change",
-        className: "w-4",
-        sortValue: (r) => changeMark(r.member.disposition).mark,
-        cell: (r) => <ChangeMark change={r.member.disposition} />,
+function WithheldPanel({ members, reasons }: { members: Member[]; reasons: ReadonlyMap<string, Schemas["ProposalItemReason"]> }) {
+  const columns: Column<Member>[] = [
+    { id: "change", header: "", label: "Change", className: "w-4", cell: (m) => <ChangeMark change={m.disposition} /> },
+    { id: "path", header: "Change", hideable: false, className: "whitespace-nowrap", cell: (m) => <PathLink path={m.path} /> },
+    {
+      id: "reason",
+      header: "Rationale",
+      cell: (m) => {
+        const reason = reasons.get(m.path);
+        return reason ? <LongText text={`${reason.reason}${reason.truncated ? "…" : ""}`} lines={2} /> : null;
       },
-      {
-        id: "subject",
-        header: "Subject",
-        sortValue: (r) => r.subject ?? "",
-        className: "whitespace-nowrap",
-        cell: (r) =>
-          r.subject ? (
-            <span className="inline-flex items-baseline gap-2">
-              <RefLink value={r.subject} />
-              {r.newSubject && (
-                <span className="t-meta" title="This proposal creates the Subject">
-                  new
-                </span>
-              )}
-            </span>
-          ) : (
-            <span className="text-zinc-600">—</span>
-          ),
-      },
-      {
-        id: "what",
-        header: "ClaimType or definition",
-        sortValue: (r) => r.what,
-        className: "whitespace-nowrap",
-        cell: (r) => {
-          const predicate = r.summary.claim?.predicate;
-          if (predicate) {
-            const kind = r.subject?.split("/")[0] ?? "";
-            return (
-              <Link
-                to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?claim_type=${encodeURIComponent(predicate)}`)}
-                className="font-mono text-[12.5px] text-zinc-300 hover:text-zinc-100 hover:underline"
-                title={predicate}
-              >
-                {r.what}
-              </Link>
-            );
-          }
-          const ref = r.summary.kind && r.summary.name && r.summary.kind !== "Subject" ? `${r.summary.kind}:${r.summary.name}` : null;
-          if (ref && parseRef(ref)) return <RefLink value={ref} />;
-          return (
-            <span className="text-zinc-300" title={r.member.path}>
-              {r.what}
-              {r.summary.kind !== "Subject" && r.summary.name && <span className="ml-1.5 font-mono text-[12px] text-zinc-400">{r.summary.name}</span>}
-            </span>
-          );
-        },
-      },
-      {
-        id: "value",
-        header: "Value",
-        className: "min-w-[12rem]",
-        cell: (r) =>
-          r.before && r.after && r.before.text !== r.after.text ? (
-            <span className="flex flex-wrap items-baseline gap-x-2">
-              <span className="line-through decoration-zinc-700">
-                <ShownChange value={r.before} muted />
-              </span>
-              <span className="text-zinc-600">→</span>
-              <ShownChange value={r.after} />
-            </span>
-          ) : r.after || r.before ? (
-            <ShownChange value={(r.after ?? r.before)!} muted={!r.after} />
-          ) : null,
-      },
-      {
-        id: "evidence",
-        header: "Evidence",
-        className: "whitespace-nowrap",
-        cell: (r) =>
-          r.captures.length === 0 ? null : (
-            <span className="flex flex-wrap gap-x-2">
-              {r.captures.map((digest) => (
-                <RefLink key={digest} value={captureHandle(digest)} />
-              ))}
-            </span>
-          ),
-      },
-      {
-        id: "refused",
-        header: "Refused before",
-        title: "An earlier decision refused this Claim: read why before approving it again",
-        sortValue: (r) => r.member.prior_refusals?.length ?? 0,
-        cell: (r) =>
-          (r.member.prior_refusals?.length ?? 0) > 0 ? (
-            <span className="inline-flex items-baseline gap-1.5 text-zinc-300">
-              <SignalDot signal="wrong" title="Refused before" />
-              {r.member.prior_refusals!.length}
-            </span>
-          ) : null,
-      },
-    ],
-    [instanceId, link],
-  );
-  // A column no row fills (a definitions-only proposal has no Subjects, values or evidence) is left out.
-  const filled: Record<string, (r: ChangeRow) => boolean> = {
-    subject: (r) => r.subject !== null,
-    value: (r) => r.before !== null || r.after !== null,
-    evidence: (r) => r.captures.length > 0,
-    refused: (r) => (r.member.prior_refusals?.length ?? 0) > 0,
-  };
-  const shown = columns.filter((c) => !filled[c.id] || rows.some(filled[c.id]!));
+    },
+  ];
   return (
-    <Panel
-      title={
-        <span className="inline-flex items-center gap-1.5">
-          Changes
-          <InfoButton label="About changes">
-            One row per change this proposal makes. Open a row for the stored record's fields as the review compares them, and any earlier refusals.
-          </InfoButton>
-        </span>
-      }
-    >
+    <Panel title="Withheld" description="Changes whose stored records this read does not carry.">
       <DataTable
-        rows={rows}
-        columns={shown}
-        rowKey={(r) => r.member.path}
-        label="Changes"
-        urlKey="changes"
-        expanded={(r) => (
-          <>
-            <ChangeDetail member={r.member} />
-            {r.newSubject && <ChangeDetail member={r.newSubject} />}
-          </>
+        rows={members}
+        columns={columns}
+        rowKey={(m) => m.path}
+        label="Withheld changes"
+        urlKey="withheld"
+        toolbar={false}
+        maxHeight="none"
+        expanded={(m) => (
+          <div className="space-y-2 py-1">
+            {(m.prior_refusals?.length ?? 0) > 0 && <PriorRefusals refusals={m.prior_refusals!} />}
+            <DeltaTable member={m} />
+          </div>
         )}
-        canExpand={(r) => r.member.semantic_delta.length > 0 || (r.member.prior_refusals?.length ?? 0) > 0 || r.newSubject !== null}
+        canExpand={(m) => m.semantic_delta.length > 0 || (m.prior_refusals?.length ?? 0) > 0}
       />
-      {review.prior_refusal_coverage && (
-        <div className="t-meta mt-3" title="How far the refusal index has read; refusals after this are not yet shown">
-          Refusals indexed to g{review.prior_refusal_coverage.indexed_through_generation} of g{review.prior_refusal_coverage.accepted_generation}
-        </div>
-      )}
     </Panel>
-  );
-}
-
-/** A change, opened: earlier refusals of it, then the stored record's fields. */
-function ChangeDetail({ member }: { member: Member }) {
-  return (
-    <div className="space-y-2 py-1 text-[12px]">
-      {(member.prior_refusals?.length ?? 0) > 0 && (
-        <div className="space-y-0.5 text-zinc-300">
-          {member.prior_refusals!.map((refusal) => (
-            <div key={`${refusal.claim_id}\n${refusal.decided_at}`} className="flex flex-wrap items-baseline gap-x-1.5">
-              <SignalDot signal="wrong" title="Refused before" />
-              <span className="text-zinc-500">{refusal.kind.replaceAll("_", " ")}</span>
-              <RefLink value={refusal.claim_id} short />
-              <span className="font-mono text-zinc-400">{refusal.decided_by}</span>
-              <span className="text-zinc-500" title={refusal.decided_at}>
-                {formatWhen(refusal.decided_at)}
-              </span>
-              {refusal.rationale && <span className="text-zinc-400">{refusal.rationale}</span>}
-            </div>
-          ))}
-        </div>
-      )}
-      {member.semantic_delta.length > 0 && <DeltaTable member={member} />}
-    </div>
-  );
-}
-
-/**
- * The member's field deltas, grouped by top-level field. A created member
- * lists its new values; a revised one shows before → after. Long values
- * (JSON, digests) wrap inside their cell and scroll past a few lines.
- */
-function DeltaTable({ member }: { member: Member }) {
-  const created = member.semantic_delta.every((d) => d.before.state === "absent");
-  return (
-    <div className="space-y-2 border-l border-zinc-800 pl-3">
-      {groupDeltas(member).map(({ group, deltas }) => (
-        <div key={group}>
-          {!(deltas.length === 1 && deltas[0]!.field_path.replace(/^\//, "") === group) && <div className="t-meta mb-0.5">{group}</div>}
-          <dl className="grid grid-cols-[minmax(10rem,18rem)_minmax(0,1fr)] gap-x-4 gap-y-0.5 text-[12px] leading-5">
-            {deltas.map((delta) => (
-              <div key={delta.field_path} className="contents">
-                <dt className="truncate font-mono text-zinc-500" title={delta.field_path}>
-                  {delta.field_path.startsWith(`/${group}/`) ? <span className="pl-3">{delta.field_path.slice(group.length + 2)}</span> : delta.field_path}
-                </dt>
-                <dd className="min-w-0">
-                  {created ? (
-                    <DeltaValue side={delta.after} />
-                  ) : (
-                    <span className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="min-w-0 text-zinc-500 line-through decoration-zinc-700">
-                        <DeltaValue side={delta.before} />
-                      </span>
-                      <span className="text-zinc-600">→</span>
-                      <span className="min-w-0">
-                        <DeltaValue side={delta.after} />
-                      </span>
-                    </span>
-                  )}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DeltaValue({ side }: { side: Schemas["SemanticFieldDelta"]["after"] }) {
-  if (side.state !== "present") return <span className="text-zinc-600">Absent</span>;
-  const value = side.value;
-  if (value !== null && typeof value === "object") {
-    return (
-      <code className="block max-h-24 overflow-auto break-all font-mono text-[11px] leading-4 text-zinc-400">
-        {JSON.stringify(value)}
-      </code>
-    );
-  }
-  if (typeof value === "string" && value.length > 160) {
-    return <LongText text={value} lines={2} className="text-zinc-300" />;
-  }
-  return (
-    <span className="break-all text-zinc-300">
-      <ShownValue value={value} />
-    </span>
   );
 }
 
