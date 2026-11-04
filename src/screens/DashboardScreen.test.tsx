@@ -29,10 +29,9 @@ describe("Dashboard", () => {
     expect(coming.getByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
     expect(coming.getByText("Stopped")).toBeInTheDocument();
 
-    // health folds into its tile until asked for
-    expect(main.queryByText("Line dispatch")).not.toBeInTheDocument();
-    fireEvent.click(await strip.findByRole("button", { name: /Health/ }));
+    // health is always on the page; its tile jumps to it
     expect(await main.findByText("Line dispatch")).toBeInTheDocument();
+    fireEvent.click(await strip.findByRole("button", { name: /Health/ }));
     expect(await main.findByText("security.kev-catalog")).toBeInTheDocument();
   });
 

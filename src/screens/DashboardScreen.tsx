@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useState, type ReactNode } from "react";
+import { Fragment, useCallback, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useCards, useInstanceId, useKits, useLines, useNext, useOrient, useSourceModel } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
@@ -28,7 +28,6 @@ export function DashboardScreen() {
   const orient = useOrient();
   const next = useNext({ limit: NEXT_PAGE });
   const lines = useLines();
-  const [showHealth, setShowHealth] = useState(false);
   // Line names without the namespace every Line shares, for the feed and Coming up alike.
   const linePrefix = sharedPrefix((lines.data?.rows ?? []).map((row) => lineName(row.line)));
   const lineLabel = useCallback((name: string) => (name.startsWith(linePrefix) ? name.slice(linePrefix.length) : name), [linePrefix]);
@@ -62,13 +61,13 @@ export function DashboardScreen() {
         }
       />
 
-      <NeedsYou orient={o} next={next.data} onHealth={() => setShowHealth((v) => !v)} healthOpen={showHealth} />
+      <NeedsYou orient={o} next={next.data} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
         <ActivityFeed label={lineLabel} />
         <div className="space-y-5">
           <ComingUp rows={lines.data?.rows} pending={lines.isPending} error={lines.error} />
-          {(showHealth || unhealthy(next.data).length > 0) && <HealthPanel next={next.data} pending={next.isPending} error={next.error} />}
+          <HealthPanel next={next.data} pending={next.isPending} error={next.error} />
           <KitsPanel />
         </div>
       </div>
@@ -133,12 +132,10 @@ function NeedsYou({
   orient,
   next,
   onHealth,
-  healthOpen,
 }: {
   orient: OrientResult;
   next: NextResult | undefined;
   onHealth: () => void;
-  healthOpen: boolean;
 }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
@@ -197,9 +194,8 @@ function NeedsYou({
         headline={next && sick.length === 0 ? "Healthy" : undefined}
         signal={sick.some((row) => healthTone(next!.status[row].state) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
         healthy={next !== undefined && sick.length === 0}
-        detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks · ${healthOpen ? "Hide" : "Show"}`}
+        detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks`}
         onClick={onHealth}
-        pressed={healthOpen}
       />
     </section>
   );
