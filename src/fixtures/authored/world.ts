@@ -172,6 +172,22 @@ const CONTENTION: Record<string, OrientPredicate["contention"]> = {
 };
 const FORMAT: Record<string, number> = { "security.vulnerability.related": 6 };
 
+/**
+ * Planned OrientPredicate fields core does not serve yet (W7 stale_count, W8
+ * evidence_counts): the Dashboard reads them defensively, so the authored
+ * world serves them to test and show the served path.
+ */
+const PLANNED: Record<string, { stale_count: number | null; evidence_counts: { admitted: number; own_word: number; unmet: number } | null }> = {
+  "security.product.name": { stale_count: null, evidence_counts: { admitted: 0, own_word: 1, unmet: 0 } },
+  "security.release.product": { stale_count: null, evidence_counts: { admitted: 0, own_word: 2, unmet: 0 } },
+  "security.vulnerability.cve_id": { stale_count: null, evidence_counts: { admitted: 0, own_word: 3, unmet: 0 } },
+  "security.vulnerability.kev_listed": { stale_count: 2, evidence_counts: { admitted: 2, own_word: 0, unmet: 1 } },
+  "security.vulnerability.related": { stale_count: null, evidence_counts: { admitted: 0, own_word: 1, unmet: 0 } },
+  "security.assessment.vulnerability": { stale_count: null, evidence_counts: { admitted: 0, own_word: 2, unmet: 0 } },
+  "security.assessment.release": { stale_count: null, evidence_counts: { admitted: 0, own_word: 2, unmet: 0 } },
+  "security.assessment.status": { stale_count: 1, evidence_counts: { admitted: 1, own_word: 0, unmet: 1 } },
+};
+
 /** The claim_types section rows: full descriptors, no counts. */
 const CLAIM_TYPES: OrientPredicate[] = AUTHORED.map(({ live_claims, subjects_with_value, ...row }) => {
   void live_claims;
@@ -183,6 +199,7 @@ const CLAIM_TYPES: OrientPredicate[] = AUTHORED.map(({ live_claims, subjects_wit
     format: FORMAT[row.predicate] ?? 8,
     revision: row.predicate === "security.assessment.status" ? 2 : 1,
     path: `claim-types/${kind}/${row.name}.json`,
+    ...PLANNED[row.predicate],
   };
 });
 

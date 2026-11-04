@@ -21,6 +21,7 @@ const BASE_ORIENT = {
 const RUN_OK = "RUN-" + "a1".repeat(16);
 const RUN_REFUSED = "RUN-" + "b2".repeat(16);
 const PROPOSAL = "a".repeat(64);
+const RUN_PROPOSAL = "e".repeat(64);
 const CAPTURE_DIGEST = "sha256:" + "c".repeat(64);
 
 export const ACTIVITY: OrientActivity[] = [
@@ -36,6 +37,18 @@ export const ACTIVITY: OrientActivity[] = [
     because: "Vendor advisory says rel-1 never shipped the build.",
     because_truncated: false,
     members: 1,
+  },
+  // kev-triage's run: its finish, its landing and the generation its proposal was accepted as fold into one Dashboard row.
+  {
+    event: "generation_accepted",
+    at: "2026-10-19T11:30:00Z",
+    ref: `Proposal:${RUN_PROPOSAL}`,
+    sequence: 41,
+    git_oid: "3".repeat(40),
+    proposal: RUN_PROPOSAL,
+    proposer: "kev-triage",
+    because: `Proposed by Procedure security.kev-triage run ${RUN_OK} terminal settle\n\n3 items; each item's reason is recorded with the Claim or Subject it explains.`,
+    members: 3,
   },
   { event: "run_finished", at: "2026-10-19T11:30:00Z", ref: `ProcedureRun:${RUN_OK}`, run: RUN_OK, procedure: "Procedure:security.kev-triage", line: "Line:kev-triage", status: "succeeded", unavailable: false },
   {

@@ -1,8 +1,32 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { AUTHORED } from "@/fixtures/handlers";
 import { renderApp } from "@/test/render";
 
-afterEach(cleanup);
+/** jsdom here has no working localStorage: an in-memory one per test. */
+function memoryStorage(): Storage {
+  const items = new Map<string, string>();
+  return {
+    get length() {
+      return items.size;
+    },
+    clear: () => items.clear(),
+    getItem: (key) => items.get(key) ?? null,
+    key: (i) => [...items.keys()][i] ?? null,
+    removeItem: (key) => void items.delete(key),
+    setItem: (key, value) => void items.set(key, String(value)),
+  };
+}
+
+const SEEN_KEY = "cruxible.dashboard.seen:inst_fixture";
+
+beforeEach(() => vi.stubGlobal("localStorage", memoryStorage()));
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+const panel = async (name: string) => within((await screen.findByRole("heading", { name })).closest("section")!);
 
 describe("Dashboard", () => {
   it("leads with what needs you, then what each enabled Line waits for", async () => {
@@ -35,23 +59,100 @@ describe("Dashboard", () => {
     expect(await main.findByText("security.kev-catalog")).toBeInTheDocument();
   });
 
-  it("shows what happened, newest first: a run's start folds into its finish, refusals are red, older pages load on request", async () => {
+  it("shows what happened, newest first: a Line run folds into one row, refusals are red, older rows page in", async () => {
     renderApp("/i/inst_fixture");
     const feed = within(await screen.findByRole("feed", { name: "Activity" }));
+    // a definition proposal keeps its own row
     expect(await feed.findByRole("link", { name: "Generation 42" })).toHaveAttribute("href", "/i/inst_fixture?at=42");
     expect(feed.getByText(/accepted · 1 change · proposed by release-owner/)).toBeInTheDocument();
     expect(feed.getByText("Vendor advisory says rel-1 never shipped the build.")).toBeInTheDocument();
-    // one row for the run that started and finished on this page
-    expect(feed.getAllByText("ran · succeeded")).toHaveLength(1);
-    expect(feed.queryByText("started a run")).toBeNull();
-    expect(feed.getByText("landed evidence from cisa.kev.catalog")).toBeInTheDocument();
+    // kev-triage's run: its start, landing and accepted generation are one row, each part linked
+    const run = feed.getByRole("link", { name: "succeeded" });
+    expect(run).toHaveAttribute("href", `/i/inst_fixture/runs/RUN-${"a1".repeat(16)}`);
+    const row = within(run.closest("div")!);
+    expect(row.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+    expect(row.getByText("3 changes")).toBeInTheDocument();
+    expect(row.getByRole("link", { name: "g41" })).toHaveAttribute("href", "/i/inst_fixture?at=41");
+    expect(row.getByRole("link", { name: "CAP-cccc…" })).toBeInTheDocument();
+    expect(feed.queryByText(/started a run|landed evidence/)).toBeNull();
+    expect(feed.queryByRole("link", { name: "Generation 41" })).toBeNull();
+    // a refused run is red
+    const refused = feed.getByRole("link", { name: "refused" }).closest("div")!;
+    expect(within(refused).getByRole("img", { name: /Refused at admission/ })).toBeInTheDocument();
     expect(feed.getByText("posted to the inbox")).toBeInTheDocument();
-    const refused = feed.getByText("ran · refused").parentElement!;
-    expect(within(refused).getByRole("img", { name: "Wrong or blocked" })).toBeInTheDocument();
     expect(feed.getByText("armed → stopped")).toBeInTheDocument();
     fireEvent.click(feed.getByRole("button", { name: "Show older activity" }));
     expect(await feed.findByText("let due work lapse")).toBeInTheDocument();
     expect(feed.queryByRole("button", { name: "Show older activity" })).toBeNull();
+  });
+
+  it("shows whether the knowledge is current: freshness per source, stale beliefs and evidence per kind", async () => {
+    renderApp("/i/inst_fixture");
+    const current = within(await screen.findByRole("region", { name: "Current" }));
+
+    const freshness = await panel("Freshness");
+    const sources = within(await freshness.findByRole("list", { name: "Sources" }));
+    const kev = await sources.findByRole("link", { name: "cisa.kev.catalog" });
+    expect(kev).toHaveAttribute("href", `/i/inst_fixture/flow?focus=${encodeURIComponent("source:cisa.kev.catalog")}`);
+    const cell = within(kev.closest("li")!);
+    expect(cell.getByRole("link", { name: /ago$/ }).getAttribute("href")).toMatch(/^\/i\/inst_fixture\/ref\/Capture/);
+    expect(cell.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+
+    const stale = await panel("Stale beliefs");
+    expect(await stale.findByText("3 stale")).toBeInTheDocument();
+    const vulnerability = stale.getByRole("link", { name: "security.vulnerability" }).closest("tr")!;
+    expect(within(vulnerability).getByRole("link", { name: "2" })).toHaveAttribute("href", "/i/inst_fixture/beliefs?tab=stale");
+    expect(within(vulnerability).getByRole("link", { name: /kev_listed 1d/ })).toHaveAttribute(
+      "href",
+      "/i/inst_fixture/kinds/security.vulnerability?claim_type=security.vulnerability.kev_listed",
+    );
+
+    const evidence = await panel("Evidence coverage");
+    expect(evidence.getByText("2 not admitted")).toBeInTheDocument();
+    const bar = within(evidence.getByRole("group", { name: "security.vulnerability evidence" }));
+    expect(bar.getByRole("link", { name: "Required, not admitted: 1" })).toHaveAttribute("href", "/i/inst_fixture/beliefs?tab=stale");
+    expect(bar.getByRole("link", { name: "Admitted evidence: 2" })).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability?view=claim-types");
+    expect(bar.getByRole("link", { name: "Own words: 4" })).toBeInTheDocument();
+    expect(current.queryByText("Not served by this daemon")).toBeNull();
+  });
+
+  it("says so when the daemon does not serve stale or evidence counts", async () => {
+    const strip = (row: Record<string, unknown>) => {
+      const { stale_count, evidence_counts, ...rest } = row;
+      void stale_count;
+      void evidence_counts;
+      return rest;
+    };
+    const fixtures = AUTHORED.map((f) => {
+      const response = f.response as { section?: string; claim_types?: Record<string, unknown>[] };
+      return response.section === "claim_types" ? { ...f, response: { ...response, claim_types: response.claim_types!.map(strip) } } : f;
+    });
+    renderApp("/i/inst_fixture", fixtures);
+    expect(await (await panel("Stale beliefs")).findByText("Not served by this daemon")).toBeInTheDocument();
+    expect((await panel("Evidence coverage")).getByText("Not served by this daemon")).toBeInTheDocument();
+  });
+
+  it("records a first visit, then lists beliefs changed since the generation last marked seen", async () => {
+    renderApp("/i/inst_fixture");
+    const since = await panel("Since you last looked");
+    expect(await since.findByText("First visit")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(SEEN_KEY)!)).toMatchObject({ generation: 42 });
+    cleanup();
+
+    localStorage.setItem(SEEN_KEY, JSON.stringify({ generation: 41, at: "2026-10-19T08:00:00Z" }));
+    renderApp("/i/inst_fixture");
+    const later = await panel("Since you last looked");
+    expect(later.getByRole("link", { name: "g41" })).toHaveAttribute("href", "/i/inst_fixture?at=41");
+    expect(await later.findByRole("link", { name: /Created 1 New/ })).toHaveAttribute("href", "/i/inst_fixture/ledger");
+    expect(later.getByRole("link", { name: /Revised 1 Revised/ })).toBeInTheDocument();
+    expect(later.getByRole("link", { name: /Retired 1 Retired/ })).toBeInTheDocument();
+    const byKind = within(later.getByRole("table"));
+    expect(byKind.getByRole("link", { name: "security.vulnerability" })).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability");
+    expect(byKind.getByRole("link", { name: "security.assessment" })).toBeInTheDocument();
+
+    fireEvent.click(later.getByRole("button", { name: "Mark seen" }));
+    expect(await later.findByText("Nothing new since g42")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem(SEEN_KEY)!)).toMatchObject({ generation: 42 });
   });
 
   it("keeps a ?at= pin on every link and names it in the picker", async () => {

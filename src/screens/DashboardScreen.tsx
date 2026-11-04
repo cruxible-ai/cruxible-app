@@ -3,11 +3,14 @@ import { Link } from "react-router-dom";
 import { useCards, useInstanceId, useKits, useLines, useNext, useOrient, useSourceModel } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
 import type { NextHealth, NextResult, NextSeverity, OrientResult, Schemas } from "@/api/schemas";
-import { ActivityFeed } from "@/components/ActivityFeed";
 import { Chip, HealthChip, SignalDot } from "@/components/Chip";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
-import { useAtLink } from "@/lib/at";
+import { EvidenceCoveragePanel, StaleBeliefsPanel } from "@/components/dashboard/BeliefPanels";
+import { CompactActivity } from "@/components/dashboard/CompactActivity";
+import { FreshnessPanel } from "@/components/dashboard/Freshness";
+import { SinceLastLooked } from "@/components/dashboard/SinceLastLooked";
+import { useAtLink, useAtParam } from "@/lib/at";
 import { sharedPrefix } from "@/lib/evidence-flow";
 import { lineName, nextRowsByLine, unreadOf } from "@/lib/lines";
 import { wakeOf, type Wake } from "@/lib/schedule";
@@ -19,13 +22,17 @@ type OrientLine = Schemas["OrientLine"];
 type LineCard = Schemas["GetLineCard"];
 
 /**
- * Orientation point at the pinned generation, built around what changes: what
- * needs you now (proposals, inbox, next items, Lines, health), and what each
- * running Line is waiting for and when it next wakes. The state's size is one
- * line in the header; kinds live in the sidebar.
+ * The daily operator surface at the pinned generation: what needs you
+ * (proposals, inbox, next items, Lines, health); whether the knowledge is
+ * current (each source's freshness against its schedule, stale beliefs and
+ * evidence coverage per kind); and what changed (since you last looked, the
+ * activity, what each running Line waits for). The state's size is one line
+ * in the header; the visual snapshot is the Overview. Reads are bounded by
+ * sources, Lines and kinds, never by Claims.
  */
 export function DashboardScreen() {
   const orient = useOrient();
+  const pinned = useAtParam() !== null;
   const next = useNext({ limit: NEXT_PAGE });
   const lines = useLines();
   // Line names without the namespace every Line shares, for the feed and Coming up alike.
@@ -63,8 +70,17 @@ export function DashboardScreen() {
 
       <NeedsYou orient={o} next={next.data} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
 
+      <section aria-label="Current" className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 xl:grid-cols-3">
+        <FreshnessPanel label={lineLabel} />
+        <StaleBeliefsPanel />
+        <EvidenceCoveragePanel />
+      </section>
+
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
-        <ActivityFeed label={lineLabel} />
+        <div className="min-w-0 space-y-5">
+          <SinceLastLooked key={o.instance} head={o.generation} pinned={pinned} />
+          <CompactActivity label={lineLabel} />
+        </div>
         <div className="space-y-5">
           <ComingUp rows={lines.data?.rows} pending={lines.isPending} error={lines.error} />
           <HealthPanel next={next.data} pending={next.isPending} error={next.error} />
