@@ -204,8 +204,10 @@ describe("recorded reference world", () => {
     cleanup();
     renderApp(`${I}/p/${encodeURIComponent(REVIEWED)}`, RECORDED);
     const m = await main();
-    expect(await m.findByText(/1 change: \+1 provider/)).toHaveTextContent("Settled, accepted. 1 change: +1 provider.");
-    fireEvent.click(await m.findByRole("button", { name: /field changes/ }));
+    // the changes as a fact, not a sentence; one row per change, its stored fields behind the row
+    expect(await m.findByText("+1 provider")).toBeInTheDocument();
+    expect(m.getByRole("table", { name: "Changes" })).toBeInTheDocument();
+    fireEvent.click(m.getAllByRole("button", { name: /^Expand / })[0]!);
     expect(await m.findByText("/artifact_format")).toBeInTheDocument();
   });
 });

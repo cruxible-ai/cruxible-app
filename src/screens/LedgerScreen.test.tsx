@@ -64,17 +64,20 @@ describe("Proposals and review", () => {
   it("renders a review read-only: deltas, governance, approvals, item reasons", async () => {
     renderApp(`/i/inst_fixture/p/${encodeURIComponent(ACCEPTED)}`);
     const main = within(await screen.findByRole("main"));
+    // one row per change; a row opens to the stored record's fields
+    for (const button of await main.findAllByRole("button", { name: /^Expand / })) fireEvent.click(button);
     expect(await main.findByText("object.value")).toBeInTheDocument();
     // a created member is marked "+" (its word on hover) and lists its new values (no "absent" before side)
     expect(main.getAllByRole("img", { name: "Created" }).length).toBeGreaterThan(0);
     expect(main.getByText(/independent-principal ×1/)).toBeInTheDocument();
     expect(main.getByText("security-lead")).toBeInTheDocument();
     expect(main.getByText(/submitted by release-owner/)).toBeInTheDocument();
-    expect(main.getByText(/^Withheld:/)).toHaveAttribute("title", "Needs a body-reading credential");
+    expect(main.getByText("Some stored fields are withheld").getAttribute("title")).toMatch(/^Needs a body-reading credential: /);
     expect(main.queryByRole("button", { name: /approve|activate|reject|withdraw|readmit/i })).toBeNull();
     cleanup();
     renderApp(`/i/inst_fixture/p/${encodeURIComponent(OPEN)}`);
     expect(await screen.findByText("OSV lists xz 5.6.0 and 5.6.1 as affected; rel-1 pins 5.6.1.")).toBeInTheDocument();
-    expect(screen.getByText("lifecycle.state")).toBeInTheDocument();
+    for (const button of await screen.findAllByRole("button", { name: /^Expand / })) fireEvent.click(button);
+    expect(await screen.findByText("lifecycle.state")).toBeInTheDocument();
   });
 });

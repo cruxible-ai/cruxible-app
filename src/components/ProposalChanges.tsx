@@ -57,7 +57,24 @@ function objectValue(object: unknown): { text: string; ref: string | null } {
     const name = addressSubject(o.address);
     return name ? { text: name, ref: name } : { text: "a Subject", ref: null };
   }
+  // An inverse: "none of" the Subject (or value) it names.
+  if (o.kind === "none") {
+    const of = objectValue(o.of);
+    return { text: `none of ${of.text}`, ref: null };
+  }
   return { text: JSON.stringify(o), ref: null };
+}
+
+/** A Claim artifact's object as display text (and the Subject it names, when it names one). */
+export function claimObject(artifact: unknown): { text: string; ref: string | null } | null {
+  const object = obj(obj(obj(artifact)?.statement)?.object);
+  return object ? objectValue(object) : null;
+}
+
+/** A Claim artifact's cited Capture digests. */
+export function claimCaptures(artifact: unknown): string[] {
+  const digests = obj(obj(artifact)?.backing)?.capture_digests;
+  return Array.isArray(digests) ? digests.filter((d): d is string => typeof d === "string") : [];
 }
 
 /** Members whose artifact this read doesn't carry (withheld or not served): listed by path. */
