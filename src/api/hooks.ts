@@ -27,6 +27,7 @@ import {
   queryBody,
   readingsBody,
   reviewBody,
+  sinceBody,
   type QueryArgs,
 } from "./requests";
 import type {
@@ -441,6 +442,52 @@ export function useOrientKind(kind: string | null) {
     [kind],
     (coordinate) => orient(coordinate, { kind: kind! }),
     kind !== null,
+  );
+}
+
+/**
+ * Several kinds' detail at once (the same reads and cache entries
+ * `useOrientKind` makes): one orient(kind=K) per kind, ontology-sized.
+ * Results keep the order of `kinds`.
+ */
+export function useOrientKindDetails(kinds: readonly string[]) {
+  const orient = useOrientFetch();
+  const instanceId = useInstanceId();
+  const { coordinate } = usePin();
+  return useQueries({
+    queries: kinds.map((kind) => ({
+      queryKey: ["orient-kind", instanceId, coordinate?.git_oid ?? null, kind],
+      enabled: coordinate !== undefined,
+      staleTime: 60_000,
+      queryFn: () => orient(coordinate!, { kind }),
+    })),
+    combine: (results) => ({
+      isPending: results.some((result) => result.isPending),
+      error: results.find((result) => result.error)?.error ?? null,
+      data: results.map((result) => result.data?.kind_detail ?? null),
+    }),
+  });
+}
+
+/**
+ * The ChangeSet members accepted after `lower` through the page coordinate
+ * (POST /since): one read of at most SINCE_ROWS rows, a Claim member with its
+ * statement. Null `lower`: not yet known.
+ */
+export function useSince(lower: number | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return usePinnedQuery(
+    "since",
+    [lower],
+    async (coordinate): Promise<Schemas["SinceResult"]> =>
+      unwrap(
+        await client.POST("/api/v1/{instance_id}/since", {
+          params: { path: { instance_id: instanceId } },
+          body: sinceBody(lower!, coordinate),
+        }),
+      ),
+    lower !== null,
   );
 }
 

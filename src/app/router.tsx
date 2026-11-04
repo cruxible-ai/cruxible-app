@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { LoadState } from "@/components/Panel";
 import { AppShell } from "./AppShell";
 import { RouteError } from "./RouteError";
+import { DashboardScreen } from "@/screens/DashboardScreen";
 import { OverviewScreen } from "@/screens/OverviewScreen";
 import { TypeMapScreen } from "@/screens/TypeMapScreen";
 import { RefScreen } from "@/screens/RefScreen";
@@ -44,7 +45,8 @@ export const routes = [
     element: <AppShell />,
     errorElement: <RouteError />,
     children: [
-      { index: true, element: <OverviewScreen /> },
+      { index: true, element: <DashboardScreen /> },
+      { path: "overview", element: <OverviewScreen /> },
       { path: "map", element: <TypeMapScreen /> },
       { path: "kinds/:kind", element: <KindScreen /> },
       { path: "claim-types/:predicate", element: <ClaimTypeRedirect /> },

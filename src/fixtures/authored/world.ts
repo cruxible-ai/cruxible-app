@@ -187,7 +187,7 @@ const CLAIM_TYPES: OrientPredicate[] = AUTHORED.map(({ live_claims, subjects_wit
 });
 
 /** A kind detail's descriptors: full, with that kind's live counts. */
-function kindDescriptors(kind: string): OrientPredicate[] {
+export function kindDescriptors(kind: string): OrientPredicate[] {
   return CLAIM_TYPES.filter((row) => row.subject_kinds!.includes(kind)).map(({ kit, ...row }) => {
     void kit; // the claim_types section alone names the owning kit
     const counts = AUTHORED.find((item) => item.predicate === row.predicate)!;
@@ -196,7 +196,7 @@ function kindDescriptors(kind: string): OrientPredicate[] {
 }
 
 /** Each kind's identity and the contract set its ClaimTypes most commonly admit (a kind detail's header). */
-const KIND_ROWS = [
+export const KIND_ROWS = [
   { kind: "security.assessment", subjects: 2, identity: "keys: release_id, cve_id", evidence: ["security.osv-applicability-v1"] },
   { kind: "security.product", subjects: 1, identity: "keys: name" },
   { kind: "security.release", subjects: 2, identity: "keys: product, version" },

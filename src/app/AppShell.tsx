@@ -6,6 +6,7 @@ import {
   GitPullRequest,
   History,
   LayoutDashboard,
+  Library,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
@@ -86,7 +87,8 @@ export function AppShell() {
   const generation = pin.head.data?.generation;
 
   const tabs: Tab[] = [
-    { path: "", label: "Overview", icon: LayoutDashboard, end: true },
+    { path: "", label: "Dashboard", icon: LayoutDashboard, end: true },
+    { path: "/overview", label: "Overview", icon: Library },
     { path: "/map", label: "Type map", icon: Network },
     { path: "/flow", label: "Evidence flow", icon: Route },
     { path: "/graph", label: "State graph", icon: Waypoints },

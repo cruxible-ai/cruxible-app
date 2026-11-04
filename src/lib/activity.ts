@@ -3,7 +3,7 @@ import { PALETTE } from "./palette.ts";
 import { term, type Signal } from "./vocabulary.ts";
 
 /**
- * The Overview's activity feed, one row per event the daemon reports (orient
+ * The Dashboard's activity feed, one row per event the daemon reports (orient
  * section=activity), in words: who or what acted, what happened, and where to
  * read more. A run's start and finish on the same page fold into its finish.
  * Each event family has a categorical color (what kind of thing happened);

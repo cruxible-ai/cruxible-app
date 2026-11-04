@@ -53,6 +53,7 @@ export const READ_ROUTES = [
   "POST /api/v1/{instance_id}/query",
   "POST /api/v1/{instance_id}/next",
   "POST /api/v1/{instance_id}/claims/read-batch",
+  "POST /api/v1/{instance_id}/since",
   "POST /api/v1/{instance_id}/captures/read",
   "POST /api/v1/{instance_id}/proposals/{proposal_id}/review",
   "POST /api/v1/{instance_id}/procedures/{name}/readings",
@@ -137,7 +138,7 @@ export const GRAPH_PAGE = 500;
 /** Accepted generations per ledger page. */
 export const LEDGER_PAGE = 50;
 
-/** Activity rows per page (orient section=activity; Overview's feed). */
+/** Activity rows per page (orient section=activity; the Dashboard's feed). */
 export const ACTIVITY_PAGE = 30;
 
 /** The most of a Capture's body the page reads (larger ones point to the CLI). */
@@ -248,6 +249,33 @@ export function nextBody(args: NextArgs): RequestBody<"/api/v1/{instance_id}/nex
     caller_surface: "sdk",
     ...(args.limit !== undefined ? { limit: args.limit } : {}),
     ...(args.cursor !== undefined ? { cursor: args.cursor } : {}),
+  };
+}
+
+/**
+ * The most ChangeSet members one since read takes (the Overview's recent
+ * changes): the newest generations whose members fit, from the generations
+ * page in hand, so one read covers them whatever the instance's size.
+ */
+export const SINCE_ROWS = 300;
+/** since's byte cap (the route's maximum): the row cap binds first. */
+export const SINCE_MAX_BYTES = 1_048_576;
+
+/** since takes the full coverage access profile (every field, sorted classes). */
+export function sinceBody(
+  lowerGeneration: number,
+  coordinate: AcceptedCoordinate,
+): RequestBody<"/api/v1/{instance_id}/since", "post"> {
+  return {
+    generation: lowerGeneration,
+    at: coordinate,
+    access_profile: {
+      ...CONSOLE_ACCESS_PROFILE,
+      permitted_access_classes: [...CONSOLE_ACCESS_PROFILE.permitted_access_classes],
+      disclose_restricted_existence: true,
+    },
+    max_rows: SINCE_ROWS,
+    max_bytes: SINCE_MAX_BYTES,
   };
 }
 

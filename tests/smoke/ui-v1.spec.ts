@@ -3,10 +3,10 @@ import { expect, test } from "@playwright/test";
 // Runs against `VITE_CRUXIBLE_FIXTURES=authored` (playwright.config.ts's
 // default, overridable with UI_SMOKE_WORLD): the MSW worker serves
 // src/fixtures/authored/ at the network layer, offline.
-test("fixture-backed inspection flow: overview, kind table, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
+test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
-  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   const main = page.getByRole("main");
   // What needs you, then each enabled Line with what wakes it (prefix dropped); kinds live on the type map, not the sidebar.
   await expect(main.getByRole("region", { name: "Needs you" }).getByRole("link", { name: /Next \d/ })).toBeVisible();
@@ -141,7 +141,7 @@ test("fixture-backed inspection flow: overview, kind table, kind, contract, evid
   await page.getByRole("option", { name: /^g42/ }).click();
   await expect(page).toHaveURL(/at=42/);
   await expect(page.getByRole("button", { name: /Generation 42 · pinned/ })).toBeVisible();
-  await page.locator("aside").getByRole("link", { name: "Overview" }).click();
+  await page.locator("aside").getByRole("link", { name: "Dashboard" }).click();
   await expect(page).toHaveURL(/\/i\/inst_fixture\?at=42$/);
   await page.getByRole("button", { name: "Back to head" }).click();
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);

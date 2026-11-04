@@ -1,633 +1,762 @@
-import { Fragment, useCallback, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useCards, useInstanceId, useKits, useLines, useNext, useOrient, useSourceModel } from "@/api/hooks";
-import { NEXT_PAGE } from "@/api/requests";
-import type { NextHealth, NextResult, NextSeverity, OrientResult, Schemas } from "@/api/schemas";
-import { ActivityFeed } from "@/components/ActivityFeed";
-import { Chip, HealthChip, SignalDot } from "@/components/Chip";
+import {
+  useClaimTypes,
+  useDocuments,
+  useGenerations,
+  useInstanceId,
+  useOrient,
+  useOrientKindDetails,
+  useOrientKinds,
+  useRunAuthor,
+  useSince,
+  useSourceLandings,
+  useSourceModel,
+  useSubjectKinds,
+} from "@/api/hooks";
+import type { OrientPredicate, Schemas } from "@/api/schemas";
+import { ChangeMark } from "@/components/Chip";
+import { ChangeValue, GenerationLink } from "@/components/ChangeLog";
+import { DataTable, type Column } from "@/components/DataTable";
+import { InfoButton } from "@/components/InfoButton";
 import { Fact, Page, PageHeader } from "@/components/Page";
-import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
+import { EmptyState, LoadState, Panel } from "@/components/Panel";
+import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
-import { sharedPrefix } from "@/lib/evidence-flow";
-import { lineName, nextRowsByLine, unreadOf } from "@/lib/lines";
-import { wakeOf, type Wake } from "@/lib/schedule";
-import { formatDateTime, formatRelative, humanize, sentence } from "@/lib/text";
+import { proposalRun, proposalWords } from "@/lib/change-sets";
+import type { LogicalSource } from "@/lib/definitions";
+import { lineName } from "@/lib/lines";
+import { isCoreIdentity, shareLabel } from "@/lib/ontology";
+import { beliefChanges, kindFeeds, latestByKind, sinceLower, type BeliefChange, type KindFeed } from "@/lib/overview";
+import { formatDateTime, formatRelative } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
-import { healthTone, term, type Signal } from "@/lib/vocabulary";
+import { changeMark, term } from "@/lib/vocabulary";
 
-type OrientLine = Schemas["OrientLine"];
-type LineCard = Schemas["GetLineCard"];
+type Generation = Schemas["OrientGeneration"];
+type SourceLanding = Schemas["OrientSource"];
+
+const ABOUT = {
+  page: "What this instance knows: its kinds of Subject and the facts held about them, where the evidence comes from, and how its beliefs changed lately. What needs you is on the Dashboard.",
+  kinds: "A kind is a type of thing the instance tracks (a vulnerability, a product). Each Subject is one such thing; each Claim is one fact about a Subject, of one ClaimType (a field). Fed by: the Lines whose runs write its facts; Entered directly: people or agents enter some of it themselves.",
+  sources: "Where evidence comes from. Each time a Line reads a source, what it read lands as a Capture: the evidence Claims cite.",
+  changes: "The latest Claims stated, changed or retired, read from the newest accepted generations. A Claim whose value is “none of …” states that the Subject holds nothing there.",
+  coverage: "For each ClaimType, how many of the kind's Subjects hold a value.",
+  documents: "Documents the instance holds: reference text Claims and definitions can cite.",
+};
+
+/** A Panel title with its ⓘ. */
+function Titled({ children, info, label }: { children: string; info: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {children}
+      <InfoButton label={label}>{info}</InfoButton>
+    </span>
+  );
+}
 
 /**
- * Orientation point at the pinned generation, built around what changes: what
- * needs you now (proposals, inbox, next items, Lines, health), and what each
- * running Line is waiting for and when it next wakes. The state's size is one
- * line in the header; kinds live in the sidebar.
+ * What this instance knows, at a glance: its kinds (Subjects, ClaimTypes,
+ * Claims, who feeds them), its sources, recent changes to beliefs, coverage
+ * per ClaimType and its documents. List and aggregate reads only: orient
+ * sections, one orient(kind=K) per kind, the source model, one since read.
  */
 export function OverviewScreen() {
   const orient = useOrient();
-  const next = useNext({ limit: NEXT_PAGE });
-  const lines = useLines();
-  const [showHealth, setShowHealth] = useState(false);
-  // Line names without the namespace every Line shares, for the feed and Coming up alike.
-  const linePrefix = sharedPrefix((lines.data?.rows ?? []).map((row) => lineName(row.line)));
-  const lineLabel = useCallback((name: string) => (name.startsWith(linePrefix) ? name.slice(linePrefix.length) : name), [linePrefix]);
   usePageTitle("Overview");
 
   if (orient.isPending) return <LoadState />;
   if (orient.error) return <LoadState error={orient.error} />;
   const o = orient.data;
+  const claims = o.artifacts?.claims;
+  const kinds = (o.kinds ?? []).filter((k) => !isCoreIdentity(k.kind));
+  const subjects = kinds.reduce((total, k) => total + k.subjects, 0);
+  const documents = o.artifacts?.documents ?? 0;
 
   return (
     <Page>
       <PageHeader
         title="Overview"
-        summary={<StateLine orient={o} />}
+        info={ABOUT.page}
+        infoLabel="About the Overview"
         facts={
           <>
-            <Fact label="Generation">
-              <span className="font-mono">{o.generation}</span>
+            <Fact label="Generation" title={o.accepted_at}>
+              <span className="font-mono">g{o.generation}</span> <span className="text-zinc-500">{formatRelative(o.accepted_at)}</span>
             </Fact>
-            <Fact label="Accepted" title={o.accepted_at}>
-              {formatDateTime(o.accepted_at)} <span className="text-zinc-500">({formatRelative(o.accepted_at)})</span>
+            <Fact label="Subjects">
+              <Count value={subjects} />
             </Fact>
-            {o.floor && (
-              <Fact label="Floor">
-                <span className="font-mono">{o.floor.at}</span>
-                {o.floor.generations_behind != null && ` (${o.floor.generations_behind} behind)`}
+            <Fact label="Claims accepted" title={term("claim", "accepted").meaning}>
+              <Count value={claims?.accepted} />
+            </Fact>
+            <Fact label="Conflicted" title={term("claim", "conflicted").meaning}>
+              <Count value={claims?.conflicted} />
+            </Fact>
+            <Fact label="Waiting for review" title={term("proposal", "open").meaning}>
+              <ToLink to="/proposals?status=open">
+                <Count value={o.attention?.open_proposals} />
+              </ToLink>
+            </Fact>
+            {(claims?.retired ?? 0) > 0 && (
+              <Fact label="Retired" title={term("claim", "retired").meaning}>
+                <Count value={claims?.retired} />
               </Fact>
             )}
-            {o.you?.actor && <Fact label="Reading as">{o.you.actor}</Fact>}
+            <Fact label="ClaimTypes">
+              <Count value={o.artifacts?.claim_types} />
+            </Fact>
+            <Fact label="Captures">
+              <Count value={o.artifacts?.captures} />
+            </Fact>
+            <Fact label="Documents">
+              <ToLink to="/docs">
+                <Count value={documents} />
+              </ToLink>
+            </Fact>
           </>
         }
       />
-
-      <NeedsYou orient={o} next={next.data} onHealth={() => setShowHealth((v) => !v)} healthOpen={showHealth} />
-
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
-        <ActivityFeed label={lineLabel} />
-        <div className="space-y-5">
-          <ComingUp rows={lines.data?.rows} pending={lines.isPending} error={lines.error} />
-          {(showHealth || unhealthy(next.data).length > 0) && <HealthPanel next={next.data} pending={next.isPending} error={next.error} />}
-          <KitsPanel />
-        </div>
-      </div>
+      <KindsAndChanges />
+      <SourcesPanel />
+      {documents > 0 && <DocumentsPanel />}
     </Page>
   );
 }
 
-/** The state's size in one line: Claims (conflicts flagged) and what defines it. */
-function StateLine({ orient }: { orient: OrientResult }) {
-  const a = orient.artifacts;
-  const claims = a?.claims;
-  const kinds = orient.kinds ?? [];
-  const n = (value: number | undefined) => <span className="font-mono text-zinc-100">{value ?? 0}</span>;
-  const plural = (value: number | undefined, word: string) => (value === 1 ? word : `${word}s`);
-  return (
-    <span>
-      {n(claims?.accepted)} accepted {plural(claims?.accepted, "Claim")}
-      {(claims?.conflicted ?? 0) > 0 && (
-        <>
-          {" "}
-          (<SignalDot signal="wrong" title={term("claim", "conflicted").meaning} /> {n(claims!.conflicted)} conflicted)
-        </>
-      )}{" "}
-      on {n(kinds.filter((k) => k.subjects > 0).length)} of {kinds.length} Subject kinds · {n(a?.claim_types)} ClaimTypes ·{" "}
-      {n(a?.lines)} {plural(a?.lines, "Line")} · {n(a?.procedures)} {plural(a?.procedures, "Procedure")} · {n(a?.captures)}{" "}
-      {plural(a?.captures, "Capture")}
-    </span>
-  );
-}
+const Count = ({ value }: { value: number | undefined }) => <span className="font-mono text-zinc-100">{(value ?? 0).toLocaleString()}</span>;
 
-// -- needs you ----------------------------------------------------------------
-
-const SEVERITIES: NextSeverity[] = ["blocking", "repair", "warning"];
-
-/** Health rows next reports, in reading order. */
-const HEALTH_ROWS = [
-  "instance",
-  "floor",
-  "ledger_mirror",
-  "provider_lane",
-  "procedure_catalog",
-  "compiler",
-  "line_dispatch",
-  "consumers",
-  "triggers",
-] as const;
-
-function unhealthy(next: NextResult | undefined) {
-  const status = next?.status;
-  if (!status) return [];
-  return HEALTH_ROWS.filter((row) => {
-    const tone = healthTone(status[row].state);
-    return tone === "waiting" || tone === "wrong";
-  });
-}
-
-/**
- * One strip of tiles, each a count and where to act on it. A tile is amber or
- * red only while its count says something needs doing; at zero it is quiet.
- */
-function NeedsYou({
-  orient,
-  next,
-  onHealth,
-  healthOpen,
-}: {
-  orient: OrientResult;
-  next: NextResult | undefined;
-  onHealth: () => void;
-  healthOpen: boolean;
-}) {
+function ToLink({ to, children }: { to: string; children: ReactNode }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  const attention = orient.attention;
-  const proposals = attention?.open_proposals ?? 0;
-  const items = next?.items ?? [];
-  const bySeverity = new Map(SEVERITIES.map((s) => [s, items.filter((item) => item.severity === s).length]));
-  const unread = [...nextRowsByLine(items).values()].reduce((sum, rows) => sum + (unreadOf(rows) ?? 0), 0);
-  const enablements = attention?.enablements;
-  const stalled = enablements?.stalled ?? 0;
-  const stopped = enablements?.stopped ?? 0;
-  const sick = unhealthy(next);
-  const nextSignal: Signal | undefined = bySeverity.get("blocking") ? "wrong" : bySeverity.get("repair") ? "waiting" : undefined;
-  const severityWords = SEVERITIES.flatMap((s) => {
-    const n = bySeverity.get(s) ?? 0;
-    return n ? [`${n} ${term("severity", s).word.toLowerCase()}${n === 1 || s === "blocking" ? "" : "s"}`] : [];
-  });
-  const partial = next && next.total_items > items.length;
-
   return (
-    <section aria-label="Needs you" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-      <Tile
-        label="Waiting for review"
-        count={proposals}
-        signal={proposals ? "waiting" : undefined}
-        detail={proposals ? "Review on CLI or MCP" : "None open"}
-        to={link(`/i/${instanceId}/proposals?status=open`)}
-      />
-      <Tile
-        label="Unread inbox"
-        count={next ? unread : null}
-        signal={unread ? "waiting" : undefined}
-        detail={unread ? "Posted by Lines" : "None posted"}
-        to={link(`/i/${instanceId}/lines`)}
-      />
-      <Tile
-        label="Next"
-        count={next ? next.total_items : null}
-        signal={nextSignal}
-        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : next.total_items ? "None urgent" : "None") : undefined}
-        to={link(`/i/${instanceId}/next`)}
-      />
-      <Tile
-        label="Lines"
-        // orient omits enablements while no Line is enabled: none running.
-        count={enablements?.running ?? 0}
-        countWord="running"
-        signal={stalled ? "wrong" : stopped ? "waiting" : undefined}
-        detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : "None stalled or stopped"}
-        to={link(`/i/${instanceId}/lines`)}
-      />
-      <Tile
-        label="Health"
-        count={next ? sick.length : null}
-        countWord={sick.length ? "need a look" : undefined}
-        headline={next && sick.length === 0 ? "Healthy" : undefined}
-        signal={sick.some((row) => healthTone(next!.status[row].state) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
-        healthy={next !== undefined && sick.length === 0}
-        detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks · ${healthOpen ? "Hide" : "Show"}`}
-        onClick={onHealth}
-        pressed={healthOpen}
-      />
-    </section>
-  );
-}
-
-function Tile({
-  label,
-  count,
-  countWord,
-  signal,
-  detail,
-  to,
-  onClick,
-  pressed,
-  healthy = false,
-  headline,
-}: {
-  label: string;
-  count: number | null;
-  countWord?: string | undefined;
-  signal: Signal | undefined;
-  detail: ReactNode;
-  to?: string;
-  onClick?: () => void;
-  pressed?: boolean;
-  healthy?: boolean;
-  /** A status word in place of the count (Health's "Healthy"), in its tone's color. */
-  headline?: string | undefined;
-}) {
-  const ring = signal === "wrong" ? "border-red-500/50" : signal === "waiting" ? "border-amber-400/50" : "border-zinc-800";
-  const body = (
-    <>
-      <div className="flex items-center gap-1.5 text-[12px] text-zinc-400">
-        {signal && <SignalDot signal={signal} title={signal === "wrong" ? "Wrong or blocked" : "Waiting on you"} />}
-        {label}
-      </div>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        {headline ? (
-          <span className={`text-[18px] font-medium leading-none ${healthy ? "text-emerald-400" : "text-zinc-100"}`}>{headline}</span>
-        ) : count === null ? (
-          <span className="text-zinc-600">…</span>
-        ) : (
-          <>
-            <span className={`font-mono text-[22px] leading-none ${count || signal ? "text-zinc-100" : "text-zinc-500"}`}>{count}</span>
-            {countWord && <span className="text-[13px] text-zinc-400">{countWord}</span>}
-          </>
-        )}
-      </div>
-      {detail && <div className="mt-1 truncate text-[12px] text-zinc-500">{detail}</div>}
-    </>
-  );
-  const className = `block border ${ring} bg-zinc-900/25 px-3.5 py-2.5 hover:bg-zinc-900/60`;
-  return to === undefined ? (
-    <button type="button" onClick={onClick} aria-pressed={pressed} className={`${className} w-full text-left`}>
-      {body}
-    </button>
-  ) : (
-    <Link to={to} className={className}>
-      {body}
+    <Link to={link(`/i/${instanceId}${to}`)} className="hover:underline">
+      {children}
     </Link>
   );
 }
 
-// -- coming up ----------------------------------------------------------------
-
-interface Upcoming {
-  name: string;
-  row: OrientLine;
-  card: LineCard | undefined;
-  wakes: Wake[];
-  /** Soonest time something is due: a due occurrence (now), a scheduled one, or the next cron fire. */
-  soonest: Date | null;
-  due: boolean;
+function LineLink({ line }: { line: string }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const name = lineName(line);
+  return (
+    <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)} className="font-mono text-zinc-300 hover:text-zinc-100 hover:underline" title={`Line ${name}`}>
+      {name}
+    </Link>
+  );
 }
 
-const enabled = (row: OrientLine) => row.enablement != null && row.enablement !== "disabled";
+// -- kinds, coverage and recent changes ------------------------------------------
 
-/**
- * Each enabled Line: what wakes it, when it next does, and how its last run
- * went, as chains: a Line woken by a landing sits under the enabled Line that
- * retains that source (epss-daily, then epss-triage when first.epss.daily
- * lands), so a schedule and what it sets off read as one timeline. Chains with
- * due work first, then soonest. A Line with a schedule of its own heads its own
- * chain and is listed under its feeders by name. Lines not enabled fold into
- * one line.
- */
-function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pending: boolean; error: Error | null }) {
-  const live = (rows ?? []).filter((row) => row.lifecycle === "live");
-  const on = live.filter(enabled);
-  const off = live.filter((row) => !enabled(row));
-  const cards = useCards(on.map((row) => `Line:${lineName(row.line)}`));
-  const sourceModel = useSourceModel();
-  const prefix = sharedPrefix(live.map((row) => lineName(row.line)));
-  const now = new Date();
+interface KindRow {
+  kind: string;
+  subjects: number;
+  claimTypes: OrientPredicate[];
+  detail: Schemas["OrientKindDetail"] | null;
+  feed: KindFeed | null;
+  latest: number | null;
+}
 
-  const upcoming: Upcoming[] = on.map((row, i) => {
-    const card = (cards[i]?.card ?? undefined) as LineCard | undefined;
-    // Only a Trigger the running enablement armed has a next fire.
-    const enablement = card?.enablements?.[0];
-    const armed = new Set(enablement?.state === "running" ? (enablement.triggers ?? []).map((t) => t.trigger.replace(/^Trigger:/, "")) : []);
-    const wakes = (card?.triggers ?? []).map((t) => {
-      const wake = wakeOf(t.fires, now);
-      return armed.has(t.trigger.replace(/^Trigger:/, "")) ? wake : { ...wake, next: null };
-    });
-    const scheduled = (card?.occurrences ?? []).map((o) => new Date(o.eligible_at));
-    const due = (row.due ?? 0) > 0 || (card?.occurrences ?? []).some((o) => o.state === "due");
-    const times = [...scheduled, ...wakes.flatMap((w) => (w.next ? [w.next] : []))].sort((a, b) => a.getTime() - b.getTime());
-    return { name: lineName(row.line), row, card, wakes, soonest: due ? now : (times[0] ?? null), due };
-  });
-  const chains = chainUpcoming(upcoming, sourceModel.data?.retentions ?? []);
+/** The kinds table, coverage and recent changes: they share the kind reads and the since read. */
+function KindsAndChanges() {
+  const kinds = useOrientKinds();
+  const claimTypes = useClaimTypes();
+  const subjectKinds = useSubjectKinds();
+  const source = useSourceModel();
+  const names = useMemo(() => (kinds.data?.kinds ?? []).map((k) => k.kind).filter((k) => !isCoreIdentity(k)), [kinds.data]);
+  const details = useOrientKindDetails(names);
+  const generations = useGenerations();
+  const head = generations.data?.generation ?? null;
+  const lower = generations.data && head !== null ? sinceLower(generations.data.generations ?? [], head) : null;
+  const since = useSince(lower);
+  const changes = useMemo(() => (since.data ? beliefChanges(since.data.rows) : null), [since.data]);
+  const byGeneration = useMemo(() => new Map((generations.data?.generations ?? []).map((g) => [g.sequence, g])), [generations.data]);
+
+  const feeds = useMemo(
+    () =>
+      source.data && subjectKinds.data && claimTypes.data
+        ? kindFeeds({ specs: source.data.specs, lines: source.data.lines, kinds: subjectKinds.data.rows, claimTypes: claimTypes.data.rows })
+        : null,
+    [source.data, subjectKinds.data, claimTypes.data],
+  );
+  const latest = useMemo(() => (changes ? latestByKind(changes) : null), [changes]);
+  const rows = useMemo<KindRow[]>(
+    () =>
+      (kinds.data?.kinds ?? [])
+        .filter((k) => !isCoreIdentity(k.kind))
+        .map((k) => ({
+          kind: k.kind,
+          subjects: k.subjects,
+          claimTypes: (claimTypes.data?.rows ?? []).filter((p) => (p.subject_kinds ?? []).includes(k.kind) && !isCoreIdentity(p.predicate)),
+          detail: details.data[names.indexOf(k.kind)] ?? null,
+          feed: feeds?.get(k.kind) ?? null,
+          latest: latest?.get(k.kind) ?? null,
+        })),
+    [kinds.data, claimTypes.data, details.data, names, feeds, latest],
+  );
+  const window = lower !== null && head !== null ? { from: lower + 1, to: head } : null;
 
   return (
-    <Panel
-      title="Coming up"
-      meta={rows ? <span>{on.length} of {live.length} Lines enabled</span> : undefined}
-    >
+    <>
+      <Panel title={<Titled info={ABOUT.kinds} label="About kinds">Kinds</Titled>} meta={kinds.data ? <span>{rows.length}</span> : undefined}>
+        {kinds.isPending && <LoadState />}
+        {kinds.error && <LoadState error={kinds.error} />}
+        {kinds.data && (
+          <KindsTable
+            rows={rows}
+            pending={{ claims: details.isPending, feeds: source.isPending || subjectKinds.isPending, latest: since.isPending || generations.isPending }}
+            window={window}
+            byGeneration={byGeneration}
+          />
+        )}
+      </Panel>
+      <ChangesPanel
+        changes={changes}
+        pending={generations.isPending || since.isPending}
+        error={generations.error ?? since.error}
+        window={window}
+        truncated={since.data?.truncated ?? false}
+        byGeneration={byGeneration}
+        claimTypes={claimTypes.data?.rows ?? []}
+      />
+      <CoveragePanel rows={rows} pending={details.isPending || claimTypes.isPending} error={details.error ?? claimTypes.error} />
+    </>
+  );
+}
+
+function KindsTable({
+  rows,
+  pending,
+  window,
+  byGeneration,
+}: {
+  rows: KindRow[];
+  pending: { claims: boolean; feeds: boolean; latest: boolean };
+  window: { from: number; to: number } | null;
+  byGeneration: ReadonlyMap<number, Generation>;
+}) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const columns = useMemo<Column<KindRow>[]>(
+    () => [
+      {
+        id: "kind",
+        header: "Kind",
+        hideable: false,
+        sortValue: (r) => r.kind,
+        filter: { kind: "text", text: (r) => r.kind },
+        cell: (r) => (
+          <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(r.kind)}`)} className="font-mono text-[13px] text-zinc-100 hover:underline">
+            {r.kind}
+          </Link>
+        ),
+      },
+      { id: "subjects", header: "Subjects", numeric: true, sortValue: (r) => r.subjects, cell: (r) => r.subjects.toLocaleString() },
+      { id: "claim_types", header: "ClaimTypes", numeric: true, sortValue: (r) => r.claimTypes.length, cell: (r) => r.claimTypes.length },
+      {
+        id: "claims",
+        header: "Claims",
+        title: "Live Claims about its Subjects",
+        numeric: true,
+        sortValue: (r) => claimsOf(r),
+        cell: (r) => (r.detail ? claimsOf(r)!.toLocaleString() : pending.claims ? "…" : "—"),
+      },
+      {
+        id: "fed_by",
+        header: "Fed by",
+        title: "The Lines whose runs write its facts; Entered directly: people or agents enter some of it",
+        filter: { kind: "text", text: (r) => [...(r.feed?.lines ?? []), r.feed?.direct ? "Entered directly" : ""].join(" ") },
+        cell: (r) =>
+          r.feed ? (
+            <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px]">
+              {r.feed.lines.map((line) => (
+                <LineLink key={line} line={line} />
+              ))}
+              {r.feed.direct && <span className="text-zinc-400">Entered directly</span>}
+            </span>
+          ) : pending.feeds ? (
+            "…"
+          ) : (
+            "—"
+          ),
+      },
+      {
+        id: "latest",
+        header: "Last change",
+        title: "The newest generation that stated, changed or retired a Claim about its Subjects",
+        sortValue: (r) => r.latest,
+        cell: (r) => {
+          if (r.latest !== null) return <GenerationWhen generation={byGeneration.get(r.latest)} sequence={r.latest} />;
+          if (pending.latest) return "…";
+          if (!window) return "—";
+          return (
+            <span className="text-zinc-500" title={`No Claim change in g${window.from}–g${window.to}, the generations read`}>
+              before g{window.from}
+            </span>
+          );
+        },
+      },
+    ],
+    [instanceId, link, pending.claims, pending.feeds, pending.latest, window, byGeneration],
+  );
+  return <DataTable rows={rows} columns={columns} rowKey={(r) => r.kind} urlKey="kinds" label="Kinds" toolbar={rows.length > 10} maxHeight="none" />;
+}
+
+const claimsOf = (r: KindRow) => (r.detail ? r.detail.predicates.reduce((total, p) => total + (p.live_claims ?? 0), 0) : null);
+
+/** A generation, linked to this page as it stood then, with when it was accepted. */
+function GenerationWhen({ generation, sequence }: { generation: Generation | undefined; sequence: number }) {
+  return (
+    <span className="inline-flex items-baseline gap-2 whitespace-nowrap">
+      <GenerationLink sequence={sequence} />
+      {generation && (
+        <span className="text-[12px] text-zinc-500" title={formatDateTime(generation.accepted_at)}>
+          {formatRelative(generation.accepted_at)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// -- recent changes ------------------------------------------------------------
+
+function ChangesPanel({
+  changes,
+  pending,
+  error,
+  window,
+  truncated,
+  byGeneration,
+  claimTypes,
+}: {
+  changes: BeliefChange[] | null;
+  pending: boolean;
+  error: Error | null;
+  window: { from: number; to: number } | null;
+  truncated: boolean;
+  byGeneration: ReadonlyMap<number, Generation>;
+  claimTypes: readonly OrientPredicate[];
+}) {
+  // A statement names its field by short name: the ClaimType is the kind's predicate of that name.
+  const predicateOf = useMemo(() => {
+    const byName = new Map<string, string>();
+    for (const p of claimTypes) for (const kind of p.subject_kinds ?? []) byName.set(`${kind}\n${p.name}`, p.predicate);
+    return (c: BeliefChange) => (c.kind && c.field ? (byName.get(`${c.kind}\n${c.field}`) ?? `${c.kind}.${c.field}`) : null);
+  }, [claimTypes]);
+  const columns = useMemo<Column<BeliefChange>[]>(
+    () => [
+      {
+        id: "when",
+        header: "When",
+        sortValue: (c) => c.generation,
+        cell: (c) => <GenerationWhen generation={byGeneration.get(c.generation)} sequence={c.generation} />,
+      },
+      {
+        id: "subject",
+        header: "Subject",
+        hideable: false,
+        sortValue: (c) => c.subject,
+        filter: { kind: "text", text: (c) => c.subject ?? "" },
+        cell: (c) =>
+          c.subject ? (
+            <RefLink value={c.subject}>
+              <span className="font-mono text-[12.5px]" title={c.subject}>
+                {c.subject.slice(c.subject.indexOf("/") + 1)}
+              </span>
+            </RefLink>
+          ) : (
+            "—"
+          ),
+      },
+      {
+        id: "claim_type",
+        header: "ClaimType",
+        sortValue: (c) => predicateOf(c),
+        filter: { kind: "enum", values: (c) => (c.field ? [c.field] : []) },
+        cell: (c) => {
+          const predicate = predicateOf(c);
+          if (!predicate) return "—";
+          return (
+            <RefLink value={`ClaimType:${predicate}`}>
+              <span className="font-mono text-[12.5px]" title={predicate}>
+                {c.field}
+                {c.qualifier ? `[${c.qualifier}]` : ""}
+              </span>
+            </RefLink>
+          );
+        },
+      },
+      {
+        id: "change",
+        header: "Change",
+        sortValue: (c) => c.change,
+        filter: { kind: "enum", values: (c) => [changeMark(c.change).word] },
+        cell: (c) => (
+          <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap text-[12px] text-zinc-400">
+            <ChangeMark change={c.change} />
+            {changeMark(c.change).word}
+          </span>
+        ),
+      },
+      {
+        id: "value",
+        header: "Value",
+        cell: (c) => (
+          <span className="inline-flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+            {c.from && (
+              <>
+                <ChangeValue value={c.from.value} muted />
+                <span className="text-zinc-600">→</span>
+              </>
+            )}
+            <ChangeValue value={c.value} muted={c.change === "retired"} />
+          </span>
+        ),
+      },
+      {
+        id: "by",
+        header: "By",
+        title: "The Line whose run made the change, or the principal who proposed it",
+        cell: (c) => <ChangeBy generation={byGeneration.get(c.generation)} />,
+      },
+      {
+        id: "claim",
+        header: "Claim",
+        cell: (c) => <RefLink value={c.claim} short className="text-[12px]" />,
+      },
+    ],
+    [byGeneration, predicateOf],
+  );
+  const meta = window ? <span title="The generations this read covers">{`g${window.from}–g${window.to}${truncated ? " (partial)" : ""}`}</span> : undefined;
+  return (
+    <Panel title={<Titled info={ABOUT.changes} label="About recent changes">Recent changes to beliefs</Titled>} meta={meta}>
       {pending && <LoadState />}
       {error && <LoadState error={error} />}
-      {rows && on.length === 0 && <EmptyState>None enabled</EmptyState>}
-      {chains.length > 0 && (
-        <div className="divide-y divide-zinc-800/60">
-          {chains.map((chain) => (
-            <ChainRows key={chain.u.name} chain={chain} prefix={prefix} now={now} depth={0} />
-          ))}
-        </div>
-      )}
-      {off.length > 0 && (
-        <div className="mt-2">
-          <Disclosure label={`${off.length} ${off.length === 1 ? "Line is" : "Lines are"} not enabled`}>
-            <LineLinks names={off.map((row) => lineName(row.line))} prefix={prefix} />
-          </Disclosure>
-        </div>
+      {changes &&
+        (changes.length === 0 ? (
+          <EmptyState>{window ? `None in g${window.from}–g${window.to}` : "None"}</EmptyState>
+        ) : (
+          <DataTable
+            rows={changes}
+            columns={columns}
+            rowKey={(c) => `${c.generation}\n${c.memberPath}`}
+            urlKey="chg"
+            label="Recent changes to beliefs"
+            partial={window && window.from > 1 ? `the changes of g${window.from}–g${window.to}` : null}
+            maxHeight="28rem"
+          />
+        ))}
+    </Panel>
+  );
+}
+
+/**
+ * Who made a generation's change: the Line its run ran for (one run read per
+ * generation, kept), a direct run's Procedure, or the proposing principal.
+ */
+function ChangeBy({ generation }: { generation: Generation | undefined }) {
+  const source = proposalRun(generation?.because);
+  const run = useRunAuthor(source?.run ?? null);
+  const approvals = generation?.approvals ?? [];
+  const title = [proposalWords(generation?.because, generation?.because_truncated ?? false), approvals.length ? `Approved by ${approvals.join(", ")}` : null]
+    .filter(Boolean)
+    .join("\n");
+  if (!generation) return <span className="text-zinc-600">—</span>;
+  if (source && run.isPending) return <span className="t-meta animate-pulse">{source.procedure.replace(/^Procedure:/, "")}</span>;
+  if (run.data?.line) return <span title={title || undefined}><LineLink line={run.data.line} /></span>;
+  const procedure = (run.data?.procedure ?? source?.procedure ?? "").replace(/^Procedure:/, "");
+  if (source && procedure) {
+    return (
+      <span className="text-[12px]" title={title || undefined}>
+        <RefLink value={`Procedure:${procedure}`}>
+          <span className="font-mono">{procedure}</span>
+        </RefLink>
+      </span>
+    );
+  }
+  return (
+    <span className="font-mono text-[12px] text-zinc-300" title={title || undefined}>
+      {generation.proposer ?? "—"}
+    </span>
+  );
+}
+
+// -- coverage --------------------------------------------------------------------
+
+interface CoverageRow {
+  kind: string;
+  subjects: number;
+  predicate: string;
+  name: string;
+  liveClaims: number;
+  withValue: number;
+}
+
+function CoveragePanel({ rows, pending, error }: { rows: KindRow[]; pending: boolean; error: Error | null }) {
+  const coverage = useMemo<CoverageRow[]>(
+    () =>
+      rows.flatMap((r) =>
+        (r.detail?.predicates ?? [])
+          .filter((p) => !isCoreIdentity(p.predicate))
+          .map((p) => ({
+            kind: r.kind,
+            subjects: r.subjects,
+            predicate: p.predicate,
+            name: p.name,
+            liveClaims: p.live_claims ?? 0,
+            withValue: p.subjects_with_value ?? 0,
+          })),
+      ),
+    [rows],
+  );
+  const columns = useMemo<Column<CoverageRow>[]>(
+    () => [
+      {
+        id: "kind",
+        header: "Kind",
+        sortValue: (c) => c.kind,
+        filter: { kind: "enum", values: (c) => [c.kind] },
+        cell: (c) => <RefLink value={`SubjectKind:${c.kind}`}><span className="font-mono text-[12.5px]">{c.kind}</span></RefLink>,
+      },
+      {
+        id: "claim_type",
+        header: "ClaimType",
+        hideable: false,
+        sortValue: (c) => c.name,
+        filter: { kind: "text", text: (c) => c.predicate },
+        cell: (c) => (
+          <RefLink value={`ClaimType:${c.predicate}`}>
+            <span className="font-mono text-[12.5px]" title={c.predicate}>
+              {c.name}
+            </span>
+          </RefLink>
+        ),
+      },
+      {
+        id: "held",
+        header: "Subjects with a value",
+        numeric: true,
+        sortValue: (c) => c.withValue,
+        cell: (c) => (
+          <span>
+            {c.withValue.toLocaleString()} <span className="text-zinc-500">of {c.subjects.toLocaleString()}</span>
+          </span>
+        ),
+      },
+      {
+        id: "share",
+        header: "Share",
+        numeric: true,
+        sortValue: (c) => (c.subjects ? c.withValue / c.subjects : 0),
+        cell: (c) => <ShareBar withValue={c.withValue} subjects={c.subjects} />,
+      },
+      { id: "claims", header: "Claims", title: "Live Claims of the ClaimType on the kind", numeric: true, sortValue: (c) => c.liveClaims, cell: (c) => c.liveClaims.toLocaleString() },
+    ],
+    [],
+  );
+  return (
+    <Panel title={<Titled info={ABOUT.coverage} label="About coverage">Coverage</Titled>}>
+      {pending && <LoadState />}
+      {error && <LoadState error={error} />}
+      {!pending && !error && (
+        <DataTable
+          rows={coverage}
+          columns={columns}
+          rowKey={(c) => `${c.kind}\n${c.predicate}`}
+          urlKey="cov"
+          label="Coverage"
+          toolbar={coverage.length > 10}
+          maxHeight="28rem"
+        />
       )}
     </Panel>
   );
 }
 
-interface Chain {
-  u: Upcoming;
-  /** Lines this one's landings wake, in the order they run (soonest first). */
-  next: Chain[];
-  /** Lines with a schedule of their own that this one also wakes (shown by name, not nested). */
-  alsoWakes: string[];
-  /** When this Line next runs if it only follows its feeder: the feeder's next time. */
-  after: { name: string; at: Date | null } | null;
+function ShareBar({ withValue, subjects }: { withValue: number; subjects: number }) {
+  const share = subjects ? Math.min(1, withValue / subjects) : 0;
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="relative inline-block h-1.5 w-16 bg-zinc-800" aria-hidden>
+        <span className="absolute inset-y-0 left-0 bg-zinc-400" style={{ width: `${Math.round(share * 100)}%` }} />
+      </span>
+      <span className="w-9 text-right">{shareLabel(withValue, subjects)}</span>
+    </span>
+  );
 }
 
-/**
- * Chains of enabled Lines: a Line whose every wake is a landing goes under the
- * enabled Line that retains the first source it waits on; anything else heads
- * a chain. Roots sort due-first (a chain is due when any member is), then by
- * soonest.
- */
-function chainUpcoming(upcoming: Upcoming[], retentions: readonly { source: string | null; line: string | null }[]): Chain[] {
-  const byName = new Map(upcoming.map((u) => [u.name, u] as const));
-  const producers = new Map<string, string[]>();
-  for (const r of retentions) {
-    if (r.source === null || r.line === null || !byName.has(r.line)) continue;
-    const list = producers.get(r.source) ?? [];
-    if (!list.includes(r.line)) list.push(r.line);
-    producers.set(r.source, list);
-  }
-  const feedersOf = (u: Upcoming) =>
-    [...new Set(u.wakes.flatMap((w) => w.sources.flatMap((source) => producers.get(source) ?? [])))].filter((n) => n !== u.name);
-  const onlyLandings = (u: Upcoming) => u.wakes.length > 0 && u.wakes.every((w) => w.landing);
+// -- sources ---------------------------------------------------------------------
 
-  const parent = new Map<string, string>();
-  for (const u of upcoming) {
-    if (!onlyLandings(u)) continue;
-    const feeder = feedersOf(u).sort(bySoonest(byName))[0];
-    if (feeder !== undefined) parent.set(u.name, feeder);
-  }
-  // A cycle (a Line woken by its own descendant) breaks at its first member: that one heads the chain.
-  for (const name of [...parent.keys()]) {
-    const seen = new Set<string>([name]);
-    let cursor = parent.get(name);
-    while (cursor !== undefined && !seen.has(cursor)) {
-      seen.add(cursor);
-      cursor = parent.get(cursor);
-    }
-    if (cursor !== undefined) parent.delete(name);
-  }
+interface SourceRow {
+  id: string;
+  contracts: string[];
+  landing: SourceLanding | null;
+  lines: string[];
+}
 
-  const build = (u: Upcoming): Chain => {
-    const kids = upcoming
-      .filter((c) => parent.get(c.name) === u.name)
-      .sort((a, b) => bySoonest(byName)(a.name, b.name))
-      .map((c) => build(c));
-    const alsoWakes = upcoming
-      .filter((c) => !parent.has(c.name) && c.name !== u.name && feedersOf(c).includes(u.name))
-      .map((c) => c.name)
-      .sort();
-    const feeder = parent.get(u.name);
-    return {
-      u,
-      next: kids,
-      alsoWakes,
-      after: feeder === undefined ? null : { name: feeder, at: byName.get(feeder)?.soonest ?? null },
+function SourcesPanel() {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const landings = useSourceLandings();
+  const model = useSourceModel();
+  const rows = useMemo<SourceRow[] | null>(() => {
+    if (!landings.data && !model.data) return null;
+    const byId = new Map<string, SourceRow>();
+    const entry = (id: string) => {
+      let row = byId.get(id);
+      if (!row) byId.set(id, (row = { id, contracts: [], landing: null, lines: [] }));
+      return row;
     };
-  };
-  const dueIn = (c: Chain): boolean => c.u.due || c.next.some(dueIn);
-  const roots = upcoming.filter((u) => !parent.has(u.name)).map((u) => build(u));
-  return roots.sort((a, b) => {
-    const ad = dueIn(a);
-    const bd = dueIn(b);
-    if (ad !== bd) return ad ? -1 : 1;
-    const at = a.u.soonest?.getTime() ?? Infinity;
-    const bt = b.u.soonest?.getTime() ?? Infinity;
-    return at !== bt ? at - bt : a.u.name.localeCompare(b.u.name);
-  });
-}
-
-const bySoonest = (byName: Map<string, Upcoming>) => (a: string, b: string) => {
-  const at = byName.get(a)?.soonest?.getTime() ?? Infinity;
-  const bt = byName.get(b)?.soonest?.getTime() ?? Infinity;
-  return at !== bt ? at - bt : a.localeCompare(b);
-};
-
-function ChainRows({ chain, prefix, now, depth }: { chain: Chain; prefix: string; now: Date; depth: number }) {
-  return (
-    <div className={depth === 0 ? "" : "ml-1.5 border-l border-zinc-700 pl-3"}>
-      <UpcomingRow
-        u={chain.u}
-        label={chain.u.name.slice(prefix.length)}
-        now={now}
-        after={chain.after && { ...chain.after, name: chain.after.name.slice(prefix.length) }}
-        alsoWakes={chain.alsoWakes.map((name) => name.slice(prefix.length))}
-      />
-      {chain.next.map((child) => (
-        <Fragment key={child.u.name}>
-          <ChainRows chain={child} prefix={prefix} now={now} depth={depth + 1} />
-        </Fragment>
-      ))}
-    </div>
-  );
-}
-
-function UpcomingRow({
-  u,
-  label,
-  now,
-  after = null,
-  alsoWakes = [],
-}: {
-  u: Upcoming;
-  label: string;
-  now: Date;
-  after?: Chain["after"];
-  alsoWakes?: string[];
-}) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
-  const last = u.card?.recent_runs?.[0];
-  const lastTerm = last ? term("run", last.status) : null;
-  const state = u.row.enablement && u.row.enablement !== "running" ? term("line", u.row.enablement) : null;
-  return (
-    <div className="py-1.5 text-[13px]">
-      <div className="flex items-baseline gap-2">
-        <Link
-          to={link(`/i/${instanceId}/lines/${encodeURIComponent(u.name)}`)}
-          className="min-w-0 truncate font-mono text-[12px] text-zinc-100 hover:underline"
-          title={u.name}
-        >
-          {label}
-        </Link>
-        {state && (
-          <span className="inline-flex shrink-0 items-center gap-1 text-[12px] text-zinc-400">
-            {state.signal && <SignalDot signal={state.signal} title={state.meaning} />}
-            {state.word}
-          </span>
-        )}
-        <span className="ml-auto shrink-0 text-right text-[12px]">
-          {u.due ? (
-            <span className="inline-flex items-center gap-1 text-zinc-200">
-              <SignalDot signal="waiting" title={term("occurrence", "due").meaning} />
-              {u.row.due ?? 1} due now
+    for (const source of model.data?.sources ?? []) {
+      const row = entry(source.id);
+      row.contracts = [...source.contracts];
+      row.lines = readers(source);
+    }
+    for (const landing of landings.data?.rows ?? []) {
+      const row = entry(landing.logical_source);
+      row.landing = landing;
+      for (const c of landing.contracts) {
+        const name = c.contract.replace(/^CaptureContract:/, "");
+        if (!c.contract.startsWith("unresolved:") && !row.contracts.includes(name)) row.contracts.push(name);
+      }
+      if (landing.latest.line && !row.lines.includes(lineName(landing.latest.line))) row.lines.push(lineName(landing.latest.line));
+    }
+    return [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }, [landings.data, model.data]);
+  const columns = useMemo<Column<SourceRow>[]>(
+    () => [
+      {
+        id: "source",
+        header: "Source",
+        hideable: false,
+        sortValue: (s) => s.id,
+        filter: { kind: "text", text: (s) => s.id },
+        cell: (s) => (
+          <Link
+            to={link(`/i/${instanceId}/flow?focus=${encodeURIComponent(`source:${s.id}`)}`)}
+            className="font-mono text-[13px] text-zinc-100 hover:underline"
+            title="Open in Evidence flow"
+          >
+            {s.id}
+          </Link>
+        ),
+      },
+      {
+        id: "contracts",
+        header: "Captured under",
+        cell: (s) =>
+          s.contracts.length ? (
+            <span className="flex flex-wrap gap-x-3 text-[12px]">
+              {s.contracts.map((c) => (
+                <RefLink key={c} value={`CaptureContract:${c}`}>
+                  <span className="font-mono">{c}</span>
+                </RefLink>
+              ))}
             </span>
-          ) : (u.row.waiting ?? 0) > 0 && u.soonest ? (
-            <span className="text-zinc-300" title={formatDateTime(u.soonest.toISOString())}>
-              {u.row.waiting} scheduled · {formatRelative(u.soonest, now)}
-            </span>
-          ) : last && lastTerm ? (
-            <Link
-              to={link(`/i/${instanceId}/runs/${encodeURIComponent(last.run.replace(/^ProcedureRun:/, ""))}`)}
-              className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-200"
-              title={`${lastTerm.meaning} · ${formatDateTime(last.started_at)}`}
-            >
-              {lastTerm.signal && <SignalDot signal={lastTerm.signal} title={lastTerm.meaning} />}
-              Last run {formatRelative(last.started_at, now)}
-              {last.status !== "succeeded" && ` · ${lastTerm.word.toLowerCase()}`}
-            </Link>
           ) : (
-            <span className="text-zinc-600">No runs</span>
-          )}
-        </span>
-      </div>
-      <div className="min-w-0 text-[12px] text-zinc-400">
-        {u.card === undefined ? (
-          <span className="text-zinc-600">…</span>
-        ) : u.wakes.length === 0 ? (
-          <span className="text-zinc-500">Runs when asked</span>
-        ) : (
-          <ul>
-            {u.wakes.map((w) => (
-              <li key={w.words} className="truncate" title={w.definedWords !== w.words ? `${w.words} (as defined: ${w.definedWords})` : w.words}>
-                {sentence(w.words)}
-                {w.next && (
-                  <span className="text-zinc-500" title={formatDateTime(w.next.toISOString())}>
-                    {" "}
-                    · next {formatRelative(w.next, now)}
-                  </span>
-                )}
-                {w.landing && after?.at && !u.due && (
-                  <span className="text-zinc-500" title={formatDateTime(after.at.toISOString())}>
-                    {" "}
-                    · next after {after.name}, {formatRelative(after.at, now)}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {alsoWakes.length > 0 && <div className="truncate text-zinc-500">Also wakes {alsoWakes.join(", ")}</div>}
-      </div>
-    </div>
+            "—"
+          ),
+      },
+      {
+        id: "landed",
+        header: "Last landed",
+        sortValue: (s) => s.landing?.latest.landed_at ?? null,
+        cell: (s) => {
+          if (!s.landing) return <span className="text-zinc-500">{landings.isPending ? "…" : "never"}</span>;
+          const latest = s.landing.latest;
+          const when = <span title={formatDateTime(latest.landed_at)}>{formatRelative(latest.landed_at)}</span>;
+          const gone = latest.erased ? " (erased)" : latest.unavailable ? " (unavailable)" : "";
+          return (
+            <span className="whitespace-nowrap">
+              {latest.ref ? (
+                <Link to={link(`/i/${instanceId}/ref/${encodeURIComponent(latest.ref)}`)} className="hover:underline" title={latest.ref}>
+                  {when}
+                </Link>
+              ) : (
+                when
+              )}
+              {gone}
+            </span>
+          );
+        },
+      },
+      {
+        id: "captures",
+        header: "Captures",
+        title: "How many times it has landed",
+        numeric: true,
+        sortValue: (s) => s.landing?.landings ?? 0,
+        cell: (s) => (s.landing?.landings ?? 0).toLocaleString(),
+      },
+      {
+        id: "lines",
+        header: "Read by",
+        title: "The Lines whose runs read it",
+        filter: { kind: "text", text: (s) => s.lines.join(" ") },
+        cell: (s) =>
+          s.lines.length ? (
+            <span className="flex flex-wrap gap-x-3 text-[12px]">
+              {s.lines.map((line) => (
+                <LineLink key={line} line={line} />
+              ))}
+            </span>
+          ) : (
+            "—"
+          ),
+      },
+    ],
+    [instanceId, link, landings.isPending],
+  );
+  const pending = landings.isPending && model.isPending;
+  const error = landings.error ?? model.error;
+  return (
+    <Panel title={<Titled info={ABOUT.sources} label="About sources">Sources</Titled>} meta={rows ? <span>{rows.length}</span> : undefined}>
+      {pending && <LoadState />}
+      {error && <LoadState error={error} />}
+      {rows && <DataTable rows={rows} columns={columns} rowKey={(s) => s.id} urlKey="src" label="Sources" toolbar={rows.length > 10} maxHeight="none" />}
+    </Panel>
   );
 }
 
-function LineLinks({ names, prefix }: { names: string[]; prefix: string }) {
+/** The Lines that read a source: those whose runs retain it, and those its landings start. */
+function readers(source: LogicalSource): string[] {
+  const lines = new Set<string>();
+  for (const retention of source.retainedBy) if (retention.line) lines.add(lineName(retention.line));
+  for (const trigger of source.selectedBy) if (trigger.target.startsWith("Line:")) lines.add(lineName(trigger.target));
+  return [...lines].sort();
+}
+
+// -- documents -------------------------------------------------------------------
+
+function DocumentsPanel() {
+  const documents = useDocuments();
   const instanceId = useInstanceId();
   const link = useAtLink();
-  return (
-    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px]">
-      {[...names].sort().map((name) => (
-        <Link
-          key={name}
-          to={link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`)}
-          className="font-mono text-zinc-400 hover:text-zinc-200 hover:underline"
-          title={name}
-        >
-          {name.slice(prefix.length)}
-        </Link>
-      ))}
-    </div>
+  const rows = documents.data?.rows ?? [];
+  const columns = useMemo<Column<(typeof rows)[number]>[]>(
+    () => [
+      {
+        id: "title",
+        header: "Document",
+        hideable: false,
+        sortValue: (d) => d.title,
+        filter: { kind: "text", text: (d) => `${d.title} ${d.name}` },
+        cell: (d) => (
+          <Link to={link(`/i/${instanceId}/docs?doc=${encodeURIComponent(d.name)}`)} className="text-zinc-100 hover:underline" title={d.name}>
+            {d.title || d.name}
+          </Link>
+        ),
+      },
+      { id: "kind", header: "Kind", sortValue: (d) => d.document_kind, filter: { kind: "enum", values: (d) => [d.document_kind] }, cell: (d) => d.document_kind },
+      { id: "media", header: "Media type", className: "font-mono text-[12px] text-zinc-400", cell: (d) => d.media_type },
+    ],
+    [instanceId, link],
   );
-}
-
-// -- health and kits ------------------------------------------------------------
-
-/** The environment's checks, folded to one line while all are healthy. */
-function HealthPanel({ next, pending, error }: { next: NextResult | undefined; pending: boolean; error: Error | null }) {
-  const status = next?.status;
-  const sick = unhealthy(next);
   return (
-    <div id="health">
-      <Panel
-        title="Health"
-        meta={
-          status?.blocking ? (
-            <Chip concept="severity" value="blocking" />
-          ) : status ? (
-            <span>{sick.length ? `${sick.length} of ${HEALTH_ROWS.length} need a look` : `all ${HEALTH_ROWS.length} healthy`}</span>
-          ) : undefined
-        }
-      >
-        {pending && <LoadState />}
-        {error && <LoadState error={error} />}
-        {status && (
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-            {HEALTH_ROWS.map((row) => {
-              const health: NextHealth = status[row];
-              return (
-                <div key={row} className="contents">
-                  <dt className="text-zinc-500">{humanize(row)}</dt>
-                  <dd className="flex flex-wrap items-baseline gap-2">
-                    <HealthChip state={health.state} />
-                    {health.repair && <span className="text-[12px] text-zinc-500">{health.repair.required_change}</span>}
-                  </dd>
-                </div>
-              );
-            })}
-            {(status.held ?? 0) > 0 && (
-              <>
-                <dt className="text-zinc-500">Held</dt>
-                <dd className="font-mono text-zinc-300">{status.held}</dd>
-              </>
-            )}
-          </dl>
-        )}
-        {next && next.unobserved_domains.length > 0 && (
-          <div className="t-meta mt-2">Not observed: {next.unobserved_domains.map(humanize).join(", ")}</div>
-        )}
-      </Panel>
-    </div>
-  );
-}
-
-function KitsPanel() {
-  const kits = useKits();
-  const rows = kits.data?.kits ?? [];
-  return (
-    <Panel title="Kits" meta={kits.data ? <span>{rows.length} installed</span> : undefined}>
-      {kits.isPending && <LoadState />}
-      {kits.error && <LoadState error={kits.error} />}
-      {kits.data && rows.length === 0 && <EmptyState>None</EmptyState>}
-      <div className="divide-y divide-zinc-800/60">
-        {rows.map((kit) => (
-          <div key={kit.kit_id} className="py-1 text-[13px]">
-            <div className="flex flex-wrap items-baseline gap-x-3">
-              <span className="font-mono text-zinc-200">{kit.kit_id}</span>
-              <span className="font-mono text-zinc-500">{kit.version}</span>
-              {(kit.drifted?.length ?? 0) > 0 && <span className="text-zinc-400">{kit.drifted!.length} drifted</span>}
-              {kit.latest_available && kit.latest_available !== kit.version && (
-                <span className="text-zinc-500">latest {kit.latest_available}</span>
-              )}
-            </div>
-            {(kit.providers?.length ?? 0) > 0 && (
-              <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-zinc-500">
-                {kit.providers!.map((provider) => (
-                  <span key={provider.provider_id}>
-                    {provider.provider_id} <Chip concept="provider" value={provider.state} />
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+    <Panel title={<Titled info={ABOUT.documents} label="About documents">Documents</Titled>} meta={documents.data ? <span>{rows.length}</span> : undefined}>
+      {documents.isPending && <LoadState />}
+      {documents.error && <LoadState error={documents.error} />}
+      {documents.data && <DataTable rows={rows} columns={columns} rowKey={(d) => d.name} urlKey="doc" label="Documents" toolbar={rows.length > 10} maxHeight="24rem" />}
     </Panel>
   );
 }

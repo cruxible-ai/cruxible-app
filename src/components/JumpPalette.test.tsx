@@ -6,7 +6,7 @@ afterEach(cleanup);
 
 async function openPalette() {
   renderApp("/i/inst_fixture");
-  await screen.findByRole("heading", { name: "Overview" });
+  await screen.findByRole("heading", { name: "Dashboard" });
   act(() => {
     window.dispatchEvent(new CustomEvent("cruxible:jump"));
   });
