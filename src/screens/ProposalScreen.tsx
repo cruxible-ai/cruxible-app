@@ -281,6 +281,8 @@ interface ChangeRow {
   before: { text: string; ref: string | null } | null;
   after: { text: string; ref: string | null } | null;
   captures: string[];
+  /** The Subject is created by this proposal: its own creation is folded into this row. */
+  newSubject: Member | null;
 }
 
 /** "subjects/security.vulnerability/cve-1.json" -> "security.vulnerability/cve-1" */
@@ -303,12 +305,34 @@ function changeRow(member: Member): ChangeRow {
       before: claimObject(member.base_semantic_artifact),
       after: claimObject(member.candidate_semantic_artifact),
       captures: claimCaptures(member.candidate_semantic_artifact ?? member.base_semantic_artifact),
+      newSubject: null,
     };
   }
   if (summary.kind === "Subject" && summary.name) {
-    return { member, summary, subject: summary.name, what: "Subject", before: null, after: null, captures: [] };
+    return { member, summary, subject: summary.name, what: "Subject", before: null, after: null, captures: [], newSubject: null };
   }
-  return { member, summary, subject: null, what: summary.kind ?? member.artifact_kind, before: null, after: null, captures: [] };
+  return { member, summary, subject: null, what: summary.kind ?? member.artifact_kind, before: null, after: null, captures: [], newSubject: null };
+}
+
+/**
+ * One row per change, except that a created Subject folds into its Claims'
+ * rows (marked new) instead of a row of its own; a Subject created with no
+ * Claim in this proposal keeps its row.
+ */
+export function changeRows(members: Member[]): ChangeRow[] {
+  const all = members.map(changeRow);
+  const created = new Map(all.filter((r) => r.what === "Subject" && r.subject !== null).map((r) => [r.subject!, r.member]));
+  const withClaims = new Set(all.filter((r) => r.summary.claim && r.subject !== null && created.has(r.subject)).map((r) => r.subject!));
+  // The Subject's creation rides on its first Claim row (the key Claim sorts with the rest).
+  const folded = new Set<string>();
+  return all
+    .filter((r) => !(r.what === "Subject" && r.subject !== null && withClaims.has(r.subject)))
+    .sort((a, b) => (a.subject ?? "").localeCompare(b.subject ?? "") || a.what.localeCompare(b.what))
+    .map((r) => {
+      if (!r.summary.claim || r.subject === null || !withClaims.has(r.subject) || folded.has(r.subject)) return r;
+      folded.add(r.subject);
+      return { ...r, newSubject: created.get(r.subject) ?? null };
+    });
 }
 
 function ShownChange({ value, muted = false }: { value: { text: string; ref: string | null }; muted?: boolean }) {
@@ -326,10 +350,7 @@ function ChangesPanel({ review }: { review: Review }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   // By Subject, then ClaimType, so one Subject's changes read together.
-  const rows = useMemo(
-    () => review.members.map(changeRow).sort((a, b) => (a.subject ?? "").localeCompare(b.subject ?? "") || a.what.localeCompare(b.what)),
-    [review.members],
-  );
+  const rows = useMemo(() => changeRows(review.members), [review.members]);
   const columns = useMemo<Column<ChangeRow>[]>(
     () => [
       {
@@ -345,7 +366,19 @@ function ChangesPanel({ review }: { review: Review }) {
         header: "Subject",
         sortValue: (r) => r.subject ?? "",
         className: "whitespace-nowrap",
-        cell: (r) => (r.subject ? <RefLink value={r.subject} /> : <span className="text-zinc-600">—</span>),
+        cell: (r) =>
+          r.subject ? (
+            <span className="inline-flex items-baseline gap-2">
+              <RefLink value={r.subject} />
+              {r.newSubject && (
+                <span className="t-meta" title="This proposal creates the Subject">
+                  new
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-zinc-600">—</span>
+          ),
       },
       {
         id: "what",
@@ -447,8 +480,13 @@ function ChangesPanel({ review }: { review: Review }) {
         rowKey={(r) => r.member.path}
         label="Changes"
         urlKey="changes"
-        expanded={(r) => <ChangeDetail member={r.member} />}
-        canExpand={(r) => r.member.semantic_delta.length > 0 || (r.member.prior_refusals?.length ?? 0) > 0}
+        expanded={(r) => (
+          <>
+            <ChangeDetail member={r.member} />
+            {r.newSubject && <ChangeDetail member={r.newSubject} />}
+          </>
+        )}
+        canExpand={(r) => r.member.semantic_delta.length > 0 || (r.member.prior_refusals?.length ?? 0) > 0 || r.newSubject !== null}
       />
       {review.prior_refusal_coverage && (
         <div className="t-meta mt-3" title="How far the refusal index has read; refusals after this are not yet shown">
