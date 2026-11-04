@@ -351,6 +351,8 @@ function ClaimRow({
   const flags: readonly string[] = [...new Set([...(entry.flags ?? []), ...(entry.nones ?? []).flatMap((none) => none.flags ?? [])])];
   const predicate = descriptor?.predicate ?? entry.predicate;
   const need: EvidenceNeed = isKey ? "none" : evidenceNeed(descriptor);
+  // The reason the row already shows under the value; the detail does not repeat it.
+  const shownReason = isKey ? null : sharedReasonText(sharedReason(origins.map(changeItem)));
   return (
     <FieldRow
       ref={rowRef}
@@ -384,7 +386,7 @@ function ClaimRow({
         </>
       }
       detail={ids.map((id) => (
-        <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} need={need} isKey={isKey} />
+        <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} need={need} isKey={isKey} shownReason={shownReason} />
       ))}
     />
   );
@@ -422,25 +424,33 @@ function evidenceTerm(status: string, need: EvidenceNeed): Term {
   return quiet;
 }
 
-/** One Claim, expanded: verdict and contenders, evidence, admission, revisions. */
+/**
+ * One Claim, expanded: verdict and contenders, its evidence (each Capture once,
+ * with its admission), revisions. The rationale the row already shows is not
+ * repeated here or on a revision.
+ */
 function ClaimDetail({
   claimId,
   card,
   accounts,
   need,
   isKey,
+  shownReason,
 }: {
   claimId: string;
   card: GetClaimCard | undefined;
   accounts: CaptureAdmissionAccount[] | undefined;
   need: EvidenceNeed;
   isKey: boolean;
+  shownReason: string | null;
 }) {
   const evidence = useClaimEvidence(claimId);
   const revisions = useClaimRevisions(claimId);
   const ev = evidence.data?.evidence ?? null;
   const history = revisions.data?.history;
   const revisionRows: GetRevision[] = history?.kind === "revisions" ? history.revisions : [];
+  const rationale = ev?.rationale ?? null;
+  const shown = rationale ?? shownReason;
   return (
     <div className="border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 text-[12px]">
       <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
@@ -480,32 +490,25 @@ function ClaimDetail({
       {evidence.error && <div className="mt-2 text-red-400/80">{evidence.error.message}</div>}
       {ev && (
         <>
-          {ev.rationale && (
+          {rationale && rationale !== shownReason && (
             <SubSection title="Rationale">
-              <LongText text={ev.rationale} lines={4} className="text-[13px] text-zinc-200" />
+              <LongText text={rationale} lines={4} className="text-[13px] text-zinc-200" />
             </SubSection>
           )}
-          <SubSection title="Captures" meta={ev.captures.length}>
+          <SubSection title="Evidence" meta={ev.captures.length}>
             {ev.captures.length === 0 && <div className="text-zinc-500">None</div>}
-            {ev.captures.length > 0 && (
-              <CapturesTable captures={ev.captures} need={need} />
-            )}
+            {ev.captures.length > 0 && <EvidenceTable captures={ev.captures} accounts={accounts ?? []} need={need} />}
           </SubSection>
           {ev.attestations.length > 0 && <AttestationList attestations={ev.attestations} />}
         </>
       )}
 
-      {accounts && accounts.length > 0 && (
-        <Disclosure className="mt-3" label="Admission accounts">
-          <AdmissionTable accounts={accounts} need={need} />
-        </Disclosure>
-      )}
-
-      {revisionRows.length > 0 && (
+      {/* One revision is the value, time and Line the row already shows. */}
+      {revisionRows.length > 1 && (
         <Disclosure className="mt-2" label={`Revisions (${revisionRows.length})`} defaultOpen={revisionRows.length <= 3}>
           <div className="space-y-1">
             {revisionRows.map((revision) => (
-              <RevisionLine key={`${revision.revision}\n${revision.sequence}`} revision={revision} />
+              <RevisionLine key={`${revision.revision}\n${revision.sequence}`} revision={revision} shown={shown} />
             ))}
           </div>
         </Disclosure>
@@ -514,8 +517,34 @@ function ClaimDetail({
   );
 }
 
-/** A Claim's cited Captures: what each is cited as, whether the verdict reads it, its source, contract and when observed. */
-function CapturesTable({ captures, need }: { captures: GetCaptureEvidence[]; need: EvidenceNeed }) {
+/** The admission account for a cited Capture: same digest prefix and role. */
+function accountFor(capture: GetCaptureEvidence, accounts: CaptureAdmissionAccount[]): CaptureAdmissionAccount | undefined {
+  const hex = capture.capture.replace(/^CAP-/, "");
+  return accounts.find((a) => a.capture_digest.replace(/^sha256:/, "").startsWith(hex) && a.citation_role === capture.role);
+}
+
+/** The admission rule as hover text: the decision, the rule that admitted or refused, the closest rule when none matched. */
+function admissionRule(account: CaptureAdmissionAccount | undefined): string | undefined {
+  const d = account?.decision;
+  if (!d) return account ? "Not evidence: no rule was consulted" : undefined;
+  return [
+    sentence(d.status.replaceAll("_", " ")),
+    d.admission && `(${d.admission.replaceAll("_", " ")})`,
+    d.rule_id && `rule ${d.rule_id}`,
+    d.refusal_code,
+    d.closest_rule_id && d.closest_rule_id !== d.rule_id && `closest rule ${d.closest_rule_id}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * A Claim's cited Captures, each once: what it is cited as, its source,
+ * contract and when observed, and whether it is admitted as evidence (the
+ * rule on hover). Admission accounts with no cited Capture row are left to
+ * the Capture's own page.
+ */
+function EvidenceTable({ captures, accounts, need }: { captures: GetCaptureEvidence[]; accounts: CaptureAdmissionAccount[]; need: EvidenceNeed }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   const columns = useMemo<Column<GetCaptureEvidence>[]>(
@@ -525,14 +554,13 @@ function CapturesTable({ captures, need }: { captures: GetCaptureEvidence[]; nee
         id: "cited_as",
         header: "Cited as",
         title: "What the citation is: evidence, the Claim's own words, or a passage of a file",
-        className: "max-w-[20rem] truncate text-zinc-300",
-        cell: (c) => <span title={citationLabel(c)}>{citationLabel(c)}</span>,
+        className: "max-w-[14rem] truncate text-zinc-300",
+        cell: (c) => <span title={`${citationLabel(c)} · ${c.origin}`}>{citationLabel(c)}</span>,
       },
-      { id: "status", header: "Status", title: "Whether the verdict reads it", className: "whitespace-nowrap", cell: (c) => <Chip term={evidenceTerm(c.status, need)} /> },
       {
         id: "source",
         header: "Source",
-        className: "max-w-[18rem] truncate text-zinc-400",
+        className: "max-w-[14rem] truncate text-zinc-400",
         cell: (c) => <span title={c.source}>{publicName(c.source)}</span>,
       },
       {
@@ -554,49 +582,26 @@ function CapturesTable({ captures, need }: { captures: GetCaptureEvidence[]; nee
         className: "whitespace-nowrap text-zinc-400",
         cell: (c) => <span title={c.observed_at}>{formatWhen(c.observed_at)}</span>,
       },
+      {
+        id: "admission",
+        header: "Admission",
+        title: "Whether the ClaimType's evidence rule admits it, so the verdict reads it. Hover for the rule",
+        className: "whitespace-nowrap",
+        cell: (c) => {
+          const account = accountFor(c, accounts);
+          return (
+            <span title={admissionRule(account)}>
+              <Chip term={evidenceTerm(account?.status ?? c.status, need)} />
+            </span>
+          );
+        },
+      },
     ],
-    [instanceId, link, need],
+    [instanceId, link, need, accounts],
   );
   return (
-    <DataTable rows={captures} columns={columns} rowKey={(c) => `${c.capture}\n${c.role}`} label="Captures" toolbar={false} maxHeight="none" />
+    <DataTable rows={captures} columns={columns} rowKey={(c) => `${c.capture}\n${c.role}`} label="Evidence" toolbar={false} maxHeight="none" />
   );
-}
-
-/** Each citation's admission account: the rule the ClaimType's evidence rule applied, or none (not evidence). */
-function AdmissionTable({ accounts, need }: { accounts: CaptureAdmissionAccount[]; need: EvidenceNeed }) {
-  const columns = useMemo<Column<CaptureAdmissionAccount>[]>(
-    () => [
-      {
-        id: "capture",
-        header: "Capture",
-        className: "whitespace-nowrap",
-        cell: (a) => <RefLink value={`CAP-${a.capture_digest.replace(/^sha256:/, "").slice(0, 12)}`} />,
-      },
-      { id: "contract", header: "Contract", className: "font-mono text-[12px] text-zinc-400", cell: (a) => a.capture_contract_identity },
-      { id: "role", header: "Role", className: "text-zinc-400", cell: (a) => a.citation_role },
-      { id: "origin", header: "Origin", className: "text-zinc-400", cell: (a) => a.citation_origin },
-      { id: "status", header: "Status", cell: (a) => <Chip term={evidenceTerm(a.status, need)} /> },
-      {
-        id: "rule",
-        header: "Rule",
-        className: "text-zinc-500",
-        cell: (a) =>
-          a.decision ? (
-            <div>
-              {sentence(a.decision.status.replaceAll("_", " "))}
-              {a.decision.admission && <span> ({a.decision.admission.replaceAll("_", " ")})</span>}
-              {a.decision.rule_id && <span className="font-mono"> {a.decision.rule_id}</span>}
-              {a.decision.refusal_code && <span className="font-mono text-zinc-400"> {a.decision.refusal_code}</span>}
-              {a.decision.closest_rule_id && <span className="font-mono"> closest {a.decision.closest_rule_id}</span>}
-            </div>
-          ) : (
-            <span title="Not evidence: no rule was consulted">-</span>
-          ),
-      },
-    ],
-    [need],
-  );
-  return <DataTable rows={accounts} columns={columns} rowKey={(a) => a.citation_id} label="Admission accounts" toolbar={false} maxHeight="none" />;
 }
 
 const ATTESTATION_COLUMNS: Column<GetAttestationEvidence>[] = [
@@ -659,13 +664,15 @@ function ReasonSource({ reason }: { reason: Reason }) {
   if (!reason || reason.kind !== "procedure_item") return null;
   return (
     <span className="t-meta">
-      {reason.procedure} <RefLink value={`ProcedureRun:${reason.run}`} short />
+      {reason.procedure.replace(/^Procedure:/, "")} <RefLink value={`ProcedureRun:${reason.run}`} short />
     </span>
   );
 }
 
-function RevisionLine({ revision }: { revision: GetRevision }) {
-  const text = reasonWords(revision.reason);
+/** One revision; its reason only when it differs from the rationale already shown above. */
+function RevisionLine({ revision, shown }: { revision: GetRevision; shown: string | null }) {
+  const words = reasonWords(revision.reason);
+  const text = words && words !== shown ? words : null;
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-x-3">

@@ -84,7 +84,9 @@ describe("Subject page", () => {
     expect(screen.getByText("Vendor advisory: the backdoored build was never shipped in rel-1.")).toBeInTheDocument();
     expect(screen.getAllByText("Contenders")).toHaveLength(2);
     expect(screen.getByText("security.osv-applicability-v1 v1")).toBeInTheDocument();
-    expect(screen.getAllByText("Admission accounts")).toHaveLength(2);
+    // each cited Capture once, its admission in the same row
+    expect(screen.getAllByRole("columnheader", { name: /Admission/ })).toHaveLength(2);
+    expect(screen.queryByText("Admission accounts")).toBeNull();
     expect(await screen.findAllByText("r2")).not.toHaveLength(0);
     // a revision's generation links back to this page pinned there
     const generation = screen.getAllByRole("link", { name: "g40" })[0]!;
