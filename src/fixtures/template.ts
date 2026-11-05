@@ -1062,6 +1062,26 @@ export const SCALAR_PAIR: RecordedFixture[] = [
   ...PAIR_CAPTURES.map((c) => read(c, PAGE_URL(1), RUN_PAIR)),
   batch([`ProcedureRun:${RUN_PAIR}`], [result(`ProcedureRun:${RUN_PAIR}`, "procedure_run", { card: PAIR_RUN_CARD })]),
   runState(RUN_PAIR, [], G40),
+  // the bound coordinate's generation (the retention check), answered from accepted history
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/head",
+    query: headQuery(G40.git_oid),
+    response: { tag: "playbill-head-v1", instance: "inst_fixture", coordinate: G40, generation: 40 },
+  }),
+];
+/**
+ * The head moved on 80 generations past g40: run-pair's bound coordinate is
+ * past the daemon's retained window (the newest 64), so a read there would
+ * rebuild its projection.
+ */
+export const PAIR_BOUND_EVICTED: RecordedFixture[] = [
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/head",
+    query: headQuery(null),
+    response: { tag: "playbill-head-v1", instance: "inst_fixture", coordinate: COORDINATE, generation: 120 },
+  }),
 ];
 /** The pair Procedure and its out Contract at run-pair's bound coordinate (g40): two scalar Capture fields. */
 export const PAIR_DEFINED_AT_BOUND = pairDefinitions(G40, PAIR_SPEC);

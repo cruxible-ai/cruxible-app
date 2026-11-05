@@ -1,7 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
-import { BODY, FIXES, FIXES_KIND, HEADERS, LATER_REVISION, P1, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
+import { server } from "@/test/msw-server";
+import { BODY, FIXES, FIXES_KIND, G40, HEADERS, LATER_REVISION, P1, PAIR_BOUND_EVICTED, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -108,6 +109,31 @@ describe("D-R37 template: Captures", () => {
     expect(table.getByRole("link", { name: handle(HEADERS) })).toBeInTheDocument();
     expect(table.queryByText("Page")).toBeNull();
     expect(screen.getByText(/The list this Capture is a member of \(pages\)/)).toBeInTheDocument();
+  }, 20000);
+
+  it("an old run whose bound coordinate is past the retained window: no definition read there, outputs unclassified", async () => {
+    const atBound: string[] = [];
+    const parsing: Promise<void>[] = [];
+    const listen = ({ request }: { request: Request }) => {
+      if (!request.url.includes("/get-batch")) return;
+      parsing.push(
+        request
+          .clone()
+          .json()
+          .then((body: { at?: { git_oid?: string }; refs?: string[] }) => {
+            if (body.at?.git_oid === G40.git_oid) atBound.push(...(body.refs ?? []));
+          }),
+      );
+    };
+    server.events.on("request:start", listen);
+    try {
+      // the list definition at g40 would classify the outputs as list members, were it read
+      await unclassified([...PAIR_LIST_AT_BOUND, ...PAIR_BOUND_EVICTED]);
+      await Promise.all(parsing);
+      expect(atBound).toEqual([]);
+    } finally {
+      server.events.removeListener("request:start", listen);
+    }
   }, 20000);
 
   it("a derived CaptureKind names the derives that commit it, their operation and the kinds they derive from", async () => {

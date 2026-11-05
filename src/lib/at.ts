@@ -13,7 +13,9 @@ export const AT_PARAM = "at";
 /**
  * Generations whose projection the daemon retains; pinning an older one
  * rebuilds the whole projection on the daemon (design Q3), so the at-picker
- * warns before it binds.
+ * warns before it binds, and the console never reads there on its own. Core's
+ * retention (`RetentionSettings.generations`, not served) evicts every piece at
+ * or below the head's sequence less this.
  */
 export const RETAINED_GENERATIONS = 64;
 
@@ -35,9 +37,9 @@ export function parseAt(raw: string | null | undefined): AtValue | null {
   return null;
 }
 
-/** True when pinning `generation` falls outside the retained window below `head`. */
+/** True when `generation` falls outside the retained window below `head` (the newest RETAINED_GENERATIONS). */
 export function isOutsideRetention(generation: number, head: number): boolean {
-  return generation < head - RETAINED_GENERATIONS;
+  return generation <= head - RETAINED_GENERATIONS;
 }
 
 /** The page's pinned `at`, normalized; null = head (or a malformed value, ignored). */

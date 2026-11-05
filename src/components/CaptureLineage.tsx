@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useCaptureRead, useCard, useCardAt, useGetBatch, useInstanceId, useRunState } from "@/api/hooks";
+import { useCaptureRead, useCard, useCardAt, useGetBatch, useInstanceId, useRetainedAt, useRunState } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { CaptureRows } from "@/components/DerivedFrom";
 import { DataTable, type Column } from "@/components/DataTable";
@@ -136,23 +136,29 @@ function callOf(run: Schemas["GetProcedureRunCard"] | null, digest: string): { n
  * the run's bound coordinate (its run state; a later revision of the
  * Procedure or Contract never classifies an older run's outputs). Read only
  * when the run serves no members naming this Capture and the call returned
- * others: the run state, then the Procedure card and the slot's out Contract
- * card at that coordinate. Any of them unread: no fields (unclassified).
+ * others, and only while the daemon retains that coordinate's projection
+ * (`useRetainedAt`): a read past the window would rebuild it, O(instance +
+ * history), on a routine page visit. Reads: the run state, the coordinate's
+ * generation (GET /head?at=), then the Procedure card and the slot's out
+ * Contract card there. Past the window, or any of them unread: no fields
+ * (unclassified).
  */
 function useCallFields(runId: string | null, run: Schemas["GetProcedureRunCard"] | null, call: { node: string; summary: CallSummary } | null, digest: string) {
   const needed = call !== null && !listOutcome(call.summary)?.members.some((m) => m.capture === digest) && (call.summary.capture_digests ?? []).length > 1;
   const state = useRunState(needed ? runId : null);
   const bound = state.data?.bound_coordinate;
-  const procedureRead = useCardAt(needed && run ? run.procedure : null, bound);
+  const window = useRetainedAt(needed && bound ? [bound.git_oid] : []);
+  const readAt = bound && window.retained.has(bound.git_oid) ? bound : undefined;
+  const procedureRead = useCardAt(needed && run && readAt ? run.procedure : null, readAt);
   const spec = cardOf(procedureRead.data, "procedure")?.authored ?? null;
   const index = spec && call ? spec.steps.findIndex((step, i) => "call" in step && stepAlias(step, i) === call.node) : -1;
   const step = index >= 0 ? (spec!.steps[index] as Extract<ProcedureSpec["steps"][number], { call: string }>) : null;
   const out = step ? spec!.slots?.[step.slot]?.out : undefined;
-  const contractRead = useCardAt(out ? `Contract:${out.name}@${out.version}` : null, bound);
+  const contractRead = useCardAt(out && readAt ? `Contract:${out.name}@${out.version}` : null, readAt);
   const contract = cardOf(contractRead.data, "contract");
   if (!needed) return { fields: null, isPending: false };
-  if (state.isPending || (bound && procedureRead.isPending) || (out && contractRead.isPending)) return { fields: null, isPending: true };
-  if (!step || !contract) return { fields: null, isPending: false };
+  if (state.isPending || (bound && window.isPending) || (readAt && procedureRead.isPending) || (out && readAt && contractRead.isPending)) return { fields: null, isPending: true };
+  if (!readAt || !step || !contract) return { fields: null, isPending: false };
   return { fields: { captures: Object.keys(step.captures ?? {}), lists: listFields(contract).map((f) => f.field) }, isPending: false };
 }
 

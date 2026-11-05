@@ -43,7 +43,7 @@ import type {
   ProposalStatus,
 } from "./schemas";
 import { cardOf } from "./schemas";
-import { useAtParam } from "@/lib/at";
+import { isOutsideRetention, useAtParam } from "@/lib/at";
 import { useSettings } from "@/lib/settings";
 import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
 import { ontologyKinds } from "@/lib/type-graph";
@@ -992,12 +992,36 @@ export function useCoordinatesAt(oids: readonly string[]) {
     })),
     combine: (results) => {
       const byOid = new Map<string, AcceptedCoordinate>();
+      const generations = new Map<string, number>();
       results.forEach((r, i) => {
-        if (r.data) byOid.set(unique[i]!, r.data.coordinate);
+        if (!r.data) return;
+        byOid.set(unique[i]!, r.data.coordinate);
+        generations.set(unique[i]!, r.data.generation);
       });
-      return { byOid, isPending: results.some((r) => r.isPending), error: results.find((r) => r.error)?.error ?? null };
+      return { byOid, generations, isPending: results.some((r) => r.isPending), error: results.find((r) => r.error)?.error ?? null };
     },
   });
+}
+
+/**
+ * Which accepted oids the daemon still retains a projection for, so a read
+ * there binds a kept piece instead of rebuilding one (O(instance + history)).
+ * The signal: GET /head?at=<oid> (the oid's generation) and GET /head (the
+ * latest head's), both answered from accepted history without binding a
+ * projection; retained when within the newest RETAINED_GENERATIONS (core's
+ * retention, which no route serves). An oid whose generation or the head is
+ * unread is not retained (fail-safe); pending until both are read.
+ */
+export function useRetainedAt(oids: readonly string[]) {
+  const latest = useHead(null);
+  const at = useCoordinatesAt(oids);
+  return useMemo(() => {
+    const head = latest.data?.generation;
+    const retained = new Set<string>();
+    if (head !== undefined) for (const [oid, generation] of at.generations) if (!isOutsideRetention(generation, head)) retained.add(oid);
+    return { retained, coordinates: at.byOid, generations: at.generations, isPending: (oids.length > 0 && latest.isPending) || at.isPending, error: at.error };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
+  }, [latest.data?.generation, latest.isPending, at.generations, at.byOid, at.isPending, at.error, oids.length]);
 }
 
 /**
