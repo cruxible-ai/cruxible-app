@@ -1071,11 +1071,11 @@ export const SCALAR_PAIR: RecordedFixture[] = [
   }),
 ];
 /**
- * The head moved on 80 generations past g40: run-pair's bound coordinate is
- * past the daemon's retained window (the newest 64), so a read there would
- * rebuild its projection.
+ * The head moved on to g120: g40 and g41 (run-pair's and run-t0's
+ * coordinates) are past the daemon's retained window (the newest 64), so a
+ * read there would rebuild its projection.
  */
-export const PAIR_BOUND_EVICTED: RecordedFixture[] = [
+export const HEAD_MOVED_ON: RecordedFixture[] = [
   defineFixture({
     method: "get",
     path: "/api/v1/{instance_id}/head",

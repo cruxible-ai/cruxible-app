@@ -1014,14 +1014,23 @@ export function useCoordinatesAt(oids: readonly string[]) {
  */
 export function useRetainedAt(oids: readonly string[]) {
   const latest = useHead(null);
-  const at = useCoordinatesAt(oids);
+  const head = latest.data;
+  // the head itself is retained: no read for it
+  const reads = head ? oids.filter((oid) => oid !== head.coordinate.git_oid) : [];
+  const at = useCoordinatesAt(reads);
   return useMemo(() => {
-    const head = latest.data?.generation;
     const retained = new Set<string>();
-    if (head !== undefined) for (const [oid, generation] of at.generations) if (!isOutsideRetention(generation, head)) retained.add(oid);
-    return { retained, coordinates: at.byOid, generations: at.generations, isPending: (oids.length > 0 && latest.isPending) || at.isPending, error: at.error };
+    const coordinates = new Map(at.byOid);
+    if (head) {
+      if (oids.includes(head.coordinate.git_oid)) {
+        retained.add(head.coordinate.git_oid);
+        coordinates.set(head.coordinate.git_oid, head.coordinate);
+      }
+      for (const [oid, generation] of at.generations) if (!isOutsideRetention(generation, head.generation)) retained.add(oid);
+    }
+    return { retained, coordinates, isPending: oids.length > 0 && (latest.isPending || at.isPending), error: at.error };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
-  }, [latest.data?.generation, latest.isPending, at.generations, at.byOid, at.isPending, at.error, oids.length]);
+  }, [head, latest.isPending, at.generations, at.byOid, at.isPending, at.error, oids.join("\n")]);
 }
 
 /**

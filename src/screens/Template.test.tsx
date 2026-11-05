@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { server } from "@/test/msw-server";
-import { BODY, FIXES, FIXES_KIND, G40, HEADERS, LATER_REVISION, P1, PAIR_BOUND_EVICTED, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
+import { BODY, FIXES, FIXES_KIND, G40, G41, HEAD_MOVED_ON, HEADERS, LATER_REVISION, P1, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, REVISED_CLAIM, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -128,7 +128,7 @@ describe("D-R37 template: Captures", () => {
     server.events.on("request:start", listen);
     try {
       // the list definition at g40 would classify the outputs as list members, were it read
-      await unclassified([...PAIR_LIST_AT_BOUND, ...PAIR_BOUND_EVICTED]);
+      await unclassified([...PAIR_LIST_AT_BOUND, ...HEAD_MOVED_ON]);
       await Promise.all(parsing);
       expect(atBound).toEqual([]);
     } finally {
@@ -230,6 +230,35 @@ describe("D-R37 template: runs, Lines and the evidence flow", () => {
     expect(table.getByRole("link", { name: "security.assessment.status" })).toBeInTheDocument();
     expect(table.queryByText("fixed")).toBeNull(); // the head's value is not this run's
   });
+
+  it("a re-observed Claim whose run coordinate is past the retained window is not read, and never shows another generation's value", async () => {
+    const reads: { at?: string; ids: string[] }[] = [];
+    const parsing: Promise<void>[] = [];
+    const listen = ({ request }: { request: Request }) => {
+      if (!request.url.includes("/claims/read-batch")) return;
+      parsing.push(
+        request
+          .clone()
+          .json()
+          .then((body: { at?: { git_oid?: string }; claim_ids?: string[] }) => {
+            reads.push({ ...(body.at?.git_oid ? { at: body.at.git_oid } : {}), ids: body.claim_ids ?? [] });
+          }),
+      );
+    };
+    server.events.on("request:start", listen);
+    try {
+      renderApp(`${I}/runs/${RUN_T0}`, [...TEMPLATE_WORLD, ...LATER_REVISION, ...HEAD_MOVED_ON]);
+      const table = within(await screen.findByRole("table", { name: "Changes" }, SLOW));
+      await waitFor(() => expect(table.getByText("not read")).toBeInTheDocument(), SLOW);
+      expect(table.queryByText("open")).toBeNull();
+      expect(table.queryByText("fixed")).toBeNull();
+      await Promise.all(parsing);
+      expect(reads.filter((r) => r.ids.includes(REVISED_CLAIM))).toEqual([]);
+      expect(reads.some((r) => r.at === G41.git_oid)).toBe(false);
+    } finally {
+      server.events.removeListener("request:start", listen);
+    }
+  }, 20000);
 
   it("a Line's Ends in names the kinds it may create, value targets included", async () => {
     renderApp(`${I}/lines`, TEMPLATE_WORLD);

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useCard, useClaimViewsAt, useCoordinatesAt, useInstanceId, useReview, useRunState } from "@/api/hooks";
+import { useCard, useClaimViewsAt, useInstanceId, useRetainedAt, useReview, useRunState } from "@/api/hooks";
 import { cardOf, type AcceptedCoordinate, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
@@ -11,7 +11,7 @@ import { ChangeMark } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { ShownValue } from "@/components/ShownValue";
 import { changeCounts, changedItems, changeRows, unreviewedClaimsAt, type ChangeRow, type ItemChange } from "@/lib/run-changes";
-import { useAtLink, withAt } from "@/lib/at";
+import { RETAINED_GENERATIONS, useAtLink, withAt } from "@/lib/at";
 import { captureHandle } from "@/lib/next-reasons";
 import { formatDateTime, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -297,6 +297,13 @@ const COUNT_WORD: Record<ItemChange, [string, string]> = {
 };
 const DISPOSITION_MARK = { new: "create", revised: "revise", retired: "retire" } as const;
 
+/** Why a re-observed Claim's value is not read: its coordinate is past the retained window, or the run's coordinate is unread. */
+type Unread = "window" | "coordinate";
+const UNREAD_WHY: Record<Unread, string> = {
+  window: `Its generation is older than the ${RETAINED_GENERATIONS} the daemon retains: reading it would rebuild that projection. Open the run's generation to read it.`,
+  coordinate: "The run's coordinate is unread.",
+};
+
 /**
  * What the run changed, item by item (D-R37 g, CD3): each claims item with a
  * recorded change, its kind, Subject, ClaimType and value, each linked. Reads:
@@ -304,8 +311,10 @@ const DISPOSITION_MARK = { new: "create", revised: "revise", retired: "retire" }
  * claims/read-batch for re-observed Claims (no member carries them); never one
  * per item. A re-observed Claim is read at the run's own coordinate (where its
  * terminal's items were accepted, else the coordinate the run was bound to;
- * GET /head?at=<oid> resolves an accepted oid), never the page's or the head:
- * a later revision is not this run's value. Runs from before item changes were
+ * GET /head?at=<oid> resolves an accepted oid and its generation), never the
+ * page's or the head: a later revision is not this run's value. A coordinate
+ * past the daemon's retained window is not read (the read would rebuild its
+ * projection): its values read "not read". Runs from before item changes were
  * recorded show no panel.
  */
 function ChangesPanel({ egress, bound, boundUnread }: { egress: Egress[]; bound: AcceptedCoordinate | undefined; boundUnread: boolean }) {
@@ -314,16 +323,29 @@ function ChangesPanel({ egress, bound, boundUnread }: { egress: Egress[]; bound:
   const review = useReview(items.length > 0 ? proposal : null);
   const members = review.data?.members ?? null;
   const missing = useMemo(() => (proposal && review.isPending ? [] : unreviewedClaimsAt(items, members)), [items, members, proposal, review.isPending]);
-  const accepted = useMemo(() => missing.flatMap((g) => (g.accepted && g.accepted !== bound?.git_oid ? [g.accepted] : [])), [missing, bound]);
-  const coordinates = useCoordinatesAt(accepted);
-  const groups = useMemo(
-    () =>
-      missing
-        // the run's own coordinate for each group; one that cannot be known (its run state unread) is not read at all
-        .filter((g) => g.accepted !== null || !boundUnread)
-        .map((g) => ({ coordinate: g.accepted === null || g.accepted === bound?.git_oid ? bound : coordinates.byOid.get(g.accepted), ids: g.ids })),
-    [missing, bound, boundUnread, coordinates.byOid],
+  const placed = useMemo(
+    () => missing.map((g) => ({ ...g, oid: g.accepted ?? bound?.git_oid ?? null })),
+    [missing, bound],
   );
+  const window = useRetainedAt(useMemo(() => placed.flatMap((g) => (g.oid ? [g.oid] : [])), [placed]));
+  // Each group's read: at its coordinate when the daemon retains it; past the window a read would rebuild that projection on a routine visit, so it is not read
+  const { groups, unread } = useMemo(() => {
+    const groups: { coordinate: AcceptedCoordinate | undefined; ids: string[] }[] = [];
+    const unread = new Map<string, Unread>();
+    for (const g of placed) {
+      if (!g.oid) {
+        if (boundUnread) for (const id of g.ids) unread.set(id, "coordinate");
+        continue;
+      }
+      if (window.isPending) continue;
+      if (!window.retained.has(g.oid)) {
+        for (const id of g.ids) unread.set(id, "window");
+        continue;
+      }
+      groups.push({ coordinate: g.accepted === null || g.accepted === bound?.git_oid ? bound : window.coordinates.get(g.accepted), ids: g.ids });
+    }
+    return { groups, unread };
+  }, [placed, bound, boundUnread, window.isPending, window.retained, window.coordinates]);
   const states = useClaimViewsAt(groups);
   const rows = useMemo(() => changeRows(items, members, states.statements), [items, members, states.statements]);
   if (items.length === 0) return null;
@@ -343,16 +365,15 @@ function ChangesPanel({ egress, bound, boundUnread }: { egress: Egress[]; bound:
         </span>
       }
     >
-      {(review.isPending && proposal) || (states.isPending && !coordinates.error) ? <LoadState /> : null}
+      {(review.isPending && proposal) || window.isPending || states.isPending ? <LoadState /> : null}
       {review.error && <LoadState error={review.error} />}
-      {coordinates.error && <LoadState error={coordinates.error} />}
       {states.error && <LoadState error={states.error} />}
-      <ChangesTable rows={rows} />
+      <ChangesTable rows={rows} unread={unread} />
     </Panel>
   );
 }
 
-function ChangesTable({ rows }: { rows: ChangeRow[] }) {
+function ChangesTable({ rows, unread }: { rows: ChangeRow[]; unread: ReadonlyMap<string, Unread> }) {
   const columns = useMemo<Column<ChangeRow>[]>(
     () => [
       {
@@ -390,7 +411,11 @@ function ChangesTable({ rows }: { rows: ChangeRow[] }) {
         header: "Value",
         className: "text-zinc-200",
         cell: (r) =>
-          r.value === undefined ? (
+          r.value === undefined && r.claim && unread.has(r.claim) ? (
+            <span className="text-zinc-500" title={UNREAD_WHY[unread.get(r.claim)!]}>
+              not read
+            </span>
+          ) : r.value === undefined ? (
             <span className="text-zinc-600">—</span>
           ) : (
             <span className={`inline-flex flex-wrap items-baseline gap-x-1.5 ${r.change === "retirement" || r.disposition === "retired" ? "line-through decoration-zinc-500" : ""}`}>
@@ -413,7 +438,7 @@ function ChangesTable({ rows }: { rows: ChangeRow[] }) {
         cell: (r) => (r.claim ? <RefLink value={r.claim} short /> : r.path ? <RefLink value={r.path} short /> : <span className="text-zinc-600">—</span>),
       },
     ],
-    [],
+    [unread],
   );
   return <DataTable rows={rows} columns={columns} rowKey={(r) => r.key} urlKey="changes" label="Changes" toolbar={rows.length > 10} maxHeight="32rem" />;
 }
