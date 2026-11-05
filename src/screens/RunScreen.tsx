@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useAdmissionAccounts, useCard, useInstanceId, useReview, useRunState } from "@/api/hooks";
-import { cardOf, type Schemas } from "@/api/schemas";
+import { useCard, useClaimViewsAt, useCoordinatesAt, useInstanceId, useReview, useRunState } from "@/api/hooks";
+import { cardOf, type AcceptedCoordinate, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
@@ -10,7 +10,7 @@ import { RefLink } from "@/components/RefLink";
 import { ChangeMark } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { ShownValue } from "@/components/ShownValue";
-import { changeCounts, changedItems, changeRows, unreviewedClaims, type ChangeRow, type ItemChange } from "@/lib/run-changes";
+import { changeCounts, changedItems, changeRows, unreviewedClaimsAt, type ChangeRow, type ItemChange } from "@/lib/run-changes";
 import { useAtLink, withAt } from "@/lib/at";
 import { captureHandle } from "@/lib/next-reasons";
 import { formatDateTime, sentence } from "@/lib/text";
@@ -139,7 +139,7 @@ export function RunScreen() {
         </div>
       )}
 
-      {runCard && <ChangesPanel egress={runCard.terminal_egress ?? []} />}
+      {runCard && <ChangesPanel egress={runCard.terminal_egress ?? []} bound={state.data?.bound_coordinate} boundUnread={state.error !== null} />}
 
       <Panel title="Captures read and receipt" meta={state.data ? <span>{state.data.source_observations?.length ?? 0} Captures</span> : undefined}>
         {state.isPending && <LoadState />}
@@ -302,15 +302,29 @@ const DISPOSITION_MARK = { new: "create", revised: "revise", retired: "retire" }
  * recorded change, its kind, Subject, ClaimType and value, each linked. Reads:
  * the review of the proposal each claims terminal delivered, and one
  * claims/read-batch for re-observed Claims (no member carries them); never one
- * per item. Runs from before item changes were recorded show no panel.
+ * per item. A re-observed Claim is read at the run's own coordinate (where its
+ * terminal's items were accepted, else the coordinate the run was bound to;
+ * GET /head?at=<oid> resolves an accepted oid), never the page's or the head:
+ * a later revision is not this run's value. Runs from before item changes were
+ * recorded show no panel.
  */
-function ChangesPanel({ egress }: { egress: Egress[] }) {
+function ChangesPanel({ egress, bound, boundUnread }: { egress: Egress[]; bound: AcceptedCoordinate | undefined; boundUnread: boolean }) {
   const items = useMemo(() => changedItems(egress), [egress]);
   const proposal = items.find(({ egress: e }) => e.proposal_id)?.egress.proposal_id ?? null;
   const review = useReview(items.length > 0 ? proposal : null);
   const members = review.data?.members ?? null;
-  const missing = useMemo(() => (proposal && review.isPending ? [] : unreviewedClaims(items, members)), [items, members, proposal, review.isPending]);
-  const states = useAdmissionAccounts(missing);
+  const missing = useMemo(() => (proposal && review.isPending ? [] : unreviewedClaimsAt(items, members)), [items, members, proposal, review.isPending]);
+  const accepted = useMemo(() => missing.flatMap((g) => (g.accepted && g.accepted !== bound?.git_oid ? [g.accepted] : [])), [missing, bound]);
+  const coordinates = useCoordinatesAt(accepted);
+  const groups = useMemo(
+    () =>
+      missing
+        // the run's own coordinate for each group; one that cannot be known (its run state unread) is not read at all
+        .filter((g) => g.accepted !== null || !boundUnread)
+        .map((g) => ({ coordinate: g.accepted === null || g.accepted === bound?.git_oid ? bound : coordinates.byOid.get(g.accepted), ids: g.ids })),
+    [missing, bound, boundUnread, coordinates.byOid],
+  );
+  const states = useClaimViewsAt(groups);
   const rows = useMemo(() => changeRows(items, members, states.statements), [items, members, states.statements]);
   if (items.length === 0) return null;
   const counts = changeCounts(rows);
@@ -329,8 +343,9 @@ function ChangesPanel({ egress }: { egress: Egress[] }) {
         </span>
       }
     >
-      {(review.isPending && proposal) || states.isPending ? <LoadState /> : null}
+      {(review.isPending && proposal) || (states.isPending && !coordinates.error) ? <LoadState /> : null}
       {review.error && <LoadState error={review.error} />}
+      {coordinates.error && <LoadState error={coordinates.error} />}
       {states.error && <LoadState error={states.error} />}
       <ChangesTable rows={rows} />
     </Panel>

@@ -883,18 +883,31 @@ const FULL_CLAIM_ID = /^CLM-[0-9a-f]{32}$/;
 
 /**
  * Capture admission accounts per Claim through claims/read-batch, 256 ids per
- * call. Only full Claim ids are sent: the route resolves a CLM- prefix by
- * listing every Claim of the instance.
+ * call, at the page coordinate. Only full Claim ids are sent: the route
+ * resolves a CLM- prefix by listing every Claim of the instance.
  */
 export function useAdmissionAccounts(claimIds: string[]) {
+  const { coordinate } = usePin();
+  return useClaimViewsAt([{ coordinate, ids: claimIds }]);
+}
+
+/**
+ * Stored Claims read at given coordinates, never the page's: each group's
+ * ids through claims/read-batch (256 per call) at that group's coordinate; a
+ * group whose coordinate is not known yet waits. A run's page reads the
+ * Claims it re-observed at the run's own coordinate, so a later revision
+ * never stands in for the run's value.
+ */
+export function useClaimViewsAt(groups: readonly { coordinate: AcceptedCoordinate | undefined; ids: readonly string[] }[]) {
   const client = useApiClient();
   const instanceId = useInstanceId();
-  const { coordinate } = usePin();
-  const ids = [...new Set(claimIds.filter((id) => FULL_CLAIM_ID.test(id)))];
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += CLAIM_READ_BATCH_MAX) chunks.push(ids.slice(i, i + CLAIM_READ_BATCH_MAX));
+  const reads: { coordinate: AcceptedCoordinate | undefined; chunk: string[] }[] = [];
+  for (const group of groups) {
+    const ids = [...new Set(group.ids.filter((id) => FULL_CLAIM_ID.test(id)))];
+    for (let i = 0; i < ids.length; i += CLAIM_READ_BATCH_MAX) reads.push({ coordinate: group.coordinate, chunk: ids.slice(i, i + CLAIM_READ_BATCH_MAX) });
+  }
   return useQueries({
-    queries: chunks.map((chunk) => ({
+    queries: reads.map(({ coordinate, chunk }) => ({
       queryKey: ["admission", instanceId, coordinate?.git_oid ?? null, chunk],
       enabled: coordinate !== undefined,
       staleTime: 60_000,
@@ -913,7 +926,7 @@ export function useAdmissionAccounts(claimIds: string[]) {
       const statements = new Map<string, ClaimViewRecord["statement"]>();
       results.forEach((result, i) => {
         result.data?.claims.forEach((view, j) => {
-          const id = claimIdOfView(view) ?? chunks[i]![j];
+          const id = claimIdOfView(view) ?? reads[i]!.chunk[j];
           if (id) {
             byClaim.set(id, view.admission_accounts);
             envelopes.set(id, view.envelope);
@@ -928,6 +941,36 @@ export function useAdmissionAccounts(claimIds: string[]) {
         envelopes,
         statements,
       };
+    },
+  });
+}
+
+/**
+ * Full coordinates for accepted git oids (GET /head?at=<oid>, the read a
+ * pinned page makes; shares its cache). A generation's coordinate never
+ * changes, so each is read once.
+ */
+export function useCoordinatesAt(oids: readonly string[]) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  const unique = [...new Set(oids)].sort();
+  return useQueries({
+    queries: unique.map((oid) => ({
+      queryKey: ["head", instanceId, oid],
+      staleTime: Infinity,
+      queryFn: async (): Promise<Head> =>
+        unwrap(
+          await client.GET("/api/v1/{instance_id}/head", {
+            params: { path: { instance_id: instanceId }, query: headQuery(oid) },
+          }),
+        ),
+    })),
+    combine: (results) => {
+      const byOid = new Map<string, AcceptedCoordinate>();
+      results.forEach((r, i) => {
+        if (r.data) byOid.set(unique[i]!, r.data.coordinate);
+      });
+      return { byOid, isPending: results.some((r) => r.isPending), error: results.find((r) => r.error)?.error ?? null };
     },
   });
 }

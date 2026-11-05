@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { ProcedureSpec } from "./definitions";
 import { captureInputs, createdKinds, isDerive, kindProducers, listFields, listOutcome, stageOf, stateReads } from "./template";
-import { changedItems, changeRows, unreviewedClaims } from "./run-changes";
-import { RUN_T1_CARD, TEMPLATE_MEMBERS, TEMPLATE_SPEC, clmT } from "@/fixtures/template";
+import { changedItems, changeRows, unreviewedClaims, unreviewedClaimsAt } from "./run-changes";
+import { G41, REVISED_CLAIM, RUN_T0_CARD, RUN_T1_CARD, TEMPLATE_MEMBERS, TEMPLATE_SPEC, clmT } from "@/fixtures/template";
 
 const spec = TEMPLATE_SPEC as ProcedureSpec;
 const grades = new Map([
@@ -79,5 +79,10 @@ describe("a run's item changes", () => {
     ]);
     expect(rows[1]!.before).toEqual({ kind: "literal", value: "9.7p1" });
     expect(rows[0]!.digest).toMatch(/^sha256:/);
+  });
+
+  it("groups re-observed Claims by the run's own coordinate: where its terminal was accepted, else its bound coordinate (null)", () => {
+    expect(unreviewedClaimsAt(changedItems(RUN_T1_CARD.terminal_egress), TEMPLATE_MEMBERS)).toEqual([{ accepted: null, ids: [clmT(3)] }]);
+    expect(unreviewedClaimsAt(changedItems(RUN_T0_CARD.terminal_egress), [])).toEqual([{ accepted: G41.git_oid, ids: [REVISED_CLAIM] }]);
   });
 });

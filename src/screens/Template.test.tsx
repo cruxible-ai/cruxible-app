@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
-import { FIXES, FIXES_KIND, P1, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_T1, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW } from "@/fixtures/template";
+import { FIXES, FIXES_KIND, LATER_REVISION, P1, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_T0, RUN_T1, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW } from "@/fixtures/template";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -133,6 +133,15 @@ describe("D-R37 template: runs, Lines and the evidence flow", () => {
     expect(table.getByText("9.7p1").closest(".line-through")).not.toBeNull();
     expect(table.getAllByRole("link", { name: "security.vulnerability.fixed_in" })[0]).toHaveAttribute("href", `${I}/claim-types/security.vulnerability.fixed_in`);
     expect(screen.getByText("3 claims")).toBeInTheDocument();
+  });
+
+  it("a re-observed Claim shows the run's own value, read at the run's coordinate, after a later generation revised it", async () => {
+    renderApp(`${I}/runs/${RUN_T0}`, [...TEMPLATE_WORLD, ...LATER_REVISION]);
+    const table = within(await screen.findByRole("table", { name: "Changes" }, SLOW));
+    await waitFor(() => expect(table.getByText("open")).toBeInTheDocument(), SLOW);
+    expect(table.getByText("re-observed")).toBeInTheDocument();
+    expect(table.getByRole("link", { name: "security.assessment.status" })).toBeInTheDocument();
+    expect(table.queryByText("fixed")).toBeNull(); // the head's value is not this run's
   });
 
   it("a Line's Ends in names the kinds it may create, value targets included", async () => {

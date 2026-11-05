@@ -29,6 +29,7 @@ import {
   claimReadBatchBody,
   getBatchBody,
   getBody,
+  headQuery,
   inboxQuery,
   LANDING_TRIGGERS_QUERY,
   LINE_RUNS_PAGE,
@@ -476,7 +477,7 @@ export const RUN_T2_CARD: Schemas["GetProcedureRunCard"] = {
   ],
 };
 
-const runState = (run: string, observations: { node: string; digest: string }[]) =>
+const runState = (run: string, observations: { node: string; digest: string }[], bound: Schemas["AcceptedCoordinate"] = COORDINATE) =>
   defineFixture({
     method: "get",
     path: "/api/v1/{instance_id}/procedure-runs/{run_id}",
@@ -486,8 +487,8 @@ const runState = (run: string, observations: { node: string; digest: string }[])
       run_id: run,
       procedure_identity: { kind: "Procedure", name: TEMPLATE_PROCEDURE },
       procedure_artifact_digest: "sha256:" + "6c".repeat(32),
-      bound_coordinate: COORDINATE,
-      head_at_admission: COORDINATE,
+      bound_coordinate: bound,
+      head_at_admission: bound,
       lane: "current",
       evaluation_time: "2026-10-19T00:15:02Z",
       status: "succeeded",
@@ -922,6 +923,76 @@ const SUBJECT_PAGE: RecordedFixture[] = [
     return { ...f, response };
   }),
   batch([handle(FIXES)], [captureResult(byDigest.get(FIXES)!)]),
+];
+
+// -- a run re-observed a Claim a later generation revised --------------------------------
+
+/** g40: what run-t0 was bound to; g41: where its re-observation was accepted. The head (g42) has the Claim revised. */
+export const G40: Schemas["AcceptedCoordinate"] = { ...COORDINATE, git_oid: "40".repeat(20) };
+export const G41: Schemas["AcceptedCoordinate"] = { ...COORDINATE, git_oid: "41".repeat(20) };
+export const RUN_T0 = "run-t0";
+export const REVISED_CLAIM = clmT(7);
+
+export const RUN_T0_CARD: Schemas["GetProcedureRunCard"] = {
+  ...RUN_T1_CARD,
+  run: RUN_T0,
+  started_at: "2026-10-18T18:15:02Z",
+  terminal_egress: [
+    {
+      node_id: "write",
+      kind: "claims",
+      verdict: "delivered",
+      required_authority: "settle",
+      effective_authority: "settle",
+      settle_outcome: "settled",
+      accepted_git_oid: G41.git_oid,
+      children: [child(0, claimPath(REVISED_CLAIM), "reobservation")],
+    },
+  ],
+};
+
+const statusView = (coordinate: Schemas["AcceptedCoordinate"], value: string): Schemas["ClaimViewRecord"] => ({
+  tag: "playbill-claim-read-v2",
+  coordinate_kind: "canonical",
+  coordinate,
+  envelope: { identity: `Claim:${REVISED_CLAIM}`, path: claimPath(REVISED_CLAIM) },
+  facts: [],
+  admission_evaluation_time: NOW,
+  admission_accounts: [],
+  statement: {
+    subject: { artifact_path: `subjects/${ASSESSMENT}.json`, selector: { scheme: "subject", value: ASSESSMENT } },
+    predicate: "security.assessment.status",
+    object: { kind: "literal", value },
+    role: "observation",
+    lifecycle: "live",
+  },
+});
+
+const claimsAt = (coordinate: Schemas["AcceptedCoordinate"], value: string) =>
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/claims/read-batch",
+    body: claimReadBatchBody([REVISED_CLAIM], coordinate),
+    response: { tag: "playbill-claim-read-batch-v1", coordinate, claims: [statusView(coordinate, value)] },
+  });
+
+/**
+ * run-t0 re-observed an assessment's status `open` (accepted at g41); a later
+ * generation revised it to `fixed`, the head's value. Served beside the
+ * template world in tests only.
+ */
+export const LATER_REVISION: RecordedFixture[] = [
+  batch([`ProcedureRun:${RUN_T0}`], [result(`ProcedureRun:${RUN_T0}`, "procedure_run", { card: RUN_T0_CARD })]),
+  runState(RUN_T0, [{ node: "pages", digest: P1 }], G40),
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/head",
+    query: headQuery(G41.git_oid),
+    response: { tag: "playbill-head-v1", instance: "inst_fixture", coordinate: G41, generation: 41 },
+  }),
+  claimsAt(G41, "open"),
+  claimsAt(G40, "open"),
+  claimsAt(COORDINATE, "fixed"),
 ];
 
 /** The template world: the authored world, its definitions extended with the template Lines, and every template read. */

@@ -52,6 +52,28 @@ export function unreviewedClaims(items: ReturnType<typeof changedItems>, members
   return [...new Set(items.flatMap(({ child }) => (child.path && !covered.has(child.path) ? [claimIdOfPath(child.path) ?? ""] : [])).filter(Boolean))].sort();
 }
 
+/**
+ * The same Claims, grouped by the coordinate the run recorded for them: a
+ * claims terminal's accepted git oid where its items landed, else null (the
+ * run's bound coordinate, what it read). A re-observation's value is the
+ * stored Claim there, never at the page's coordinate or the head: a later
+ * generation may have revised it.
+ */
+export function unreviewedClaimsAt(
+  items: ReturnType<typeof changedItems>,
+  members: readonly Member[] | null | undefined,
+): { accepted: string | null; ids: string[] }[] {
+  const groups = new Map<string | null, ReturnType<typeof changedItems>>();
+  for (const entry of items) {
+    const key = entry.egress.accepted_git_oid ?? null;
+    groups.set(key, [...(groups.get(key) ?? []), entry]);
+  }
+  return [...groups].flatMap(([accepted, group]) => {
+    const ids = unreviewedClaims(group, members);
+    return ids.length ? [{ accepted, ids }] : [];
+  });
+}
+
 export function changeRows(
   items: ReturnType<typeof changedItems>,
   members: readonly Member[] | null | undefined,
