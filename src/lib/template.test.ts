@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProcedureSpec } from "./definitions";
-import { captureInputs, createdKinds, isDerive, kindProducers, listFields, listOutcome, stageOf, stateReads } from "./template";
+import { callOutputs, captureInputs, createdKinds, isDerive, kindProducers, listFields, listOutcome, stageOf, stateReads } from "./template";
 import { changedItems, changeRows, unreviewedClaims, unreviewedClaimsAt } from "./run-changes";
 import { G41, REVISED_CLAIM, RUN_T0_CARD, RUN_T1_CARD, TEMPLATE_MEMBERS, TEMPLATE_SPEC, clmT } from "@/fixtures/template";
 
@@ -43,6 +43,21 @@ describe("the Procedure template", () => {
     expect(outcome!.members[1]).toMatchObject({ status: "dropped", reason: "oversized", requestUrl: "https://x/?page=2" });
     // an old run's summary serves neither
     expect(listOutcome({ kind: "call", captures: 1 })).toBeNull();
+  });
+
+  it("calls a call's other Captures list members only when membership is known", () => {
+    const call = (digests: string[], members?: unknown[]) => ({ kind: "call" as const, captures: digests.length, capture_digests: digests, ...(members ? { members } : {}) }) as never;
+    // planned members: pages known
+    expect(callOutputs(call(["a", "b"], [{ index: 0, capture_digest: "a", status: "kept" }, { index: 1, capture_digest: "b", status: "kept" }]), "b", null)).toMatchObject({ kind: "members", members: [{ index: 0 }, { index: 1 }] });
+    // one Capture field, list-typed: members without pages
+    expect(callOutputs(call(["a", "b"]), "a", { captures: ["pages"], lists: ["pages"] })).toEqual({ kind: "field", field: "pages", digests: ["a", "b"] });
+    // two scalar Capture fields: unclassified
+    expect(callOutputs(call(["a", "b"]), "a", { captures: ["body", "headers"], lists: [] })).toEqual({ kind: "unclassified", digests: ["a", "b"] });
+    // a list field beside a scalar one, or fields unread: unclassified
+    expect(callOutputs(call(["a", "b", "c"]), "c", { captures: ["pages", "headers"], lists: ["pages"] })?.kind).toBe("unclassified");
+    expect(callOutputs(call(["a", "b"]), "a", null)?.kind).toBe("unclassified");
+    // returned alone
+    expect(callOutputs(call(["a"]), "a", null)).toBeNull();
   });
 
   it("lists the kinds a claims step may create: its Subject's if_absent and value targets that declare create: if_absent", () => {

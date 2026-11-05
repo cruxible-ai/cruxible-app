@@ -584,7 +584,7 @@ const captureCard = (c: CaptureSpec): Schemas["GetCaptureCard"] => ({
 const captureResult = (c: CaptureSpec) => result(`Capture:${c.digest}`, "capture", { card: captureCard(c) });
 const byDigest = new Map(CAPTURES.map((c) => [c.digest, c] as const));
 
-const envelope = (c: CaptureSpec, url: string | null): Schemas["CaptureEnvelope"] => ({
+const envelope = (c: CaptureSpec, url: string | null, run = RUN_T1): Schemas["CaptureEnvelope"] => ({
   tag: "playbill-capture-envelope-v2",
   capture_contract_digest: D("2c"),
   source: url
@@ -604,7 +604,7 @@ const envelope = (c: CaptureSpec, url: string | null): Schemas["CaptureEnvelope"
   run_coordinate: {
     tag: "playbill-capture-run-coordinate-v2",
     run_kind: "procedure",
-    run_id: RUN_T1,
+    run_id: run,
     bound_generation: D("5c"),
     executable_identity: { kind: "Procedure", name: TEMPLATE_PROCEDURE },
     executable_digest: D("6c"),
@@ -625,7 +625,7 @@ const BODIES: Record<string, string> = {
   [FIXES]: JSON.stringify({ fixes: [{ cve: "CVE-2024-3094", fixed: "5.6.2", advisory: "vsa-2026-7" }, { cve: "CVE-2024-6387", fixed: "9.8p1", advisory: "vsa-2026-7" }] }),
 };
 
-const read = (c: CaptureSpec, url: string | null) => {
+const read = (c: CaptureSpec, url: string | null, run = RUN_T1) => {
   const body = BODIES[c.digest] ?? "{}";
   return defineFixture({
     method: "post",
@@ -636,7 +636,7 @@ const read = (c: CaptureSpec, url: string | null) => {
       capture_digest: c.digest,
       coordinate: COORDINATE,
       status: "verified",
-      envelope: envelope(c, url),
+      envelope: envelope(c, url, run),
       material: {
         tag: "playbill-source-dereference-result-v1",
         source_handle_digest: D("1c"),
@@ -993,6 +993,47 @@ export const LATER_REVISION: RecordedFixture[] = [
   claimsAt(G41, "open"),
   claimsAt(G40, "open"),
   claimsAt(COORDINATE, "fixed"),
+];
+
+// -- a call returning two scalar Captures -------------------------------------------------
+
+/** A fetch whose call returns two scalar Capture fields (body, headers): its digests are not a list. */
+export const PAIR_PROCEDURE = "security.advisory-pair";
+export const RUN_PAIR = "run-pair";
+export const BODY = D("6e");
+export const HEADERS = D("6f");
+const HEADERS_KIND = "security.advisory-headers";
+
+const PAIR_SPEC: Spec = {
+  procedure: PAIR_PROCEDURE,
+  description: "Fetch the vendor's advisory index and keep its response headers.",
+  slots: { fetch: slot("web.fetch.request", "web.fetch.pair.result", "external_read") },
+  steps: [{ call: "index", slot: "fetch", input: { url: PAGE_URL(1) }, captures: { body: PAGE_KIND, headers: HEADERS_KIND } }],
+};
+const PAIR_RUN_CARD: Schemas["GetProcedureRunCard"] = {
+  run: RUN_PAIR,
+  procedure: `Procedure:${PAIR_PROCEDURE}`,
+  status: "succeeded",
+  nodes_done: 1,
+  nodes_total: 1,
+  started_at: "2026-10-19T02:00:00Z",
+  nodes: [{ node: "index", kind: "call", verdict: "ok", sequence: 1, duration_us: 900_000, summary: { kind: "call", captures: 2, capture_digests: [BODY, HEADERS] } }],
+};
+const PAIR_CAPTURES: CaptureSpec[] = [
+  { digest: BODY, kind: PAGE_KIND, source: "vendor.advisories", observed: PAGES_OBSERVED, size: 9_120, access: "instance" },
+  { digest: HEADERS, kind: HEADERS_KIND, source: "vendor.advisories", observed: PAGES_OBSERVED, size: 412, access: "instance" },
+];
+
+/** run-pair's call returned two scalar Captures. Served beside the template world in tests only. */
+export const SCALAR_PAIR: RecordedFixture[] = [
+  ...PAIR_CAPTURES.map((c) => batch([handle(c.digest)], [captureResult(c)])),
+  ...PAIR_CAPTURES.map((c) => read(c, PAGE_URL(1), RUN_PAIR)),
+  batch([`ProcedureRun:${RUN_PAIR}`], [result(`ProcedureRun:${RUN_PAIR}`, "procedure_run", { card: PAIR_RUN_CARD })]),
+  batch([`Procedure:${PAIR_PROCEDURE}`], [result(`Procedure:${PAIR_PROCEDURE}`, "procedure", { card: procedureCard(PAIR_SPEC) })]),
+  batch(
+    ["Contract:web.fetch.pair.result@1"],
+    [result("Contract:web.fetch.pair.result@1", "contract", { card: { contract: "web.fetch.pair.result", version: 1, fields: [{ name: "body", type: "capture<*>" }, { name: "headers", type: "capture<*>" }] } })],
+  ),
 ];
 
 /** The template world: the authored world, its definitions extended with the template Lines, and every template read. */

@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
-import { FIXES, FIXES_KIND, LATER_REVISION, P1, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_T0, RUN_T1, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW } from "@/fixtures/template";
+import { BODY, FIXES, FIXES_KIND, HEADERS, LATER_REVISION, P1, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW } from "@/fixtures/template";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -77,6 +77,17 @@ describe("D-R37 template: Captures", () => {
     expect(table.getByText(handle(P2))).toBeInTheDocument(); // itself, unlinked
     expect(table.getByText("https://vendor.example/advisories?page=3")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: RUN_T1 })).toHaveAttribute("href", `${I}/runs/${RUN_T1}`);
+  });
+
+  it("a call's two scalar Captures are its other outputs, unclassified: no list, no pages", async () => {
+    renderApp(`${I}/ref/${handle(BODY)}`, [...TEMPLATE_WORLD, ...SCALAR_PAIR]);
+    const table = within(await screen.findByRole("table", { name: "Other outputs of this call" }, SLOW));
+    expect(table.getByRole("link", { name: handle(HEADERS) })).toBeInTheDocument();
+    expect(table.getByText(handle(BODY))).toBeInTheDocument(); // itself, unlinked
+    expect(table.queryByText("Page")).toBeNull();
+    expect(screen.queryByRole("table", { name: "List members" })).toBeNull();
+    expect(screen.queryByText(/The list this Capture is a member of/)).toBeNull();
+    expect(screen.getByRole("link", { name: RUN_PAIR })).toHaveAttribute("href", `${I}/runs/${RUN_PAIR}`);
   });
 
   it("a derived CaptureKind names the derives that commit it, their operation and the kinds they derive from", async () => {

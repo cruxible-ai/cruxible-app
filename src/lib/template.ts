@@ -209,6 +209,40 @@ export function listOutcome(summary: CallSummary | null | undefined): ListOutcom
   return { members, kept: members.length - dropped, dropped, providerIncomplete };
 }
 
+/**
+ * What a call's other Captures are to one of them (D-R37 a). A call's
+ * `capture_digests` hold every Capture it returned, list members and scalar
+ * Capture fields alike, so list membership is claimed only where it is known:
+ *
+ * - `members`: the summary's planned members name this Capture (pages known);
+ * - `field`: the call has exactly one Capture field and its out Contract types
+ *   it a list, so every digest is a member (their pages are not served);
+ * - `unclassified`: anything else, the call's other outputs, unlabelled.
+ *
+ * `fields` is the call's Capture fields and its out Contract's list fields,
+ * null when they could not be read. Null when the call returned this Capture
+ * alone (or not at all).
+ */
+export type CallOutputs =
+  | { kind: "members"; members: ListMember[] }
+  | { kind: "field"; field: string; digests: string[] }
+  | { kind: "unclassified"; digests: string[] };
+
+export function callOutputs(
+  summary: CallSummary | null | undefined,
+  digest: string,
+  fields: { captures: readonly string[]; lists: readonly string[] } | null,
+): CallOutputs | null {
+  if (!summary) return null;
+  const list = listOutcome(summary);
+  if (list && list.members.some((m) => m.capture === digest)) return { kind: "members", members: list.members };
+  const digests = summary.capture_digests ?? [];
+  if (digests.length < 2 || !digests.includes(digest)) return null;
+  const only = fields?.captures.length === 1 ? fields.captures[0]! : null;
+  if (only && fields!.lists.includes(only)) return { kind: "field", field: only, digests };
+  return { kind: "unclassified", digests };
+}
+
 // -- what a claims step creates (value-side upsert) -------------------------------
 
 /**

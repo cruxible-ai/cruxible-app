@@ -12,7 +12,8 @@ import { PanelGroup } from "@/components/graph/PanelBits";
 import { useAtLink } from "@/lib/at";
 import { captureHandle } from "@/lib/next-reasons";
 import { contractName } from "@/lib/ontology";
-import { listOutcome } from "@/lib/template";
+import { callOutputs, listFields, listOutcome } from "@/lib/template";
+import { stepAlias, type ProcedureSpec } from "@/lib/definitions";
 
 type CaptureCard = Schemas["GetCaptureCard"];
 
@@ -109,44 +110,73 @@ export function CaptureDerivation({ card, sources }: { card: CaptureCard; source
 }
 
 interface Sibling {
-  index: number;
+  /** The member's page index; null when the run does not serve it (never inferred from digest order). */
+  index: number | null;
   digest: string | null;
   requestUrl: string | null;
-  status: "kept" | "dropped";
+  status: "kept" | "dropped" | null;
   reason: string | null;
 }
 
+type CallNode = NonNullable<Schemas["GetProcedureRunCard"]["nodes"]>[number];
+type CallSummary = Extract<NonNullable<CallNode["summary"]>, { kind: "call" }>;
+
+/** The call node of a run that returned this Capture: in its planned members, or its capture digests. */
+function callOf(run: Schemas["GetProcedureRunCard"] | null, digest: string): { node: string; summary: CallSummary } | null {
+  for (const node of run?.nodes ?? []) {
+    const summary = node.summary;
+    if (summary?.kind !== "call") continue;
+    if ((summary.capture_digests ?? []).includes(digest) || listOutcome(summary)?.members.some((m) => m.capture === digest)) return { node: node.node, summary };
+  }
+  return null;
+}
+
 /**
- * A list member's siblings (D-R37 a): the other members of the fetch that
- * returned it, in the provider's order, each with its request URL and page
- * index. Found through the run that fetched it (its envelope's run, the run
- * card's call summary); members and URLs come from the summary's planned
- * `members`, the digests alone otherwise.
+ * The call's Capture fields and its out Contract's list fields, read only
+ * when the run serves no members naming this Capture and the call returned
+ * others (its Procedure card, then the slot's out Contract card).
+ */
+function useCallFields(run: Schemas["GetProcedureRunCard"] | null, call: { node: string; summary: CallSummary } | null, digest: string) {
+  const needed = call !== null && !listOutcome(call.summary)?.members.some((m) => m.capture === digest) && (call.summary.capture_digests ?? []).length > 1;
+  const procedureRead = useCard(needed && run ? run.procedure : null);
+  const spec = cardOf(procedureRead.data, "procedure")?.authored ?? null;
+  const index = spec && call ? spec.steps.findIndex((step, i) => "call" in step && stepAlias(step, i) === call.node) : -1;
+  const step = index >= 0 ? (spec!.steps[index] as Extract<ProcedureSpec["steps"][number], { call: string }>) : null;
+  const out = step ? spec!.slots?.[step.slot]?.out : undefined;
+  const contractRead = useCard(out ? `Contract:${out.name}@${out.version}` : null);
+  const contract = cardOf(contractRead.data, "contract");
+  if (!needed) return { fields: null, isPending: false };
+  if (procedureRead.isPending || (out && contractRead.isPending)) return { fields: null, isPending: true };
+  if (!step || !contract) return { fields: null, isPending: false };
+  return { fields: { captures: Object.keys(step.captures ?? {}), lists: listFields(contract).map((f) => f.field) }, isPending: false };
+}
+
+/**
+ * The Captures fetched with this one (D-R37 a), found through the run that
+ * fetched it (its envelope's run, the run card's call summary). Called list
+ * members only when membership is known (`callOutputs`): the planned
+ * `members` give each its page, request URL and status; a call whose one
+ * Capture field is a list gives its members without pages. Any other call's
+ * Captures are its other outputs, unclassified.
  */
 export function ListSiblings({ card }: { card: CaptureCard }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   const read = useCaptureRead(card.erased ? null : card.capture);
   const runId = read.data?.envelope?.run_coordinate?.run_kind === "procedure" ? read.data.envelope.run_coordinate.run_id : null;
-  const run = cardOf(useCard(runId ? `ProcedureRun:${runId}` : null).data, "procedure_run");
-  const found = useMemo(() => {
-    for (const node of run?.nodes ?? []) {
-      const summary = node.summary;
-      if (summary?.kind !== "call") continue;
-      const list = listOutcome(summary);
-      const digests = summary.capture_digests ?? [];
-      if (list && list.members.some((m) => m.capture === card.digest)) {
-        return { node: node.node, rows: list.members.map((m): Sibling => ({ index: m.index, digest: m.capture, requestUrl: m.requestUrl, status: m.status, reason: m.reason })) };
-      }
-      if (digests.length > 1 && digests.includes(card.digest)) {
-        return { node: node.node, rows: digests.map((digest, index): Sibling => ({ index, digest, requestUrl: null, status: "kept", reason: null })) };
-      }
-    }
-    return null;
-  }, [run, card.digest]);
+  const run = cardOf(useCard(runId ? `ProcedureRun:${runId}` : null).data, "procedure_run") ?? null;
+  const call = useMemo(() => callOf(run, card.digest), [run, card.digest]);
+  const fields = useCallFields(run, call, card.digest);
+  const outputs = useMemo(() => (fields.isPending ? null : callOutputs(call?.summary, card.digest, fields.fields)), [call, card.digest, fields.isPending, fields.fields]);
+  const rows = useMemo<Sibling[]>(() => {
+    if (!outputs) return [];
+    if (outputs.kind === "members") return outputs.members.map((m) => ({ index: m.index, digest: m.capture, requestUrl: m.requestUrl, status: m.status, reason: m.reason }));
+    return outputs.digests.map((digest) => ({ index: null, digest, requestUrl: null, status: null, reason: null }));
+  }, [outputs]);
+  const paged = outputs?.kind === "members";
   const columns = useMemo<Column<Sibling>[]>(
     () => [
-      { id: "index", header: "Page", numeric: true, className: "font-mono text-zinc-500", cell: (s) => s.index },
+      ...(paged ? [{ id: "index", header: "Page", numeric: true, className: "font-mono text-zinc-500", cell: (s: Sibling) => s.index }] : []),
       {
         id: "capture",
         header: "Capture",
@@ -162,31 +192,43 @@ export function ListSiblings({ card }: { card: CaptureCard }) {
             <span className="text-zinc-600">—</span>
           ),
       },
-      { id: "request", header: "Request URL", className: "break-all font-mono text-[12px] text-zinc-400", cell: (s) => s.requestUrl ?? "—" },
-      {
-        id: "status",
-        header: "Status",
-        className: "whitespace-nowrap",
-        cell: (s) => <span className={s.status === "dropped" ? "text-red-400/90" : "text-zinc-300"}>{s.status}{s.reason ? ` · ${s.reason}` : ""}</span>,
-      },
+      ...(paged
+        ? [
+            { id: "request", header: "Request URL", className: "break-all font-mono text-[12px] text-zinc-400", cell: (s: Sibling) => s.requestUrl ?? "—" },
+            {
+              id: "status",
+              header: "Status",
+              className: "whitespace-nowrap",
+              cell: (s: Sibling) => <span className={s.status === "dropped" ? "text-red-400/90" : "text-zinc-300"}>{s.status}{s.reason ? ` · ${s.reason}` : ""}</span>,
+            },
+          ]
+        : []),
     ],
-    [card.digest],
+    [card.digest, paged],
   );
-  if (!found || !runId) return null;
+  if (!runId || !call) return null;
+  if (fields.isPending) return <LoadState />;
+  if (!outputs) return null;
+  const heading =
+    outputs.kind === "members"
+      ? { title: "Fetched with", description: "The list this Capture is a member of: every member of the same fetch, in the provider's order.", label: "List members" }
+      : outputs.kind === "field"
+        ? { title: "Fetched with", description: `The list this Capture is a member of (${outputs.field}). The run serves no page index or request URL per member.`, label: "List members" }
+        : { title: "Other outputs of this call", description: "Captures the same call returned. The run serves no output field or list membership for them.", label: "Other outputs of this call" };
   return (
     <Panel
-      title="Fetched with"
-      description="The list this Capture is a member of: every member of the same fetch, in the provider's order."
+      title={heading.title}
+      description={heading.description}
       meta={
         <span className="flex items-baseline gap-2">
           <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId)}`)} className="font-mono hover:underline" title={`Run ${runId}`}>
             {runId}
           </Link>
-          <span className="font-mono">{found.node}</span>
+          <span className="font-mono">{call.node}</span>
         </span>
       }
     >
-      <DataTable rows={found.rows} columns={columns} rowKey={(s) => `${s.index}`} label="List members" toolbar={false} maxHeight="none" />
+      <DataTable rows={rows} columns={columns} rowKey={(s) => s.digest ?? `${s.index}`} label={heading.label} toolbar={false} maxHeight="none" />
     </Panel>
   );
 }
