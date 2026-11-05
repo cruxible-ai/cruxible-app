@@ -87,11 +87,16 @@ export interface BeliefDiff {
   subjectCounts: Record<ChangeKind, number>;
 }
 
-interface ClaimRead {
+export interface ClaimRead {
   subject: string;
   claimType: string;
   object: unknown;
   baseObject: unknown;
+}
+
+/** A Claim member's Subject, ClaimType and value (new, and before), from its stored artifacts; null for anything else. */
+export function memberClaim(member: Member): ClaimRead | null {
+  return readClaim(member);
 }
 
 function readClaim(member: Member): ClaimRead | null {
@@ -253,10 +258,16 @@ export interface ClaimEvidence {
   recordLocator: string | null;
   /** When the referent was observed (the Claim's own context; the Capture's observed time is preferred). */
   observedAt: string | null;
+  /** An absence's witness: the enumeration's Capture and, over a list of Captures, every member in order (D-R37 a6). */
+  absence: { capture: string; members: string[] } | null;
 }
 
 export function claimEvidence(member: Member): ClaimEvidence {
-  const artifact = rec(member.candidate_semantic_artifact) ?? rec(member.base_semantic_artifact);
+  return artifactEvidence(rec(member.candidate_semantic_artifact) ?? rec(member.base_semantic_artifact));
+}
+
+/** The evidence a stored Claim artifact records (its backing): citations, the value's Capture, record, field, absence witness. */
+export function artifactEvidence(artifact: Record<string, unknown> | null): ClaimEvidence {
   const backing = rec(artifact?.backing);
   const citations = (Array.isArray(backing?.citations) ? backing.citations : [])
     .map(rec)
@@ -265,7 +276,11 @@ export function claimEvidence(member: Member): ClaimEvidence {
   if (citations.length === 0 && Array.isArray(backing?.capture_digests)) {
     for (const d of backing.capture_digests) if (typeof d === "string") citations.push({ digest: d, role: null, origin: null });
   }
-  const value = rec(rec(backing?.procedure_evidence)?.value);
+  const receipt = rec(backing?.procedure_evidence);
+  const value = rec(receipt?.value);
+  const witness = rec(receipt?.absence);
+  const witnessCapture = str(witness?.capture);
+  const members = Array.isArray(witness?.members) ? witness.members.filter((m): m is string => typeof m === "string") : [];
   return {
     citations,
     basis: str(value?.basis),
@@ -274,6 +289,7 @@ export function claimEvidence(member: Member): ClaimEvidence {
     recordKey: rec(value?.record_key),
     recordLocator: str(value?.record_locator),
     observedAt: str(rec(backing?.referent_context)?.observed_at),
+    absence: witnessCapture ? { capture: witnessCapture, members: members.length ? members : [witnessCapture] } : null,
   };
 }
 

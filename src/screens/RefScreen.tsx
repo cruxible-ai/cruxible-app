@@ -9,6 +9,7 @@ import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId, shortId } from "@/components/ShortId";
 import { CaptureContents } from "@/components/CaptureContents";
 import { CitedBy } from "@/components/CitedBy";
+import { AccessValue, CaptureDerivation, ListSiblings, useDerivationSources } from "@/components/CaptureLineage";
 import { formatSize } from "@/lib/capture-body";
 import { Chip } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
@@ -36,6 +37,8 @@ export function RefScreen() {
   const getRef = ref ? getRefOf(ref) : null;
   const read = useCard(getRef);
   usePageTitle(ref ? formatRef(ref) : raw);
+  // A derived Capture's sources (its access may be inherited from them): one get-batch, none for an observed one.
+  const sources = useDerivationSources(cardOf(read.data, "capture"));
 
   if (!ref || getRef === null) {
     return (
@@ -81,7 +84,11 @@ export function RefScreen() {
                   <Fact label="Contract">
                     <RefLink value={capture.contract} />
                   </Fact>
-                  {capture.access && <Fact label="Access">{humanize(capture.access)}</Fact>}
+                  {capture.access && (
+                    <Fact label="Access">
+                      <AccessValue card={capture} sources={sources.cards} />
+                    </Fact>
+                  )}
                 </>
               )}
               <Fact label="Kind">{humanize(read.data.kind)}</Fact>
@@ -103,6 +110,8 @@ export function RefScreen() {
       {procedure?.authored && <ProcedureWithGraph spec={procedure.authored} />}
       {trigger && <TriggerDefinition schedule={trigger.schedule} target={trigger.target} />}
       {query && <QueryPage card={query} />}
+      {capture?.derivation && <CaptureDerivation card={capture} sources={sources} />}
+      {capture && <ListSiblings card={capture} />}
       {capture && <CaptureContents card={capture} />}
       {capture && <CitedBy citing={capture.citing ?? []} total={capture.citing_total ?? capture.citing?.length ?? 0} />}
       {read.data?.card && !capture && !query && (

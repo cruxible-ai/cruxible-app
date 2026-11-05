@@ -7,6 +7,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { FieldList, type FieldItem } from "@/components/FieldList";
 import { PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
 import { Disclosure } from "@/components/Panel";
+import { DerivedFrom } from "@/components/DerivedFrom";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { Stat } from "@/components/StatsRow";
@@ -520,6 +521,24 @@ function CellPanel({
       {evidenceFields.length > 0 && (
         <PanelGroup title="Evidence">
           <FieldList density="compact" labels="words" fields={evidenceFields} label="Evidence" />
+          {/* The cited Capture first; what it was derived from one hop per expand, read on expand only. */}
+          {(capture?.derivation?.sources?.length ?? 0) > 0 && (
+            <div className="mt-1.5">
+              <DerivedFrom sources={capture!.derivation!.sources!} label={capture!.capture} compact />
+            </div>
+          )}
+          {evidence.absence && evidence.absence.members.length > 1 && (
+            <div className="mt-1.5 text-[12px]">
+              <div className="text-zinc-500" title="The complete enumeration the absence rests on: every member of the list">
+                Absence witness · {evidence.absence.members.length} Captures
+              </div>
+              <div className="flex flex-wrap gap-x-3">
+                {evidence.absence.members.map((digest) => (
+                  <RefLink key={digest} value={captureHandle(digest)} />
+                ))}
+              </div>
+            </div>
+          )}
         </PanelGroup>
       )}
       {reason && (

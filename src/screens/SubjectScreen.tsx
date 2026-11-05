@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Waypoints } from "lucide-react";
 import {
   useAdmissionAccounts,
+  useCaptureContracts,
   useCard,
   useClaimEvidence,
   useClaimRevisions,
@@ -35,6 +36,9 @@ import { RefLink } from "@/components/RefLink";
 import { ShownSlot, ShownValue } from "@/components/ShownValue";
 import { DataTable, type Column } from "@/components/DataTable";
 import { ChangeAuthor } from "@/components/ChangeAuthor";
+import { DerivedFrom } from "@/components/DerivedFrom";
+import { artifactEvidence, fieldName, recordKeyText, type ClaimEvidence } from "@/lib/proposal-diff";
+import { captureHandle } from "@/lib/next-reasons";
 import {
   ChangeEntry,
   ChangeLog,
@@ -240,6 +244,7 @@ export function SubjectScreen() {
                 isKey={isKey(entry)}
                 cards={claimCards}
                 accounts={admission.byClaim}
+                envelopes={admission.envelopes}
                 focus={focusClaim}
                 provenance={provenance}
               />
@@ -325,6 +330,7 @@ function ClaimRow({
   isKey,
   cards,
   accounts,
+  envelopes,
   focus,
   provenance,
 }: {
@@ -334,6 +340,7 @@ function ClaimRow({
   isKey: boolean;
   cards: Map<string, GetClaimCard>;
   accounts: Map<string, CaptureAdmissionAccount[]>;
+  envelopes: Map<string, Record<string, unknown>>;
   focus: string | null;
   provenance: Map<string, SubjectHistoryEvent>;
 }) {
@@ -386,7 +393,7 @@ function ClaimRow({
         </>
       }
       detail={ids.map((id) => (
-        <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} need={need} isKey={isKey} shownReason={shownReason} />
+        <ClaimDetail key={id} claimId={id} card={cards.get(id)} accounts={accounts.get(id)} envelope={envelopes.get(id)} need={need} isKey={isKey} shownReason={shownReason} />
       ))}
     />
   );
@@ -433,6 +440,7 @@ function ClaimDetail({
   claimId,
   card,
   accounts,
+  envelope,
   need,
   isKey,
   shownReason,
@@ -440,6 +448,8 @@ function ClaimDetail({
   claimId: string;
   card: GetClaimCard | undefined;
   accounts: CaptureAdmissionAccount[] | undefined;
+  /** The stored Claim (claims/read-batch): its backing names the value's Capture, record and field, and an absence's witness. */
+  envelope: Record<string, unknown> | undefined;
   need: EvidenceNeed;
   isKey: boolean;
   shownReason: string | null;
@@ -451,6 +461,8 @@ function ClaimDetail({
   const revisionRows: GetRevision[] = history?.kind === "revisions" ? history.revisions : [];
   const rationale = ev?.rationale ?? null;
   const shown = rationale ?? shownReason;
+  const backing = useMemo(() => artifactEvidence(envelope ?? null), [envelope]);
+  const chains = useDerivedCitations(ev?.captures ?? []);
   return (
     <div className="border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 text-[12px]">
       <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
@@ -497,7 +509,17 @@ function ClaimDetail({
           )}
           <SubSection title="Evidence" meta={ev.captures.length}>
             {ev.captures.length === 0 && <div className="text-zinc-500">None</div>}
-            {ev.captures.length > 0 && <EvidenceTable captures={ev.captures} accounts={accounts ?? []} need={need} />}
+            {ev.captures.length > 0 && <EvidenceTable captures={ev.captures} accounts={accounts ?? []} need={need} backing={backing} />}
+            {ev.captures.map((c) => {
+              const sources = chains.get(c.capture);
+              return sources && sources.length > 0 ? (
+                <div key={`${c.capture}\n${c.role}`} className="mt-1 flex flex-wrap items-baseline gap-x-2">
+                  <RefLink value={c.capture} />
+                  <DerivedFrom sources={sources} label={c.capture} />
+                </div>
+              ) : null;
+            })}
+            {backing.absence && backing.absence.members.length > 1 && <AbsenceWitness members={backing.absence.members} />}
           </SubSection>
           {ev.attestations.length > 0 && <AttestationList attestations={ev.attestations} />}
         </>
@@ -513,6 +535,43 @@ function ClaimDetail({
           </div>
         </Disclosure>
       )}
+    </div>
+  );
+}
+
+/**
+ * The cited Captures that are derived (their CaptureKind's grade, from the
+ * capture_contracts section) -> the Captures each was derived from: one
+ * get-batch of those Captures' cards when the Claim opens; none when nothing
+ * cited is derived.
+ */
+function useDerivedCitations(captures: readonly GetCaptureEvidence[]): Map<string, string[]> {
+  const contracts = useCaptureContracts(captures.length > 0);
+  const derived = useMemo(() => {
+    const grades = new Map((contracts.data?.rows ?? []).map((row) => [contractName(row.contract), row.grade] as const));
+    return [...new Set(captures.filter((c) => grades.get(contractName(c.contract)) === "derived").map((c) => c.capture))].sort();
+  }, [contracts.data, captures]);
+  const reads = useGetBatch(derived);
+  return useMemo(() => {
+    const out = new Map<string, string[]>();
+    for (const result of reads.results) {
+      const card = cardOf(result, "capture");
+      if (card?.derivation?.sources?.length) out.set(card.capture, card.derivation.sources);
+    }
+    return out;
+  }, [reads.results]);
+}
+
+/** An absence over a list of Captures (D-R37 a6): the witness cites every member, each linked. */
+function AbsenceWitness({ members }: { members: string[] }) {
+  return (
+    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 text-[12px]">
+      <span className="text-zinc-500" title="The complete enumeration the absence rests on: every member of the list">
+        Absence witness · {members.length} Captures
+      </span>
+      {members.map((digest) => (
+        <RefLink key={digest} value={captureHandle(digest)} />
+      ))}
     </div>
   );
 }
@@ -544,9 +603,22 @@ function admissionRule(account: CaptureAdmissionAccount | undefined): string | u
  * rule on hover). Admission accounts with no cited Capture row are left to
  * the Capture's own page.
  */
-function EvidenceTable({ captures, accounts, need }: { captures: GetCaptureEvidence[]; accounts: CaptureAdmissionAccount[]; need: EvidenceNeed }) {
+function EvidenceTable({
+  captures,
+  accounts,
+  need,
+  backing,
+}: {
+  captures: GetCaptureEvidence[];
+  accounts: CaptureAdmissionAccount[];
+  need: EvidenceNeed;
+  backing: ClaimEvidence;
+}) {
   const instanceId = useInstanceId();
   const link = useAtLink();
+  // The value's Capture: the record and field it was read from (the stored Claim's procedure evidence).
+  const isValueCapture = (c: GetCaptureEvidence) => backing.capture !== null && captureHandle(backing.capture) === c.capture;
+  const showRecord = captures.some(isValueCapture) && (backing.recordKey !== null || backing.fieldPath !== null);
   const columns = useMemo<Column<GetCaptureEvidence>[]>(
     () => [
       { id: "capture", header: "Capture", className: "whitespace-nowrap", cell: (c) => <RefLink value={c.capture} /> },
@@ -563,6 +635,26 @@ function EvidenceTable({ captures, accounts, need }: { captures: GetCaptureEvide
         className: "max-w-[14rem] truncate text-zinc-400",
         cell: (c) => <span title={c.source}>{publicName(c.source)}</span>,
       },
+      ...(showRecord
+        ? [
+            {
+              id: "record",
+              header: "Record",
+              className: "whitespace-nowrap font-mono text-[12px] text-zinc-300",
+              cell: (c: GetCaptureEvidence) =>
+                isValueCapture(c) && backing.recordKey ? (
+                  <span title={[JSON.stringify(backing.recordKey), backing.recordLocator].filter(Boolean).join(" at ")}>{recordKeyText(backing.recordKey)}</span>
+                ) : null,
+            },
+            {
+              id: "field",
+              header: "Field",
+              className: "whitespace-nowrap font-mono text-[12px] text-zinc-300",
+              cell: (c: GetCaptureEvidence) =>
+                isValueCapture(c) && backing.fieldPath ? <span title={backing.fieldPath}>{fieldName(backing.fieldPath)}</span> : null,
+            },
+          ]
+        : []),
       {
         id: "contract",
         header: "Contract",
@@ -597,7 +689,8 @@ function EvidenceTable({ captures, accounts, need }: { captures: GetCaptureEvide
         },
       },
     ],
-    [instanceId, link, need, accounts],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isValueCapture reads backing
+    [instanceId, link, need, accounts, backing, showRecord],
   );
   return (
     <DataTable rows={captures} columns={columns} rowKey={(c) => `${c.capture}\n${c.role}`} label="Evidence" toolbar={false} maxHeight="none" />

@@ -908,16 +908,25 @@ export function useAdmissionAccounts(claimIds: string[]) {
     })),
     combine: (results) => {
       const byClaim = new Map<string, ClaimViewRecord["admission_accounts"]>();
+      // The stored Claim each view carries (its backing: the value's Capture, record, field, absence witness).
+      const envelopes = new Map<string, ClaimViewRecord["envelope"]>();
+      const statements = new Map<string, ClaimViewRecord["statement"]>();
       results.forEach((result, i) => {
         result.data?.claims.forEach((view, j) => {
           const id = claimIdOfView(view) ?? chunks[i]![j];
-          if (id) byClaim.set(id, view.admission_accounts);
+          if (id) {
+            byClaim.set(id, view.admission_accounts);
+            envelopes.set(id, view.envelope);
+            statements.set(id, view.statement);
+          }
         });
       });
       return {
         isPending: results.some((r) => r.isPending),
         error: results.find((r) => r.error)?.error ?? null,
         byClaim,
+        envelopes,
+        statements,
       };
     },
   });
