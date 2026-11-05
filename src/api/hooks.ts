@@ -717,6 +717,31 @@ export function useCard(ref: string | null) {
 }
 
 /**
+ * One ref's summary card at a given coordinate, never the page's: a
+ * definition as it stood when a run was bound (a run's Procedure, a slot's
+ * out Contract). Waits while the coordinate is unknown; shares useCard's
+ * cache when it is the page's.
+ */
+export function useCardAt(ref: string | null, coordinate: AcceptedCoordinate | undefined) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["card", instanceId, coordinate?.git_oid ?? null, ref],
+    enabled: ref !== null && ref !== "" && coordinate !== undefined,
+    staleTime: 60_000,
+    queryFn: async (): Promise<GetResult> => {
+      const batch = unwrap(
+        await client.POST("/api/v1/{instance_id}/get-batch", {
+          params: { path: { instance_id: instanceId } },
+          body: getBatchBody([ref!], coordinate!),
+        }),
+      );
+      return batch.results[0]!;
+    },
+  });
+}
+
+/**
  * One Capture's retained body (captures/read) at the page coordinate, up to
  * CAPTURE_READ_MAX_BYTES. Bodies never change under a digest, so it is read
  * once; a token below governed_write is refused (the page says so).

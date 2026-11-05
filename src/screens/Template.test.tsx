@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
-import { BODY, FIXES, FIXES_KIND, HEADERS, LATER_REVISION, P1, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
+import { BODY, FIXES, FIXES_KIND, HEADERS, LATER_REVISION, P1, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -79,8 +79,8 @@ describe("D-R37 template: Captures", () => {
     expect(screen.getByRole("link", { name: RUN_T1 })).toHaveAttribute("href", `${I}/runs/${RUN_T1}`);
   });
 
-  it("a call's two scalar Captures are its other outputs, unclassified: no list, no pages", async () => {
-    renderApp(`${I}/ref/${handle(BODY)}`, [...TEMPLATE_WORLD, ...SCALAR_PAIR]);
+  const unclassified = async (fixtures: typeof TEMPLATE_WORLD) => {
+    renderApp(`${I}/ref/${handle(BODY)}`, [...TEMPLATE_WORLD, ...SCALAR_PAIR, ...fixtures]);
     const table = within(await screen.findByRole("table", { name: "Other outputs of this call" }, SLOW));
     expect(table.getByRole("link", { name: handle(HEADERS) })).toBeInTheDocument();
     expect(table.getByText(handle(BODY))).toBeInTheDocument(); // itself, unlinked
@@ -88,7 +88,27 @@ describe("D-R37 template: Captures", () => {
     expect(screen.queryByRole("table", { name: "List members" })).toBeNull();
     expect(screen.queryByText(/The list this Capture is a member of/)).toBeNull();
     expect(screen.getByRole("link", { name: RUN_PAIR })).toHaveAttribute("href", `${I}/runs/${RUN_PAIR}`);
-  });
+  };
+
+  it("a call's two scalar Captures are its other outputs, unclassified: no list, no pages", async () => {
+    await unclassified(PAIR_DEFINED_AT_BOUND);
+  }, 20000);
+
+  it("an old run's outputs are classified by its definition as bound, never a later revision's", async () => {
+    // the head's revision makes the same call return one list field; run-pair was bound before it
+    await unclassified([...PAIR_DEFINED_AT_BOUND, ...PAIR_REVISED_AT_HEAD]);
+    cleanup();
+    // the bound definition unread: unclassified, whatever the head says
+    await unclassified(PAIR_REVISED_AT_HEAD);
+  }, 20000);
+
+  it("a call whose one Capture field was a list when the run was bound lists its members, without pages", async () => {
+    renderApp(`${I}/ref/${handle(BODY)}`, [...TEMPLATE_WORLD, ...SCALAR_PAIR, ...PAIR_LIST_AT_BOUND]);
+    const table = within(await screen.findByRole("table", { name: "List members" }, SLOW));
+    expect(table.getByRole("link", { name: handle(HEADERS) })).toBeInTheDocument();
+    expect(table.queryByText("Page")).toBeNull();
+    expect(screen.getByText(/The list this Capture is a member of \(pages\)/)).toBeInTheDocument();
+  }, 20000);
 
   it("a derived CaptureKind names the derives that commit it, their operation and the kinds they derive from", async () => {
     renderApp(`${I}/contracts/${FIXES_KIND}`, TEMPLATE_WORLD);

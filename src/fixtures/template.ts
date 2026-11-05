@@ -1024,17 +1024,51 @@ const PAIR_CAPTURES: CaptureSpec[] = [
   { digest: HEADERS, kind: HEADERS_KIND, source: "vendor.advisories", observed: PAGES_OBSERVED, size: 412, access: "instance" },
 ];
 
-/** run-pair's call returned two scalar Captures. Served beside the template world in tests only. */
+/** The Procedure revised: the same call now returns one list field (pages), its out Contract version 2. */
+const PAIR_LIST_SPEC: Spec = {
+  ...PAIR_SPEC,
+  slots: { fetch: { ...slot("web.fetch.request", "web.fetch.pair.result", "external_read"), out: { name: "web.fetch.pair.result", version: 2 } } },
+  steps: [{ call: "index", slot: "fetch", input: { url: PAGE_URL(1) }, captures: { pages: PAGE_KIND } }],
+};
+
+/** A get-batch of one ref at a given coordinate (a definition as it stood then). */
+const batchAt = (coordinate: Schemas["AcceptedCoordinate"], ref: string, kind: GetResult["kind"], card: NonNullable<GetResult["card"]>) =>
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/get-batch",
+    body: getBatchBody([ref], coordinate),
+    response: { tag: "playbill-get-batch-result-v1", coordinate, results: [result(ref, kind, { accepted_coordinate: coordinate, card })] },
+  });
+
+const pairDefinitions = (coordinate: Schemas["AcceptedCoordinate"], spec: Spec): RecordedFixture[] => {
+  const out = spec.slots!.fetch!.out;
+  const fields =
+    out.version === 1
+      ? [{ name: "body", type: "capture<*>" }, { name: "headers", type: "capture<*>" }]
+      : [{ name: "pages", type: "list<capture<*>>{max_items: 20}" }];
+  return [
+    batchAt(coordinate, `Procedure:${PAIR_PROCEDURE}`, "procedure", procedureCard(spec)),
+    batchAt(coordinate, `Contract:${out.name}@${out.version}`, "contract", { contract: out.name, version: out.version, fields }),
+  ];
+};
+
+/**
+ * run-pair (bound at g40) called `index`, which returned two scalar Captures.
+ * Its definitions are served separately, so tests can serve them as they
+ * stood at g40, a revision at the head, or neither. Tests only.
+ */
 export const SCALAR_PAIR: RecordedFixture[] = [
   ...PAIR_CAPTURES.map((c) => batch([handle(c.digest)], [captureResult(c)])),
   ...PAIR_CAPTURES.map((c) => read(c, PAGE_URL(1), RUN_PAIR)),
   batch([`ProcedureRun:${RUN_PAIR}`], [result(`ProcedureRun:${RUN_PAIR}`, "procedure_run", { card: PAIR_RUN_CARD })]),
-  batch([`Procedure:${PAIR_PROCEDURE}`], [result(`Procedure:${PAIR_PROCEDURE}`, "procedure", { card: procedureCard(PAIR_SPEC) })]),
-  batch(
-    ["Contract:web.fetch.pair.result@1"],
-    [result("Contract:web.fetch.pair.result@1", "contract", { card: { contract: "web.fetch.pair.result", version: 1, fields: [{ name: "body", type: "capture<*>" }, { name: "headers", type: "capture<*>" }] } })],
-  ),
+  runState(RUN_PAIR, [], G40),
 ];
+/** The pair Procedure and its out Contract at run-pair's bound coordinate (g40): two scalar Capture fields. */
+export const PAIR_DEFINED_AT_BOUND = pairDefinitions(G40, PAIR_SPEC);
+/** A later revision at the head: the same call returns one list field. */
+export const PAIR_REVISED_AT_HEAD = pairDefinitions(COORDINATE, PAIR_LIST_SPEC);
+/** The list form already at g40 (a positive control: the outputs are then list members, without pages). */
+export const PAIR_LIST_AT_BOUND = pairDefinitions(G40, PAIR_LIST_SPEC);
 
 // -- a chain source withheld from this credential --------------------------------------------
 
