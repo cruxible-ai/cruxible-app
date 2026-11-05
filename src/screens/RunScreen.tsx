@@ -1,11 +1,16 @@
+import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useCard, useInstanceId, useRunState } from "@/api/hooks";
+import { useAdmissionAccounts, useCard, useInstanceId, useReview, useRunState } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { CopyButton, ShortId, shortId } from "@/components/ShortId";
 import { RefLink } from "@/components/RefLink";
+import { ChangeMark } from "@/components/Chip";
+import { DataTable, type Column } from "@/components/DataTable";
+import { ShownValue } from "@/components/ShownValue";
+import { changeCounts, changedItems, changeRows, unreviewedClaims, type ChangeRow, type ItemChange } from "@/lib/run-changes";
 import { useAtLink, withAt } from "@/lib/at";
 import { captureHandle } from "@/lib/next-reasons";
 import { formatDateTime, sentence } from "@/lib/text";
@@ -133,6 +138,8 @@ export function RunScreen() {
           </Panel>
         </div>
       )}
+
+      {runCard && <ChangesPanel egress={runCard.terminal_egress ?? []} />}
 
       <Panel title="Captures read and receipt" meta={state.data ? <span>{state.data.source_observations?.length ?? 0} Captures</span> : undefined}>
         {state.isPending && <LoadState />}
@@ -279,4 +286,119 @@ function RunSummary({ card }: { card: Schemas["GetProcedureRunCard"] }) {
       .
     </>
   );
+}
+
+const CHANGE_WORD: Record<ItemChange, string> = { claim: "claim", subject: "new Subject", reobservation: "re-observed", retirement: "retired" };
+const COUNT_WORD: Record<ItemChange, [string, string]> = {
+  claim: ["claim", "claims"],
+  subject: ["new Subject", "new Subjects"],
+  reobservation: ["re-observed", "re-observed"],
+  retirement: ["retired", "retired"],
+};
+const DISPOSITION_MARK = { new: "create", revised: "revise", retired: "retire" } as const;
+
+/**
+ * What the run changed, item by item (D-R37 g, CD3): each claims item with a
+ * recorded change, its kind, Subject, ClaimType and value, each linked. Reads:
+ * the review of the proposal each claims terminal delivered, and one
+ * claims/read-batch for re-observed Claims (no member carries them); never one
+ * per item. Runs from before item changes were recorded show no panel.
+ */
+function ChangesPanel({ egress }: { egress: Egress[] }) {
+  const items = useMemo(() => changedItems(egress), [egress]);
+  const proposal = items.find(({ egress: e }) => e.proposal_id)?.egress.proposal_id ?? null;
+  const review = useReview(items.length > 0 ? proposal : null);
+  const members = review.data?.members ?? null;
+  const missing = useMemo(() => (proposal && review.isPending ? [] : unreviewedClaims(items, members)), [items, members, proposal, review.isPending]);
+  const states = useAdmissionAccounts(missing);
+  const rows = useMemo(() => changeRows(items, members, states.statements), [items, members, states.statements]);
+  if (items.length === 0) return null;
+  const counts = changeCounts(rows);
+  return (
+    <Panel
+      title="Changes"
+      meta={
+        <span className="flex flex-wrap gap-x-3">
+          {(Object.keys(CHANGE_WORD) as ItemChange[]).map((k) =>
+            counts[k] > 0 ? (
+              <span key={k}>
+                {counts[k]} {COUNT_WORD[k][counts[k] === 1 ? 0 : 1]}
+              </span>
+            ) : null,
+          )}
+        </span>
+      }
+    >
+      {(review.isPending && proposal) || states.isPending ? <LoadState /> : null}
+      {review.error && <LoadState error={review.error} />}
+      {states.error && <LoadState error={states.error} />}
+      <ChangesTable rows={rows} />
+    </Panel>
+  );
+}
+
+function ChangesTable({ rows }: { rows: ChangeRow[] }) {
+  const columns = useMemo<Column<ChangeRow>[]>(
+    () => [
+      {
+        id: "change",
+        header: "Change",
+        sortValue: (r) => r.change,
+        filter: { kind: "enum", values: (r) => [r.change] },
+        optionLabel: (v) => CHANGE_WORD[v as ItemChange] ?? v,
+        className: "whitespace-nowrap",
+        cell: (r) => (
+          <span className="inline-flex items-baseline gap-1.5" title={[r.identity && `identity ${r.identity}`, r.digest && `change ${r.digest}`, `${r.node} #${r.index}`].filter(Boolean).join("\n")}>
+            {r.disposition ? <ChangeMark change={DISPOSITION_MARK[r.disposition]} /> : r.change === "subject" ? <ChangeMark change="create" /> : <span className="w-[1ch]" />}
+            <span className="text-zinc-300">{r.change === "claim" && r.disposition ? r.disposition : CHANGE_WORD[r.change]}</span>
+          </span>
+        ),
+      },
+      {
+        id: "subject",
+        header: "Subject",
+        sortValue: (r) => r.subject,
+        filter: { kind: "text", text: (r) => r.subject ?? "" },
+        className: "break-all",
+        cell: (r) => (r.subject ? <RefLink value={r.subject} /> : <span className="text-zinc-600">—</span>),
+      },
+      {
+        id: "claim_type",
+        header: "ClaimType",
+        sortValue: (r) => r.claimType,
+        filter: { kind: "enum", values: (r) => (r.claimType ? [r.claimType] : []) },
+        className: "font-mono text-[12px]",
+        cell: (r) => (r.claimType ? <RefLink value={`ClaimType:${r.claimType}`}>{r.claimType}</RefLink> : <span className="text-zinc-600">—</span>),
+      },
+      {
+        id: "value",
+        header: "Value",
+        className: "text-zinc-200",
+        cell: (r) =>
+          r.value === undefined ? (
+            <span className="text-zinc-600">—</span>
+          ) : (
+            <span className={`inline-flex flex-wrap items-baseline gap-x-1.5 ${r.change === "retirement" || r.disposition === "retired" ? "line-through decoration-zinc-500" : ""}`}>
+              {r.before !== undefined && (
+                <>
+                  <span className="text-zinc-500 line-through">
+                    <ShownValue value={r.before} />
+                  </span>
+                  <span className="text-zinc-600">→</span>
+                </>
+              )}
+              <ShownValue value={r.value} />
+            </span>
+          ),
+      },
+      {
+        id: "item",
+        header: "Item",
+        className: "whitespace-nowrap",
+        cell: (r) => (r.claim ? <RefLink value={r.claim} short /> : r.path ? <RefLink value={r.path} short /> : <span className="text-zinc-600">—</span>),
+      },
+    ],
+    [],
+  );
+  return <DataTable rows={rows} columns={columns} rowKey={(r) => r.key} urlKey="changes" label="Changes" toolbar={rows.length > 10} maxHeight="32rem" />;
 }
