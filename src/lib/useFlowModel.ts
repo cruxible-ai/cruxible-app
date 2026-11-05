@@ -1,8 +1,23 @@
 import { useMemo } from "react";
-import { useClaimTypes, useGetBatch, useLines, useSourceModel, useSubjectKinds } from "@/api/hooks";
+import { useCaptureContracts, useClaimTypes, useGetBatch, useLines, useSourceModel, useSubjectKinds } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { arrivalWords, gist, hostOf, lineFlows, lineGist, type Retention } from "@/lib/definitions";
-import { buildFlow, readClaimTypeAccepts, type AcceptedEvidence, type FlowModel } from "@/lib/evidence-flow";
+import {
+  arrivalWords,
+  gist,
+  hostOf,
+  lineFlows,
+  lineGist,
+  logicalSourceRef,
+  resolvedSource,
+  stepAlias,
+  type LandingTrigger,
+  type LineDefinition,
+  type ProcedureSpec,
+  type Retention,
+} from "@/lib/definitions";
+import { buildFlow, readClaimTypeAccepts, type AcceptedEvidence, type DeriveInput, type FlowModel, type LandingLinkInput } from "@/lib/evidence-flow";
+import { contractName } from "@/lib/ontology";
+import { captureInputs, isDerive, type Grades } from "@/lib/template";
 import { lineName } from "@/lib/lines";
 import { isCoreIdentity } from "@/lib/ontology";
 import { wakeOf } from "@/lib/schedule";
@@ -24,6 +39,8 @@ export function useFlowModel() {
   const claimTypes = useClaimTypes();
   const lines = useLines();
   const sources = useSourceModel();
+  // Which CaptureKinds are derived: which calls are derives (D-R37).
+  const contracts = useCaptureContracts();
   // Every Line's card, for its Triggers in words (a Line may have several: a schedule and landings) and its newest run.
   const lineNames = useMemo(() => (lines.data?.rows ?? []).map((row) => lineName(row.line)), [lines.data]);
   // One get-batch in the daemon's order: the same request (and cache entry) the Lines table makes.
@@ -61,7 +78,8 @@ export function useFlowModel() {
   const dependencies = useDependenciesOf(sources.data, subjectKinds.error ? [] : subjectKinds.data?.rows);
 
   const model = useMemo<FlowModel | null>(() => {
-    if (!claimTypes.data || !lines.data || !sources.data || proofs.isPending || dependencies === null) return null;
+    if (!claimTypes.data || !lines.data || !sources.data || proofs.isPending || dependencies === null || contracts.isPending) return null;
+    const grades: Grades = new Map((contracts.data?.rows ?? []).map((row) => [contractName(row.contract), row.grade] as const));
     const accepts = new Map<string, AcceptedEvidence[]>();
     for (const result of proofs.results) {
       const read = readClaimTypeAccepts((result as { proof?: unknown }).proof);
@@ -111,6 +129,7 @@ export function useFlowModel() {
           reads: flow?.sources ?? [],
           lands,
           writes: flow?.writes ?? [],
+          creates: flow?.creates ?? [],
           postsInbox: flow?.inbox ?? false,
         };
       }),
@@ -118,10 +137,68 @@ export function useFlowModel() {
       accepts,
       keys: new Set((subjectKinds.data?.rows ?? []).flatMap((kind) => kind.keys ?? [])),
       dependencies,
+      derives: lineDefinitions.flatMap((line) => {
+        const spec = specs.get(line.procedure);
+        return spec ? lineDerives(spec, line, grades) : [];
+      }),
+      landings: derivedLandings(specs, lineDefinitions, sources.data.triggers, grades),
     });
-  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords, subjectKinds.data, dependencies]);
+  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords, subjectKinds.data, dependencies, contracts.isPending, contracts.data]);
 
   const error = claimTypes.error ?? lines.error ?? sources.error;
   const capped = Boolean(sources.data?.truncated || claimTypes.data?.truncated);
   return { model, triggerWords, lastRuns, runningLines, proofs, error, capped };
+}
+
+/** A Line's derive steps: what each reads (the logical sources of the fetches it takes Captures from, the derives before it). */
+export function lineDerives(spec: ProcedureSpec, line: LineDefinition, grades: Grades): DeriveInput[] {
+  const aliases = spec.steps.map((step, index) => stepAlias(step, index));
+  const derive = spec.steps.map((_, index) => isDerive(spec, index, grades));
+  const out: DeriveInput[] = [];
+  spec.steps.forEach((step, index) => {
+    if (!("call" in step) || !derive[index]) return;
+    const inputs = captureInputs(spec, index);
+    const sources = new Set<string>();
+    const derives = new Set<string>();
+    for (const input of inputs) {
+      const at = aliases.indexOf(input.step);
+      const from = spec.steps[at];
+      if (!from || !("call" in from)) continue;
+      if (derive[at]) derives.add(input.step);
+      else {
+        const source = resolvedSource(logicalSourceRef(from.input), line.parameters);
+        if (source) sources.add(source);
+      }
+    }
+    out.push({
+      line: line.line,
+      step: aliases[index]!,
+      operation: line.operations?.[step.slot] ?? null,
+      kinds: Object.values(step.captures ?? {}),
+      sources: [...sources].sort(),
+      derives: [...derives].sort(),
+    });
+  });
+  return out;
+}
+
+/** Landing Triggers on a derive's output: the Lines whose derives commit the kind start the Trigger's target. */
+export function derivedLandings(
+  specs: ReadonlyMap<string, ProcedureSpec>,
+  lines: readonly LineDefinition[],
+  triggers: readonly LandingTrigger[],
+  grades: Grades,
+): LandingLinkInput[] {
+  const out: LandingLinkInput[] = [];
+  for (const trigger of triggers) {
+    const to = trigger.target.replace(/^Line:/, "");
+    if (!trigger.target.startsWith("Line:") && trigger.target.includes(":")) continue;
+    for (const line of lines) {
+      const spec = specs.get(line.procedure);
+      if (!spec) continue;
+      const produces = spec.steps.some((step, index) => "call" in step && isDerive(spec, index, grades) && Object.values(step.captures ?? {}).includes(trigger.contract));
+      if (produces && line.line !== to) out.push({ from: line.line, to, contract: trigger.contract });
+    }
+  }
+  return out;
 }

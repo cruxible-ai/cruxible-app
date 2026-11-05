@@ -24,7 +24,7 @@ import {
   type Placed,
 } from "@/lib/evidence-flow";
 import { DependencyPopover, producerName, type PopoverAt } from "@/components/DependencyPopover";
-import { AUTHORITY_COLOR } from "@/lib/palette";
+import { AUTHORITY_COLOR, STAGE_COLOR } from "@/lib/palette";
 import { term } from "@/lib/vocabulary";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -172,7 +172,7 @@ export function FlowScreen() {
           >
             <svg width={layout.width} height={layout.height} className="pointer-events-none absolute inset-0">
               {layout.edges.map((edge) => {
-                if (edge.dependencies) return null; // drawn over the edges, below
+                if (edge.dependencies || edge.landing) return null; // drawn over the edges, below
 
                 const from = layout.byId.get(edge.from);
                 const to = layout.byId.get(edge.to);
@@ -194,7 +194,7 @@ export function FlowScreen() {
                 );
               })}
               {layout.edges.map((edge) =>
-                edge.dependencies ? (
+                edge.dependencies || edge.landing ? (
                   <LinkEdge
                     key={edgeKey(edge)}
                     edge={edge}
@@ -266,7 +266,10 @@ function LinkEdge({
   const on = open ? true : lit ? lit.has(edge.from) && lit.has(edge.to) : null;
   const color = on ? edgeColor(from.node, to.node) : "rgb(163 160 148)";
   const marker = `link-arrow-${key.replace(/[^\w-]/g, "_")}`;
-  const label = `${producerName(from.node?.ownWord ? null : (from.node?.label ?? null))} → ${to.node?.label ?? ""}`;
+  const landing = edge.landing?.length ? ` · lands ${edge.landing.map(contractName).join(", ")}` : "";
+  const label = `${producerName(from.node?.ownWord ? null : (from.node?.label ?? null))} → ${to.node?.label ?? ""}${landing}`;
+  // A derived landing only starts the target: it has no Queries to name, so no popover.
+  const opens = Boolean(edge.dependencies);
   return (
     <g>
       <defs>
@@ -288,17 +291,17 @@ function LinkEdge({
         fill="none"
         stroke="transparent"
         strokeWidth={12}
-        style={{ pointerEvents: "stroke", cursor: "pointer", outline: "none" }}
-        role="button"
-        tabIndex={0}
+        style={{ pointerEvents: "stroke", cursor: opens ? "pointer" : "default", outline: "none" }}
+        role={opens ? "button" : "img"}
+        tabIndex={opens ? 0 : -1}
         aria-label={`Link ${label}`}
-        data-testid="dependency-link"
+        data-testid={opens ? "dependency-link" : "landing-link"}
         onClick={(event) => {
           event.stopPropagation();
-          onOpen({ x: event.clientX, y: event.clientY });
+          if (opens) onOpen({ x: event.clientX, y: event.clientY });
         }}
         onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
+          if (!opens || (event.key !== "Enter" && event.key !== " ")) return;
           event.preventDefault();
           const box = (event.currentTarget as SVGPathElement).getBoundingClientRect();
           onOpen({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
@@ -460,6 +463,40 @@ function FlowCell({
         focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} />}
         facts={[["Fetched", node.when ?? "not on a schedule"], landedFact(landingsOf, node.label, instanceId, link)]}
       />
+    );
+  }
+  if (node.kind === "derive") {
+    const kinds = node.contracts ?? [];
+    return (
+      <div
+        style={{ ...style, borderLeft: `3px solid ${STAGE_COLOR.derive.color}` }}
+        className={`group absolute flex flex-col overflow-hidden border border-zinc-700 bg-zinc-900 px-2 pb-1 pt-1.5 transition-opacity ${dim ? "opacity-25" : ""}`}
+        title={[`Derive ${node.label} in Line ${node.line}`, node.operation ? `operation ${node.operation}` : null, "effect: pure", kinds.length ? `commits ${kinds.join(", ")}` : null].filter(Boolean).join("\n")}
+        {...hover}
+      >
+        <div className="flex min-w-0 items-center gap-1.5 text-[9.5px] font-semibold uppercase leading-3 tracking-wider" style={{ color: STAGE_COLOR.derive.color }}>
+          Derive
+          <span className="font-normal normal-case tracking-normal text-zinc-500">pure</span>
+        </div>
+        <div className="mt-1 flex min-w-0 items-center gap-1.5 leading-4">
+          <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.line ?? "")}`)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
+            {node.operation ?? node.label}
+          </Link>
+          <span className="ml-auto shrink-0">
+            <FocusButton id={node.id} label={node.label} onFocus={onFocus} always />
+          </span>
+        </div>
+        <div className="mt-auto truncate text-[10.5px] leading-4">
+          {kinds.map((kind, i) => (
+            <span key={kind}>
+              {i > 0 && <span className="text-zinc-600">, </span>}
+              <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(kind)}`)} className="font-mono text-zinc-400 hover:text-zinc-200 hover:underline">
+                {strip(kind, prefix)}
+              </Link>
+            </span>
+          ))}
+        </div>
+      </div>
     );
   }
   if (node.kind === "line") {

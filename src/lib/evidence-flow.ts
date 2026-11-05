@@ -30,7 +30,7 @@ import type { LineDependency } from "./line-dependencies.ts";
  * down the page. Pure and deterministic: same inputs, same pixels.
  */
 
-export type FlowNodeKind = "source" | "line" | "inbox" | "claim_type";
+export type FlowNodeKind = "source" | "derive" | "line" | "inbox" | "claim_type";
 
 export interface FlowNode {
   id: string;
@@ -61,6 +61,12 @@ export interface FlowNode {
   group?: string;
   /** claim_type: a Capture is required. */
   required?: boolean;
+  /** line: the Subject kinds its claims steps may create (if_absent, on the Subject or a value target). */
+  creates?: string[];
+  /** derive: the Line it runs in, its operation, and its chain depth (0: reads only fetched Captures). */
+  line?: string;
+  operation?: string | null;
+  depth?: number;
 }
 
 export type Authority = "observe" | "propose" | "settle";
@@ -83,6 +89,8 @@ export interface FlowEdge {
   inbox?: boolean;
   /** line → line, or Entered directly → line: what the reading Line's Queries read from it. */
   dependencies?: LineDependency[];
+  /** line → line: the derived CaptureKinds whose landings start the target (a landing Trigger on a derive's output). */
+  landing?: string[];
 }
 
 export interface FlowModel {
@@ -121,7 +129,35 @@ export interface LineInput {
   lands?: readonly string[];
   /** The ClaimTypes its claims steps name. */
   writes: readonly string[];
+  /** The Subject kinds it may create. */
+  creates?: readonly string[];
   postsInbox?: boolean;
+}
+
+/**
+ * A derive step of a Line's Procedure (D-R37): a pure call over the run's
+ * Captures. It draws between the sources and the Line: from the logical
+ * sources of the fetches it reads (or the derive it reads, in a chain) to the
+ * Line, or the next derive.
+ */
+export interface DeriveInput {
+  line: string;
+  /** The step's output name. */
+  step: string;
+  operation?: string | null;
+  /** The derived CaptureKinds it commits. */
+  kinds: readonly string[];
+  /** The logical sources of the fetches whose Captures it reads. */
+  sources: readonly string[];
+  /** The derives (by step name, same Line) whose Captures it reads. */
+  derives: readonly string[];
+}
+
+/** A landing Trigger on a derive's output: the Line whose derive produces it starts the target Line. */
+export interface LandingLinkInput {
+  from: string;
+  to: string;
+  contract: string;
 }
 
 export interface FlowInputs {
@@ -137,6 +173,8 @@ export interface FlowInputs {
   keys?: ReadonlySet<string>;
   /** Line dependencies (line-dependencies.ts): drawn as links into the reading Line. */
   dependencies?: readonly LineDependency[];
+  derives?: readonly DeriveInput[];
+  landings?: readonly LandingLinkInput[];
 }
 
 const bareContract = (value: string) => value.replace(/^CaptureContract:/, "");
@@ -150,6 +188,7 @@ export const nodeId = {
   inbox: "inbox",
   source: (source: string) => `source:${source}`,
   line: (name: string) => `line:${name}`,
+  derive: (line: string, step: string) => `derive:${line}:${step}`,
   claimType: (predicate: string) => `claim_type:${predicate}`,
   kind: (kind: string) => `kind:${kind}`,
 };
@@ -211,7 +250,34 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     });
   }
 
-  // Lines, and the sources they fetch or read.
+  // Derives: their own step between the sources they read and their Line (D-R37).
+  const derives = [...(inputs.derives ?? [])].filter((d) => lines.some((l) => l.name === d.line));
+  const derivesOf = (line: string) => derives.filter((d) => d.line === line);
+  const depthOf = new Map<string, number>();
+  const depth = (d: DeriveInput, seen = new Set<string>()): number => {
+    const key = nodeId.derive(d.line, d.step);
+    if (depthOf.has(key)) return depthOf.get(key)!;
+    if (seen.has(key)) return 0;
+    seen.add(key);
+    const ups = d.derives.map((step) => derivesOf(d.line).find((u) => u.step === step)).filter((u): u is DeriveInput => u !== undefined);
+    const value = ups.length ? 1 + Math.max(...ups.map((u) => depth(u, seen))) : 0;
+    depthOf.set(key, value);
+    return value;
+  };
+  for (const d of [...derives].sort((a, b) => byText(nodeId.derive(a.line, a.step), nodeId.derive(b.line, b.step)))) {
+    const id = nodeId.derive(d.line, d.step);
+    nodes.set(id, {
+      id,
+      kind: "derive",
+      label: d.step,
+      line: d.line,
+      operation: d.operation ?? null,
+      contracts: [...d.kinds].map(bareContract).sort(byText),
+      depth: depth(d),
+    });
+  }
+
+  // Lines, and the sources they fetch or read (through their derives, where a derive reads them).
   for (const line of lines) {
     const id = nodeId.line(line.name);
     const authority = asAuthority(line.authority);
@@ -222,9 +288,23 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
       ...(authority ? { authority } : {}),
       ...(line.about ? { about: line.about } : {}),
       ...(line.enablement !== undefined ? { enablement: line.enablement } : {}),
+      ...(line.creates?.length && authority !== "observe" ? { creates: [...line.creates].sort(byText) } : {}),
     });
+    const own = derivesOf(line.name);
+    const viaDerive = new Set(own.flatMap((d) => d.sources));
     for (const source of [...line.reads].sort(byText)) {
+      if (viaDerive.has(source)) continue;
       addEdge({ from: nodeId.source(source), to: id, ...(line.lands?.includes(source) ? { lands: true } : {}) });
+    }
+    const consumed = new Set(own.flatMap((d) => d.derives));
+    for (const d of own) {
+      const at = nodeId.derive(d.line, d.step);
+      for (const source of [...d.sources].sort(byText)) {
+        addSource({ id: source, contracts: [] });
+        addEdge({ from: nodeId.source(source), to: at, ...(line.lands?.includes(source) ? { lands: true } : {}) });
+      }
+      for (const up of d.derives) if (own.some((o) => o.step === up)) addEdge({ from: nodeId.derive(d.line, up), to: at });
+      if (!consumed.has(d.step)) addEdge({ from: at, to: id });
     }
   }
 
@@ -312,6 +392,23 @@ export function buildFlow(inputs: FlowInputs): FlowModel {
     }
   }
   for (const edge of links.values()) if (!edgeKeys.has(edgeKey(edge))) edges.push(edge);
+  // A landing Trigger on a derive's output: the producing Line → the Line it starts.
+  const landed = new Map<string, FlowEdge>();
+  for (const l of inputs.landings ?? []) {
+    const from = nodeId.line(l.from);
+    const to = nodeId.line(l.to);
+    if (from === to || !nodes.has(from) || !nodes.has(to)) continue;
+    const key = edgeKey({ from, to });
+    const existing = edges.find((e) => edgeKey(e) === key);
+    if (existing) {
+      if (!existing.landing?.includes(l.contract)) existing.landing = [...(existing.landing ?? []), l.contract];
+      continue;
+    }
+    const edge = landed.get(key) ?? { from, to, landing: [] };
+    if (!edge.landing!.includes(l.contract)) edge.landing!.push(l.contract);
+    landed.set(key, edge);
+  }
+  edges.push(...landed.values());
   return { nodes: [...nodes.values()], edges };
 }
 
@@ -387,7 +484,8 @@ export interface FlowLayout {
 }
 
 /** A dependency link between two Lines (both ends in the Line column). */
-export const isLineLink = (edge: FlowEdge) => Boolean(edge.dependencies) && edge.from.startsWith("line:") && edge.to.startsWith("line:");
+export const isLineLink = (edge: FlowEdge) =>
+  Boolean(edge.dependencies || edge.landing) && edge.from.startsWith("line:") && edge.to.startsWith("line:");
 
 /** Column boxes: sources, Lines, what they produce; the wider gutter carries the Line fan-out. */
 export const COLUMNS = [
@@ -396,15 +494,31 @@ export const COLUMNS = [
   { x: 650, w: 280 },
 ] as const;
 
+/** A derive column's width and the step to the next one (a derive chain takes one column per hop). */
+const DERIVE_W = 170;
+const DERIVE_STEP = 210;
+
+/** The columns with `depths` derive columns between the sources and the Lines (none: COLUMNS). */
+function columnsFor(depths: number) {
+  const shift = depths * DERIVE_STEP;
+  return {
+    source: COLUMNS[0],
+    derive: (depth: number) => ({ x: COLUMNS[1].x + depth * DERIVE_STEP - 10, w: DERIVE_W }),
+    line: { x: COLUMNS[1].x + shift, w: COLUMNS[1].w },
+    produces: { x: COLUMNS[2].x + shift, w: COLUMNS[2].w },
+  };
+}
+
 const HEIGHT: Record<PlacedKind, number> = {
   inbox: 44,
   source: 84,
+  derive: 64,
   line: 100,
   claim_type: 18,
   kind: 20,
   heading: 22,
 };
-const GAP: Record<PlacedKind, number> = { inbox: 14, source: 8, line: 8, claim_type: 2, kind: 2, heading: 4 };
+const GAP: Record<PlacedKind, number> = { inbox: 14, source: 8, derive: 8, line: 8, claim_type: 2, kind: 2, heading: 4 };
 const KIND_GAP = 8;
 
 const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : Number.POSITIVE_INFINITY);
@@ -465,10 +579,12 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     outgoing.set(e.from, [...(outgoing.get(e.from) ?? []), e.to]);
   }
   const top = HEIGHT.heading + GAP.heading;
+  const depths = of("derive").length ? Math.max(...of("derive").map((n) => n.depth ?? 0)) + 1 : 0;
+  const columns = columnsFor(depths);
 
   // What they produce: the inbox, then ClaimTypes under their kinds, ordered by the Lines/sources that feed them.
   const rows: Placed[] = [];
-  const { x, w } = COLUMNS[2];
+  const { x, w } = columns.produces;
   let y = top;
   for (const node of of("inbox")) {
     rows.push({ id: node.id, kind: "inbox", node, x, y, w, h: HEIGHT.inbox });
@@ -506,17 +622,29 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     const ly = lineY.get(id);
     return ly !== undefined ? ly + HEIGHT.line / 2 : rowY.get(id);
   };
-  // Sources, ordered by what they feed (Lines, or ClaimTypes directly), packed from the top; your statements last.
+  // Derives, deepest first (nearest their Line), each column ordered by what it feeds, packed from the top.
+  const deriveY = new Map<string, number>();
+  for (let d = depths - 1; d >= 0; d -= 1) {
+    const placed = packTop(
+      of("derive")
+        .filter((n) => (n.depth ?? 0) === d)
+        .map((n) => ({ id: n.id, kind: "derive" as const, desired: mean(centres(n.id, (to) => (deriveY.has(to) ? deriveY.get(to)! + HEIGHT.derive / 2 : centreOf(to)))) })),
+      top,
+    );
+    for (const [id, y] of placed) deriveY.set(id, y);
+  }
+  const feedCentre = (id: string) => (deriveY.has(id) ? deriveY.get(id)! + HEIGHT.derive / 2 : centreOf(id));
+  // Sources, ordered by what they feed (derives, Lines, or ClaimTypes directly), packed from the top; your statements last.
   const sourceY = packTop(
     of("source").map((n) => ({
       id: n.id,
       kind: "source" as const,
-      desired: n.ownWord ? Number.MAX_SAFE_INTEGER : mean(centres(n.id, centreOf)),
+      desired: n.ownWord ? Number.MAX_SAFE_INTEGER : mean(centres(n.id, feedCentre)),
     })),
     top,
   );
 
-  const heading = (id: string, label: string, column: (typeof COLUMNS)[number]): Placed => ({
+  const heading = (id: string, label: string, column: { x: number; w: number }): Placed => ({
     id: `heading:${id}`,
     kind: "heading",
     label,
@@ -526,11 +654,16 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     h: HEIGHT.heading,
   });
   const placed: Placed[] = [
-    heading("sources", "Source", COLUMNS[0]),
-    heading("lines", "Line", COLUMNS[1]),
-    heading("claims", "What it produces", COLUMNS[2]),
-    ...of("source").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[0].x, y: sourceY.get(node.id)!, w: COLUMNS[0].w, h: HEIGHT.source })),
-    ...of("line").map((node) => ({ id: node.id, kind: node.kind, node, x: COLUMNS[1].x, y: lineY.get(node.id)!, w: COLUMNS[1].w, h: HEIGHT.line })),
+    heading("sources", "Source", columns.source),
+    ...(depths > 0 ? [heading("derives", "Derive", columns.derive(0))] : []),
+    heading("lines", "Line", columns.line),
+    heading("claims", "What it produces", columns.produces),
+    ...of("source").map((node) => ({ id: node.id, kind: node.kind, node, x: columns.source.x, y: sourceY.get(node.id)!, w: columns.source.w, h: HEIGHT.source })),
+    ...of("derive").map((node) => {
+      const column = columns.derive(node.depth ?? 0);
+      return { id: node.id, kind: node.kind, node, x: column.x, y: deriveY.get(node.id)!, w: column.w, h: HEIGHT.derive };
+    }),
+    ...of("line").map((node) => ({ id: node.id, kind: node.kind, node, x: columns.line.x, y: lineY.get(node.id)!, w: columns.line.w, h: HEIGHT.line })),
     ...rows,
   ];
   const height = Math.max(...placed.map((p) => p.y + p.h), top) + 8;
@@ -555,7 +688,7 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     byId: new Map(placed.map((p) => [p.id, p] as const)),
     edges: model.edges,
     lanes,
-    width: COLUMNS[2].x + COLUMNS[2].w,
+    width: columns.produces.x + columns.produces.w,
     height,
   };
 }

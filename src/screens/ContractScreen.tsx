@@ -17,6 +17,7 @@ import { formatDateTime, formatRelative, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { readContractTerms, termRows } from "@/lib/contract-terms";
 import { roleWord, term } from "@/lib/vocabulary";
+import { kindProducers, type KindProducer } from "@/lib/template";
 
 /** Retentions whose step names no logical source, by why: the definitions do not say which source it is. */
 const UNNAMED: { test: (r: Retention) => boolean; words: string; title: string }[] = [
@@ -65,6 +66,10 @@ export function ContractScreen() {
     [captures.data, name],
   );
   const readings = useMemo(() => (model.data ? contractReadings(name, model.data.specs) : []), [model.data, name]);
+  const contracts = useCaptureContracts();
+  const grades = useMemo(() => (contracts.data ? new Map(contracts.data.rows.map((row) => [contractName(row.contract), row.grade] as const)) : null), [contracts.data]);
+  // A derived kind (D-R37): the derives that commit it, the operation each Line binds, the kinds they read.
+  const producedBy = useMemo(() => (model.data ? kindProducers(name, model.data.specs, model.data.lines, grades) : []), [model.data, name, grades]);
 
   const definition = contract ? readContractDefinition(contract.captures) : null;
   const admitting = useMemo(() => {
@@ -82,6 +87,7 @@ export function ContractScreen() {
   if (card.error) return <LoadState error={card.error} />;
   if (!contract || !definition) return <LoadState error={new Error(`CaptureContract:${name} did not resolve to a contract`)} />;
   const required = admitting.filter((a) => a.row?.evidence_requirement === "captured");
+  const grade = terms?.grade ?? definition.grade;
 
   return (
     <Page>
@@ -107,6 +113,18 @@ export function ContractScreen() {
 
       <FlowHeading step="Input" info="Where Captures under this contract come from: the logical sources they land under and the Procedures that retain them." />
 
+      {grade === "derived" && (
+        <Panel
+          title="Derived by"
+          description="The derives that commit it: a pure operation over the run's Captures and state reads."
+          meta={<span>{producedBy.length}</span>}
+        >
+          {model.isPending && <LoadState />}
+          {model.data && producedBy.length === 0 && <EmptyState>None</EmptyState>}
+          {producedBy.length > 0 && <DerivedByTable producers={producedBy} />}
+        </Panel>
+      )}
+
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
         <Panel title="Logical sources" meta={<span title="A Capture is retained under a contract and a logical source (what was read); steps that name the source retain it, a landing Trigger selects it">{sources.length}</span>}>
           <div className="mb-1.5 text-[12px] text-zinc-500">
@@ -114,11 +132,12 @@ export function ContractScreen() {
           </div>
           {model.isPending && <LoadState />}
           {model.error && <LoadState error={model.error} />}
-          {model.data && sources.length === 0 && unnamed.length === 0 && (
+          {model.data && sources.length === 0 && (unnamed.length === 0 || grade === "derived") && (
             <div className="text-[12px] text-zinc-600">None</div>
           )}
           {sources.length > 0 && <SourcesTable sources={sources} contract={name} />}
-          {UNNAMED.map(({ test, words, title }) => {
+          {/* A derived kind's Captures are its derives' output (Derived by), not retained under a source. */}
+          {grade !== "derived" && UNNAMED.map(({ test, words, title }) => {
             const group = unnamed.filter(test);
             return group.length > 0 ? (
               <div key={words} className="mt-1.5 text-[12px] text-zinc-500" title={title}>
@@ -195,6 +214,81 @@ export function ContractScreen() {
       </div>
     </Page>
   );
+}
+
+/** The derives that commit a derived kind: operation (per Line), Procedure · step, the kinds it derives from. */
+function DerivedByTable({ producers }: { producers: KindProducer[] }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const kindLink = (kind: string) => link(`/i/${instanceId}/contracts/${encodeURIComponent(kind)}`);
+  const columns = useMemo<Column<KindProducer>[]>(
+    () => [
+      {
+        id: "operation",
+        header: "Operation",
+        className: "font-mono text-[12px] text-zinc-200",
+        cell: (p) => {
+          const named = [...new Set(p.lines.map((l) => l.operation).filter((o): o is string => o !== null))];
+          return (
+            <span title={[`slot ${p.slot}`, p.signature].filter(Boolean).join("\n")}>
+              {named.length ? named.join(", ") : p.slot}
+              <span className="ml-1.5 font-sans text-zinc-500">pure</span>
+            </span>
+          );
+        },
+      },
+      {
+        id: "step",
+        header: "Step",
+        className: "text-[12px]",
+        cell: (p) => (
+          <span className="flex flex-wrap items-baseline gap-x-1.5">
+            <RefLink value={`Procedure:${p.procedure}`}>
+              <span className="font-mono">{p.procedure}</span>
+            </RefLink>
+            <span className="font-mono text-zinc-400">· {p.step}</span>
+          </span>
+        ),
+      },
+      {
+        id: "lines",
+        header: "Lines",
+        className: "text-[12px]",
+        cell: (p) =>
+          p.lines.length ? (
+            <span className="flex flex-wrap gap-x-3">
+              {p.lines.map((l) => (
+                <Link key={l.line} to={link(`/i/${instanceId}/lines/${encodeURIComponent(l.line)}`)} className="font-mono text-zinc-300 hover:underline" title={l.build ?? undefined}>
+                  {l.line}
+                </Link>
+              ))}
+            </span>
+          ) : (
+            <span className="text-zinc-600">—</span>
+          ),
+      },
+      {
+        id: "from",
+        header: "Derives from",
+        className: "text-[12px]",
+        cell: (p) =>
+          p.derivesFrom.length ? (
+            <span className="flex flex-wrap gap-x-3">
+              {p.derivesFrom.map((kind) => (
+                <Link key={kind} to={kindLink(kind)} className="font-mono text-zinc-300 hover:underline">
+                  {kind}
+                </Link>
+              ))}
+            </span>
+          ) : (
+            <span className="text-zinc-600">—</span>
+          ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- kindLink reads link and instanceId
+    [instanceId, link],
+  );
+  return <DataTable rows={producers} columns={columns} rowKey={(p) => `${p.procedure}\n${p.step}`} urlKey="derived" label="Derived by" toolbar={producers.length > TOOLBAR_AT} maxHeight="none" />;
 }
 
 /** Tables this short read without the toolbar; longer ones get its sort, filter and Columns. */
