@@ -115,8 +115,8 @@ describe("recorded reference world", () => {
     expect(line.getByText("Parameters (3)")).toBeInTheDocument();
     // the Procedure as authored is on the steps graph: each node its id and kind
     await waitFor(() => expect(node("write")).not.toBeNull(), { timeout: 8000 });
-    const kinds = { catalog: "Call", watched: "Read", entries: "Extract", write: "Claims" };
-    for (const [id, kind] of Object.entries(kinds)) expect(within(node(id)!).getByText(kind)).toBeInTheDocument();
+    const stages = { catalog: "FETCH", watched: "READ", entries: "EXTRACT", write: "CLAIMS" };
+    for (const [id, tag] of Object.entries(stages)) expect(within(node(id)!).getByText(tag)).toBeInTheDocument();
     fireEvent.click(node("catalog")!);
     // its side panel: the fields in groups, named things linked
     expect(within(await screen.findByRole("list", { name: "Returns" })).getByRole("link", { name: "kev-catalog" })).toBeInTheDocument();

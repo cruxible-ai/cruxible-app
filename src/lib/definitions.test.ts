@@ -229,12 +229,13 @@ describe("what a Line's run does", () => {
   it("reads the sources its calls name (through its parameters), writes the ClaimTypes its claims steps name", () => {
     const specs = new Map([FETCH, TRIAGE].map((spec) => [spec.procedure, spec] as const));
     expect(lineFlows(specs, LINES)).toEqual([
-      { line: "kev-daily", sources: ["cisa.kev.catalog"], hosts: ["x"], writes: [], inbox: false },
+      { line: "kev-daily", sources: ["cisa.kev.catalog"], hosts: ["x"], writes: [], creates: [], inbox: false },
       {
         line: "kev-triage",
         sources: ["cisa.kev.catalog"],
         hosts: [],
         writes: ["sec.vulnerability.kev_date_added", "sec.vulnerability.listed_in"],
+        creates: [],
         inbox: false,
       },
     ]);

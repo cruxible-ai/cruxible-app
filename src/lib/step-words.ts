@@ -1,6 +1,7 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
 import type { Schemas } from "../api/schemas.ts";
 import { hostOf, stepAlias, templateRef, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
+import { captureInputs, createdKinds, isDerive, listOutcome, operationOf, stateReads, valueTarget, type Grades, type ListField } from "./template.ts";
 
 /**
  * A Procedure's steps as terse labels: each step's key fields for its graph
@@ -119,6 +120,23 @@ export interface StepWordsContext {
   queries?: ReadonlyMap<string, QueryShape> | undefined;
   /** Slot -> the Provider build the Line binds. */
   bindings?: Record<string, string> | undefined;
+  /** Slot -> the build's operation the Line binds. */
+  operations?: Record<string, string> | undefined;
+  /** CaptureKind -> its grade, for which calls are derives. */
+  grades?: Grades | null | undefined;
+  /** Slot -> the list-of-Captures fields of its out Contract. */
+  lists?: ReadonlyMap<string, readonly ListField[]> | undefined;
+}
+
+/** A call's list fields, by its slot's out Contract. */
+const listsOf = (step: Extract<ProcedureStep, { call: string }>, ctx: StepWordsContext) => ctx.lists?.get(step.slot) ?? [];
+
+/** `≤ 20 Captures` (or `list of Captures` with no cap) for a call whose output is a list. */
+function listWords(lists: readonly ListField[]): Part[] {
+  if (lists.length === 0) return [];
+  const caps = lists.map((l) => l.maxItems);
+  const known = caps.every((c): c is number => c !== null);
+  return [{ text: known ? `≤ ${count(caps.reduce((a, b) => a + b, 0))} Captures` : "list of Captures", title: lists.map((l) => `${l.field}: list<capture>${l.maxItems !== null ? ` · max_items ${l.maxItems}` : ""}`).join("\n") }];
 }
 
 const SEP: Part = { text: " · " };
@@ -167,6 +185,14 @@ export function stepBrief(spec: ProcedureSpec, index: number, ctx: StepWordsCont
   const step = spec.steps[index];
   if (!step) return [];
   if ("call" in step) {
+    if (isDerive(spec, index, ctx.grades)) {
+      const op = operationOf(spec, step, ctx);
+      return [
+        { text: "pure", title: "effect: pure — the same inputs give the same bytes" },
+        SEP,
+        code(op.name ?? step.slot, [op.name ? `operation ${op.name}` : `slot ${step.slot}`, op.signature].filter(Boolean).join("\n")),
+      ];
+    }
     const { url, host, format } = callInput(step, ctx);
     const landing = ctx.triggerInput === stepAlias(step, index);
     const source: Part = landing
@@ -174,7 +200,7 @@ export function stepBrief(spec: ProcedureSpec, index: number, ctx: StepWordsCont
       : host
         ? { text: host, title: url ?? undefined }
         : { text: step.slot, title: `slot ${step.slot}` };
-    return joined([[source], format ? [{ text: format }] : []]);
+    return joined([[source], format ? [{ text: format }] : [], listWords(listsOf(step, ctx))]);
   }
   if ("read" in step) {
     if (step.query) return [queryPart(step.query)];
@@ -250,7 +276,28 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
     const ref = templateRef(value);
     return ref?.$ref === "step" && ref.step ? [code([ref.step, ...(ref.path ?? [])].join("."))] : null;
   };
-  if ("call" in step) {
+  if ("call" in step && isDerive(spec, index, ctx.grades)) {
+    const op = operationOf(spec, step, ctx);
+    section("Derive");
+    add("Operation", [code(op.name ?? step.slot, op.signature ?? undefined)]);
+    add("Effect", op.effect ? [{ text: op.effect }] : null);
+    add("Slot", [code(step.slot, op.signature ?? undefined)]);
+    add("Build", op.build ? [{ text: op.build.split("/")[0]!, ref: `Provider:${op.build}`, title: op.build }] : null);
+    section("Inputs");
+    add(
+      "Captures",
+      list(
+        captureInputs(spec, index).map((c): Part => ({ text: `${c.step}.${c.field}`, code: true, title: c.kind ? `CaptureKind ${c.kind} · input ${c.at}` : `input ${c.at}` })),
+      ),
+    );
+    add(
+      "Reads",
+      list(stateReads(spec, index).map((r): Part => (r.query ? { text: r.step, ref: `QueryDefinition:${r.query}`, title: `Query ${r.query}` } : code(r.step)))),
+    );
+    section("Output");
+    add("CaptureKind", list(Object.values(step.captures ?? {}).map(contractPart)));
+    add("Grade", [{ text: "derived" }]);
+  } else if ("call" in step) {
     const { url, host, format, maxBytes } = callInput(step, ctx);
     section("Fetches");
     add("Source", ctx.triggerInput === stepAlias(step, index) ? [{ text: "landing" }] : host && url ? [{ text: host, href: url, title: url }] : null);
@@ -261,8 +308,10 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
     add("Logical source", source ? [code(source)] : null);
     section("Returns");
     add("CaptureKind", list(Object.values(step.captures ?? {}).map(contractPart)));
+    add("List", listWords(listsOf(step, ctx)));
     section("Provider");
     add("Slot", [code(step.slot)]);
+    add("Operation", ctx.operations?.[step.slot] ? [code(ctx.operations[step.slot]!)] : null);
     const provider = ctx.bindings?.[step.slot];
     add("Build", provider ? [{ text: provider.split("/")[0]!, ref: `Provider:${provider}`, title: provider }] : null);
   } else if ("read" in step) {
@@ -295,6 +344,7 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
   } else if ("claims" in step) {
     section("Writes on");
     add("Subject", [kindPart(step.subject.kind)]);
+    add("Creates", list(createdKinds(step).map(kindPart)));
     add("For each", refText(step.for_each));
     add("Within", refText(step.subject.within));
     add("Expect", refText(step.expect));
@@ -310,10 +360,16 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
       return [code(at ?? field)];
     };
     const fixed = (value: unknown): Part[] => {
-      const obj = value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-      if (obj && typeof obj.kind === "string" && obj.key && typeof obj.key === "object") {
-        const id = Object.values(obj.key as Record<string, unknown>).map(String).join("/");
-        return [{ text: id, ref: `Subject:${obj.kind}/${id}`, title: `${obj.kind}/${id}` }, { text: " (fixed)" }];
+      const target = valueTarget(value);
+      if (target) {
+        // A Subject keyed from the record (the value-side upsert), or a fixed one.
+        const keyed = Object.values(target.key).map((k) => fromItem(k));
+        if (keyed.some(Boolean)) {
+          const kind = kindPart(target.kind);
+          return [{ ...kind, title: `${kind.title}${target.create ? " · created if absent" : ""}` }, { text: " · key " }, ...list(keyed.map((k, i) => k?.[0] ?? code(Object.keys(target.key)[i]!)))];
+        }
+        const id = Object.values(target.key).map(String).join("/");
+        return [{ text: id, ref: `Subject:${target.kind}/${id}`, title: `${target.kind}/${id}` }, { text: target.create ? " (fixed · creates)" : " (fixed)" }];
       }
       return [{ text: typeof value === "string" ? value : JSON.stringify(value) }, { text: " (fixed)" }];
     };
@@ -383,6 +439,24 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
 export function summaryWords(summary: RunSummary): { text: string; title: string } {
   switch (summary.kind) {
     case "call": {
+      const list = listOutcome(summary);
+      if (list) {
+        const text = [
+          `${count(list.kept)} kept`,
+          list.dropped > 0 ? `${count(list.dropped)} dropped` : null,
+          list.providerIncomplete.length > 0 ? "incomplete" : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        const title = [
+          text,
+          ...list.members.map((m) => `#${m.index} ${m.status}${m.reason ? ` (${m.reason})` : ""}${m.requestUrl ? ` ${m.requestUrl}` : ""}`),
+          list.providerIncomplete.length ? `provider incomplete_captures: ${list.providerIncomplete.join(", ")}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        return { text, title };
+      }
       const text = plural(summary.captures, "Capture", "Captures");
       return { text, title: [text, ...(summary.capture_digests ?? [])].join("\n") };
     }

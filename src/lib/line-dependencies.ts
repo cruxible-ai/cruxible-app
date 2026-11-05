@@ -1,5 +1,6 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
 import { stepId, type LineDefinition, type ProcedureSpec } from "./definitions.ts";
+import { createdKinds } from "./template.ts";
 
 /**
  * Dependencies between Lines, from definitions only: Line A writes the
@@ -141,7 +142,7 @@ export function lineDependencies({ specs, lines, queries, keys = new Map() }: De
       if (!("claims" in step)) return;
       const at = { line: line.line, step: stepId(step, index) };
       for (const type of new Set(step.claims.map((claim) => claim.type))) push(writers, type, at);
-      if (step.subject.create === "if_absent") push(creators, step.subject.kind, at);
+      for (const kind of createdKinds(step)) push(creators, kind, at);
     });
   }
 

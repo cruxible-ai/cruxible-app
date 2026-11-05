@@ -44,6 +44,25 @@ export const ROLE_COLOR: Record<StepRoleColor, { color: string; legend: string }
   terminal: { color: PALETTE.emerald, legend: "Writes, posts or returns" },
 };
 
+/**
+ * A template stage (D-R37) → its accent and tag, for the step graph: what
+ * each step is in `read → fetch → derive → extract → claims`, plus
+ * filter/dedupe narrowing and inbox egress. Steps outside the template keep a
+ * neutral accent and their kind word.
+ */
+export const STAGE_COLOR: Record<"read" | "fetch" | "derive" | "extract" | "claims" | "filter" | "inbox", { color: string; tag: string; legend: string }> = {
+  read: { color: PALETTE.violet, tag: "READ", legend: "Reads state" },
+  fetch: { color: PALETTE.blue, tag: "FETCH", legend: "Fetches evidence" },
+  derive: { color: PALETTE.lime, tag: "DERIVE", legend: "Derives a Capture (pure)" },
+  extract: { color: PALETTE.brand, tag: "EXTRACT", legend: "Extracts records" },
+  claims: { color: PALETTE.emerald, tag: "CLAIMS", legend: "Writes Claims" },
+  filter: { color: PALETTE.slate, tag: "FILTER", legend: "Narrows records" },
+  inbox: { color: PALETTE.stone, tag: "INBOX", legend: "Posts to the inbox" },
+};
+
+/** A step outside the template (an older form): neutral. */
+export const GENERIC_STEP_COLOR = "#71717a";
+
 /** The evidence flow's columns. */
 /**
  * What a Line may do to accepted state, as a color: settle (accepts its own

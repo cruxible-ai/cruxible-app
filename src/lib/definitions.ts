@@ -1,5 +1,6 @@
 // Relative .ts imports: scripts/record-fixtures.ts may run this under Node.
 import type { Schemas } from "../api/schemas.ts";
+import { createdKinds } from "./template.ts";
 
 /**
  * Definitions as authored (Claim-authority core): a Procedure's authored form
@@ -247,6 +248,8 @@ export interface LineDefinition {
   triggerContract: string | null;
   /** Slot bindings: slot -> the Provider build it binds. */
   bindings: Record<string, string>;
+  /** Slot bindings: slot -> the build's operation it binds (`web.fetch`, `sbom.components`). */
+  operations?: Record<string, string>;
   maxAuthority: string | null;
   occurrenceEpoch: number | null;
 }
@@ -261,9 +264,12 @@ export function readLineEnvelope(proof: unknown): LineDefinition | null {
   const procedure = targetName(envelope.procedure);
   if (!line || !procedure) return null;
   const bindings: Record<string, string> = {};
+  const operations: Record<string, string> = {};
   for (const [slot, binding] of Object.entries(record(envelope.bindings) ?? {})) {
     const name = targetName(record(binding)?.build);
     if (name) bindings[slot] = name;
+    const operation = str(record(binding)?.operation);
+    if (operation) operations[slot] = operation;
   }
   return {
     line,
@@ -272,6 +278,7 @@ export function readLineEnvelope(proof: unknown): LineDefinition | null {
     triggerInput: str(envelope.trigger_input),
     triggerContract: str(record(record(envelope.trigger_event)?.capture_contract_identity)?.name),
     bindings,
+    operations,
     maxAuthority: str(envelope.max_authority),
     occurrenceEpoch: typeof envelope.occurrence_epoch === "number" ? envelope.occurrence_epoch : null,
   };
@@ -460,6 +467,8 @@ export interface LineFlow {
   hosts: string[];
   /** The ClaimTypes its claims steps name. */
   writes: string[];
+  /** The Subject kinds its claims steps may create (`subject.create: if_absent`, value targets with `create: if_absent`). */
+  creates: string[];
   /** Whether its Procedure has an inbox step. */
   inbox: boolean;
 }
@@ -477,6 +486,7 @@ export function lineFlow(spec: ProcedureSpec, line: LineDefinition): LineFlow {
     sources: [...sources],
     hosts: [...hosts].sort(),
     writes: [...new Set(views.flatMap((view) => (view.kind === "claims" ? view.claimTypes : [])))],
+    creates: [...new Set(spec.steps.flatMap((step) => createdKinds(step)))],
     inbox: views.some((view) => view.kind === "inbox"),
   };
 }
@@ -492,7 +502,7 @@ export function lineFlows(specs: ReadonlyMap<string, ProcedureSpec>, lines: read
 }
 
 /** A Line that writes a ClaimType, and the logical sources its Procedure's calls read. */
-export type ClaimTypeWriter = Omit<LineFlow, "writes" | "inbox">;
+export type ClaimTypeWriter = Omit<LineFlow, "writes" | "creates" | "inbox">;
 
 /**
  * Who writes each ClaimType: for every Line, the ClaimTypes its Procedure's

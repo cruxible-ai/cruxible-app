@@ -2,6 +2,7 @@
 import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationNodeDatum } from "d3-force";
 import type { OrientPredicate, Schemas } from "../api/schemas.ts";
 import { lineFlows, type LineDefinition, type ProcedureSpec } from "./definitions.ts";
+import { createdKinds } from "./template.ts";
 import { evidenceMode, isCoreIdentity } from "./ontology.ts";
 import type { TypeGraphEdge } from "./type-graph.ts";
 
@@ -205,9 +206,10 @@ export function evidenceFlow({
   for (const line of lines) {
     if (!writing.has(line.line)) continue;
     for (const step of specs.get(line.procedure)?.steps ?? []) {
-      if (!("claims" in step) || step.subject.create !== "if_absent") continue;
-      const list = creators.get(step.subject.kind) ?? [];
-      if (!list.includes(line.line)) creators.set(step.subject.kind, [...list, line.line]);
+      for (const kind of createdKinds(step)) {
+        const list = creators.get(kind) ?? [];
+        if (!list.includes(line.line)) creators.set(kind, [...list, line.line]);
+      }
     }
   }
 

@@ -23,9 +23,12 @@ describe("Procedure graph", () => {
     renderApp("/i/inst_fixture/ref/Procedure%3Asecurity.kev-triage");
     await graph();
     await waitFor(() => expect(node("entries")).not.toBeNull(), SLOW);
-    // each step is a node with its id and kind
-    const kinds = { catalog: "Call", watched: "Read", entries: "Extract", changed: "Guard", settle: "Claims" };
-    for (const [id, kind] of Object.entries(kinds)) expect(within(node(id)).getByText(kind)).toBeInTheDocument();
+    // each step is a node with its id and its template stage; a step outside the template keeps its kind word
+    const stages = { catalog: "FETCH", watched: "READ", entries: "EXTRACT", settle: "CLAIMS" };
+    for (const [id, tag] of Object.entries(stages)) expect(within(node(id)).getByText(tag)).toBeInTheDocument();
+    expect(within(node("changed")).getByText("Guard")).toBeInTheDocument();
+    expect(node("changed").querySelector("[data-stage]")).toBeNull();
+    expect(node("catalog").querySelector("[data-stage]")).toHaveAttribute("data-stage", "fetch");
     // the guard's else halts under no id: the graph names it after the guard
     expect(within(node("changed.else")).getByText("no_change")).toBeInTheDocument();
     // each step's key fields, terse: payload names as code, named things linked

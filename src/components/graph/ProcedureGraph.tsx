@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { ArrowRightLeft, ArrowUpDown, Clock, Cpu, CornerDownRight, Database, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
-import { useGetBatch, useInstanceId } from "@/api/hooks";
+import { useCaptureContracts, useGetBatch, useInstanceId } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
@@ -20,7 +20,12 @@ import { InfoButton } from "@/components/InfoButton";
 import { Parts } from "@/components/Parts";
 import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
-import { ROLE_COLOR } from "@/lib/palette";
+import { GENERIC_STEP_COLOR, ROLE_COLOR, STAGE_COLOR } from "@/lib/palette";
+import { contractName } from "@/lib/ontology";
+import { listFields, listOutcome, stageOf, STAGES, type ListField, type Stage } from "@/lib/template";
+import { DataTable, type Column } from "@/components/DataTable";
+import { RefLink } from "@/components/RefLink";
+import { captureHandle } from "@/lib/next-reasons";
 import { sentence } from "@/lib/text";
 import type { LineDependency } from "@/lib/line-dependencies";
 import { useLineDependencies } from "@/lib/useLineDependencies";
@@ -91,6 +96,8 @@ interface NodeLine {
 
 interface NodeDisplay {
   role: StepRole;
+  /** The step's template stage (D-R37); null for a step outside it (and the Trigger and input nodes). */
+  stage: Stage | null;
   kindWord: string;
   kindMeaning: string;
   name: string | null;
@@ -110,18 +117,32 @@ const PAD = 12;
 const MIN_WIDTH = 130;
 const MAX_WIDTH = 240;
 
+/** A node's accent: its stage's color, the Trigger's and input's role color, neutral for a step outside the template. */
+function accentOf(d: Pick<NodeDisplay, "role" | "stage">): string {
+  if (d.stage) return STAGE_COLOR[d.stage].color;
+  return d.role === "input" || d.role === "trigger" ? ROLE_COLOR[d.role].color : GENERIC_STEP_COLOR;
+}
+
 function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
   const Icon = ROLE_ICON[data.role];
+  const accent = accentOf(data);
   return (
     <div
       className={`h-full w-full overflow-hidden border px-2 py-1.5 ${ROLE_BOX[data.role]}`}
-      style={{ borderLeftColor: ROLE_COLOR[data.role].color, borderLeftWidth: 3 }}
+      style={{ borderLeftColor: accent, borderLeftWidth: 3 }}
       title={data.kindMeaning}
+      data-stage={data.stage ?? undefined}
     >
       <Handle type="target" position={data.vertical ? Position.Top : Position.Left} className="!pointer-events-none !opacity-0" />
       <div className="flex h-4 items-center gap-1.5 text-[11px] leading-4">
-        <Icon className="h-3 w-3 shrink-0" style={{ color: ROLE_COLOR[data.role].color }} aria-hidden />
-        <span style={{ color: ROLE_COLOR[data.role].color }}>{data.kindWord}</span>
+        <Icon className="h-3 w-3 shrink-0" style={{ color: accent }} aria-hidden />
+        {data.stage ? (
+          <span className="text-[9.5px] font-semibold tracking-wider" style={{ color: accent }} title={`${data.kindWord}: ${data.kindMeaning}`}>
+            {STAGE_COLOR[data.stage].tag}
+          </span>
+        ) : (
+          <span style={{ color: accent }}>{data.kindWord}</span>
+        )}
         {data.name && <span className="truncate font-mono text-[12px] text-zinc-100">{data.name}</span>}
       </div>
       {data.brief && <BriefLine brief={data.brief} />}
@@ -267,7 +288,7 @@ function dependencyChips(line: string, dependencies: readonly LineDependency[], 
  */
 function boxOf(d: NodeDisplay) {
   const inner = PAD + 6;
-  const head = monoWidth(d.name ?? "", 12) + monoWidth(d.kindWord, 11) + 56;
+  const head = monoWidth(d.name ?? "", 12) + monoWidth(d.stage ? STAGE_COLOR[d.stage].tag : d.kindWord, 11) + 56;
   const body = Math.max(0, ...d.lines.map((l) => monoWidth(l.text, 11) + (l.signal ? 12 : 0)));
   const markWidth = d.mark ? monoWidth(markText(d.mark, d.markWords), 11) + 12 : 0;
   const brief = d.brief ? Math.ceil(monoWidth(partsText(d.brief.parts), 11) * 0.92) : 0;
@@ -313,6 +334,8 @@ export function ProcedureGraph({
   );
 
   const queries = useQueryShapes(spec);
+  const grades = useGrades();
+  const lists = useSlotLists(spec);
   // On a Line page: the Lines (or direct entry) upstream of its reads, and the Lines downstream of its writes.
   const lineName = definition?.line ?? null;
   const dependencies = useLineDependencies(lineName !== null);
@@ -333,7 +356,10 @@ export function ProcedureGraph({
   );
 
   // Every node's kind and name, its key fields, and the run's marks and counts when one is picked.
-  const ctx = useMemo(() => ({ parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, bindings: definition?.bindings }), [definition, queries]);
+  const ctx = useMemo(
+    () => ({ parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, bindings: definition?.bindings, operations: definition?.operations, grades, lists }),
+    [definition, queries, grades, lists],
+  );
   const display = useMemo(() => {
     const out = new Map<string, NodeDisplay>();
     const partRoute = (ref: string | undefined) => (ref ? (ref.startsWith("CaptureContract:") ? contractRoute(ref) : routeOf(ref)) : null);
@@ -345,6 +371,7 @@ export function ProcedureGraph({
       let name: string | null = node.unnamed ? null : node.id;
       let brief: NodeDisplay["brief"] = null;
       const v = node.view;
+      const stage = node.index !== null ? stageOf(spec, node.index, grades) : null;
       if (node.kind === "input") {
         const parameters = Object.entries(definition?.parameters ?? {});
         name = null;
@@ -374,12 +401,13 @@ export function ProcedureGraph({
       }
       const markWords = mark?.summary ? summaryWords(mark.summary) : null;
       const word = term("stepKind", kind);
-      out.set(node.id, { role: node.role, kindWord: word.word, kindMeaning: word.meaning, name, brief, lines, mark, markWords });
+      out.set(node.id, { role: node.role, stage, kindWord: word.word, kindMeaning: word.meaning, name, brief, lines, mark, markWords });
     }
     for (const trigger of line?.triggers ?? []) {
       const word = term("stepKind", "trigger");
       out.set(`${TRIGGER_PREFIX}${trigger.name}`, {
         role: "trigger",
+        stage: null,
         kindWord: word.word,
         kindMeaning: word.meaning,
         name: null,
@@ -393,7 +421,7 @@ export function ProcedureGraph({
       });
     }
     return out;
-  }, [model, spec, line, definition, run, routeOf, contractRoute, ctx]);
+  }, [model, spec, line, definition, run, routeOf, contractRoute, ctx, grades]);
 
   // The edges: the definition's, plus a landing Trigger into the step that reads the landing.
   const edges = useMemo(() => {
@@ -556,7 +584,9 @@ export function ProcedureGraph({
           if (selection.kind !== "node") return null;
           const view = model.nodes.find((n) => n.id === selection.id)?.view;
           const index = model.nodes.find((n) => n.id === selection.id)?.index;
-          return view && index != null ? <StepPanel view={view} sections={stepSections(spec, index, ctx)} mark={run?.marks.get(selection.id) ?? null} /> : null;
+          return view && index != null ? (
+            <StepPanel view={view} stage={stageOf(spec, index, grades)} sections={stepSections(spec, index, ctx)} mark={run?.marks.get(selection.id) ?? null} />
+          ) : null;
         }}
         className=""
         height={canvasHeight}
@@ -566,7 +596,7 @@ export function ProcedureGraph({
         recenter={false}
         nodeName={nodeName}
         fitPadding={FIT_PADDING}
-        overlay={<RoleLegend roles={nodes.flatMap((n) => (n.type === "step" ? [(n.data as StepNodeData).role] : []))} />}
+        overlay={<StageLegend nodes={nodes.flatMap((n) => (n.type === "step" ? [n.data as StepNodeData] : []))} />}
         controls={
           <button
             onClick={toggleVertical}
@@ -589,20 +619,62 @@ export function ProcedureGraph({
   );
 }
 
-/** The colors of the roles this graph uses, in reading order. */
-function RoleLegend({ roles }: { roles: StepRole[] }) {
-  const order: StepRole[] = ["trigger", "input", "read", "call", "invoke", "guard", "shape", "terminal"];
-  const present = order.filter((r) => roles.includes(r));
+/** The colors this graph uses, in reading order: what starts it, its input, the template stages, then any older step kinds. */
+function StageLegend({ nodes }: { nodes: Pick<NodeDisplay, "role" | "stage">[] }) {
+  const items: { key: string; color: string; legend: string }[] = [];
+  for (const role of ["trigger", "input"] as const) {
+    if (nodes.some((n) => n.role === role)) items.push({ key: role, color: ROLE_COLOR[role].color, legend: ROLE_COLOR[role].legend });
+  }
+  for (const stage of STAGES) {
+    if (nodes.some((n) => n.stage === stage)) items.push({ key: stage, color: STAGE_COLOR[stage].color, legend: STAGE_COLOR[stage].legend });
+  }
+  if (nodes.some((n) => n.stage === null && n.role !== "input" && n.role !== "trigger")) {
+    items.push({ key: "other", color: GENERIC_STEP_COLOR, legend: "Outside the template" });
+  }
   return (
     <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 border border-zinc-800 bg-zinc-950/90 px-2 py-0.5 text-[11px] text-zinc-400">
-      {present.map((r) => (
-        <span key={r} className="inline-flex items-center gap-1">
-          <span className="h-2 w-2 shrink-0" style={{ backgroundColor: ROLE_COLOR[r].color }} aria-hidden />
-          {ROLE_COLOR[r].legend}
+      {items.map((item) => (
+        <span key={item.key} className="inline-flex items-center gap-1">
+          <span className="h-2 w-2 shrink-0" style={{ backgroundColor: item.color }} aria-hidden />
+          {item.legend}
         </span>
       ))}
     </span>
   );
+}
+
+/** CaptureKind -> grade, from the capture_contracts section (one ontology-sized read, shared); null while it loads or fails. */
+function useGrades(): ReadonlyMap<string, string> | null {
+  const contracts = useCaptureContracts();
+  return useMemo(
+    () => (contracts.data ? new Map(contracts.data.rows.map((row) => [contractName(row.contract), row.grade] as const)) : null),
+    [contracts.data],
+  );
+}
+
+/** Slot -> the list-of-Captures fields of its out Contract: one get-batch of the call slots' out Contracts. */
+function useSlotLists(spec: ProcedureSpec): ReadonlyMap<string, readonly ListField[]> {
+  const slots = useMemo(() => [...new Set(spec.steps.flatMap((step) => ("call" in step ? [step.slot] : [])))].sort(), [spec]);
+  const outs = useMemo(() => {
+    const refs = slots.flatMap((slot) => {
+      const out = spec.slots?.[slot]?.out;
+      return out ? [`Contract:${out.name}@${out.version}`] : [];
+    });
+    return [...new Set(refs)].sort();
+  }, [slots, spec]);
+  const reads = useGetBatch(outs);
+  const key = JSON.stringify(reads.results.map((r) => cardOf(r, "contract")?.fields ?? null));
+  return useMemo(() => {
+    const out = new Map<string, ListField[]>();
+    for (const slot of slots) {
+      const ref = spec.slots?.[slot]?.out;
+      const i = ref ? outs.indexOf(`Contract:${ref.name}@${ref.version}`) : -1;
+      const fields = i >= 0 ? listFields(cardOf(reads.results[i], "contract")) : [];
+      if (fields.length) out.set(slot, fields);
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
+  }, [slots, outs, key]);
 }
 
 /**
@@ -610,10 +682,11 @@ function RoleLegend({ roles }: { roles: StepRole[] }) {
  * in titled groups (compact name | value rows), named things linked, ids on
  * hover; with a run picked, that run's counts for it.
  */
-function StepPanel({ view, sections, mark }: { view: StepView; sections: DetailSection[]; mark: StepMark | null }) {
+function StepPanel({ view, stage, sections, mark }: { view: StepView; stage: Stage | null; sections: DetailSection[]; mark: StepMark | null }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  const kind = term("stepKind", view.kind);
+  const kind = stage ? { word: sentence(stage) } : term("stepKind", view.kind);
+  const members = mark?.summary?.kind === "call" ? listOutcome(mark.summary) : null;
   const route = (ref: string | undefined) => {
     const parsed = ref ? parseRef(ref) : null;
     const to = parsed ? refRoute(instanceId, parsed) : null;
@@ -702,8 +775,44 @@ function StepPanel({ view, sections, mark }: { view: StepView; sections: DetailS
         </PanelGroup>
         ),
       )}
+      {members && members.members.length > 0 && (
+        <PanelGroup title="Members">
+          <ListMembers members={members.members} />
+          {members.providerIncomplete.length > 0 && (
+            <div className="mt-1 text-[12px] text-zinc-400" title="The provider's result named these list fields in incomplete_captures">
+              Incomplete (provider): <span className="font-mono">{members.providerIncomplete.join(", ")}</span>
+            </div>
+          )}
+        </PanelGroup>
+      )}
     </div>
   );
+}
+
+type Member = NonNullable<ReturnType<typeof listOutcome>>["members"][number];
+
+/** The panel is narrow: a member's request URL is on hover of its index and Capture. */
+const MEMBER_COLUMNS: Column<Member>[] = [
+  { id: "index", header: "#", numeric: true, className: "font-mono text-zinc-500", cell: (m) => <span title={m.requestUrl ?? undefined}>{m.index}</span> },
+  {
+    id: "capture",
+    header: "Capture",
+    className: "whitespace-nowrap",
+    cell: (m) => (
+      <span title={m.requestUrl ?? undefined}>{m.capture ? <RefLink value={captureHandle(m.capture)} /> : <span className="text-zinc-600">—</span>}</span>
+    ),
+  },
+  {
+    id: "status",
+    header: "Status",
+    className: "whitespace-nowrap",
+    cell: (m) => <span className={m.status === "dropped" ? "text-red-400/90" : "text-zinc-300"} title={m.reason ?? undefined}>{m.status}{m.reason ? ` · ${m.reason}` : ""}</span>,
+  },
+];
+
+/** A list fetch's members on a run: index, Capture (kept), status; the request URL on hover. */
+function ListMembers({ members }: { members: Member[] }) {
+  return <DataTable rows={members} columns={MEMBER_COLUMNS} rowKey={(m) => String(m.index)} label="Members" toolbar={false} maxHeight="none" />;
 }
 
 /** The Queries a Procedure's read steps name, read with their row Contracts: what each read returns. */

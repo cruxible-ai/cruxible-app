@@ -136,7 +136,7 @@ export function LinesScreen() {
           kind: "text",
           text: (row) => {
             const end = ends?.get(nameOf(row));
-            return end ? [...end.claimTypes.map((c) => `${c.kind} ${c.name}`), end.inbox ? "inbox" : ""].join(" ") : "";
+            return end ? [...end.claimTypes.map((c) => `${c.kind} ${c.name}`), ...end.creates, end.inbox ? "inbox" : ""].join(" ") : "";
           },
         },
         className: "min-w-[14rem] text-[12px]",
@@ -367,6 +367,8 @@ function MandateLabel({ name, procedure, grants }: { name: string; procedure: st
 /** What a Line ends in, read off the evidence flow: the ClaimTypes it writes (and their kinds), its inbox. */
 interface LineEnd {
   claimTypes: { name: string; predicate: string; kind: string }[];
+  /** The Subject kinds it may create (if_absent: on the Subject, or a value target). */
+  creates: string[];
   inbox: boolean;
 }
 
@@ -375,9 +377,10 @@ function endsOf(model: FlowModel): Map<string, LineEnd> {
   const out = new Map<string, LineEnd>();
   const entry = (line: string) => {
     let end = out.get(line);
-    if (!end) out.set(line, (end = { claimTypes: [], inbox: false }));
+    if (!end) out.set(line, (end = { claimTypes: [], creates: [], inbox: false }));
     return end;
   };
+  for (const node of model.nodes) if (node.kind === "line" && node.creates?.length) entry(node.label).creates = [...node.creates];
   for (const edge of model.edges) {
     const from = byId.get(edge.from);
     const to = byId.get(edge.to);
@@ -405,6 +408,22 @@ function EndsIn({ end, authority }: { end: LineEnd | undefined; authority: strin
         <span className="text-zinc-500">{VERB[authority] ?? "writes"}</span>{" "}
         {kinds.map((kind, i) => (
           <span key={kind} title={end.claimTypes.filter((c) => c.kind === kind).map((c) => c.name).join(", ")}>
+            {i > 0 && <span className="text-zinc-600">, </span>}
+            <Link to={kindHref(kind)} className="text-zinc-200 hover:underline">
+              {kind.split(".").pop()}
+            </Link>
+          </span>
+        ))}
+      </span>,
+    );
+  }
+  if (end?.creates.length) {
+    // the kinds it may create Subjects of (a value target's kind too), each linked
+    parts.push(
+      <span key="creates">
+        <span className="text-zinc-500">creates</span>{" "}
+        {end.creates.map((kind, i) => (
+          <span key={kind} title={kind}>
             {i > 0 && <span className="text-zinc-600">, </span>}
             <Link to={kindHref(kind)} className="text-zinc-200 hover:underline">
               {kind.split(".").pop()}
