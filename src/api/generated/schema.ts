@@ -1321,6 +1321,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/{instance_id}/backlinks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Backlinks
+         * @description Every pointer into one Subject, ClaimType, Procedure or workspace section.
+         */
+        post: operations["backlinks_api_v1__instance_id__backlinks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/{instance_id}/get-batch": {
         parameters: {
             query?: never;
@@ -1971,7 +1991,57 @@ export interface components {
             /** Message */
             message: string;
         };
-        /** AbsenceWitness */
+        /**
+         * AboutChange
+         * @description Link a workspace section ``about`` Subjects: a note, never a Claim (D-R12).
+         *
+         *     The section is named as section evidence names it: ``ref`` (a doc op of
+         *     this write, by id) or ``file`` and ``section``. ``subjects`` are added to
+         *     the section's note and ``unlink`` ones removed; a note left with none
+         *     retires. Linking again moves the note to the section's current bytes. The
+         *     writer's adapter observes the section; the daemon never reads the file.
+         */
+        AboutChange: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "about";
+            /**
+             * File
+             * @default
+             */
+            file?: string;
+            /**
+             * Section
+             * @default []
+             */
+            section?: string[];
+            /** Ref */
+            ref?: string | null;
+            /**
+             * Subjects
+             * @description Subjects the section is about (kind/id); default: the write's subject.
+             * @default []
+             */
+            subjects?: string[];
+            /**
+             * Unlink
+             * @default []
+             */
+            unlink?: string[];
+            /** @description Filled by the client that read the section; leave it out. */
+            observation?: components["schemas"]["WorkingSelectionObservation"] | null;
+        };
+        /**
+         * AbsenceWitness
+         * @description The complete enumeration an absence rests on, and the Captures it read.
+         *
+         *     ``capture`` is the enumeration's Capture. Over a list of Captures (D-R37
+         *     a6), ``members`` holds every member in order, ``capture`` being the
+         *     first; one Capture leaves it out, the 1-tuple case. ``captures`` reads
+         *     either form.
+         */
         AbsenceWitness: {
             /** Run Id */
             run_id: string;
@@ -1981,6 +2051,11 @@ export interface components {
             node_id: string;
             /** Capture */
             capture: string;
+            /**
+             * Members
+             * @default []
+             */
+            members?: string[];
             /** Extract Spec */
             extract_spec: string;
             /** Extractor */
@@ -3130,6 +3205,125 @@ export interface components {
             preflight?: components["schemas"]["AuthoringPreflightResult"] | null;
         };
         /**
+         * Backlink
+         * @description One pointer into the target.
+         */
+        Backlink: {
+            /**
+             * Relation
+             * @enum {string}
+             */
+            relation: "cites" | "about" | "guides";
+            /**
+             * Source Kind
+             * @enum {string}
+             */
+            source_kind: "Claim" | "Note" | "Document";
+            /**
+             * Source
+             * @description CLM-…, NOTE-… or the Document's identity.
+             */
+            source: string;
+            /**
+             * Title
+             * @description A Document's title.
+             */
+            title?: string | null;
+            /**
+             * Subject
+             * @description A citing Claim's Subject (kind/id).
+             */
+            subject?: string | null;
+            /**
+             * Field
+             * @description A citing Claim's predicate.
+             */
+            field?: string | null;
+            /**
+             * Role
+             * @description A citation's role: evidence or copy.
+             */
+            role?: string | null;
+            /**
+             * File
+             * @description The workspace source (files.yaml name).
+             */
+            file?: string | null;
+            /** Section */
+            section?: string[] | null;
+            /**
+             * Cited Digest
+             * @description The section's bytes when cited.
+             */
+            cited_digest?: string | null;
+            /**
+             * Drift
+             * @description Section rows: has the section moved since it was cited?
+             */
+            drift?: ("changed_since_cited" | "unchanged" | "unknown") | null;
+        };
+        /** BacklinksRequest */
+        BacklinksRequest: {
+            /**
+             * Tag
+             * @default playbill-backlinks-request-v1
+             * @constant
+             */
+            tag?: "playbill-backlinks-request-v1";
+            /**
+             * Ref
+             * @description A Subject (kind/id), ClaimType (ClaimType:p or p) or Procedure:name.
+             */
+            ref?: string | null;
+            /**
+             * File
+             * @description With section: a catalogued workspace file (path or files.yaml name).
+             */
+            file?: string | null;
+            /** Section */
+            section?: string[] | null;
+            /**
+             * Limit
+             * @default 25
+             */
+            limit?: number;
+            /** Cursor */
+            cursor?: string | null;
+            /** At */
+            at?: components["schemas"]["AcceptedCoordinate"] | string | null;
+            /**
+             * Surface
+             * @default mcp
+             * @enum {string}
+             */
+            surface?: "mcp" | "cli" | "sdk";
+        };
+        /** BacklinksResult */
+        BacklinksResult: {
+            /**
+             * Tag
+             * @default playbill-backlinks-result-v1
+             * @constant
+             */
+            tag?: "playbill-backlinks-result-v1";
+            /**
+             * Target
+             * @description What the links point into, as resolved.
+             */
+            target: string;
+            coordinate: components["schemas"]["GetCoordinate"];
+            /** Links */
+            links: components["schemas"]["Backlink"][];
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated?: boolean;
+            /** Next Cursor */
+            next_cursor?: string | null;
+            withheld?: components["schemas"]["BodyRestricted"] | null;
+        };
+        /**
          * BlockDeclareRequest
          * @description The stamp a workspace just wrote, offered to the instance for registration.
          */
@@ -3377,6 +3571,57 @@ export interface components {
             byte_length?: number | null;
             /** Body Base64 */
             body_base64?: string | null;
+        };
+        /**
+         * BodyRestricted
+         * @description Bytes of restricted CaptureKinds were withheld from this caller (C14).
+         *
+         *     A restricted kind's bytes, its envelopes' source and selector metadata, the
+         *     spans cited from them, and values extracted from them into run outputs and
+         *     inbox items are read only with ``cruxible_body_read_restricted``. The
+         *     withheld Captures are named by digest, each with its kind; accepted Claim
+         *     values are never withheld.
+         */
+        BodyRestricted: {
+            /**
+             * Tag
+             * @default cruxible-body-restricted-v1
+             * @constant
+             */
+            tag?: "cruxible-body-restricted-v1";
+            /**
+             * Kind
+             * @default body_restricted
+             * @constant
+             */
+            kind?: "body_restricted";
+            /**
+             * Capture Digests
+             * @default []
+             */
+            capture_digests?: string[];
+            /**
+             * Capture Kinds
+             * @default []
+             */
+            capture_kinds?: string[];
+            /**
+             * Provenance Unavailable
+             * @default false
+             */
+            provenance_unavailable?: boolean;
+            /**
+             * Required Permission
+             * @default cruxible_body_read_restricted
+             * @constant
+             */
+            required_permission?: "cruxible_body_read_restricted";
+            /**
+             * Required Tier
+             * @default governed_write
+             * @constant
+             */
+            required_tier?: "governed_write";
         };
         /** BoolType */
         BoolType: {
@@ -3631,6 +3876,12 @@ export interface components {
             epistemic_grade?: "observed" | "derived" | "predicted";
             decoding?: components["schemas"]["CaptureDecoding"] | null;
             /**
+             * Body Access
+             * @default open
+             * @enum {string}
+             */
+            body_access?: "open" | "restricted";
+            /**
              * @default {
              *       "state": "live"
              *     }
@@ -3706,6 +3957,11 @@ export interface components {
             selector_privacy?: ("direct_allowed" | "pseudonymous_required") | null;
             /** @description How the bytes decode for an extract: {format: json|csv|text|bytes, encoding: identity|gzip, csv?: {comment_prefix, header}, limits: {decoded_bytes, depth, records}}. Required for any CaptureContract an extract reads. */
             decoding?: components["schemas"]["CaptureDecoding"] | null;
+            /**
+             * Body Access
+             * @description Who may read this kind's bytes and body-derived metadata: open (default; any reader) or restricted (only a caller holding cruxible_body_read_restricted; others get the inventory view and a body_restricted notice). Fixed with the name.
+             */
+            body_access?: ("open" | "restricted") | null;
             /** Lifecycle */
             lifecycle?: ("live" | "retired") | null;
         };
@@ -4084,10 +4340,11 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "verified" | "unavailable";
+            status: "verified" | "unavailable" | "restricted";
             /** Reason */
             reason?: string | null;
             erasure?: components["schemas"]["CaptureErasureRecord"] | null;
+            notice?: components["schemas"]["BodyRestricted"] | null;
             /** Envelope */
             envelope?: components["schemas"]["CaptureEnvelopeV1"] | components["schemas"]["CaptureEnvelope"] | null;
             /** Contract Address */
@@ -4201,7 +4458,7 @@ export interface components {
         };
         /**
          * CaptureType
-         * @description Retained bytes of one CaptureKind, by Capture digest.
+         * @description Retained bytes of one CaptureKind (``*``: any), by Capture digest.
          */
         CaptureType: {
             /**
@@ -4454,7 +4711,7 @@ export interface components {
              * Op
              * @enum {string}
              */
-            op: "create" | "set" | "add" | "retire" | "rebind";
+            op: "create" | "set" | "add" | "retire" | "rebind" | "about";
             /** Subject */
             subject?: string | null;
             /** Resolved */
@@ -4500,6 +4757,20 @@ export interface components {
              * @description The Capture cited as evidence, as its handle CAP-<12 hex>.
              */
             capture?: string | null;
+            /**
+             * Note
+             * @description An about change: the section's note (NOTE-…).
+             */
+            note?: string | null;
+            /** File */
+            file?: string | null;
+            /** Section */
+            section?: string[] | null;
+            /**
+             * About
+             * @description An about change: the Subjects the note links after it ([] = retired).
+             */
+            about?: string[] | null;
         };
         /** ChangeSetAuthoringPayload */
         ChangeSetAuthoringPayload: {
@@ -4509,7 +4780,7 @@ export interface components {
              */
             tag: "playbill-change-set-authoring-payload-v1";
             /** Members */
-            members: (components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ClaimTypeAuthoringPayload"] | components["schemas"]["ClaimTypeSuccessionMember"] | components["schemas"]["ClaimRetirementMember"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["SubjectCreationAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"])[];
+            members: (components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ClaimTypeAuthoringPayload"] | components["schemas"]["ClaimTypeSuccessionMember"] | components["schemas"]["ClaimRetirementMember"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["NoteAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["SubjectCreationAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"])[];
             /** Rationale */
             rationale?: string | null;
         };
@@ -5214,6 +5485,7 @@ export interface components {
             truncated?: boolean;
             /** Cursor */
             cursor?: string | null;
+            withheld?: components["schemas"]["BodyRestricted"] | null;
         };
         /** ClaimResolutionPolicy */
         ClaimResolutionPolicy: {
@@ -7271,7 +7543,10 @@ export interface components {
         DocumentLink: {
             /** Relation */
             relation: string;
-            /** Target Identity */
+            /**
+             * Target Identity
+             * @description A kind-qualified identity: Subject:kind/id, ClaimType:p, Procedure:n, …
+             */
             target_identity: string;
         };
         /** DocumentPin */
@@ -8403,11 +8678,8 @@ export interface components {
             version?: number | null;
             /** Source */
             source?: string | null;
-            /**
-             * Observed At
-             * Format: date-time
-             */
-            observed_at: string;
+            /** Observed At */
+            observed_at?: string | null;
             /** Size */
             size?: number | null;
             /** Access */
@@ -8420,6 +8692,7 @@ export interface components {
             /** Status Detail */
             status_detail?: string | null;
             erased?: components["schemas"]["GetCaptureErasure"] | null;
+            derivation?: components["schemas"]["GetCaptureDerivation"] | null;
             /**
              * Subjects
              * @default []
@@ -8435,6 +8708,7 @@ export interface components {
              * @default 0
              */
             citing_total?: number;
+            withheld?: components["schemas"]["BodyRestricted"] | null;
             /**
              * Next
              * @default []
@@ -8460,6 +8734,24 @@ export interface components {
              * @default []
              */
             next?: string[];
+        };
+        /**
+         * GetCaptureDerivation
+         * @description A derived Capture's recorded inputs (D-R37 d5): the Captures and state reads it
+         *     was computed from, and its reducer. ``get`` each source to follow the chain.
+         */
+        GetCaptureDerivation: {
+            /**
+             * Sources
+             * @default []
+             */
+            sources?: string[];
+            /**
+             * Reads
+             * @default []
+             */
+            reads?: string[];
+            reducer?: components["schemas"]["GetCaptureReducer"] | null;
         };
         /**
          * GetCaptureErasure
@@ -8516,6 +8808,22 @@ export interface components {
             status: "admitted" | "not_admitted" | "not_evidence";
             /** @description Present when the Capture's retained body was erased: its bytes are gone, so the verdict reads this evidence as no longer replayable. */
             erased?: components["schemas"]["GetCaptureErasure"] | null;
+        };
+        /**
+         * GetCaptureReducer
+         * @description What computed a derived Capture: the provider build, operation and its node's input.
+         */
+        GetCaptureReducer: {
+            /** Digest */
+            digest: string;
+            /** Provider Build */
+            provider_build: string;
+            /** Operation Signature */
+            operation_signature: string;
+            /** Implementation */
+            implementation: string;
+            /** Input Template */
+            input_template: string;
         };
         /**
          * GetChangeSetReason
@@ -9469,6 +9777,7 @@ export interface components {
              * @default []
              */
             terminal_egress?: components["schemas"]["ProcedureTerminalEgress"][];
+            withheld?: components["schemas"]["BodyRestricted"] | null;
             /**
              * Next
              * @default []
@@ -10530,6 +10839,7 @@ export interface components {
             item: components["schemas"]["InboxItemEnvelope"];
             /** Payload */
             payload: unknown;
+            withheld?: components["schemas"]["BodyRestricted"] | null;
             /**
              * Recent Dispositions
              * @default []
@@ -10701,6 +11011,7 @@ export interface components {
             tag?: "cruxible-inbox-list-entry-v1";
             item: components["schemas"]["InboxItemEnvelope"];
             payload_preview: components["schemas"]["ShownValue"];
+            withheld?: components["schemas"]["BodyRestricted"] | null;
         };
         /**
          * InboxPostTruncation
@@ -12610,6 +12921,12 @@ export interface components {
             epistemic_grade?: "observed" | "derived" | "predicted";
             decoding?: components["schemas"]["CaptureDecoding"] | null;
             /**
+             * Body Access
+             * @default open
+             * @enum {string}
+             */
+            body_access?: "open" | "restricted";
+            /**
              * @default {
              *       "state": "live"
              *     }
@@ -12998,6 +13315,31 @@ export interface components {
             op: "not";
             /** Of */
             of: components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"];
+        };
+        /**
+         * NoteAuthoringPayload
+         * @description Link one workspace section ``about`` Subjects, or unlink it (contracts/notes.py).
+         *
+         *     ``about`` is the note's complete Subject set after this change, sorted and
+         *     unique; empty retires the note. ``source`` is the section the writer's
+         *     adapter observed now (heading-path label required). Without one the change
+         *     names the ``note`` and only edits its links: they stay on the section bytes
+         *     the note already retains, so a deleted section can still be unlinked.
+         */
+        NoteAuthoringPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            tag: "playbill-note-authoring-payload-v1";
+            source?: components["schemas"]["WorkingSelectionObservation"] | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * About
+             * @default []
+             */
+            about?: components["schemas"]["ArtifactIdentity"][];
         };
         /**
          * NumberType
@@ -16429,6 +16771,7 @@ export interface components {
             completeness?: components["schemas"]["RunCompleteness"] | null;
             /** Nodes */
             nodes?: components["schemas"]["GetRunNode"][];
+            withheld?: components["schemas"]["BodyRestricted"] | null;
         };
         /** ProcedureRuntimePolicy */
         ProcedureRuntimePolicy: {
@@ -16753,6 +17096,12 @@ export interface components {
              * @default []
              */
             prior_refusals?: components["schemas"]["PriorRefusalReceipt"][];
+            /** Item Identity Digest */
+            item_identity_digest?: string | null;
+            /** Change Kind */
+            change_kind?: ("claim" | "subject" | "reobservation" | "retirement") | null;
+            /** Change Digest */
+            change_digest?: string | null;
         };
         /**
          * ProjectNode
@@ -17487,12 +17836,15 @@ export interface components {
             documents: {
                 [key: string]: unknown;
             }[];
+            /** Guidance */
+            guidance?: components["schemas"]["ReviewGuidance"][];
             /** Redactions */
             redactions: string[];
             projection_advisory?: components["schemas"]["ProjectionAdvisory"] | null;
             projection_evidence?: components["schemas"]["ProjectionEvidence"] | null;
             prior_refusal_coverage?: components["schemas"]["PriorRefusalCoverage"] | null;
             compiler_upgrade?: components["schemas"]["CompilerUpgradeNotice"] | null;
+            withheld?: components["schemas"]["BodyRestricted"] | null;
         };
         /** ProposalReviewSummary */
         ProposalReviewSummary: {
@@ -17560,12 +17912,18 @@ export interface components {
             finding_count: number;
             /** Findings Next Cursor */
             findings_next_cursor?: string | null;
+            /**
+             * Guidance
+             * @default []
+             */
+            guidance?: components["schemas"]["ReviewGuidance"][];
             /** Groups */
             groups: components["schemas"]["ReviewSummaryGroup"][];
             /** Group Count */
             group_count: number;
             /** Next Cursor */
             next_cursor?: string | null;
+            withheld?: components["schemas"]["BodyRestricted"] | null;
         };
         /** ProposalSelectorResult */
         ProposalSelectorResult: {
@@ -20348,6 +20706,21 @@ export interface components {
              */
             id?: string;
         };
+        /**
+         * ReviewGuidance
+         * @description A governed Document that ``guides`` a ClaimType or Procedure this proposal touches.
+         */
+        ReviewGuidance: {
+            /**
+             * Definition
+             * @description ClaimType:<predicate> or Procedure:<name>.
+             */
+            definition: string;
+            /** Document */
+            document: string;
+            /** Title */
+            title?: string | null;
+        };
         /** ReviewRequest */
         ReviewRequest: {
             /**
@@ -22562,7 +22935,7 @@ export interface components {
              * Changes
              * @default []
              */
-            changes?: (components["schemas"]["CreateChange"] | components["schemas"]["SetChange"] | components["schemas"]["AddChange"] | components["schemas"]["RetireChange"] | components["schemas"]["RebindChange"])[];
+            changes?: (components["schemas"]["CreateChange"] | components["schemas"]["SetChange"] | components["schemas"]["AddChange"] | components["schemas"]["RetireChange"] | components["schemas"]["RebindChange"] | components["schemas"]["AboutChange"])[];
             /**
              * Docs
              * @default []
@@ -29227,6 +29600,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    backlinks_api_v1__instance_id__backlinks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BacklinksRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BacklinksResult"];
                 };
             };
             /** @description Bad request error envelope */

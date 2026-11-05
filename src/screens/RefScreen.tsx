@@ -72,9 +72,11 @@ export function RefScreen() {
                       <span className="font-mono">{capture.source}</span>
                     </Fact>
                   )}
-                  <Fact label="Observed" title={capture.observed_at}>
-                    {formatDateTime(capture.observed_at)}
-                  </Fact>
+                  {capture.observed_at && (
+                    <Fact label="Observed" title={capture.observed_at}>
+                      {formatDateTime(capture.observed_at)}
+                    </Fact>
+                  )}
                   {capture.size != null && <Fact label="Size">{formatSize(capture.size)}</Fact>}
                   <Fact label="Contract">
                     <RefLink value={capture.contract} />

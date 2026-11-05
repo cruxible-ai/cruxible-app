@@ -8885,6 +8885,119 @@
         }
       }
     },
+    "/api/v1/{instance_id}/backlinks": {
+      "post": {
+        "tags": [
+          "state"
+        ],
+        "summary": "Backlinks",
+        "description": "Every pointer into one Subject, ClaimType, Procedure or workspace section.",
+        "operationId": "backlinks_api_v1__instance_id__backlinks_post",
+        "parameters": [
+          {
+            "name": "instance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Instance Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacklinksRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacklinksResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/{instance_id}/get-batch": {
       "post": {
         "tags": [
@@ -13190,6 +13303,77 @@
         ],
         "title": "AbortDetail"
       },
+      "AboutChange": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "about",
+            "title": "Op",
+            "default": "about"
+          },
+          "file": {
+            "type": "string",
+            "title": "File",
+            "default": ""
+          },
+          "section": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Section",
+            "default": []
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "subjects": {
+            "items": {
+              "type": "string",
+              "description": "kind/id (or kind/alias, kind/key; '@' optional)."
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Subjects",
+            "description": "Subjects the section is about (kind/id); default: the write's subject.",
+            "default": []
+          },
+          "unlink": {
+            "items": {
+              "type": "string",
+              "description": "kind/id (or kind/alias, kind/key; '@' optional)."
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Unlink",
+            "default": []
+          },
+          "observation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkingSelectionObservation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filled by the client that read the section; leave it out."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AboutChange",
+        "description": "Link a workspace section ``about`` Subjects: a note, never a Claim (D-R12).\n\nThe section is named as section evidence names it: ``ref`` (a doc op of\nthis write, by id) or ``file`` and ``section``. ``subjects`` are added to\nthe section's note and ``unlink`` ones removed; a note left with none\nretires. Linking again moves the note to the section's current bytes. The\nwriter's adapter observes the section; the daemon never reads the file."
+      },
       "AbsenceWitness": {
         "properties": {
           "run_id": {
@@ -13207,6 +13391,14 @@
           "capture": {
             "type": "string",
             "title": "Capture"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Members",
+            "default": []
           },
           "extract_spec": {
             "type": "string",
@@ -13251,7 +13443,8 @@
           "enumerated_key_digest",
           "expect_coordinate"
         ],
-        "title": "AbsenceWitness"
+        "title": "AbsenceWitness",
+        "description": "The complete enumeration an absence rests on, and the Captures it read.\n\n``capture`` is the enumeration's Capture. Over a list of Captures (D-R37\na6), ``members`` holds every member in order, ``capture`` being the\nfirst; one Capture leaves it out, the 1-tuple case. ``captures`` reads\neither form."
       },
       "AcceptedCoordinate": {
         "properties": {
@@ -16162,6 +16355,303 @@
         ],
         "title": "AuthoringSubmitResultRecord"
       },
+      "Backlink": {
+        "properties": {
+          "relation": {
+            "type": "string",
+            "enum": [
+              "cites",
+              "about",
+              "guides"
+            ],
+            "title": "Relation"
+          },
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "Claim",
+              "Note",
+              "Document"
+            ],
+            "title": "Source Kind"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "CLM-\u2026, NOTE-\u2026 or the Document's identity."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "A Document's title."
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject",
+            "description": "A citing Claim's Subject (kind/id)."
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field",
+            "description": "A citing Claim's predicate."
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "A citation's role: evidence or copy."
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File",
+            "description": "The workspace source (files.yaml name)."
+          },
+          "section": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "cited_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cited Digest",
+            "description": "The section's bytes when cited."
+          },
+          "drift": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "changed_since_cited",
+                  "unchanged",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drift",
+            "description": "Section rows: has the section moved since it was cited?"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "relation",
+          "source_kind",
+          "source"
+        ],
+        "title": "Backlink",
+        "description": "One pointer into the target."
+      },
+      "BacklinksRequest": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "playbill-backlinks-request-v1",
+            "title": "Tag",
+            "default": "playbill-backlinks-request-v1"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref",
+            "description": "A Subject (kind/id), ClaimType (ClaimType:p or p) or Procedure:name."
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File",
+            "description": "With section: a catalogued workspace file (path or files.yaml name)."
+          },
+          "section": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 25
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedCoordinate"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "mcp",
+              "cli",
+              "sdk"
+            ],
+            "title": "Surface",
+            "default": "mcp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BacklinksRequest"
+      },
+      "BacklinksResult": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "playbill-backlinks-result-v1",
+            "title": "Tag",
+            "default": "playbill-backlinks-result-v1"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "What the links point into, as resolved."
+          },
+          "coordinate": {
+            "$ref": "#/components/schemas/GetCoordinate"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/Backlink"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target",
+          "coordinate",
+          "links"
+        ],
+        "title": "BacklinksResult"
+      },
       "BlockDeclareRequest": {
         "properties": {
           "stamp": {
@@ -16811,6 +17301,59 @@
         ],
         "title": "BodyAccessResult"
       },
+      "BodyRestricted": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-body-restricted-v1",
+            "title": "Tag",
+            "default": "cruxible-body-restricted-v1"
+          },
+          "kind": {
+            "type": "string",
+            "const": "body_restricted",
+            "title": "Kind",
+            "default": "body_restricted"
+          },
+          "capture_digests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capture Digests",
+            "default": []
+          },
+          "capture_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capture Kinds",
+            "default": []
+          },
+          "provenance_unavailable": {
+            "type": "boolean",
+            "title": "Provenance Unavailable",
+            "default": false
+          },
+          "required_permission": {
+            "type": "string",
+            "const": "cruxible_body_read_restricted",
+            "title": "Required Permission",
+            "default": "cruxible_body_read_restricted"
+          },
+          "required_tier": {
+            "type": "string",
+            "const": "governed_write",
+            "title": "Required Tier",
+            "default": "governed_write"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BodyRestricted",
+        "description": "Bytes of restricted CaptureKinds were withheld from this caller (C14).\n\nA restricted kind's bytes, its envelopes' source and selector metadata, the\nspans cited from them, and values extracted from them into run outputs and\ninbox items are read only with ``cruxible_body_read_restricted``. The\nwithheld Captures are named by digest, each with its kind; accepted Claim\nvalues are never withheld."
+      },
       "BoolType": {
         "properties": {
           "kind": {
@@ -17367,6 +17910,15 @@
               }
             ]
           },
+          "body_access": {
+            "type": "string",
+            "enum": [
+              "open",
+              "restricted"
+            ],
+            "title": "Body Access",
+            "default": "open"
+          },
           "lifecycle": {
             "$ref": "#/components/schemas/ArtifactLifecycle",
             "default": {
@@ -17610,6 +18162,22 @@
               }
             ],
             "description": "How the bytes decode for an extract: {format: json|csv|text|bytes, encoding: identity|gzip, csv?: {comment_prefix, header}, limits: {decoded_bytes, depth, records}}. Required for any CaptureContract an extract reads."
+          },
+          "body_access": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "restricted"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Access",
+            "description": "Who may read this kind's bytes and body-derived metadata: open (default; any reader) or restricted (only a caller holding cruxible_body_read_restricted; others get the inventory view and a body_restricted notice). Fixed with the name."
           },
           "lifecycle": {
             "anyOf": [
@@ -18427,7 +18995,8 @@
             "type": "string",
             "enum": [
               "verified",
-              "unavailable"
+              "unavailable",
+              "restricted"
             ],
             "title": "Status"
           },
@@ -18446,6 +19015,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/CaptureErasureRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
               },
               {
                 "type": "null"
@@ -18764,7 +19343,7 @@
           "capture_kind"
         ],
         "title": "CaptureType",
-        "description": "Retained bytes of one CaptureKind, by Capture digest."
+        "description": "Retained bytes of one CaptureKind (``*``: any), by Capture digest."
       },
       "CaptureUploadCompleteRequest": {
         "properties": {
@@ -19209,7 +19788,8 @@
               "set",
               "add",
               "retire",
-              "rebind"
+              "rebind",
+              "about"
             ],
             "title": "Op"
           },
@@ -19337,6 +19917,58 @@
             ],
             "title": "Capture",
             "description": "The Capture cited as evidence, as its handle CAP-<12 hex>."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "An about change: the section's note (NOTE-\u2026)."
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "An about change: the Subjects the note links after it ([] = retired)."
           }
         },
         "additionalProperties": false,
@@ -19375,6 +20007,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/AttestationAuthoringPayload"
+                },
+                {
+                  "$ref": "#/components/schemas/NoteAuthoringPayload"
                 },
                 {
                   "$ref": "#/components/schemas/SubjectAuthoringPayload"
@@ -19429,6 +20064,7 @@
                   "playbill-claim-retirement-authoring-payload-v1": "#/components/schemas/ClaimRetirementMember",
                   "playbill-claim-type-authoring-payload-v1": "#/components/schemas/ClaimTypeAuthoringPayload",
                   "playbill-claim-type-succession-authoring-payload-v1": "#/components/schemas/ClaimTypeSuccessionMember",
+                  "playbill-note-authoring-payload-v1": "#/components/schemas/NoteAuthoringPayload",
                   "playbill-procedure-runtime-policy-authoring-payload-v1": "#/components/schemas/ProcedureRuntimePolicyAuthoringPayload",
                   "playbill-query-definition-authoring-payload-v1": "#/components/schemas/QueryDefinitionAuthoringPayload",
                   "playbill-resolution-contract-authoring-payload-v1": "#/components/schemas/ResolutionContractAuthoringPayload",
@@ -21167,6 +21803,16 @@
               }
             ],
             "title": "Cursor"
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -26245,7 +26891,8 @@
           },
           "target_identity": {
             "type": "string",
-            "title": "Target Identity"
+            "title": "Target Identity",
+            "description": "A kind-qualified identity: Subject:kind/id, ClaimType:p, Procedure:n, \u2026"
           }
         },
         "additionalProperties": false,
@@ -28794,8 +29441,15 @@
             "title": "Source"
           },
           "observed_at": {
-            "type": "string",
-            "format": "date-time",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Observed At"
           },
           "size": {
@@ -28849,6 +29503,16 @@
               }
             ]
           },
+          "derivation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GetCaptureDerivation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "subjects": {
             "items": {
               "type": "string"
@@ -28871,6 +29535,16 @@
             "title": "Citing Total",
             "default": 0
           },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "next": {
             "items": {
               "type": "string"
@@ -28886,7 +29560,6 @@
           "capture",
           "digest",
           "contract",
-          "observed_at",
           "status"
         ],
         "title": "GetCaptureCard",
@@ -28937,6 +29610,40 @@
           "admitted_by"
         ],
         "title": "GetCaptureContractCard"
+      },
+      "GetCaptureDerivation": {
+        "properties": {
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources",
+            "default": []
+          },
+          "reads": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reads",
+            "default": []
+          },
+          "reducer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GetCaptureReducer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GetCaptureDerivation",
+        "description": "A derived Capture's recorded inputs (D-R37 d5): the Captures and state reads it\nwas computed from, and its reducer. ``get`` each source to follow the chain."
       },
       "GetCaptureErasure": {
         "properties": {
@@ -29039,6 +29746,41 @@
           "status"
         ],
         "title": "GetCaptureEvidence"
+      },
+      "GetCaptureReducer": {
+        "properties": {
+          "digest": {
+            "type": "string",
+            "title": "Digest"
+          },
+          "provider_build": {
+            "type": "string",
+            "title": "Provider Build"
+          },
+          "operation_signature": {
+            "type": "string",
+            "title": "Operation Signature"
+          },
+          "implementation": {
+            "type": "string",
+            "title": "Implementation"
+          },
+          "input_template": {
+            "type": "string",
+            "title": "Input Template"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "digest",
+          "provider_build",
+          "operation_signature",
+          "implementation",
+          "input_template"
+        ],
+        "title": "GetCaptureReducer",
+        "description": "What computed a derived Capture: the provider build, operation and its node's input."
       },
       "GetChangeSetReason": {
         "properties": {
@@ -31315,6 +32057,16 @@
             "type": "array",
             "title": "Terminal Egress",
             "default": []
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "next": {
             "items": {
@@ -34167,6 +34919,16 @@
           "payload": {
             "title": "Payload"
           },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "recent_dispositions": {
             "items": {
               "oneOf": [
@@ -34546,6 +35308,16 @@
           },
           "payload_preview": {
             "$ref": "#/components/schemas/ShownValue"
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -38878,6 +39650,15 @@
               }
             ]
           },
+          "body_access": {
+            "type": "string",
+            "enum": [
+              "open",
+              "restricted"
+            ],
+            "title": "Body Access",
+            "default": "open"
+          },
           "lifecycle": {
             "$ref": "#/components/schemas/ArtifactLifecycle",
             "default": {
@@ -39993,6 +40774,51 @@
           "of"
         ],
         "title": "Not"
+      },
+      "NoteAuthoringPayload": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "playbill-note-authoring-payload-v1",
+            "title": "Tag",
+            "default": "playbill-note-authoring-payload-v1"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkingSelectionObservation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^NOTE-[0-9a-f]{32}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "about": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactIdentity"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "About",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NoteAuthoringPayload",
+        "description": "Link one workspace section ``about`` Subjects, or unlink it (contracts/notes.py).\n\n``about`` is the note's complete Subject set after this change, sorted and\nunique; empty retires the note. ``source`` is the section the writer's\nadapter observed now (heading-path label required). Without one the change\nnames the ``note`` and only edits its links: they stay on the section bytes\nthe note already retains, so a deleted section can still be unlinked."
       },
       "NumberType": {
         "properties": {
@@ -47916,6 +48742,16 @@
             },
             "type": "array",
             "title": "Nodes"
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -48788,6 +49624,45 @@
             "type": "array",
             "title": "Prior Refusals",
             "default": []
+          },
+          "item_identity_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Identity Digest"
+          },
+          "change_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "claim",
+                  "subject",
+                  "reobservation",
+                  "retirement"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Kind"
+          },
+          "change_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Digest"
           }
         },
         "additionalProperties": false,
@@ -50380,6 +51255,13 @@
             "type": "array",
             "title": "Documents"
           },
+          "guidance": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewGuidance"
+            },
+            "type": "array",
+            "title": "Guidance"
+          },
           "redactions": {
             "items": {
               "type": "string"
@@ -50421,6 +51303,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/CompilerUpgradeNotice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
               },
               {
                 "type": "null"
@@ -50591,6 +51483,14 @@
             ],
             "title": "Findings Next Cursor"
           },
+          "guidance": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewGuidance"
+            },
+            "type": "array",
+            "title": "Guidance",
+            "default": []
+          },
           "groups": {
             "items": {
               "$ref": "#/components/schemas/ReviewSummaryGroup"
@@ -50613,6 +51513,16 @@
               }
             ],
             "title": "Next Cursor"
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -57380,6 +58290,38 @@
         ],
         "title": "ReturnFrom"
       },
+      "ReviewGuidance": {
+        "properties": {
+          "definition": {
+            "type": "string",
+            "title": "Definition",
+            "description": "ClaimType:<predicate> or Procedure:<name>."
+          },
+          "document": {
+            "type": "string",
+            "title": "Document"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "definition",
+          "document"
+        ],
+        "title": "ReviewGuidance",
+        "description": "A governed Document that ``guides`` a ClaimType or Procedure this proposal touches."
+      },
       "ReviewRequest": {
         "properties": {
           "detail": {
@@ -62860,11 +63802,15 @@
                 },
                 {
                   "$ref": "#/components/schemas/RebindChange"
+                },
+                {
+                  "$ref": "#/components/schemas/AboutChange"
                 }
               ],
               "discriminator": {
                 "propertyName": "op",
                 "mapping": {
+                  "about": "#/components/schemas/AboutChange",
                   "add": "#/components/schemas/AddChange",
                   "create": "#/components/schemas/CreateChange",
                   "rebind": "#/components/schemas/RebindChange",
