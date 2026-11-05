@@ -1,8 +1,13 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { renderApp } from "@/test/render";
+import { http, HttpResponse } from "msw";
+import type { QueryClient } from "@tanstack/react-query";
+import { renderApp, TEST_BASE } from "@/test/render";
+import { defineFixture } from "@/fixtures/fixture";
+import { COORDINATE } from "@/fixtures/authored/world";
+import { headQuery } from "@/api/requests";
 import { server } from "@/test/msw-server";
-import { BODY, FIXES, FIXES_KIND, G40, G41, HEAD_MOVED_ON, HEADERS, LATER_REVISION, P1, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, REVISED_CLAIM, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
+import { BODY, FIXES, FIXES_KIND, G40, G41, HEAD_MOVED_ON, HEADERS, LATER_REVISION, P1, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_PROCEDURE, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, REVISED_CLAIM, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -13,6 +18,15 @@ beforeAll(() => {
 const I = "/i/inst_fixture";
 const SLOW = { timeout: 8000 };
 const handle = (digest: string) => `CAP-${digest.slice(7, 19)}`;
+const headAt = (generation: number) => ({ tag: "playbill-head-v1" as const, instance: "inst_fixture", coordinate: COORDINATE, generation });
+/** The latest head, answered by `respond` (unpinned reads only). */
+const latestHead = (respond: () => Promise<number>) =>
+  http.get(`${TEST_BASE}/api/v1/:instance/head`, async ({ request }) => {
+    if (new URL(request.url).searchParams.has("at")) return undefined;
+    return HttpResponse.json(headAt(await respond()));
+  });
+/** A cached head at `generation`, stale: its observers refetch it in the background. */
+const staleHead = (generation: number) => (client: QueryClient) => client.setQueryData(["head", "inst_fixture", null], headAt(generation), { updatedAt: Date.now() - 60_000 });
 const node = (id: string) => document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`) as HTMLElement;
 
 describe("D-R37 template: the step graph", () => {
@@ -136,6 +150,79 @@ describe("D-R37 template: Captures", () => {
     }
   }, 20000);
 
+  describe("only a fresh head authorizes a historical read", () => {
+    // run-pair's bound coordinate (g40's oid) at generation 57: inside the window of a g120 head, past that of g121
+    const at57 = defineFixture({
+      method: "get",
+      path: "/api/v1/{instance_id}/head",
+      query: headQuery(G40.git_oid),
+      response: { tag: "playbill-head-v1", instance: "inst_fixture", coordinate: G40, generation: 57 },
+    });
+    /** Every get-batch ref read at the bound coordinate, and every generation read for it. */
+    const watch = () => {
+      const atBound: string[] = [];
+      let targetReads = 0;
+      const parsing: Promise<void>[] = [];
+      const listen = ({ request }: { request: Request }) => {
+        if (request.url.includes(`/head?at=${G40.git_oid}`)) targetReads += 1;
+        if (!request.url.includes("/get-batch")) return;
+        parsing.push(
+          request
+            .clone()
+            .json()
+            .then((body: { at?: { git_oid?: string }; refs?: string[] }) => {
+              if (body.at?.git_oid === G40.git_oid) atBound.push(...(body.refs ?? []));
+            }),
+        );
+      };
+      server.events.on("request:start", listen);
+      return {
+        atBound: async () => (await Promise.all(parsing), atBound),
+        targetReads: () => targetReads,
+        stop: () => server.events.removeListener("request:start", listen),
+      };
+    };
+    const fixtures = [...TEMPLATE_WORLD, ...SCALAR_PAIR, ...PAIR_LIST_AT_BOUND, at57];
+
+    it("a cached g120 head being refetched authorizes nothing; the fresh g121 leaves g57 unauthorized", async () => {
+      let release: (generation: number) => void = () => undefined;
+      let refetches = 0;
+      const watched = watch();
+      try {
+        renderApp(`${I}/ref/${handle(BODY)}`, fixtures, {
+          // the head refetch stays in flight until released
+          handlers: [latestHead(() => ((refetches += 1), new Promise<number>((resolve) => (release = resolve))))],
+          // a g120 head already cached, stale: its observers refetch it in the background
+          seed: staleHead(120),
+        });
+        await waitFor(() => expect(refetches).toBeGreaterThan(0), SLOW);
+        // the bound coordinate's generation (57) is read, and still nothing at that coordinate while the refetch is in flight
+        await waitFor(() => expect(watched.targetReads()).toBeGreaterThan(0), SLOW);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        expect(await watched.atBound()).toEqual([]);
+        expect(screen.queryByRole("table", { name: "List members" })).toBeNull();
+        release(121);
+        // fresh g121: g57 is past the window, so the outputs stay unclassified and nothing is read there
+        await screen.findByRole("table", { name: "Other outputs of this call" }, SLOW);
+        expect(await watched.atBound()).toEqual([]);
+      } finally {
+        watched.stop();
+      }
+    }, 20000);
+
+    it("a fresh head inside the window authorizes the read at the bound coordinate", async () => {
+      const watched = watch();
+      try {
+        renderApp(`${I}/ref/${handle(BODY)}`, fixtures, { handlers: [latestHead(async () => 100)] });
+        const table = within(await screen.findByRole("table", { name: "List members" }, SLOW));
+        expect(table.getByRole("link", { name: handle(HEADERS) })).toBeInTheDocument();
+        expect(await watched.atBound()).toContain(`Procedure:${PAIR_PROCEDURE}`);
+      } finally {
+        watched.stop();
+      }
+    }, 20000);
+  });
+
   it("a derived CaptureKind names the derives that commit it, their operation and the kinds they derive from", async () => {
     renderApp(`${I}/contracts/${FIXES_KIND}`, TEMPLATE_WORLD);
     const table = within(await screen.findByRole("table", { name: "Derived by" }, SLOW));
@@ -255,6 +342,33 @@ describe("D-R37 template: runs, Lines and the evidence flow", () => {
       await Promise.all(parsing);
       expect(reads.filter((r) => r.ids.includes(REVISED_CLAIM))).toEqual([]);
       expect(reads.some((r) => r.at === G41.git_oid)).toBe(false);
+    } finally {
+      server.events.removeListener("request:start", listen);
+    }
+  }, 20000);
+
+  it("a cached head being refetched authorizes no Claim read at the run's coordinate; a fresh head past it leaves it not read", async () => {
+    let release: (generation: number) => void = () => undefined;
+    let refetches = 0;
+    let atRun = 0;
+    const listen = ({ request }: { request: Request }) => {
+      if (request.url.includes("/claims/read-batch")) atRun += 1;
+    };
+    server.events.on("request:start", listen);
+    try {
+      // run-t0 was accepted at g41: inside a g104 head's window, past a g105 head's
+      renderApp(`${I}/runs/${RUN_T0}`, [...TEMPLATE_WORLD, ...LATER_REVISION], {
+        handlers: [latestHead(() => ((refetches += 1), new Promise<number>((resolve) => (release = resolve))))],
+        seed: staleHead(104),
+      });
+      await screen.findByRole("table", { name: "Changes" }, SLOW);
+      await waitFor(() => expect(refetches).toBeGreaterThan(0), SLOW);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(atRun).toBe(0);
+      release(105);
+      const table = within(screen.getByRole("table", { name: "Changes" }));
+      await waitFor(() => expect(table.getByText("not read")).toBeInTheDocument(), SLOW);
+      expect(atRun).toBe(0);
     } finally {
       server.events.removeListener("request:start", listen);
     }

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useCard, useClaimViewsAt, useInstanceId, useRetainedAt, useReview, useRunState } from "@/api/hooks";
+import { useCard, useClaimViewsAt, useCoordinatesAt, useInstanceId, useReview, useRunState } from "@/api/hooks";
 import { cardOf, type AcceptedCoordinate, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
@@ -300,7 +300,7 @@ const DISPOSITION_MARK = { new: "create", revised: "revise", retired: "retire" }
 /** Why a re-observed Claim's value is not read: its coordinate is past the retained window, or the run's coordinate is unread. */
 type Unread = "window" | "coordinate";
 const UNREAD_WHY: Record<Unread, string> = {
-  window: `Its generation is older than the ${RETAINED_GENERATIONS} the daemon retains: reading it would rebuild that projection. Open the run's generation to read it.`,
+  window: `Its generation is not confirmed within the ${RETAINED_GENERATIONS} the daemon retains: reading it could rebuild that projection. Open the run's generation to read it.`,
   coordinate: "The run's coordinate is unread.",
 };
 
@@ -327,26 +327,36 @@ function ChangesPanel({ egress, bound, boundUnread }: { egress: Egress[]; bound:
     () => missing.map((g) => ({ ...g, oid: g.accepted ?? bound?.git_oid ?? null })),
     [missing, bound],
   );
-  const window = useRetainedAt(useMemo(() => placed.flatMap((g) => (g.oid ? [g.oid] : [])), [placed]));
-  // Each group's read: at its coordinate when the daemon retains it; past the window a read would rebuild that projection on a routine visit, so it is not read
-  const { groups, unread } = useMemo(() => {
-    const groups: { coordinate: AcceptedCoordinate | undefined; ids: string[] }[] = [];
-    const unread = new Map<string, Unread>();
-    for (const g of placed) {
-      if (!g.oid) {
-        if (boundUnread) for (const id of g.ids) unread.set(id, "coordinate");
-        continue;
-      }
-      if (window.isPending) continue;
-      if (!window.retained.has(g.oid)) {
-        for (const id of g.ids) unread.set(id, "window");
-        continue;
-      }
-      groups.push({ coordinate: g.accepted === null || g.accepted === bound?.git_oid ? bound : window.coordinates.get(g.accepted), ids: g.ids });
-    }
-    return { groups, unread };
-  }, [placed, bound, boundUnread, window.isPending, window.retained, window.coordinates]);
+  // an accepted oid's full coordinate (GET /head?at=, answered from accepted history)
+  const resolved = useCoordinatesAt(useMemo(() => placed.flatMap((g) => (g.accepted && g.accepted !== bound?.git_oid ? [g.accepted] : [])), [placed, bound]));
+  const groups = useMemo(
+    () =>
+      placed.flatMap((g) => {
+        const coordinate = g.accepted === null || g.accepted === bound?.git_oid ? bound : resolved.byOid.get(g.accepted);
+        // historical: read only once a fresh head confirms the daemon retains it (useClaimViewsAt)
+        return coordinate ? [{ coordinate, ids: g.ids, historical: true }] : [];
+      }),
+    [placed, bound, resolved.byOid],
+  );
   const states = useClaimViewsAt(groups);
+  // Claims not held whose coordinate is unread, or not confirmed inside the retained window: shown as not read, never another generation's value
+  const { unread, checking } = useMemo(() => {
+    const unread = new Map<string, Unread>();
+    let checking = false;
+    for (const g of placed) {
+      const missingIds = g.ids.filter((id) => !states.statements.has(id));
+      if (missingIds.length === 0) continue;
+      // the coordinate itself: the run state's bound one, or the accepted oid's resolved one
+      const placing = !g.oid ? (boundUnread ? "failed" : "reading") : g.accepted && g.accepted !== bound?.git_oid && !resolved.byOid.has(g.accepted) ? (resolved.failed.has(g.accepted) ? "failed" : "reading") : null;
+      if (placing === "failed") for (const id of missingIds) unread.set(id, "coordinate");
+      if (placing === "reading") checking = true;
+      if (placing) continue;
+      const retention = states.retention.get(g.oid ?? "");
+      if (retention === "outside") for (const id of missingIds) unread.set(id, "window");
+      else if (retention === "checking") checking = true;
+    }
+    return { unread, checking };
+  }, [placed, bound, boundUnread, resolved.byOid, resolved.failed, states.statements, states.retention]);
   const rows = useMemo(() => changeRows(items, members, states.statements), [items, members, states.statements]);
   if (items.length === 0) return null;
   const counts = changeCounts(rows);
@@ -365,7 +375,7 @@ function ChangesPanel({ egress, bound, boundUnread }: { egress: Egress[]; bound:
         </span>
       }
     >
-      {(review.isPending && proposal) || window.isPending || states.isPending ? <LoadState /> : null}
+      {(review.isPending && proposal) || checking || states.isPending ? <LoadState /> : null}
       {review.error && <LoadState error={review.error} />}
       {states.error && <LoadState error={states.error} />}
       <ChangesTable rows={rows} unread={unread} />

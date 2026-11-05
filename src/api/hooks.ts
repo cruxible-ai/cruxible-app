@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { useApiClient } from "./DataSourceContext";
 import { unwrap } from "./data-source";
@@ -719,16 +719,24 @@ export function useCard(ref: string | null) {
 /**
  * One ref's summary card at a given coordinate, never the page's: a
  * definition as it stood when a run was bound (a run's Procedure, a slot's
- * out Contract). Waits while the coordinate is unknown; shares useCard's
- * cache when it is the page's.
+ * out Contract). Read only once `useRetainedAt` confirms the daemon retains
+ * that coordinate's projection (a read past its window would rebuild it); a
+ * card already read is kept and never refetched (accepted state at a
+ * coordinate never changes). `retention` is null once the card is held.
+ * Shares useCard's cache when the coordinate is the page's.
  */
 export function useCardAt(ref: string | null, coordinate: AcceptedCoordinate | undefined) {
   const client = useApiClient();
   const instanceId = useInstanceId();
-  return useQuery({
-    queryKey: ["card", instanceId, coordinate?.git_oid ?? null, ref],
-    enabled: ref !== null && ref !== "" && coordinate !== undefined,
-    staleTime: 60_000,
+  const queryClient = useQueryClient();
+  const queryKey = ["card", instanceId, coordinate?.git_oid ?? null, ref];
+  const wanted = ref !== null && ref !== "" && coordinate !== undefined && queryClient.getQueryData(queryKey) === undefined;
+  const window = useRetainedAt(wanted ? [coordinate.git_oid] : []);
+  const retention = wanted ? (window.status.get(coordinate.git_oid) ?? "checking") : null;
+  const read = useQuery({
+    queryKey,
+    enabled: ref !== null && ref !== "" && coordinate !== undefined && (retention === null || retention === "retained"),
+    staleTime: Infinity,
     queryFn: async (): Promise<GetResult> => {
       const batch = unwrap(
         await client.POST("/api/v1/{instance_id}/get-batch", {
@@ -739,6 +747,7 @@ export function useCardAt(ref: string | null, coordinate: AcceptedCoordinate | u
       return batch.results[0]!;
     },
   });
+  return { read, retention };
 }
 
 /**
@@ -921,26 +930,37 @@ export function useAdmissionAccounts(claimIds: string[]) {
  * ids through claims/read-batch (256 per call) at that group's coordinate; a
  * group whose coordinate is not known yet waits. A run's page reads the
  * Claims it re-observed at the run's own coordinate, so a later revision
- * never stands in for the run's value.
+ * never stands in for the run's value. A `historical` group (a coordinate
+ * the page did not pin) is read only once `useRetainedAt` confirms the
+ * daemon retains it (past the window a read would rebuild that projection),
+ * and once read is never refetched; `retention` gives each such coordinate's
+ * check while its Claims are not held.
  */
-export function useClaimViewsAt(groups: readonly { coordinate: AcceptedCoordinate | undefined; ids: readonly string[] }[]) {
+export function useClaimViewsAt(groups: readonly { coordinate: AcceptedCoordinate | undefined; ids: readonly string[]; historical?: boolean }[]) {
   const client = useApiClient();
   const instanceId = useInstanceId();
-  const reads: { coordinate: AcceptedCoordinate | undefined; chunk: string[] }[] = [];
+  const queryClient = useQueryClient();
+  const reads: { coordinate: AcceptedCoordinate | undefined; chunk: string[]; historical: boolean; key: unknown[] }[] = [];
   for (const group of groups) {
     const ids = [...new Set(group.ids.filter((id) => FULL_CLAIM_ID.test(id)))];
-    for (let i = 0; i < ids.length; i += CLAIM_READ_BATCH_MAX) reads.push({ coordinate: group.coordinate, chunk: ids.slice(i, i + CLAIM_READ_BATCH_MAX) });
+    for (let i = 0; i < ids.length; i += CLAIM_READ_BATCH_MAX) {
+      const chunk = ids.slice(i, i + CLAIM_READ_BATCH_MAX);
+      reads.push({ coordinate: group.coordinate, chunk, historical: group.historical === true, key: ["admission", instanceId, group.coordinate?.git_oid ?? null, chunk] });
+    }
   }
+  const wanted = reads.flatMap((r) => (r.historical && r.coordinate && queryClient.getQueryData(r.key) === undefined ? [r.coordinate.git_oid] : []));
+  const window = useRetainedAt(wanted);
+  const allowed = (r: (typeof reads)[number]) => !r.historical || !r.coordinate || !wanted.includes(r.coordinate.git_oid) || window.status.get(r.coordinate.git_oid) === "retained";
   return useQueries({
-    queries: reads.map(({ coordinate, chunk }) => ({
-      queryKey: ["admission", instanceId, coordinate?.git_oid ?? null, chunk],
-      enabled: coordinate !== undefined,
-      staleTime: 60_000,
+    queries: reads.map((r) => ({
+      queryKey: r.key,
+      enabled: r.coordinate !== undefined && allowed(r),
+      staleTime: r.historical ? Infinity : 60_000,
       queryFn: async () =>
         unwrap(
           await client.POST("/api/v1/{instance_id}/claims/read-batch", {
             params: { path: { instance_id: instanceId } },
-            body: claimReadBatchBody(chunk, coordinate!),
+            body: claimReadBatchBody(r.chunk, r.coordinate!),
           }),
         ),
     })),
@@ -960,11 +980,13 @@ export function useClaimViewsAt(groups: readonly { coordinate: AcceptedCoordinat
         });
       });
       return {
-        isPending: results.some((r) => r.isPending),
+        // a historical read held back by its retention check is not pending here: `retention` says whether it waits
+        isPending: results.some((r, i) => r.isPending && (allowed(reads[i]!) || !reads[i]!.historical)),
         error: results.find((r) => r.error)?.error ?? null,
         byClaim,
         envelopes,
         statements,
+        retention: window.status,
       };
     },
   });
@@ -993,44 +1015,63 @@ export function useCoordinatesAt(oids: readonly string[]) {
     combine: (results) => {
       const byOid = new Map<string, AcceptedCoordinate>();
       const generations = new Map<string, number>();
+      const failed = new Set<string>();
       results.forEach((r, i) => {
+        if (r.isError) failed.add(unique[i]!);
         if (!r.data) return;
         byOid.set(unique[i]!, r.data.coordinate);
         generations.set(unique[i]!, r.data.generation);
       });
-      return { byOid, generations, isPending: results.some((r) => r.isPending), error: results.find((r) => r.error)?.error ?? null };
+      return { byOid, generations, failed, isPending: results.some((r) => r.isPending), error: results.find((r) => r.error)?.error ?? null };
     },
   });
 }
 
 /**
- * Which accepted oids the daemon still retains a projection for, so a read
- * there binds a kept piece instead of rebuilding one (O(instance + history)).
- * The signal: GET /head?at=<oid> (the oid's generation) and GET /head (the
- * latest head's), both answered from accepted history without binding a
- * projection; retained when within the newest RETAINED_GENERATIONS (core's
- * retention, which no route serves). An oid whose generation or the head is
- * unread is not retained (fail-safe); pending until both are read.
+ * Whether a historical read may be made at each accepted oid: the daemon
+ * must still retain its projection, else the read rebuilds it (O(instance +
+ * history)) on a routine page visit. The signal: GET /head?at=<oid> (its
+ * generation) and GET /head (the latest head's), both answered from accepted
+ * history without binding a projection; retained when within the newest
+ * RETAINED_GENERATIONS (core's retention, which no route serves).
+ *
+ * Only a fresh head authorizes: a successful head read that is neither stale
+ * nor being refetched (a cached head can trail the daemon's, whose newer
+ * generations may have evicted the oid). While the head is pending, stale or
+ * refetching, or the oid's generation is unread, each oid is `checking`, and
+ * a stale head idle in the cache is refetched; a failed head or generation
+ * read, or a generation past the window, is `outside` (fail closed).
  */
+export type Retention = "retained" | "outside" | "checking";
+
 export function useRetainedAt(oids: readonly string[]) {
   const latest = useHead(null);
+  const unique = [...new Set(oids)].sort();
   const head = latest.data;
-  // the head itself is retained: no read for it
-  const reads = head ? oids.filter((oid) => oid !== head.coordinate.git_oid) : [];
-  const at = useCoordinatesAt(reads);
+  const fresh = latest.isSuccess && !latest.isFetching && !latest.isStale;
+  // the head's own oid needs no generation read
+  const at = useCoordinatesAt(head ? unique.filter((oid) => oid !== head.coordinate.git_oid) : unique);
+  const idleStale = unique.length > 0 && latest.isSuccess && latest.isStale && !latest.isFetching;
+  const { refetch } = latest;
+  useEffect(() => {
+    if (idleStale) void refetch();
+  }, [idleStale, refetch]);
+  const key = unique.join("\n");
   return useMemo(() => {
-    const retained = new Set<string>();
-    const coordinates = new Map(at.byOid);
-    if (head) {
-      if (oids.includes(head.coordinate.git_oid)) {
-        retained.add(head.coordinate.git_oid);
-        coordinates.set(head.coordinate.git_oid, head.coordinate);
+    const status = new Map<string, Retention>();
+    for (const oid of unique) {
+      if (latest.isError || at.failed.has(oid)) status.set(oid, "outside");
+      else if (!fresh || !head) status.set(oid, "checking");
+      else if (oid === head.coordinate.git_oid) status.set(oid, "retained");
+      else {
+        const generation = at.generations.get(oid);
+        if (generation === undefined) status.set(oid, "checking");
+        else status.set(oid, isOutsideRetention(generation, head.generation) ? "outside" : "retained");
       }
-      for (const [oid, generation] of at.generations) if (!isOutsideRetention(generation, head.generation)) retained.add(oid);
     }
-    return { retained, coordinates, isPending: oids.length > 0 && (latest.isPending || at.isPending), error: at.error };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
-  }, [head, latest.isPending, at.generations, at.byOid, at.isPending, at.error, oids.join("\n")]);
+    return { status, checking: [...status.values()].includes("checking") };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the oids and what the reads returned
+  }, [key, fresh, head, latest.isError, at.generations, at.failed]);
 }
 
 /**
