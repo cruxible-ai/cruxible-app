@@ -57,21 +57,24 @@ export function unreviewedClaims(items: ReturnType<typeof changedItems>, members
  * claims terminal's accepted git oid where its items landed, else null (the
  * run's bound coordinate, what it read). A re-observation's value is the
  * stored Claim there, never at the page's coordinate or the head: a later
- * generation may have revised it.
+ * generation may have revised it. One pass over the items, each visited
+ * once: ids accumulate straight into their group.
  */
 export function unreviewedClaimsAt(
   items: ReturnType<typeof changedItems>,
   members: readonly Member[] | null | undefined,
 ): { accepted: string | null; ids: string[] }[] {
-  const groups = new Map<string | null, ReturnType<typeof changedItems>>();
-  for (const entry of items) {
-    const key = entry.egress.accepted_git_oid ?? null;
-    groups.set(key, [...(groups.get(key) ?? []), entry]);
+  const covered = new Set((members ?? []).map((m) => m.path));
+  const groups = new Map<string | null, Set<string>>();
+  for (const { egress, child } of items) {
+    const claim = child.path && !covered.has(child.path) ? claimIdOfPath(child.path) : null;
+    if (!claim) continue;
+    const key = egress.accepted_git_oid ?? null;
+    let ids = groups.get(key);
+    if (!ids) groups.set(key, (ids = new Set()));
+    ids.add(claim);
   }
-  return [...groups].flatMap(([accepted, group]) => {
-    const ids = unreviewedClaims(group, members);
-    return ids.length ? [{ accepted, ids }] : [];
-  });
+  return [...groups].map(([accepted, ids]) => ({ accepted, ids: [...ids].sort() }));
 }
 
 export function changeRows(

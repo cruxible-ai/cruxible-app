@@ -100,4 +100,45 @@ describe("a run's item changes", () => {
     expect(unreviewedClaimsAt(changedItems(RUN_T1_CARD.terminal_egress), TEMPLATE_MEMBERS)).toEqual([{ accepted: null, ids: [clmT(3)] }]);
     expect(unreviewedClaimsAt(changedItems(RUN_T0_CARD.terminal_egress), [])).toEqual([{ accepted: G41.git_oid, ids: [REVISED_CLAIM] }]);
   });
+
+  it("groups by coordinate in one pass: item visits grow linearly (N = 10, 100, 1000)", () => {
+    // A visit: an array iteration yielding an item (a loop or a copy of a list holding it), or a read of its egress or child.
+    const visitsAt = (n: number) => {
+      let visits = 0;
+      const egress = { node_id: "write", kind: "claims", accepted_git_oid: null };
+      const items = Array.from({ length: n }, (_, i) => {
+        const child = { child_index: i, path: `claims/7d/CLM-${i.toString(16).padStart(32, "0")}.json`, change_kind: "reobservation" };
+        const item = {};
+        Object.defineProperty(item, "egress", { enumerable: true, get: () => (visits++, egress) });
+        Object.defineProperty(item, "child", { enumerable: true, get: () => (visits++, child) });
+        return item;
+      });
+      const tracked = new Set<unknown>(items);
+      const proto = Array.prototype as unknown as { [Symbol.iterator]: (this: unknown[]) => Iterator<unknown> };
+      const iterate = proto[Symbol.iterator];
+      proto[Symbol.iterator] = function (this: unknown[]) {
+        const inner = iterate.call(this);
+        return {
+          next: () => {
+            const step = inner.next();
+            if (!step.done && tracked.has(step.value)) visits++;
+            return step;
+          },
+          [Symbol.iterator]() {
+            return this;
+          },
+        } as Iterator<unknown>;
+      };
+      let groups: ReturnType<typeof unreviewedClaimsAt>;
+      try {
+        groups = unreviewedClaimsAt(items as never, []);
+      } finally {
+        proto[Symbol.iterator] = iterate;
+      }
+      expect(groups).toEqual([{ accepted: null, ids: expect.any(Array) }]);
+      expect(groups[0]!.ids).toHaveLength(n);
+      return visits;
+    };
+    for (const n of [10, 100, 1000]) expect(visitsAt(n)).toBeLessThanOrEqual(3 * n);
+  });
 });
