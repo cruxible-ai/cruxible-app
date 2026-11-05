@@ -18,15 +18,21 @@ const queryClient = new QueryClient({
 
 // Dev fixtures mode: serve a fixture world through an MSW worker at the
 // network layer (VITE_CRUXIBLE_FIXTURES=1 the recorded daemon world,
-// =authored the hand-authored one). The app still goes through the same
-// data-source boundary; nothing else changes.
+// =authored the hand-authored one, =template the D-R37 Procedure template
+// world over it). The app still goes through the same data-source boundary;
+// nothing else changes.
 const fixtureWorld = import.meta.env.VITE_CRUXIBLE_FIXTURES;
-if (import.meta.env.DEV && (fixtureWorld === "1" || fixtureWorld === "authored")) {
+if (import.meta.env.DEV && (fixtureWorld === "1" || fixtureWorld === "authored" || fixtureWorld === "template")) {
   const [{ setupWorker }, handlers] = await Promise.all([
     import("msw/browser"),
     import("./fixtures/handlers"),
   ]);
-  const world = fixtureWorld === "authored" ? handlers.AUTHORED : handlers.FIXTURES;
+  const world =
+    fixtureWorld === "template"
+      ? (await import("./fixtures/template")).TEMPLATE_WORLD
+      : fixtureWorld === "authored"
+        ? handlers.AUTHORED
+        : handlers.FIXTURES;
   await setupWorker(...handlers.buildHandlers("", world)).start({ onUnhandledRequest: "bypass" });
 }
 
