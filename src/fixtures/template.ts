@@ -1036,6 +1036,24 @@ export const SCALAR_PAIR: RecordedFixture[] = [
   ),
 ];
 
+// -- a chain source withheld from this credential --------------------------------------------
+
+/** P1 as a credential without restricted body reads sees it: its source and time withheld (BodyRestricted). */
+const WITHHELD_P1: Schemas["GetCaptureCard"] = {
+  ...captureCard(byDigest.get(P1)!),
+  source: null,
+  observed_at: null,
+  withheld: { capture_digests: [P1], capture_kinds: [PAGE_KIND], required_permission: "cruxible_body_read_restricted" },
+};
+
+/** The view's sources, read by a credential that P1's restricted kind withholds from. Served beside the template world in tests only. */
+export const WITHHELD_SOURCE: RecordedFixture[] = [
+  batch(
+    [P1, P2, P3].map((d) => `Capture:${d}`),
+    [result(`Capture:${P1}`, "capture", { card: WITHHELD_P1 }), captureResult(byDigest.get(P2)!), captureResult(byDigest.get(P3)!)],
+  ),
+];
+
 /** The template world: the authored world, its definitions extended with the template Lines, and every template read. */
 export const TEMPLATE_WORLD: RecordedFixture[] = [
   ...AUTHORED,

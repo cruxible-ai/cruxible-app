@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
-import { BODY, FIXES, FIXES_KIND, HEADERS, LATER_REVISION, P1, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW } from "@/fixtures/template";
+import { BODY, FIXES, FIXES_KIND, HEADERS, LATER_REVISION, P1, P2, P3, PROPOSAL_L, PROPOSAL_T, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -130,6 +130,36 @@ describe("D-R37 template: evidence chains (CD2)", () => {
     fireEvent.click(await second.findByRole("button", { name: "security.vulnerability/cve-2023-4863 security.vulnerability.advisory" }, SLOW));
     const witness = within(await second.findByRole("complementary", { name: "Change detail" }));
     expect(witness.getByText("Absence witness · 3 Captures")).toBeInTheDocument();
+  });
+});
+
+describe("D-R37 template: a withheld source in a chain", () => {
+  const row = (scope: ReturnType<typeof within>, digest: string) => scope.getByRole("link", { name: handle(digest) }).closest("tr")!;
+
+  it("the full chain marks a withheld source and its source and time as withheld, a readable restricted one as restricted", async () => {
+    renderApp(`${I}/s/${encodeURIComponent("security.assessment/rel-1-cve-2024-3094")}`, [...TEMPLATE_WORLD, ...WITHHELD_SOURCE]);
+    fireEvent.click(await screen.findByRole("button", { name: "Expand status" }));
+    fireEvent.click(await screen.findByRole("button", { name: `Derived from 1 Capture (${handle(FIXES)})` }, SLOW));
+    fireEvent.click(await screen.findByRole("button", { name: `Expand Derived from 3 Captures (${handle(VIEW)})` }, SLOW));
+    await screen.findByRole("link", { name: handle(P1) }, SLOW);
+    const main = within(screen.getByRole("main"));
+    const withheld = within(row(main, P1));
+    expect(withheld.getAllByText("withheld")).toHaveLength(3); // the mark, the source, the time
+    expect(row(main, P1).querySelector('[data-access="withheld"]')).toHaveAttribute("title", expect.stringContaining("cruxible_body_read_restricted"));
+    expect(within(row(main, P2)).getByText("restricted")).toBeInTheDocument();
+    expect(within(row(main, P2)).getByText("vendor.advisories")).toBeInTheDocument();
+  });
+
+  it("the compact chain in the proposal side panel marks it too", async () => {
+    renderApp(`${I}/p/${encodeURIComponent(PROPOSAL_T)}`, [...TEMPLATE_WORLD, ...WITHHELD_SOURCE]);
+    const main = within(await screen.findByRole("main"));
+    fireEvent.click(await main.findByRole("button", { name: "security.vulnerability/cve-2024-3094 security.vulnerability.fixed_in" }, SLOW));
+    const panel = within(await main.findByRole("complementary", { name: "Change detail" }));
+    fireEvent.click(await panel.findByRole("button", { name: `Derived from 1 Capture (${handle(FIXES)})` }, SLOW));
+    fireEvent.click(await panel.findByRole("button", { name: `Expand Derived from 3 Captures (${handle(VIEW)})` }, SLOW));
+    await panel.findByRole("link", { name: handle(P1) }, SLOW);
+    expect(within(row(panel, P1)).getByText("withheld")).toBeInTheDocument();
+    expect(within(row(panel, P3)).getByText("restricted")).toBeInTheDocument();
   });
 });
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useGetBatch, useInstanceId } from "@/api/hooks";
@@ -72,8 +72,45 @@ function DerivedSources({ sources, depth, compact }: { sources: readonly string[
 const sourcesOf = (r: SourceRow) => r.card?.derivation?.sources ?? [];
 
 /**
- * Captures as rows: handle, CaptureKind, source, observed, and what a derived
- * one was derived from (its row opens that level).
+ * A row's access state: `withheld` when this credential's read withholds the
+ * restricted kind's source, time and bytes (the card's BodyRestricted
+ * notice), `restricted` when its kind restricts it and this credential reads
+ * it, `not served` when the read returned no card for it; else none.
+ */
+type AccessState = "withheld" | "restricted" | "not served";
+function accessOf(r: SourceRow): AccessState | null {
+  if (!r.card) return "not served";
+  if (r.card.withheld) return "withheld";
+  return r.card.access === "restricted" ? "restricted" : null;
+}
+
+function accessTitle(r: SourceRow, state: AccessState): string {
+  if (state === "withheld") {
+    const permission = r.card?.withheld?.required_permission;
+    return `Restricted CaptureKind: its source, time and bytes are withheld from this credential${permission ? ` (needs ${permission})` : ""}`;
+  }
+  if (state === "restricted") return "Restricted CaptureKind: this credential reads it";
+  return "The read returned no card for this Capture";
+}
+
+function AccessMark({ row }: { row: SourceRow }) {
+  const state = accessOf(row);
+  if (!state) return null;
+  return (
+    <span data-access={state} title={accessTitle(row, state)} className={`ml-1.5 text-[11px] ${state === "restricted" ? "text-amber-300/80" : "text-zinc-500"}`}>
+      {state}
+    </span>
+  );
+}
+
+/** A withheld card's source or time: `withheld`, never a blank. */
+const withheldOr = (r: SourceRow, value: ReactNode | null) =>
+  value ?? (r.card?.withheld ? <span className="text-zinc-500" title={accessTitle(r, "withheld")}>withheld</span> : <span className="text-zinc-600">—</span>);
+
+/**
+ * Captures as rows: handle with its access (restricted, withheld), CaptureKind,
+ * source, observed, and what a derived one was derived from (its row opens
+ * that level).
  */
 export function CaptureRows({ rows, label, depth = 0, compact = false }: { rows: SourceRow[]; label: string; depth?: number; compact?: boolean }) {
   const instanceId = useInstanceId();
@@ -86,9 +123,12 @@ export function CaptureRows({ rows, label, depth = 0, compact = false }: { rows:
         header: "Capture",
         className: "whitespace-nowrap",
         cell: (r) => (
-          <span title={compact ? [r.card?.source, r.card?.observed_at].filter(Boolean).join(" · ") || undefined : undefined}>
-            <RefLink value={r.card?.capture ?? captureHandle(r.digest)} />
-          </span>
+          <>
+            <span title={compact ? [r.card?.source, r.card?.observed_at].filter(Boolean).join(" · ") || undefined : undefined}>
+              <RefLink value={r.card?.capture ?? captureHandle(r.digest)} />
+            </span>
+            <AccessMark row={r} />
+          </>
         ),
       },
       {
@@ -111,12 +151,17 @@ export function CaptureRows({ rows, label, depth = 0, compact = false }: { rows:
       ...(compact
         ? []
         : [
-            { id: "source", header: "Source", className: "max-w-[14rem] truncate text-zinc-400", cell: (r: SourceRow) => <span title={r.card?.source ?? undefined}>{r.card?.source ?? "—"}</span> },
+            {
+              id: "source",
+              header: "Source",
+              className: "max-w-[14rem] truncate text-zinc-400",
+              cell: (r: SourceRow) => withheldOr(r, r.card?.source ? <span title={r.card.source}>{r.card.source}</span> : null),
+            },
             {
               id: "observed",
               header: "Observed",
               className: "whitespace-nowrap text-zinc-400",
-              cell: (r: SourceRow) => (when(r) ? <span title={r.card!.observed_at!}>{when(r)}</span> : <span className="text-zinc-600">—</span>),
+              cell: (r: SourceRow) => withheldOr(r, when(r) ? <span title={r.card!.observed_at!}>{when(r)}</span> : null),
             },
           ]),
       {
