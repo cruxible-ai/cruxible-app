@@ -37,7 +37,7 @@ test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evi
   await expect(page.getByText("Subjects 1–100 of 130")).toBeVisible();
   await page.getByRole("button", { name: "Sort by weekly_downloads" }).click();
   await expect(page).toHaveURL(/sort=weekly_downloads/);
-  await expect(page.getByText("Sorted by the daemon across the whole kind.")).toBeVisible();
+  await expect(page.getByText("Sorted by the daemon, whole kind")).toBeVisible();
   await page.goto("/i/inst_fixture/kinds/security.assessment");
   await page.getByRole("tab", { name: /^ClaimTypes/ }).click();
   await expect(page).toHaveURL(/view=claim-types/);
@@ -54,8 +54,8 @@ test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evi
   await page.locator("aside").getByRole("link", { name: "Evidence flow" }).click();
   const flow = page.getByTestId("flow");
   await expect(flow.getByText("osv.query", { exact: true })).toBeVisible();
-  await flow.getByText("cisa.kev.catalog", { exact: true }).hover();
-  await flow.getByRole("button", { name: "Focus cisa.kev.catalog" }).click();
+  await flow.getByTitle(/Logical source cisa\.kev\.catalog/).first().hover();
+  await flow.getByRole("button", { name: "Focus example.invalid" }).first().click();
   await expect(page).toHaveURL(/focus=source%3Acisa\.kev\.catalog/);
   await expect(flow.getByText("osv.query", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: /^Clear: Focused on/ }).click();
@@ -96,7 +96,7 @@ test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evi
   await expect(page.getByRole("table", { name: "Next" }).getByText("Blocking", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: /^sha256:aaaa/ }).click();
   await expect(page).toHaveURL(/\/p\/sha256%3Aa+$/);
-  await expect(page.getByText("lifecycle.state")).toBeVisible();
+  await expect(page.getByText("Approvals needed")).toBeVisible();
   await expect(page.getByRole("button", { name: /approve|activate|reject|withdraw/i })).toHaveCount(0);
   await page.locator("aside").getByRole("link", { name: "Ledger" }).click();
   await expect(page.getByRole("link", { name: "g42" })).toBeVisible();
@@ -109,11 +109,11 @@ test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evi
   await page.getByRole("link", { name: "kev-triage", exact: true }).click();
   await expect(page).toHaveURL(/\/lines\/kev-triage$/);
   await expect(page.getByText("Page 1 · 12 in all")).toBeVisible();
-  await expect(page.getByText(/otherwise propose/)).toBeVisible();
+  await expect(page.getByText(/else review/)).toBeVisible();
   // The Line's graph: its Trigger, its steps, a picked run's marks.
   const lineGraph = page.getByTestId("procedure-graph");
-  await expect(lineGraph.getByText("Daily at 06:00 UTC")).toBeVisible();
-  await expect(lineGraph.locator(".react-flow__node")).toHaveCount(7);
+  await expect(lineGraph.getByText(/^Daily at /)).toBeVisible();
+  await expect(lineGraph.locator(".react-flow__node")).toHaveCount(9); // the Trigger, its six steps and the two upstream nodes its read depends on
   await page.getByRole("combobox", { name: "Mark the steps with a run" }).selectOption("run-7");
   await expect(lineGraph.getByText("Refused · guard_refused")).toBeVisible();
   await page.getByRole("link", { name: "run-7", exact: true }).first().click();
