@@ -12,7 +12,8 @@ import { PanelGroup } from "@/components/graph/PanelBits";
 import { useAtLink } from "@/lib/at";
 import { captureHandle } from "@/lib/next-reasons";
 import { contractName } from "@/lib/ontology";
-import { callOutputs, listFields, listOutcome } from "@/lib/template";
+import { callOutputs, listFields, listOutcome, type ListMember } from "@/lib/template";
+import { MemberStatus, memberHover } from "@/components/ListMembers";
 import { stepAlias, type ProcedureSpec } from "@/lib/definitions";
 
 type CaptureCard = Schemas["GetCaptureCard"];
@@ -96,8 +97,28 @@ export function CaptureDerivation({ card, sources }: { card: CaptureCard; source
             labels="words"
             label="Reducer"
             fields={[
-              { key: "build", label: "Provider build", value: <ShortId value={reducer.provider_build} className="text-zinc-300" /> },
-              { key: "operation", label: "Operation", value: <ShortId value={reducer.operation_signature} className="text-zinc-300" /> },
+              {
+                key: "build",
+                label: "Provider",
+                value: reducer.provider ? (
+                  <span title={`build ${reducer.provider_build}`}>
+                    <RefLink value={reducer.provider} />
+                  </span>
+                ) : (
+                  <ShortId value={reducer.provider_build} className="text-zinc-300" />
+                ),
+              },
+              {
+                key: "operation",
+                label: "Operation",
+                value: reducer.operation ? (
+                  <span className="font-mono text-[12px] text-zinc-300" title={`signature ${reducer.operation_signature}`}>
+                    {reducer.operation}
+                  </span>
+                ) : (
+                  <ShortId value={reducer.operation_signature} className="text-zinc-300" />
+                ),
+              },
               { key: "implementation", label: "Implementation", value: <ShortId value={reducer.implementation} className="text-zinc-300" /> },
               { key: "template", label: "Input template", value: <ShortId value={reducer.input_template} className="text-zinc-300" /> },
               { key: "digest", label: "Reducer", value: <ShortId value={reducer.digest} className="text-zinc-300" /> },
@@ -110,23 +131,21 @@ export function CaptureDerivation({ card, sources }: { card: CaptureCard; source
 }
 
 interface Sibling {
-  /** The member's page index; null when the run does not serve it (never inferred from digest order). */
-  index: number | null;
+  /** The member as the run serves it (field, index, status, request digest); null when it serves none (never inferred from digest order). */
+  member: ListMember | null;
   digest: string | null;
-  requestUrl: string | null;
-  status: "kept" | "dropped" | null;
-  reason: string | null;
 }
 
 type CallNode = NonNullable<Schemas["GetProcedureRunCard"]["nodes"]>[number];
 type CallSummary = Extract<NonNullable<CallNode["summary"]>, { kind: "call" }>;
+type Call = { node: CallNode; summary: CallSummary };
 
-/** The call node of a run that returned this Capture: in its planned members, or its capture digests. */
-function callOf(run: Schemas["GetProcedureRunCard"] | null, digest: string): { node: string; summary: CallSummary } | null {
+/** The call node of a run that returned this Capture: in its served members, or its capture digests. */
+function callOf(run: Schemas["GetProcedureRunCard"] | null, digest: string): Call | null {
   for (const node of run?.nodes ?? []) {
     const summary = node.summary;
     if (summary?.kind !== "call") continue;
-    if ((summary.capture_digests ?? []).includes(digest) || listOutcome(summary)?.members.some((m) => m.capture === digest)) return { node: node.node, summary };
+    if ((summary.capture_digests ?? []).includes(digest) || listOutcome(node)?.members.some((m) => m.capture === digest)) return { node, summary };
   }
   return null;
 }
@@ -143,13 +162,13 @@ function callOf(run: Schemas["GetProcedureRunCard"] | null, digest: string): { n
  * (GET /head), then the Procedure card and the slot's out Contract card
  * there. Past the window, or any of them unread: no fields (unclassified).
  */
-function useCallFields(runId: string | null, run: Schemas["GetProcedureRunCard"] | null, call: { node: string; summary: CallSummary } | null, digest: string) {
-  const needed = call !== null && !listOutcome(call.summary)?.members.some((m) => m.capture === digest) && (call.summary.capture_digests ?? []).length > 1;
+function useCallFields(runId: string | null, run: Schemas["GetProcedureRunCard"] | null, call: Call | null, digest: string) {
+  const needed = call !== null && !listOutcome(call.node)?.members.some((m) => m.capture === digest) && (call.summary.capture_digests ?? []).length > 1;
   const state = useRunState(needed ? runId : null);
   const bound = state.data?.bound_coordinate;
   const procedure = useCardAt(needed && run && bound ? run.procedure : null, bound);
   const spec = cardOf(procedure.read.data, "procedure")?.authored ?? null;
-  const index = spec && call ? spec.steps.findIndex((step, i) => "call" in step && stepAlias(step, i) === call.node) : -1;
+  const index = spec && call ? spec.steps.findIndex((step, i) => "call" in step && stepAlias(step, i) === call.node.node) : -1;
   const step = index >= 0 ? (spec!.steps[index] as Extract<ProcedureSpec["steps"][number], { call: string }>) : null;
   const out = step ? spec!.slots?.[step.slot]?.out : undefined;
   const contract = useCardAt(out ? `Contract:${out.name}@${out.version}` : null, bound);
@@ -182,16 +201,16 @@ export function ListSiblings({ card }: { card: CaptureCard }) {
   const run = cardOf(useCard(runId ? `ProcedureRun:${runId}` : null).data, "procedure_run") ?? null;
   const call = useMemo(() => callOf(run, card.digest), [run, card.digest]);
   const fields = useCallFields(runId, run, call, card.digest);
-  const outputs = useMemo(() => (fields.isPending ? null : callOutputs(call?.summary, card.digest, fields.fields)), [call, card.digest, fields.isPending, fields.fields]);
+  const outputs = useMemo(() => (fields.isPending ? null : callOutputs(call?.node, card.digest, fields.fields)), [call, card.digest, fields.isPending, fields.fields]);
   const rows = useMemo<Sibling[]>(() => {
     if (!outputs) return [];
-    if (outputs.kind === "members") return outputs.members.map((m) => ({ index: m.index, digest: m.capture, requestUrl: m.requestUrl, status: m.status, reason: m.reason }));
-    return outputs.digests.map((digest) => ({ index: null, digest, requestUrl: null, status: null, reason: null }));
+    if (outputs.kind === "members") return outputs.members.map((m) => ({ member: m, digest: m.capture }));
+    return outputs.digests.map((digest) => ({ member: null, digest }));
   }, [outputs]);
   const paged = outputs?.kind === "members";
   const columns = useMemo<Column<Sibling>[]>(
     () => [
-      ...(paged ? [{ id: "index", header: "Page", numeric: true, className: "font-mono text-zinc-500", cell: (s: Sibling) => s.index }] : []),
+      ...(paged ? [{ id: "index", header: "#", numeric: true, className: "font-mono text-zinc-500", cell: (s: Sibling) => <span title={s.member ? memberHover(s.member) : undefined}>{s.member?.index}</span> }] : []),
       {
         id: "capture",
         header: "Capture",
@@ -208,15 +227,7 @@ export function ListSiblings({ card }: { card: CaptureCard }) {
           ),
       },
       ...(paged
-        ? [
-            { id: "request", header: "Request URL", className: "break-all font-mono text-[12px] text-zinc-400", cell: (s: Sibling) => s.requestUrl ?? "—" },
-            {
-              id: "status",
-              header: "Status",
-              className: "whitespace-nowrap",
-              cell: (s: Sibling) => <span className={s.status === "dropped" ? "text-red-400/90" : "text-zinc-300"}>{s.status}{s.reason ? ` · ${s.reason}` : ""}</span>,
-            },
-          ]
+        ? [{ id: "status", header: "Status", className: "whitespace-nowrap", cell: (s: Sibling) => (s.member ? <MemberStatus member={s.member} /> : null) }]
         : []),
     ],
     [card.digest, paged],
@@ -228,7 +239,7 @@ export function ListSiblings({ card }: { card: CaptureCard }) {
     outputs.kind === "members"
       ? { title: "Fetched with", description: "The list this Capture is a member of: every member of the same fetch, in the provider's order.", label: "List members" }
       : outputs.kind === "field"
-        ? { title: "Fetched with", description: `The list this Capture is a member of (${outputs.field}). The run serves no page index or request URL per member.`, label: "List members" }
+        ? { title: "Fetched with", description: `The list this Capture is a member of (${outputs.field}). The run serves no index per member.`, label: "List members" }
         : { title: "Other outputs of this call", description: "Captures the same call returned. The run serves no output field or list membership for them.", label: "Other outputs of this call" };
   return (
     <Panel
@@ -239,11 +250,11 @@ export function ListSiblings({ card }: { card: CaptureCard }) {
           <Link to={link(`/i/${instanceId}/runs/${encodeURIComponent(runId)}`)} className="font-mono hover:underline" title={`Run ${runId}`}>
             {runId}
           </Link>
-          <span className="font-mono">{call.node}</span>
+          <span className="font-mono">{call.node.node}</span>
         </span>
       }
     >
-      <DataTable rows={rows} columns={columns} rowKey={(s) => s.digest ?? `${s.index}`} label={heading.label} toolbar={false} maxHeight="none" />
+      <DataTable rows={rows} columns={columns} rowKey={(s) => s.digest ?? `${s.member?.field}\n${s.member?.index}`} label={heading.label} toolbar={false} maxHeight="none" />
     </Panel>
   );
 }

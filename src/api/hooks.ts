@@ -43,7 +43,7 @@ import type {
   ProposalStatus,
 } from "./schemas";
 import { cardOf } from "./schemas";
-import { isOutsideRetention, useAtParam } from "@/lib/at";
+import { isOutsideRetention, RETAINED_GENERATIONS, useAtParam } from "@/lib/at";
 import { useSettings } from "@/lib/settings";
 import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
 import { ontologyKinds } from "@/lib/type-graph";
@@ -197,6 +197,14 @@ export function useActivity(cursor?: string) {
     staleTime: 15_000,
     queryFn: () => orient(coordinate!, { section: "activity", limit: ACTIVITY_PAGE, ...(cursor !== undefined ? { cursor } : {}) }),
   });
+}
+
+/**
+ * The generations the daemon retains (orient's `retention_generations`), or
+ * core's default while orient has not answered or serves none.
+ */
+export function useRetention(): number {
+  return useOrient().data?.retention_generations ?? RETAINED_GENERATIONS;
 }
 
 /** The orient map's first page: kinds with counts, artifact counts, attention, floor, you. */
@@ -1033,7 +1041,7 @@ export function useCoordinatesAt(oids: readonly string[]) {
  * history)) on a routine page visit. The signal: GET /head?at=<oid> (its
  * generation) and GET /head (the latest head's), both answered from accepted
  * history without binding a projection; retained when within the newest
- * RETAINED_GENERATIONS (core's retention, which no route serves).
+ * generations the daemon retains (`useRetention`: orient's window, else core's default).
  *
  * Only a fresh head authorizes: a successful head read that is neither stale
  * nor being refetched (a cached head can trail the daemon's, whose newer
@@ -1046,6 +1054,7 @@ export type Retention = "retained" | "outside" | "checking";
 
 export function useRetainedAt(oids: readonly string[]) {
   const latest = useHead(null);
+  const window = useRetention();
   const unique = [...new Set(oids)].sort();
   const head = latest.data;
   const fresh = latest.isSuccess && !latest.isFetching && !latest.isStale;
@@ -1066,12 +1075,12 @@ export function useRetainedAt(oids: readonly string[]) {
       else {
         const generation = at.generations.get(oid);
         if (generation === undefined) status.set(oid, "checking");
-        else status.set(oid, isOutsideRetention(generation, head.generation) ? "outside" : "retained");
+        else status.set(oid, isOutsideRetention(generation, head.generation, window) ? "outside" : "retained");
       }
     }
     return { status, checking: [...status.values()].includes("checking") };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the oids and what the reads returned
-  }, [key, fresh, head, latest.isError, at.generations, at.failed]);
+  }, [key, fresh, head, latest.isError, at.generations, at.failed, window]);
 }
 
 /**

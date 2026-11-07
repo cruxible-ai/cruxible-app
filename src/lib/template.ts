@@ -30,7 +30,6 @@ export type Grades = ReadonlyMap<string, string>;
 
 const record = (value: unknown): Record<string, unknown> | null =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-const str = (value: unknown): string | null => (typeof value === "string" && value !== "" ? value : null);
 
 type CallStep = Extract<ProcedureStep, { call: string }>;
 
@@ -159,16 +158,18 @@ export function listFields(card: Pick<Schemas["GetContractCard"], "fields"> | nu
 }
 
 /**
- * One member of a list fetch on a run (planned on the run card's call
- * summary: `members`, `incomplete_captures`; read defensively). A kept
- * member is a Capture; a dropped one (oversized, or refused by the origin
- * gate) is not, and makes the list incomplete.
+ * One member of a list fetch on a run (the run card's call node: `members`,
+ * `members_truncated`, `incomplete_captures`; D-R37 a). `selected` is a member
+ * core committed as a Capture; `omitted`, `defaulted` or `refused` is one it
+ * did not keep, and makes the list incomplete. `request` is the member's
+ * identity (the request digest its coordinate carries).
  */
 export interface ListMember {
+  field: string;
   index: number;
   capture: string | null;
-  requestUrl: string | null;
-  status: "kept" | "dropped";
+  request: string | null;
+  status: Schemas["GetRunListMember"]["status"];
   reason: string | null;
 }
 
@@ -176,37 +177,29 @@ export interface ListOutcome {
   members: ListMember[];
   kept: number;
   dropped: number;
+  /** The node served at most its bound of members: more were journaled. */
+  truncated: boolean;
   /** The list fields the provider itself said are missing members (its result's `incomplete_captures`). */
   providerIncomplete: string[];
 }
 
-type CallSummary = Extract<NonNullable<Schemas["GetRunNode"]["summary"]>, { kind: "call" }>;
+type RunNode = Pick<Schemas["GetRunNode"], "members" | "members_truncated" | "incomplete_captures">;
 
-/** A call summary's list outcome; null when the summary serves no members and no provider word. */
-export function listOutcome(summary: CallSummary | null | undefined): ListOutcome | null {
-  if (!summary) return null;
-  const planned = summary as CallSummary & { members?: unknown; incomplete_captures?: unknown };
-  const members: ListMember[] = [];
-  if (Array.isArray(planned.members)) {
-    planned.members.forEach((raw, i) => {
-      const m = record(raw);
-      if (!m) return;
-      const status = m.status === "dropped" ? "dropped" : "kept";
-      members.push({
-        index: typeof m.index === "number" ? m.index : i,
-        capture: str(m.capture_digest),
-        requestUrl: str(m.request_url),
-        status,
-        reason: str(m.reason),
-      });
-    });
-  }
-  const providerIncomplete = Array.isArray(planned.incomplete_captures)
-    ? planned.incomplete_captures.filter((f): f is string => typeof f === "string")
-    : [];
+/** A call node's list outcome; null when the node serves no members and no provider word. */
+export function listOutcome(node: RunNode | null | undefined): ListOutcome | null {
+  if (!node) return null;
+  const members: ListMember[] = (node.members ?? []).map((m) => ({
+    field: m.field,
+    index: m.index,
+    capture: m.capture ?? null,
+    request: m.request ?? null,
+    status: m.status,
+    reason: m.reason ?? null,
+  }));
+  const providerIncomplete = node.incomplete_captures ?? [];
   if (members.length === 0 && providerIncomplete.length === 0) return null;
-  const dropped = members.filter((m) => m.status === "dropped").length;
-  return { members, kept: members.length - dropped, dropped, providerIncomplete };
+  const kept = members.filter((m) => m.status === "selected").length;
+  return { members, kept, dropped: members.length - kept, truncated: node.members_truncated === true, providerIncomplete };
 }
 
 /**
@@ -214,7 +207,7 @@ export function listOutcome(summary: CallSummary | null | undefined): ListOutcom
  * `capture_digests` hold every Capture it returned, list members and scalar
  * Capture fields alike, so list membership is claimed only where it is known:
  *
- * - `members`: the summary's planned members name this Capture (pages known);
+ * - `members`: the call node's served members name this Capture (index known);
  * - `field`: the call has exactly one Capture field and its out Contract types
  *   it a list, so every digest is a member (their pages are not served);
  * - `unclassified`: anything else, the call's other outputs, unlabelled.
@@ -229,12 +222,13 @@ export type CallOutputs =
   | { kind: "unclassified"; digests: string[] };
 
 export function callOutputs(
-  summary: CallSummary | null | undefined,
+  node: (RunNode & { summary?: Schemas["GetRunNode"]["summary"] }) | null | undefined,
   digest: string,
   fields: { captures: readonly string[]; lists: readonly string[] } | null,
 ): CallOutputs | null {
+  const summary = node?.summary?.kind === "call" ? node.summary : null;
   if (!summary) return null;
-  const list = listOutcome(summary);
+  const list = listOutcome(node);
   if (list && list.members.some((m) => m.capture === digest)) return { kind: "members", members: list.members };
   const digests = summary.capture_digests ?? [];
   if (digests.length < 2 || !digests.includes(digest)) return null;

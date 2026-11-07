@@ -1,4 +1,5 @@
 import type { Schemas } from "../api/schemas.ts";
+import { listOutcome, type ListOutcome } from "./template.ts";
 import { term, type Term } from "./vocabulary.ts";
 
 /**
@@ -29,6 +30,8 @@ export interface StepMark {
   provider: string | null;
   /** What flowed through the node, from the run card (absent for older runs, a refusal or a kind that keeps none). */
   summary?: RunSummary | null;
+  /** A list call's members, as the run card's node serves them (index, Capture, status). */
+  list?: ListOutcome | null;
 }
 
 export interface RunMarks {
@@ -73,12 +76,14 @@ export function runMarks(nodeIds: readonly string[], card: RunCard, state: RunSt
     if (note) notes.push(note);
     // A signal (refused, failed, waiting) wins over a plain word.
     const keep = prev && prev.term.signal && !t.signal ? prev.term : t;
-    marks.set(node, { term: keep, notes, hints: prev?.hints ?? [], provider: providers.get(node) ?? prev?.provider ?? null, summary: prev?.summary ?? null });
+    marks.set(node, { term: keep, notes, hints: prev?.hints ?? [], provider: providers.get(node) ?? prev?.provider ?? null, summary: prev?.summary ?? null, list: prev?.list ?? null });
   };
   const cardNodes = card.nodes ?? [];
   for (const n of cardNodes) {
     mark(n.node, n.verdict ? term("run", n.verdict) : term("step", "fired"));
     if (n.summary) marks.get(n.node)!.summary = n.summary;
+    const list = listOutcome(n);
+    if (list) marks.get(n.node)!.list = list;
   }
   // The journal's fired nodes: every node the run finished, past the card's latest few.
   for (const outcome of state?.outcomes ?? []) {
@@ -108,6 +113,7 @@ export function runMarks(nodeIds: readonly string[], card: RunCard, state: RunSt
       hints: [...(prev?.hints ?? []), `${e.word}: ${authority}`],
       provider: prev?.provider ?? null,
       summary: prev?.summary ?? null,
+      list: prev?.list ?? null,
     });
   }
   const reads = new Map<string, number>();

@@ -31,24 +31,26 @@ describe("the Procedure template", () => {
   it("finds a list of Captures in a slot's out Contract, and a run's kept, dropped and provider-incomplete members", () => {
     expect(listFields({ fields: [{ name: "pages", type: "list<capture<*>>{max_items: 20}" }, { name: "capture", type: "capture<*>" }] })).toEqual([{ field: "pages", maxItems: 20 }]);
     const outcome = listOutcome({
-      kind: "call",
-      captures: 2,
       members: [
-        { index: 0, capture_digest: "sha256:a", status: "kept" },
-        { index: 1, capture_digest: null, status: "dropped", reason: "oversized", request_url: "https://x/?page=2" },
+        { field: "pages", index: 0, capture: "sha256:a", request: "sha256:r0", status: "selected" },
+        { field: "pages", index: 1, capture: null, request: "sha256:r1", status: "omitted", reason: "oversized" },
       ],
+      members_truncated: true,
       incomplete_captures: ["pages"],
-    } as never);
-    expect(outcome).toMatchObject({ kept: 1, dropped: 1, providerIncomplete: ["pages"] });
-    expect(outcome!.members[1]).toMatchObject({ status: "dropped", reason: "oversized", requestUrl: "https://x/?page=2" });
-    // an old run's summary serves neither
-    expect(listOutcome({ kind: "call", captures: 1 })).toBeNull();
+    });
+    expect(outcome).toMatchObject({ kept: 1, dropped: 1, truncated: true, providerIncomplete: ["pages"] });
+    expect(outcome!.members[1]).toMatchObject({ field: "pages", status: "omitted", reason: "oversized", request: "sha256:r1", capture: null });
+    // an old run's node serves neither
+    expect(listOutcome({})).toBeNull();
   });
 
   it("calls a call's other Captures list members only when membership is known", () => {
-    const call = (digests: string[], members?: unknown[]) => ({ kind: "call" as const, captures: digests.length, capture_digests: digests, ...(members ? { members } : {}) }) as never;
-    // planned members: pages known
-    expect(callOutputs(call(["a", "b"], [{ index: 0, capture_digest: "a", status: "kept" }, { index: 1, capture_digest: "b", status: "kept" }]), "b", null)).toMatchObject({ kind: "members", members: [{ index: 0 }, { index: 1 }] });
+    const call = (digests: string[], members?: unknown[]) =>
+      ({ summary: { kind: "call" as const, captures: digests.length, capture_digests: digests }, ...(members ? { members } : {}) }) as never;
+    // served members: index known
+    expect(
+      callOutputs(call(["a", "b"], [{ field: "pages", index: 0, capture: "a", status: "selected" }, { field: "pages", index: 1, capture: "b", status: "selected" }]), "b", null),
+    ).toMatchObject({ kind: "members", members: [{ index: 0 }, { index: 1 }] });
     // one Capture field, list-typed: members without pages
     expect(callOutputs(call(["a", "b"]), "a", { captures: ["pages"], lists: ["pages"] })).toEqual({ kind: "field", field: "pages", digests: ["a", "b"] });
     // two scalar Capture fields: unclassified

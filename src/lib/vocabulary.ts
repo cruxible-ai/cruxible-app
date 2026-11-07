@@ -195,6 +195,7 @@ const HEALTH: Record<string, Term> = {
   due: t("Due", "Due: work is waiting for dispatch", "waiting"),
   lagging: t("Lagging", "Lagging: behind the head; it catches up on its own", "waiting"),
   behind: t("Behind", "Behind: the mirror has generations to publish", "waiting"),
+  never_published: t("Never published", "Never published: nothing has reached the mirror yet; restore the remote or its credential", "waiting"),
   upgrade_available: t("Upgrade available", "Upgrade available: upgrade on the CLI", "waiting"),
   claim_type_upgrade_available: t(
     "ClaimType upgrade available",
@@ -264,6 +265,40 @@ const PROVIDER: Record<string, Term> = {
   missing: t("Missing", "Missing: install the kit's Providers", "wrong"),
 };
 
+/** A list fetch's member, as core decided it (a run card's call node). */
+const MEMBER: Record<string, Term> = {
+  selected: t("Kept", "Kept: committed as a Capture"),
+  omitted: t("Dropped", "Dropped: not committed, so the list is incomplete", "wrong"),
+  defaulted: t("Defaulted", "Defaulted: a default stands in for it, so the list is incomplete", "wrong"),
+  refused: t("Refused", "Refused: core refused it, so the list is incomplete", "wrong"),
+};
+
+/** A Runbook step's target, as the Runbook card reads it at the page's generation. */
+const RUNBOOK_STEP: Record<string, Term> = {
+  available: t("Available", "Available: the step can run"),
+  line_missing: t("Line missing", "Line missing: no accepted Line has this name", "wrong"),
+  line_retired: t("Line retired", "Line retired: the Line no longer runs", "wrong"),
+  line_takes_event: t("Takes an event", "Takes an event: the Line starts on a landing or an accepted generation, not by hand", "wrong"),
+  action_unregistered: t("Action unregistered", "Action unregistered: no action of this name is registered", "wrong"),
+};
+
+/** A Runbook run, and what one of its steps did. */
+const RUNBOOK_RUN: Record<string, Term> = {
+  completed: t("Completed", "Completed: every step ran"),
+  stopped: t("Stopped", "Stopped: a step did not finish; the stop reason says why", "wrong"),
+  succeeded: t("Succeeded", "Succeeded: the step's Line run finished"),
+  proposed: t("Proposed", "Proposed: the step's run produced a proposal, which waits for review", "waiting"),
+  failed: t("Failed", "Failed: the step's run failed or was refused", "wrong"),
+  not_enabled: t("Not enabled", "Not enabled: the step's Line is not enabled", "wrong"),
+  unavailable: t("Unavailable", "Unavailable: the step's target cannot run", "wrong"),
+  fired: t("Fired", "Fired: the action was fired"),
+  not_run: t("Not run", "Not run: the run stopped before this step"),
+  step_failed: t("Step failed", "Step failed: a step's run failed or was refused"),
+  step_proposed: t("Step proposed", "Step proposed: a step's run produced a proposal, so later steps wait for it"),
+  line_not_enabled: t("Line not enabled", "Line not enabled: a step's Line is not enabled"),
+  target_unavailable: t("Target unavailable", "Target unavailable: a step's target cannot run"),
+};
+
 /** Lifecycle of definitions (kinds, contracts, Subjects). */
 const LIFECYCLE: Record<string, Term> = {
   live: ok("Live", "Live: in accepted state"),
@@ -290,6 +325,9 @@ export const VOCABULARY = {
   reading: READING,
   provider: PROVIDER,
   lifecycle: LIFECYCLE,
+  member: MEMBER,
+  runbookStep: RUNBOOK_STEP,
+  runbookRun: RUNBOOK_RUN,
 } as const;
 
 export type Concept = keyof typeof VOCABULARY;

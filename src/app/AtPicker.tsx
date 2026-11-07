@@ -3,11 +3,11 @@ import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, History, TriangleAlert } from "lucide-react";
-import { HELD_HEAD_KEY, useHead, useInstanceId, useOrient, usePin, useRecentGenerations } from "@/api/hooks";
+import { HELD_HEAD_KEY, useHead, useInstanceId, useOrient, usePin, useRecentGenerations, useRetention } from "@/api/hooks";
 import type { Schemas } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
 import { readProposalOrigin } from "@/components/ProposalChanges";
-import { AT_PARAM, isOutsideRetention, parseAt, RETAINED_GENERATIONS, useAtLink, useRawAtParam } from "@/lib/at";
+import { AT_PARAM, isOutsideRetention, parseAt, useAtLink, useRawAtParam } from "@/lib/at";
 import { useSettings } from "@/lib/settings";
 import { formatWhen } from "@/lib/text";
 import { term } from "@/lib/vocabulary";
@@ -40,12 +40,13 @@ export function AtPicker() {
   const list = useRef<HTMLDivElement>(null);
 
   const headGeneration = latest.data?.generation;
+  const retention = useRetention();
   const pinned = pin.at !== null;
   const held = !pinned && !settings.followHead;
   const behind = held && pin.generation !== undefined && headGeneration !== undefined && headGeneration > pin.generation;
   const outside =
     pinned && pin.generation !== undefined && headGeneration !== undefined
-      ? isOutsideRetention(pin.generation, headGeneration)
+      ? isOutsideRetention(pin.generation, headGeneration, retention)
       : false;
 
   useEffect(() => {
@@ -77,9 +78,9 @@ export function AtPicker() {
     if (
       parsed?.kind === "generation" &&
       headGeneration !== undefined &&
-      isOutsideRetention(parsed.generation, headGeneration) &&
+      isOutsideRetention(parsed.generation, headGeneration, retention) &&
       !window.confirm(
-        `Generation ${parsed.generation} is older than the last ${RETAINED_GENERATIONS} the daemon ` +
+        `Generation ${parsed.generation} is older than the last ${retention} the daemon ` +
           "keeps ready; binding it rebuilds that generation's projection (slow). Continue?",
       )
     ) {
@@ -137,7 +138,7 @@ export function AtPicker() {
       {outside && (
         <div className="mt-1 flex items-start gap-1 text-zinc-400">
           <TriangleAlert className="mt-px h-3 w-3 shrink-0" />
-          Older than the {RETAINED_GENERATIONS} retained generations: reads rebuild its projection.
+          Older than the {retention} retained generations: reads rebuild its projection.
         </div>
       )}
 

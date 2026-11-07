@@ -13,8 +13,7 @@
  * - run-t1: every page kept; Claims written, revised, re-observed, retired,
  *   a Subject created; each item with its identity, change kind and digest.
  * - run-t2: one page dropped (oversized) and the provider's own word that the
- *   list is incomplete (planned call-summary fields `members`,
- *   `incomplete_captures`).
+ *   list is incomplete (the call node's `members`, `incomplete_captures`).
  * - Captures: three list members (restricted kind), the derived view (its
  *   restriction inherited) and the derived fixes, each with its derivation
  *   manifest; a list absence witness citing every member; the Subject page's
@@ -354,23 +353,25 @@ const LINES: RecordedFixture[] = [
 
 // -- runs -----------------------------------------------------------------------------
 
-const member = (index: number, capture: string | null, status: "kept" | "dropped", reason?: string) => ({
+const member = (index: number, capture: string | null, status: Schemas["GetRunListMember"]["status"], reason?: string): Schemas["GetRunListMember"] => ({
+  field: "pages",
   index,
-  capture_digest: capture,
-  request_url: PAGE_URL(index + 1),
+  capture,
+  request: D((0x70 + index).toString(16)),
   status,
   ...(reason ? { reason } : {}),
 });
 
-/** A call summary with the planned list fields (members, incomplete_captures). */
-const listSummary = (members: ReturnType<typeof member>[], incomplete: string[] = []) =>
-  ({
+/** A list call node's summary and its served list fields (members, incomplete_captures). */
+const listCall = (members: Schemas["GetRunListMember"][], incomplete: string[] = []) => ({
+  summary: {
     kind: "call",
-    captures: members.filter((m) => m.capture_digest).length,
-    capture_digests: members.flatMap((m) => (m.capture_digest ? [m.capture_digest] : [])),
-    members,
-    ...(incomplete.length ? { incomplete_captures: incomplete } : {}),
-  }) as Schemas["CallRunSummary"];
+    captures: members.filter((m) => m.capture).length,
+    capture_digests: members.flatMap((m) => (m.capture ? [m.capture] : [])),
+  } as Schemas["CallRunSummary"],
+  members,
+  ...(incomplete.length ? { incomplete_captures: incomplete } : {}),
+});
 
 const child = (index: number, path: string, change: NonNullable<Schemas["ProcedureTerminalEgressChild"]["change_kind"]>): Schemas["ProcedureTerminalEgressChild"] => ({
   child_index: index,
@@ -397,7 +398,7 @@ export const RUN_T1_CARD: Schemas["GetProcedureRunCard"] = {
   triggered_by: { line: `Line:${TEMPLATE_LINE}`, occurrence: "occ-2026-10-19T00", enablement: "enb-t", principal_kind: "runtime_credential", enabled_by_withheld: true },
   nodes: [
     { node: "watched", kind: "read", verdict: "ok", sequence: 1, duration_us: 30_000, summary: { kind: "read", rows: 3 } },
-    { node: "pages", kind: "call", verdict: "ok", sequence: 2, duration_us: 2_100_000, summary: listSummary([member(0, P1, "kept"), member(1, P2, "kept"), member(2, P3, "kept")]) },
+    { node: "pages", kind: "call", verdict: "ok", sequence: 2, duration_us: 2_100_000, ...listCall([member(0, P1, "selected"), member(1, P2, "selected"), member(2, P3, "selected")]) },
     { node: "view", kind: "call", verdict: "ok", sequence: 3, duration_us: 400_000, summary: { kind: "call", captures: 1, capture_digests: [VIEW] } },
     { node: "fixes", kind: "call", verdict: "ok", sequence: 4, duration_us: 300_000, summary: { kind: "call", captures: 1, capture_digests: [FIXES] } },
     { node: "entries", kind: "extract", verdict: "ok", sequence: 5, duration_us: 20_000, summary: { kind: "extract", records: 3, invalid_records: 0, duplicates: 0, invalid_fields: 0, complete: true } },
@@ -449,7 +450,7 @@ export const RUN_T2_CARD: Schemas["GetProcedureRunCard"] = {
       verdict: "ok",
       sequence: 2,
       duration_us: 2_000_000,
-      summary: listSummary([member(0, P4, "kept"), member(1, null, "dropped", "oversized"), member(2, P5, "kept")], ["pages"]),
+      ...listCall([member(0, P4, "selected"), member(1, null, "omitted", "oversized"), member(2, P5, "selected")], ["pages"]),
     },
     { node: "view", kind: "call", verdict: "ok", sequence: 3, duration_us: 350_000, summary: { kind: "call", captures: 1, capture_digests: [VIEW_2] } },
     { node: "fixes", kind: "call", verdict: "ok", sequence: 4, duration_us: 300_000, summary: { kind: "call", captures: 1, capture_digests: [FIXES_2] } },
@@ -523,6 +524,8 @@ const RUNS: RecordedFixture[] = [
 
 const reducer = (op: string): Schemas["GetCaptureReducer"] => ({
   digest: D(`9${op}`),
+  provider: "Provider:security-advisory-provider/5b5b5b5b",
+  operation: op === "a" ? "advisory.view" : "advisory.fixes",
   provider_build: D("5b"),
   operation_signature: D(`8${op}`),
   implementation: D("5d"),

@@ -22,7 +22,8 @@ import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
 import { GENERIC_STEP_COLOR, ROLE_COLOR, STAGE_COLOR } from "@/lib/palette";
 import { contractName } from "@/lib/ontology";
-import { listFields, listOutcome, stageOf, STAGES, type ListField, type Stage } from "@/lib/template";
+import { listFields, stageOf, STAGES, type ListField, type ListMember, type Stage } from "@/lib/template";
+import { MemberStatus, memberHover } from "@/components/ListMembers";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { captureHandle } from "@/lib/next-reasons";
@@ -399,7 +400,7 @@ export function ProcedureGraph({
         const names = [...new Set(node.unresolved.map((r) => r.name))];
         lines.push({ text: `names ${names.join(", ")}`, title: `${names.join(", ")}: no step of this Procedure declares ${names.length === 1 ? "it" : "them"}`, tone: "dim" });
       }
-      const markWords = mark?.summary ? summaryWords(mark.summary) : null;
+      const markWords = mark?.summary ? summaryWords(mark.summary, mark.list ?? null) : null;
       const word = term("stepKind", kind);
       out.set(node.id, { role: node.role, stage, kindWord: word.word, kindMeaning: word.meaning, name, brief, lines, mark, markWords });
     }
@@ -686,13 +687,13 @@ function StepPanel({ view, stage, sections, mark }: { view: StepView; stage: Sta
   const instanceId = useInstanceId();
   const link = useAtLink();
   const kind = stage ? { word: sentence(stage) } : term("stepKind", view.kind);
-  const members = mark?.summary?.kind === "call" ? listOutcome(mark.summary) : null;
+  const members = mark?.list ?? null;
   const route = (ref: string | undefined) => {
     const parsed = ref ? parseRef(ref) : null;
     const to = parsed ? refRoute(instanceId, parsed) : null;
     return to ? link(to) : undefined;
   };
-  const words = mark?.summary ? summaryWords(mark.summary) : null;
+  const words = mark?.summary ? summaryWords(mark.summary, mark.list ?? null) : null;
   return (
     <div>
       <PanelHeading kicker={kind.word} title={view.id} />
@@ -778,6 +779,7 @@ function StepPanel({ view, stage, sections, mark }: { view: StepView; stage: Sta
       {members && members.members.length > 0 && (
         <PanelGroup title="Members">
           <ListMembers members={members.members} />
+          {members.truncated && <div className="mt-1 text-[12px] text-zinc-400">More members than the run card lists</div>}
           {members.providerIncomplete.length > 0 && (
             <div className="mt-1 text-[12px] text-zinc-400" title="The provider's result named these list fields in incomplete_captures">
               Incomplete (provider): <span className="font-mono">{members.providerIncomplete.join(", ")}</span>
@@ -789,30 +791,25 @@ function StepPanel({ view, stage, sections, mark }: { view: StepView; stage: Sta
   );
 }
 
-type Member = NonNullable<ReturnType<typeof listOutcome>>["members"][number];
+type Member = ListMember;
 
-/** The panel is narrow: a member's request URL is on hover of its index and Capture. */
+/** The panel is narrow: a member's request digest is on hover of its index and Capture. */
 const MEMBER_COLUMNS: Column<Member>[] = [
-  { id: "index", header: "#", numeric: true, className: "font-mono text-zinc-500", cell: (m) => <span title={m.requestUrl ?? undefined}>{m.index}</span> },
+  { id: "index", header: "#", numeric: true, className: "font-mono text-zinc-500", cell: (m) => <span title={memberHover(m)}>{m.index}</span> },
   {
     id: "capture",
     header: "Capture",
     className: "whitespace-nowrap",
     cell: (m) => (
-      <span title={m.requestUrl ?? undefined}>{m.capture ? <RefLink value={captureHandle(m.capture)} /> : <span className="text-zinc-600">—</span>}</span>
+      <span title={memberHover(m)}>{m.capture ? <RefLink value={captureHandle(m.capture)} /> : <span className="text-zinc-600">—</span>}</span>
     ),
   },
-  {
-    id: "status",
-    header: "Status",
-    className: "whitespace-nowrap",
-    cell: (m) => <span className={m.status === "dropped" ? "text-red-400/90" : "text-zinc-300"} title={m.reason ?? undefined}>{m.status}{m.reason ? ` · ${m.reason}` : ""}</span>,
-  },
+  { id: "status", header: "Status", className: "whitespace-nowrap", cell: (m) => <MemberStatus member={m} /> },
 ];
 
-/** A list fetch's members on a run: index, Capture (kept), status; the request URL on hover. */
+/** A list fetch's members on a run: index, Capture (kept), status; the field and request digest on hover. */
 function ListMembers({ members }: { members: Member[] }) {
-  return <DataTable rows={members} columns={MEMBER_COLUMNS} rowKey={(m) => String(m.index)} label="Members" toolbar={false} maxHeight="none" />;
+  return <DataTable rows={members} columns={MEMBER_COLUMNS} rowKey={(m) => `${m.field}\n${m.index}`} label="Members" toolbar={false} maxHeight="none" />;
 }
 
 /** The Queries a Procedure's read steps name, read with their row Contracts: what each read returns. */

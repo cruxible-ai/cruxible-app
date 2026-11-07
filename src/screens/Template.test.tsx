@@ -7,7 +7,7 @@ import { defineFixture } from "@/fixtures/fixture";
 import { COORDINATE } from "@/fixtures/authored/world";
 import { headQuery } from "@/api/requests";
 import { server } from "@/test/msw-server";
-import { BODY, FIXES, FIXES_KIND, G40, G41, HEAD_MOVED_ON, HEADERS, LATER_REVISION, P1, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_PROCEDURE, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, REVISED_CLAIM, RUN_PAIR, RUN_T0, RUN_T1, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
+import { BODY, FIXES, FIXES_KIND, G40, G41, HEAD_MOVED_ON, HEADERS, LATER_REVISION, P1, PAIR_DEFINED_AT_BOUND, PAIR_LIST_AT_BOUND, PAIR_PROCEDURE, PAIR_REVISED_AT_HEAD, P2, P3, PROPOSAL_L, PROPOSAL_T, REVISED_CLAIM, RUN_PAIR, RUN_T0, RUN_T1, RUN_T2, SCALAR_PAIR, TEMPLATE_LINE, TEMPLATE_WORLD, VIEW, WITHHELD_SOURCE } from "@/fixtures/template";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -66,9 +66,26 @@ describe("D-R37 template: the step graph", () => {
     await waitFor(() => expect(within(node("pages")).getByText("2 kept · 1 dropped · incomplete")).toBeInTheDocument(), SLOW);
     fireEvent.click(within(node("pages")).getByText("pages"));
     const members = within(await screen.findByRole("table", { name: "Members" }, SLOW));
-    expect(members.getByText("dropped · oversized")).toBeInTheDocument();
-    expect(members.getAllByText("kept")).toHaveLength(2);
+    expect(members.getByText("Dropped")).toBeInTheDocument();
+    expect(members.getByText("oversized")).toBeInTheDocument();
+    expect(members.getAllByText("Kept")).toHaveLength(2);
     expect(screen.getByText(/Incomplete \(provider\)/)).toBeInTheDocument();
+  });
+});
+
+describe("D-R37 template: the run page", () => {
+  it("lists a list call's members with their status, and the run's completeness with each reason", async () => {
+    renderApp(`${I}/runs/${RUN_T2}`, TEMPLATE_WORLD);
+    const main = within(await screen.findByRole("main"));
+    // a dropped member opens its list
+    const members = within(await main.findByRole("table", { name: "Members of pages" }, SLOW));
+    expect(members.getByText("Dropped")).toBeInTheDocument();
+    expect(members.getAllByText("Kept")).toHaveLength(2);
+    expect(main.getByText("3 list members: 2 kept, 1 not, incomplete")).toBeInTheDocument();
+    expect(main.getByText(/Incomplete \(provider\)/)).toBeInTheDocument();
+    const reasons = within(main.getByRole("table", { name: "Completeness reasons" }));
+    expect(reasons.getByText("Incomplete input")).toBeInTheDocument();
+    expect(main.getByText("Incomplete")).toBeInTheDocument();
   });
 });
 
@@ -78,19 +95,21 @@ describe("D-R37 template: Captures", () => {
     const main = within(await screen.findByRole("main"));
     const from = within((await main.findByText("Derived from")).closest("section")!);
     for (const d of [P1, P2, P3]) expect(await from.findByRole("link", { name: handle(d) })).toBeInTheDocument();
-    expect(from.getByText("Provider build")).toBeInTheDocument();
-    expect(from.getByText("Operation")).toBeInTheDocument();
+    expect(from.getByText("Provider")).toBeInTheDocument();
+    expect(from.getByRole("link", { name: "Provider:security-advisory-provider/5b5b5b5b" })).toBeInTheDocument();
+    expect(from.getByText("advisory.view")).toBeInTheDocument();
     expect(await main.findByText(/restricted \(inherited from/)).toBeInTheDocument();
     const access = (await main.findByText(/restricted \(inherited from/)).closest("span")!;
     expect(within(access).getByRole("link", { name: "security.advisory-page" })).toHaveAttribute("href", `${I}/contracts/security.advisory-page`);
   });
 
-  it("a list member shows its siblings from the same fetch, each with its request URL and page", async () => {
+  it("a list member shows its siblings from the same fetch, each with its index and status", async () => {
     renderApp(`${I}/ref/${handle(P2)}`, TEMPLATE_WORLD);
     const table = within(await screen.findByRole("table", { name: "List members" }, SLOW));
     expect(table.getByRole("link", { name: handle(P1) })).toBeInTheDocument();
     expect(table.getByText(handle(P2))).toBeInTheDocument(); // itself, unlinked
-    expect(table.getByText("https://vendor.example/advisories?page=3")).toBeInTheDocument();
+    expect(table.getAllByText("Kept")).toHaveLength(3);
+    expect(table.getByText("2").closest("span")).toHaveAttribute("title", expect.stringContaining("pages[2]"));
     expect(screen.getByRole("link", { name: RUN_T1 })).toHaveAttribute("href", `${I}/runs/${RUN_T1}`);
   });
 

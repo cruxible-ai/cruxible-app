@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useCard, useClaimViewsAt, useCoordinatesAt, useInstanceId, useReview, useRunState } from "@/api/hooks";
+import { useCard, useClaimViewsAt, useCoordinatesAt, useInstanceId, useRetention, useReview, useRunState } from "@/api/hooks";
 import { cardOf, type AcceptedCoordinate, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
 import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
@@ -11,7 +11,9 @@ import { ChangeMark } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { ShownValue } from "@/components/ShownValue";
 import { changeCounts, changedItems, changeRows, unreviewedClaimsAt, type ChangeRow, type ItemChange } from "@/lib/run-changes";
-import { RETAINED_GENERATIONS, useAtLink, withAt } from "@/lib/at";
+import { useAtLink, withAt } from "@/lib/at";
+import { listOutcome } from "@/lib/template";
+import { ListMembersTable } from "@/components/ListMembers";
 import { captureHandle } from "@/lib/next-reasons";
 import { formatDateTime, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -92,17 +94,31 @@ export function RunScreen() {
         <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
           <Panel title="Nodes" meta={<span>{runCard.nodes_done} of {runCard.nodes_total} done</span>}>
             <div className="space-y-1 text-[13px]">
-              {(runCard.nodes ?? []).map((node) => (
-                <div key={`${node.sequence}\n${node.node}`} className="grid grid-cols-[2rem_minmax(8rem,max-content)_minmax(7rem,max-content)_minmax(0,1fr)_auto] items-baseline gap-x-4">
-                  <span className="text-right font-mono text-[12px] text-zinc-500">{node.sequence}</span>
-                  <span className="font-mono text-zinc-100">{node.node}</span>
-                  <span className="text-[12px] text-zinc-500">{node.kind ? sentence(node.kind) : ""}</span>
-                  <span>{node.verdict && <Chip concept="run" value={node.verdict} />}</span>
-                  <span className="text-right font-mono text-[12px] text-zinc-500">
-                    {node.duration_us != null ? `${(node.duration_us / 1000).toFixed(0)} ms` : ""}
-                  </span>
-                </div>
-              ))}
+              {(runCard.nodes ?? []).map((node) => {
+                const list = listOutcome(node);
+                return (
+                  <div key={`${node.sequence}\n${node.node}`}>
+                    <div className="grid grid-cols-[2rem_minmax(8rem,max-content)_minmax(7rem,max-content)_minmax(0,1fr)_auto] items-baseline gap-x-4">
+                      <span className="text-right font-mono text-[12px] text-zinc-500">{node.sequence}</span>
+                      <span className="font-mono text-zinc-100">{node.node}</span>
+                      <span className="text-[12px] text-zinc-500">{node.kind ? sentence(node.kind) : ""}</span>
+                      <span>{node.verdict && <Chip concept="run" value={node.verdict} />}</span>
+                      <span className="text-right font-mono text-[12px] text-zinc-500">
+                        {node.duration_us != null ? `${(node.duration_us / 1000).toFixed(0)} ms` : ""}
+                      </span>
+                    </div>
+                    {list && (
+                      <Disclosure
+                        className="mb-1 ml-[3rem]"
+                        label={`${list.members.length} list ${list.members.length === 1 ? "member" : "members"}: ${list.kept} kept${list.dropped ? `, ${list.dropped} not` : ""}${list.providerIncomplete.length ? ", incomplete" : ""}`}
+                        defaultOpen={list.dropped > 0 || list.providerIncomplete.length > 0}
+                      >
+                        <ListMembersTable list={list} label={`Members of ${node.node}`} />
+                      </Disclosure>
+                    )}
+                  </div>
+                );
+              })}
               {runCard.current_node && (
                 <div className="flex gap-3 text-zinc-300">
                   Running <span className="font-mono">{runCard.current_node.node}</span> since {formatDateTime(runCard.current_node.started_at)}
@@ -123,6 +139,7 @@ export function RunScreen() {
           </Panel>
           <Panel title="Outcome">
             {runCard.terminal ? <TerminalView terminal={runCard.terminal} /> : <div className="text-[13px] text-zinc-500">No refusal or failure</div>}
+            {runCard.completeness && <CompletenessView completeness={runCard.completeness} />}
             {(runCard.terminal_egress ?? []).length > 0 && (
               <div className="mt-2 space-y-1.5">
                 {runCard.terminal_egress!.map((egress, i) => (
@@ -186,6 +203,50 @@ export function RunScreen() {
         )}
       </Panel>
     </Page>
+  );
+}
+
+const COMPLETENESS_WORD: Record<Schemas["CompletenessReason"]["kind"], string> = {
+  incomplete_input: "Incomplete input",
+  count_mismatch: "Count mismatch",
+  invalid_record: "Invalid record",
+  duplicate_key: "Duplicate key",
+  invalid_field: "Invalid field",
+  unknown_predicate: "Unknown ClaimType",
+  may_truncate: "May truncate",
+  control_incomplete: "Control incomplete",
+  upstream_incomplete: "Upstream incomplete",
+};
+
+const COMPLETENESS_COLUMNS: Column<Schemas["CompletenessReason"]>[] = [
+  { id: "node", header: "Node", className: "font-mono text-[12px] text-zinc-300", cell: (r) => r.node },
+  { id: "reason", header: "Reason", className: "text-zinc-300", cell: (r) => COMPLETENESS_WORD[r.kind] ?? r.kind },
+  { id: "inputs", header: "Inputs", className: "font-mono text-[12px] text-zinc-400", cell: (r) => (r.inputs ?? []).join(", ") },
+];
+
+/**
+ * The run's completeness: whether its input was complete, and each reason it
+ * was not (node, kind, the inputs it names), with what that held back (writes
+ * downgraded or skipped, expected Subjects outside `within`). An incomplete
+ * read judges no absence.
+ */
+function CompletenessView({ completeness }: { completeness: Schemas["RunCompleteness"] }) {
+  const complete = completeness.complete ?? completeness.reasons.length === 0;
+  const counts = [
+    (completeness.downgraded ?? 0) > 0 && `${completeness.downgraded} downgraded`,
+    (completeness.skipped ?? 0) > 0 && `${completeness.skipped} skipped`,
+    (completeness.expect_outside_within ?? 0) > 0 && `${completeness.expect_outside_within} expected outside within`,
+  ].filter(Boolean);
+  return (
+    <SubSection title="Completeness" meta={counts.join(" · ") || undefined}>
+      <div className="flex items-baseline gap-1.5 text-[13px]">
+        {!complete && <SignalDot signal="waiting" title="Incomplete: no absence is judged from this run" />}
+        <span className="text-zinc-200">{complete ? "Complete" : "Incomplete"}</span>
+      </div>
+      {completeness.reasons.length > 0 && (
+        <DataTable rows={completeness.reasons} columns={COMPLETENESS_COLUMNS} rowKey={(r) => `${r.node}\n${r.kind}\n${completeness.reasons.indexOf(r)}`} label="Completeness reasons" toolbar={false} maxHeight="none" />
+      )}
+    </SubSection>
   );
 }
 
@@ -299,10 +360,10 @@ const DISPOSITION_MARK = { new: "create", revised: "revise", retired: "retire" }
 
 /** Why a re-observed Claim's value is not read: its coordinate is past the retained window, or the run's coordinate is unread. */
 type Unread = "window" | "coordinate";
-const UNREAD_WHY: Record<Unread, string> = {
-  window: `Its generation is not confirmed within the ${RETAINED_GENERATIONS} the daemon retains: reading it could rebuild that projection. Open the run's generation to read it.`,
-  coordinate: "The run's coordinate is unread.",
-};
+const unreadWhy = (why: Unread, retention: number) =>
+  why === "window"
+    ? `Its generation is not confirmed within the ${retention} the daemon retains: reading it could rebuild that projection. Open the run's generation to read it.`
+    : "The run's coordinate is unread.";
 
 /**
  * What the run changed, item by item (D-R37 g, CD3): each claims item with a
@@ -384,6 +445,7 @@ function ChangesPanel({ egress, bound, boundUnread }: { egress: Egress[]; bound:
 }
 
 function ChangesTable({ rows, unread }: { rows: ChangeRow[]; unread: ReadonlyMap<string, Unread> }) {
+  const retention = useRetention();
   const columns = useMemo<Column<ChangeRow>[]>(
     () => [
       {
@@ -422,7 +484,7 @@ function ChangesTable({ rows, unread }: { rows: ChangeRow[]; unread: ReadonlyMap
         className: "text-zinc-200",
         cell: (r) =>
           r.value === undefined && r.claim && unread.has(r.claim) ? (
-            <span className="text-zinc-500" title={UNREAD_WHY[unread.get(r.claim)!]}>
+            <span className="text-zinc-500" title={unreadWhy(unread.get(r.claim)!, retention)}>
               not read
             </span>
           ) : r.value === undefined ? (
@@ -448,7 +510,7 @@ function ChangesTable({ rows, unread }: { rows: ChangeRow[]; unread: ReadonlyMap
         cell: (r) => (r.claim ? <RefLink value={r.claim} short /> : r.path ? <RefLink value={r.path} short /> : <span className="text-zinc-600">—</span>),
       },
     ],
-    [unread],
+    [unread, retention],
   );
   return <DataTable rows={rows} columns={columns} rowKey={(r) => r.key} urlKey="changes" label="Changes" toolbar={rows.length > 10} maxHeight="32rem" />;
 }

@@ -8,5 +8,8 @@ describe("the retained window", () => {
     expect(isOutsideRetention(head - RETAINED_GENERATIONS + 1, head)).toBe(false);
     expect(isOutsideRetention(head - RETAINED_GENERATIONS, head)).toBe(true);
     expect(isOutsideRetention(40, 42)).toBe(false);
+    // the window orient serves (retention_generations) replaces core's default
+    expect(isOutsideRetention(42 - 10, 42, 10)).toBe(true);
+    expect(isOutsideRetention(42 - 9, 42, 10)).toBe(false);
   });
 });

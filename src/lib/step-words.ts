@@ -1,7 +1,8 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
 import type { Schemas } from "../api/schemas.ts";
+import { term } from "./vocabulary.ts";
 import { hostOf, stepAlias, templateRef, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
-import { captureInputs, createdKinds, isDerive, listOutcome, operationOf, stateReads, valueTarget, type Grades, type ListField } from "./template.ts";
+import { captureInputs, createdKinds, isDerive, operationOf, stateReads, valueTarget, type Grades, type ListField, type ListOutcome } from "./template.ts";
 
 /**
  * A Procedure's steps as terse labels: each step's key fields for its graph
@@ -436,10 +437,9 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
 // -- what a run's node did ----------------------------------------------------
 
 /** A run node's counts, terse: `1 Capture`, `10 rows`, `1,766 records · complete`, `34 re-observed · 0 written`; detail on hover. */
-export function summaryWords(summary: RunSummary): { text: string; title: string } {
+export function summaryWords(summary: RunSummary, list: ListOutcome | null = null): { text: string; title: string } {
   switch (summary.kind) {
     case "call": {
-      const list = listOutcome(summary);
       if (list) {
         const text = [
           `${count(list.kept)} kept`,
@@ -450,7 +450,8 @@ export function summaryWords(summary: RunSummary): { text: string; title: string
           .join(" · ");
         const title = [
           text,
-          ...list.members.map((m) => `#${m.index} ${m.status}${m.reason ? ` (${m.reason})` : ""}${m.requestUrl ? ` ${m.requestUrl}` : ""}`),
+          ...list.members.map((m) => `${m.field}[${m.index}] ${term("member", m.status).word.toLowerCase()}${m.reason ? ` (${m.reason})` : ""}`),
+          list.truncated ? "more members than the run card lists" : null,
           list.providerIncomplete.length ? `provider incomplete_captures: ${list.providerIncomplete.join(", ")}` : null,
         ]
           .filter(Boolean)
