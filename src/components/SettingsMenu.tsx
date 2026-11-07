@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Settings } from "lucide-react";
+import { useInstanceId } from "@/api/hooks";
+import { useAtLink } from "@/lib/at";
 import { InfoButton } from "@/components/InfoButton";
 import { useSettings } from "@/lib/settings";
 
 /**
- * Sidebar settings: client-side display preferences only. Anything that
- * changes what data exists (as opposed to what is shown) does not belong
- * here — that is config/governance surface, not a UI toggle.
+ * Sidebar settings: client-side display preferences only, and the way to the
+ * About page (how the instance is set up, read-only). Anything that changes
+ * what data exists (as opposed to what is shown) does not belong here — that
+ * is config/governance surface, not a UI toggle.
  */
 export function SettingsMenu({ compact = false }: { compact?: boolean }) {
   const { settings, update } = useSettings();
+  const instanceId = useInstanceId();
+  const link = useAtLink();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -60,6 +66,13 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
               </span>
             </span>
           </label>
+          <Link
+            to={link(`/i/${instanceId}/about`)}
+            onClick={() => setOpen(false)}
+            className="mt-3 block border-t border-zinc-800 pt-2 text-[13px] text-zinc-300 hover:text-zinc-100"
+          >
+            About this instance →
+          </Link>
         </div>
       )}
       <button

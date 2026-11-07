@@ -17,6 +17,7 @@ import { LinesScreen } from "@/screens/LinesScreen";
 import { LineScreen } from "@/screens/LineScreen";
 import { RunScreen } from "@/screens/RunScreen";
 import { RunbookScreen } from "@/screens/RunbookScreen";
+import { AboutScreen } from "@/screens/AboutScreen";
 import { ClaimTypeRedirect, KindScreen } from "@/screens/KindScreen";
 import { ContractScreen, ContractsScreen } from "@/screens/ContractScreen";
 import { FlowScreen } from "@/screens/FlowScreen";
@@ -74,6 +75,7 @@ export const routes = [
       { path: "lines/:line", element: <LineScreen /> },
       { path: "runs/:run", element: <RunScreen /> },
       { path: "runbooks/:name", element: <RunbookScreen /> },
+      { path: "about", element: <AboutScreen /> },
     ],
   },
 ];
