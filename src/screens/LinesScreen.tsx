@@ -397,9 +397,33 @@ function RunbooksPanel() {
   );
   if (runbooks.error) return <LoadState error={runbooks.error} />;
   if (!runbooks.data || rows.length === 0) return null;
+  // The section is read to a fixed bound of pages (useOrientSectionAll); past it the list is a slice, and says so.
+  const truncated = runbooks.data.truncated;
   return (
-    <Panel title="Runbooks" meta={<span>{rows.length}</span>}>
-      <DataTable rows={rows} columns={columns} rowKey={(r) => r.runbook} urlKey="runbooks" label="Runbooks" toolbar={rows.length > 10} maxHeight="none" />
+    <Panel
+      title="Runbooks"
+      meta={
+        truncated ? (
+          <span className="inline-flex items-baseline gap-1.5" title="The daemon lists more Runbooks than the console reads: cruxible orient --section runbooks pages through all of them">
+            <SignalDot signal="waiting" title="A slice: more Runbooks than shown" />
+            first {rows.length.toLocaleString()}
+          </span>
+        ) : (
+          <span>{rows.length}</span>
+        )
+      }
+    >
+      <DataTable
+        rows={rows}
+        columns={columns}
+        rowKey={(r) => r.runbook}
+        urlKey="runbooks"
+        label="Runbooks"
+        toolbar={truncated || rows.length > 10}
+        maxHeight={truncated || rows.length > 50 ? "32rem" : "none"}
+        partial={truncated ? `the first ${rows.length.toLocaleString()} Runbooks the daemon listed` : null}
+        count={truncated ? `First ${rows.length.toLocaleString()} Runbooks; more are not read here` : undefined}
+      />
     </Panel>
   );
 }

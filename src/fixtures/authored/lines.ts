@@ -154,6 +154,13 @@ export default [
       ],
     },
   }),
+  // No Runbooks in this world: the Lines page reads the section and shows none.
+  defineFixture({
+    method: "get",
+    path: "/api/v1/{instance_id}/orient",
+    query: orientQuery({ coordinate: COORDINATE, section: "runbooks", limit: ORIENT_PAGE }),
+    response: { ...BASE_ORIENT, section: "runbooks", runbooks: [] },
+  }),
   defineFixture({
     method: "get",
     path: "/api/v1/{instance_id}/orient",

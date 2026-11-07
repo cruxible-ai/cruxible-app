@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
+import { AUTHORED } from "@/fixtures/handlers";
+import { defineFixture } from "@/fixtures/fixture";
+import { AT, COORDINATE, NOW } from "@/fixtures/authored/world";
+import { orientQuery } from "@/api/requests";
+import { ORIENT_PAGE } from "@/api/hooks";
 
 afterEach(cleanup);
 
@@ -143,5 +148,50 @@ describe("Line definitions", () => {
     expect(definition.getByText("cisa.kev.catalog")).toBeInTheDocument();
     expect(definition.getByRole("link", { name: "security.kev-http-v1" })).toBeInTheDocument();
     expect(definition.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+  });
+});
+
+describe("Runbooks on the Lines page", () => {
+  /** The runbooks section past the console's page bound: every page names a next cursor, the last read one too. */
+  function cappedRunbooks() {
+    const pages = [];
+    for (let page = 0; page < 20; page += 1) {
+      pages.push(
+        defineFixture({
+          method: "get",
+          path: "/api/v1/{instance_id}/orient",
+          query: orientQuery({ coordinate: COORDINATE, section: "runbooks", limit: ORIENT_PAGE, ...(page > 0 ? { cursor: `rb-${page}` } : {}) }),
+          response: {
+            tag: "playbill-orient-v1",
+            instance: "inst_fixture",
+            coordinate: COORDINATE,
+            generation: AT.generation,
+            accepted_at: "2026-10-19T09:30:00Z",
+            evaluation_time: NOW,
+            section: "runbooks",
+            runbooks: [{ runbook: `Runbook:rb.${String(page).padStart(2, "0")}`, lifecycle: "live", steps: 2, triggers_total: 0 }],
+            next_cursor: `rb-${page + 1}`,
+          },
+        }),
+      );
+    }
+    return pages;
+  }
+
+  it("says when it holds only a slice of the Runbooks the daemon lists", async () => {
+    const recorded = new Set(cappedRunbooks().map((f) => f.key));
+    renderApp("/i/inst_fixture/lines", [...AUTHORED.filter((f) => !recorded.has(f.key)), ...cappedRunbooks()]);
+    const main = within(await screen.findByRole("main"));
+    const panel = within((await main.findByRole("heading", { name: "Runbooks" })).closest("section")!);
+    expect(panel.getByText("first 20")).toBeInTheDocument();
+    expect(panel.getByText("First 20 Runbooks; more are not read here")).toBeInTheDocument();
+    expect(within(panel.getByRole("table", { name: "Runbooks" })).getAllByRole("link")).toHaveLength(20);
+  });
+
+  it("shows no Runbooks panel when the instance has none, and the whole list without a slice mark", async () => {
+    renderApp("/i/inst_fixture/lines");
+    const main = within(await screen.findByRole("main"));
+    await main.findByRole("table", { name: "Lines" });
+    expect(main.queryByRole("heading", { name: "Runbooks" })).toBeNull();
   });
 });
