@@ -62,6 +62,7 @@ export type CardByKind = AssertEveryKind<{
   procedure_runtime_policy: Schemas["GetProcedureRuntimePolicyCard"];
   provider: Schemas["GetProviderCard"];
   contract: Schemas["GetContractCard"];
+  runbook: Schemas["GetRunbookCard"];
 }>;
 
 /** The typed card of a get result when it is of `kind`; null otherwise. */

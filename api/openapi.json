@@ -4630,6 +4630,7 @@
                     "runs",
                     "running",
                     "lines",
+                    "runbooks",
                     "captures",
                     "capture_contracts",
                     "predictions",
@@ -6863,6 +6864,118 @@
                     }
                   ],
                   "title": "Response Migrate Claim Type Api V1  Instance Id  Claim Types Migrations Post"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{instance_id}/claim-attestations/evidence": {
+      "post": {
+        "tags": [
+          "state"
+        ],
+        "summary": "Prepare Claim Attestation Evidence",
+        "operationId": "prepare_claim_attestation_evidence_api_v1__instance_id__claim_attestations_evidence_post",
+        "parameters": [
+          {
+            "name": "instance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Instance Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimAttestationEvidenceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimAttestationEvidenceResult"
                 }
               }
             }
@@ -11447,6 +11560,228 @@
         }
       }
     },
+    "/api/v1/{instance_id}/runbooks/{name}/runs": {
+      "post": {
+        "tags": [
+          "state"
+        ],
+        "summary": "Run Runbook",
+        "operationId": "run_runbook_api_v1__instance_id__runbooks__name__runs_post",
+        "parameters": [
+          {
+            "name": "instance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Instance Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunbookRunResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{instance_id}/runbooks/{name}/preview": {
+      "get": {
+        "tags": [
+          "state"
+        ],
+        "summary": "Preview Runbook",
+        "operationId": "preview_runbook_api_v1__instance_id__runbooks__name__preview_get",
+        "parameters": [
+          {
+            "name": "instance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Instance Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunbookPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/{instance_id}/procedure-runs/{run_id}": {
       "get": {
         "tags": [
@@ -13735,6 +14070,36 @@
         ],
         "title": "ActionRunResult"
       },
+      "ActionTarget": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "action",
+            "title": "Kind",
+            "default": "action"
+          },
+          "action": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "title": "Action",
+            "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry, curation.detect.",
+            "examples": [
+              "floor.refresh",
+              "evidence.sweep",
+              "prediction.anchor_retry",
+              "curation.detect"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "ActionTarget",
+        "description": "Fire one internal action; the worker that owns it follows its fires."
+      },
       "ActivationReceipt": {
         "properties": {
           "tag": {
@@ -15311,6 +15676,9 @@
                 "$ref": "#/components/schemas/TriggerAuthoringPayload"
               },
               {
+                "$ref": "#/components/schemas/RunbookAuthoringPayload"
+              },
+              {
                 "$ref": "#/components/schemas/SubjectKindAuthoringPayload"
               },
               {
@@ -15330,6 +15698,7 @@
                 "cruxible-line-authoring-payload-v2": "#/components/schemas/LineAuthoringPayload",
                 "cruxible-procedure-authoring-payload-v5": "#/components/schemas/ProcedureAuthoringPayload",
                 "cruxible-procedure-mandate-authoring-payload-v3": "#/components/schemas/ProcedureMandateAuthoringPayload",
+                "cruxible-runbook-authoring-payload-v1": "#/components/schemas/RunbookAuthoringPayload",
                 "cruxible-subject-kind-authoring-payload-v2": "#/components/schemas/SubjectKindAuthoringPayload",
                 "playbill-approval-policy-authoring-payload-v1": "#/components/schemas/ApprovalPolicyAuthoringPayload",
                 "playbill-capture-contract-authoring-payload-v1": "#/components/schemas/CaptureContractAuthoringPayload",
@@ -15554,6 +15923,9 @@
                 "$ref": "#/components/schemas/TriggerInput"
               },
               {
+                "$ref": "#/components/schemas/RunbookInput"
+              },
+              {
                 "$ref": "#/components/schemas/SubjectKindInput"
               },
               {
@@ -15576,6 +15948,7 @@
                 "procedure_mandate": "#/components/schemas/ProcedureMandateInput",
                 "procedure_runtime_policy": "#/components/schemas/ProcedureRuntimePolicyInput",
                 "query_definition": "#/components/schemas/QueryDefinitionInput",
+                "runbook": "#/components/schemas/RunbookInput",
                 "subject": "#/components/schemas/SubjectInput",
                 "subject_kind": "#/components/schemas/SubjectKindInput",
                 "subject_succession": "#/components/schemas/SubjectSuccessionInput",
@@ -15643,6 +16016,9 @@
                 "$ref": "#/components/schemas/TriggerInput"
               },
               {
+                "$ref": "#/components/schemas/RunbookInput"
+              },
+              {
                 "$ref": "#/components/schemas/SubjectKindInput"
               },
               {
@@ -15665,6 +16041,7 @@
                 "procedure_mandate": "#/components/schemas/ProcedureMandateInput",
                 "procedure_runtime_policy": "#/components/schemas/ProcedureRuntimePolicyInput",
                 "query_definition": "#/components/schemas/QueryDefinitionInput",
+                "runbook": "#/components/schemas/RunbookInput",
                 "subject": "#/components/schemas/SubjectInput",
                 "subject_kind": "#/components/schemas/SubjectKindInput",
                 "subject_succession": "#/components/schemas/SubjectSuccessionInput",
@@ -15753,6 +16130,9 @@
                 "$ref": "#/components/schemas/TriggerAuthoringPayload"
               },
               {
+                "$ref": "#/components/schemas/RunbookAuthoringPayload"
+              },
+              {
                 "$ref": "#/components/schemas/SubjectKindAuthoringPayload"
               },
               {
@@ -15772,6 +16152,7 @@
                 "cruxible-line-authoring-payload-v2": "#/components/schemas/LineAuthoringPayload",
                 "cruxible-procedure-authoring-payload-v5": "#/components/schemas/ProcedureAuthoringPayload",
                 "cruxible-procedure-mandate-authoring-payload-v3": "#/components/schemas/ProcedureMandateAuthoringPayload",
+                "cruxible-runbook-authoring-payload-v1": "#/components/schemas/RunbookAuthoringPayload",
                 "cruxible-subject-kind-authoring-payload-v2": "#/components/schemas/SubjectKindAuthoringPayload",
                 "playbill-approval-policy-authoring-payload-v1": "#/components/schemas/ApprovalPolicyAuthoringPayload",
                 "playbill-capture-contract-authoring-payload-v1": "#/components/schemas/CaptureContractAuthoringPayload",
@@ -16492,7 +16873,7 @@
           "source"
         ],
         "title": "Backlink",
-        "description": "One pointer into the target."
+        "description": "One pointer into a Subject, ClaimType, Procedure or workspace section."
       },
       "BacklinksRequest": {
         "properties": {
@@ -20039,6 +20420,9 @@
                   "$ref": "#/components/schemas/TriggerAuthoringPayload"
                 },
                 {
+                  "$ref": "#/components/schemas/RunbookAuthoringPayload"
+                },
+                {
                   "$ref": "#/components/schemas/SubjectKindAuthoringPayload"
                 },
                 {
@@ -20057,6 +20441,7 @@
                   "cruxible-line-authoring-payload-v2": "#/components/schemas/LineAuthoringPayload",
                   "cruxible-procedure-authoring-payload-v5": "#/components/schemas/ProcedureAuthoringPayload",
                   "cruxible-procedure-mandate-authoring-payload-v3": "#/components/schemas/ProcedureMandateAuthoringPayload",
+                  "cruxible-runbook-authoring-payload-v1": "#/components/schemas/RunbookAuthoringPayload",
                   "cruxible-subject-creation-authoring-payload-v1": "#/components/schemas/SubjectCreationAuthoringPayload",
                   "cruxible-subject-kind-authoring-payload-v2": "#/components/schemas/SubjectKindAuthoringPayload",
                   "playbill-approval-policy-authoring-payload-v1": "#/components/schemas/ApprovalPolicyAuthoringPayload",
@@ -20144,6 +20529,9 @@
                   "$ref": "#/components/schemas/TriggerInput"
                 },
                 {
+                  "$ref": "#/components/schemas/RunbookInput"
+                },
+                {
                   "$ref": "#/components/schemas/SubjectKindInput"
                 },
                 {
@@ -20167,6 +20555,7 @@
                   "procedure_mandate": "#/components/schemas/ProcedureMandateInput",
                   "procedure_runtime_policy": "#/components/schemas/ProcedureRuntimePolicyInput",
                   "query_definition": "#/components/schemas/QueryDefinitionInput",
+                  "runbook": "#/components/schemas/RunbookInput",
                   "subject": "#/components/schemas/SubjectInput",
                   "subject_kind": "#/components/schemas/SubjectKindInput",
                   "subject_succession": "#/components/schemas/SubjectSuccessionInput",
@@ -20276,17 +20665,6 @@
             "type": "array",
             "title": "Capture References",
             "default": []
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
           }
         },
         "additionalProperties": false,
@@ -20451,6 +20829,111 @@
           "minimum_independent_control_components"
         ],
         "title": "ClaimAttestationConsequenceRule"
+      },
+      "ClaimAttestationEvidenceRequest": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-claim-attestation-evidence-request-v1",
+            "title": "Tag",
+            "default": "cruxible-claim-attestation-evidence-request-v1"
+          },
+          "claim_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Claim Id"
+          },
+          "because": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Because",
+            "description": "Your own words: cited as a self-source Capture."
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SelfEvidence"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CaptureEvidence"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FileEvidence"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ContractEvidence"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SectionEvidence"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "capture": "#/components/schemas/CaptureEvidence",
+                    "contract": "#/components/schemas/ContractEvidence",
+                    "file": "#/components/schemas/FileEvidence",
+                    "section": "#/components/schemas/SectionEvidence",
+                    "self": "#/components/schemas/SelfEvidence"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence",
+            "description": "One write evidence option, observed by the writer-side adapter."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_id"
+        ],
+        "title": "ClaimAttestationEvidenceRequest"
+      },
+      "ClaimAttestationEvidenceResult": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-claim-attestation-evidence-result-v1",
+            "title": "Tag",
+            "default": "cruxible-claim-attestation-evidence-result-v1"
+          },
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "referent_coordinate": {
+            "$ref": "#/components/schemas/AcceptedCoordinate"
+          },
+          "capture_digests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Capture Digests"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_id",
+          "referent_coordinate",
+          "capture_digests"
+        ],
+        "title": "ClaimAttestationEvidenceResult"
       },
       "ClaimAttestationProcedureMeasurement": {
         "properties": {
@@ -20944,7 +21427,17 @@
               "$ref": "#/components/schemas/CaptureContractAdmission"
             },
             "type": "array",
-            "title": "Capture Contracts"
+            "title": "Capture Contracts",
+            "default": []
+          },
+          "capture_contract_families": {
+            "items": {
+              "type": "string",
+              "const": "workspace_file"
+            },
+            "type": "array",
+            "title": "Capture Contract Families",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -20953,8 +21446,7 @@
           "rule_id",
           "claim_roles",
           "admission",
-          "subject_binding",
-          "capture_contracts"
+          "subject_binding"
         ],
         "title": "ClaimEvidenceAdmissionRule"
       },
@@ -22462,6 +22954,17 @@
             ],
             "title": "When Absent",
             "default": "surface"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On"
           }
         },
         "additionalProperties": false,
@@ -24146,6 +24649,46 @@
         ],
         "title": "ClaimsDiagnostic"
       },
+      "ClaimsExpectByEnd": {
+        "properties": {
+          "by": {
+            "type": "string",
+            "minLength": 1,
+            "title": "By"
+          },
+          "ends": {
+            "title": "Ends"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "by",
+          "ends"
+        ],
+        "title": "ClaimsExpectByEnd",
+        "description": "``expect: {by, ends}``: the run is complete for these ends of the pair part ``by``.\n\nThe row Subject is a pair kind; ``by`` names one of its Subject-valued key\nparts (by predicate or short name) and ``ends`` references the list of\nthose ends (text references or structured rows, as ``expect`` names\nSubjects). The pairs judged are those of each end that hold a live fact\nof a template's ClaimType, found through the pair index; each is then\njudged from its own Claims by the ordinary absence gates."
+      },
+      "ClaimsExpectBySpec": {
+        "properties": {
+          "by": {
+            "type": "string",
+            "minLength": 1,
+            "title": "By"
+          },
+          "ends": {
+            "$ref": "#/components/schemas/Template-Input"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "by",
+          "ends"
+        ],
+        "title": "ClaimsExpectBySpec",
+        "description": "Absence by one end of a pair row: the run is complete for ``ends`` of part ``by``."
+      },
       "ClaimsNode": {
         "properties": {
           "kind": {
@@ -24211,6 +24754,9 @@
           },
           "expect": {
             "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimsExpectByEnd"
+              },
               {},
               {
                 "type": "null"
@@ -24443,12 +24989,16 @@
           "expect": {
             "anyOf": [
               {
+                "$ref": "#/components/schemas/ClaimsExpectBySpec"
+              },
+              {
                 "$ref": "#/components/schemas/Ref"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Expect"
           }
         },
         "additionalProperties": false,
@@ -25563,7 +26113,7 @@
               },
               {
                 "items": {
-                  "$ref": "#/components/schemas/SubjectKeyPart"
+                  "$ref": "#/components/schemas/CreateKeyPart"
                 },
                 "type": "array"
               },
@@ -25595,6 +26145,41 @@
         ],
         "title": "CreateChange",
         "description": "Create a Subject by kind and key, or land on its one live holder; core assigns ids."
+      },
+      "CreateKeyPart": {
+        "properties": {
+          "predicate": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}(?:\\.[a-z][a-z0-9_]{0,63})+$",
+            "title": "Predicate"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/CreatedSubject"
+              }
+            ],
+            "title": "Value",
+            "description": "A Subject-valued part takes kind/id or {created: label}."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "predicate",
+          "value"
+        ],
+        "title": "CreateKeyPart",
+        "description": "One key part of a create: a literal, or (a pair's end) a Subject."
       },
       "CreatedSubject": {
         "properties": {
@@ -29238,6 +29823,40 @@
         "title": "GetAttestationEvidence",
         "description": "One attestation of this exact Claim version, and whether it counts.\n\nAn accepted attestation artifact, or an event ``claim attest`` recorded.\nThe verdict reads accepted ones: a current one counts when it cites\nCaptures the Claim admits. Either counts when the ClaimType's consequence\npolicy has a rule for its stance. A recorded event is otherwise shown and\nresurfaced in ``next``, never read by the verdict (``not_accepted``)."
       },
+      "GetBacklinks": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "What the links point into, as resolved."
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/Backlink"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target",
+          "links"
+        ],
+        "title": "GetBacklinks",
+        "description": "``detail=\"backlinks\"`` (D-R32): one page of the pointers into the reference.\n\nThe same rows as the ``backlinks`` read: notes and Documents ``about`` a\nSubject and the sections its live Claims cite; the Documents that ``guides``\na ClaimType or Procedure."
+      },
       "GetBatchRequest": {
         "properties": {
           "tag": {
@@ -29753,6 +30372,28 @@
             "type": "string",
             "title": "Digest"
           },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation"
+          },
           "provider_build": {
             "type": "string",
             "title": "Provider Build"
@@ -29780,7 +30421,7 @@
           "input_template"
         ],
         "title": "GetCaptureReducer",
-        "description": "What computed a derived Capture: the provider build, operation and its node's input."
+        "description": "What computed a derived Capture: the provider build, operation and its node's input.\n\n``provider`` and ``operation`` name what the digests pin: the build's\n``Provider:NAME/BUILD`` reference (absent when no accepted Provider has\nthat artifact) and the operation the Capture's invocation called."
       },
       "GetChangeSetReason": {
         "properties": {
@@ -30335,6 +30976,45 @@
         ],
         "title": "GetDocumentCard"
       },
+      "GetEndPairs": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "part": {
+            "type": "string",
+            "title": "Part"
+          },
+          "pairs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pairs"
+          },
+          "hidden": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Hidden",
+            "default": 0
+          },
+          "more": {
+            "type": "boolean",
+            "title": "More",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "part",
+          "pairs"
+        ],
+        "title": "GetEndPairs",
+        "description": "The pairs a Subject is an end of through one key part of one pair kind, in id order.\n\nA pair is listed when it holds a visible fact: a live, positive, supported\nand current Claim (a query's default visibility at the read's instant). A\npair whose facts are all hidden (not yet effective, expired, stale,\ncontradicted) is counted in ``hidden``; one whose facts are all retired is\na historical shell, reached through ``incoming``."
+      },
       "GetEvidence": {
         "properties": {
           "value": {
@@ -30400,6 +31080,15 @@
             },
             "type": "array",
             "title": "Contracts"
+          },
+          "families": {
+            "items": {
+              "type": "string",
+              "const": "workspace_file"
+            },
+            "type": "array",
+            "title": "Families",
+            "default": []
           },
           "admission": {
             "type": "string",
@@ -31119,6 +31808,26 @@
         "title": "GetIncomingClaim",
         "description": "One live Claim whose Subject-valued object is the Subject read.\n\n``subject`` is the asserting Subject (``kind/id``): a relation is stored\nonce, on it, so this is the edge read from its object's side."
       },
+      "GetKindEnd": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "kind"
+        ],
+        "title": "GetKindEnd",
+        "description": "One Subject-valued key part of a pair kind: its key ClaimType and the end's kind."
+      },
       "GetLineCard": {
         "properties": {
           "line": {
@@ -31639,6 +32348,76 @@
         ],
         "title": "GetNone",
         "description": "One none in a field: a live inverse Claim saying the field holds nothing.\n\n``of`` is the unit it covers: absent for a one-valued field's whole slot,\nelse the value (a Subject as kind/id) or key value the field does not hold."
+      },
+      "GetPairEnd": {
+        "properties": {
+          "part": {
+            "type": "string",
+            "title": "Part"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "claim": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim"
+          },
+          "flags": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "stale",
+                "contested",
+                "contradicted",
+                "uncovered",
+                "unsure_hold"
+              ]
+            },
+            "type": "array",
+            "title": "Flags",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "part",
+          "subject"
+        ],
+        "title": "GetPairEnd",
+        "description": "One end of a pair Subject: the key part that names it and the Subject it names."
+      },
+      "GetPairs": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "pairs",
+            "title": "Kind",
+            "default": "pairs"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GetEndPairs"
+            },
+            "type": "array",
+            "title": "Groups"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "groups"
+        ],
+        "title": "GetPairs",
+        "description": "One page of the pairs a Subject is an end of, by pair kind and key part.\n\nRead through the pair index one page at a time: a page examines at most\ntwice its ``limit`` plus eight candidate pairs, never the Subject's whole\nset of pairs nor any other Subject's. Hidden candidates are counted per\ngroup, never listed; a page may hold fewer rows than ``limit`` while\n``truncated`` says more candidates follow."
       },
       "GetPendingInput": {
         "properties": {
@@ -32265,6 +33044,17 @@
             ],
             "title": "Rationale"
           },
+          "generation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation"
+          },
           "changes": {
             "items": {
               "$ref": "#/components/schemas/GetProposalChange"
@@ -32563,7 +33353,9 @@
               "why",
               "history",
               "incoming",
+              "pairs",
               "runs",
+              "backlinks",
               "proof",
               "body"
             ],
@@ -32772,7 +33564,8 @@
               "approval_policy",
               "procedure_runtime_policy",
               "provider",
-              "contract"
+              "contract",
+              "runbook"
             ],
             "title": "Kind"
           },
@@ -32784,7 +33577,9 @@
               "why",
               "history",
               "incoming",
+              "pairs",
               "runs",
+              "backlinks",
               "proof",
               "body"
             ],
@@ -32853,6 +33648,9 @@
                 "$ref": "#/components/schemas/GetContractCard"
               },
               {
+                "$ref": "#/components/schemas/GetRunbookCard"
+              },
+              {
                 "type": "null"
               }
             ],
@@ -32903,10 +33701,30 @@
               }
             ]
           },
+          "pairs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GetPairs"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "runs": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/GetLineRuns"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "backlinks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GetBacklinks"
               },
               {
                 "type": "null"
@@ -33205,6 +34023,71 @@
         ],
         "title": "GetRunCurrentNode"
       },
+      "GetRunListMember": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Index"
+          },
+          "capture": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture"
+          },
+          "request": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "selected",
+              "omitted",
+              "defaulted",
+              "refused"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "field",
+          "index",
+          "status"
+        ],
+        "title": "GetRunListMember",
+        "description": "One member of a call's ``list<capture>`` output, as the run journaled it (D-R37 a).\n\n``index`` orders the list; ``request`` is the member's identity (the request\ndigest its coordinate carries). ``status`` is core's acquisition decision:\n``selected`` (committed), ``omitted`` (dropped; the list is then\nincomplete) or ``refused``; ``reason`` is its first reason code."
+      },
       "GetRunNode": {
         "properties": {
           "node": {
@@ -33303,6 +34186,27 @@
               }
             ],
             "title": "Summary"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GetRunListMember"
+            },
+            "type": "array",
+            "title": "Members",
+            "default": []
+          },
+          "members_truncated": {
+            "type": "boolean",
+            "title": "Members Truncated",
+            "default": false
+          },
+          "incomplete_captures": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Incomplete Captures",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -33430,6 +34334,113 @@
         "title": "GetRunTrigger",
         "description": "What admitted a Line run: the Line, its occurrence, and the enablement that dispatched it."
       },
+      "GetRunbookCard": {
+        "properties": {
+          "runbook": {
+            "type": "string",
+            "title": "Runbook"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "lifecycle": {
+            "type": "string",
+            "title": "Lifecycle"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/GetRunbookStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "triggers": {
+            "items": {
+              "$ref": "#/components/schemas/GetLineTrigger"
+            },
+            "type": "array",
+            "title": "Triggers",
+            "default": []
+          },
+          "triggers_total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Triggers Total",
+            "default": 0
+          },
+          "recent_runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookRunResult"
+            },
+            "type": "array",
+            "title": "Recent Runs",
+            "default": []
+          },
+          "runs_more": {
+            "type": "boolean",
+            "title": "Runs More",
+            "default": false
+          },
+          "next": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "runbook",
+          "lifecycle",
+          "steps"
+        ],
+        "title": "GetRunbookCard",
+        "description": "One Runbook (D-R36): its steps, the Triggers aimed at it and its recent runs.\n\nSteps and Triggers are definitions at the read coordinate; the runs are its\nretained run records, read live, newest first, each with every step's outcome."
+      },
+      "GetRunbookStep": {
+        "properties": {
+          "step": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Step"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "line_missing",
+              "line_retired",
+              "line_takes_event",
+              "action_unregistered"
+            ],
+            "title": "Availability"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step",
+          "target",
+          "availability"
+        ],
+        "title": "GetRunbookStep",
+        "description": "One step of a Runbook: its target and whether it can run now."
+      },
       "GetSubjectCard": {
         "properties": {
           "subject": {
@@ -33444,6 +34455,14 @@
             "type": "string",
             "title": "Lifecycle"
           },
+          "ends": {
+            "items": {
+              "$ref": "#/components/schemas/GetPairEnd"
+            },
+            "type": "array",
+            "title": "Ends",
+            "default": []
+          },
           "claims": {
             "items": {
               "$ref": "#/components/schemas/GetSubjectClaim"
@@ -33454,6 +34473,14 @@
           "incoming_count": {
             "type": "integer",
             "title": "Incoming Count"
+          },
+          "pairs": {
+            "items": {
+              "$ref": "#/components/schemas/GetEndPairs"
+            },
+            "type": "array",
+            "title": "Pairs",
+            "default": []
           },
           "next": {
             "items": {
@@ -33658,6 +34685,19 @@
               }
             ],
             "title": "Uniqueness"
+          },
+          "pair": {
+            "type": "boolean",
+            "title": "Pair",
+            "default": false
+          },
+          "ends": {
+            "items": {
+              "$ref": "#/components/schemas/GetKindEnd"
+            },
+            "type": "array",
+            "title": "Ends",
+            "default": []
           },
           "live_subjects": {
             "type": "integer",
@@ -36234,6 +37274,27 @@
         ],
         "title": "KitArtifactBytes"
       },
+      "KitAutomationTemplate": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1048576,
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "content"
+        ],
+        "title": "KitAutomationTemplate",
+        "description": "The kit's automation template, as ``kit build`` checks and carries it (D-R48).\n\nOne authoring change set of Lines, Triggers, Mandates and Runbooks, at\n``path`` inside the kit. It is an inert file: never installed, never\nsubmitted by ``kit add`` or an upgrade. The adopter tailors it (Line names,\nsources, cron times, Mandate expiries) and submits it as their own change."
+      },
       "KitBuildProvider": {
         "properties": {
           "wheel": {
@@ -36294,6 +37355,16 @@
             "type": "array",
             "title": "Providers",
             "default": []
+          },
+          "automation_template": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KitAutomationTemplate"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -36357,6 +37428,14 @@
             },
             "type": "array",
             "title": "Files",
+            "default": []
+          },
+          "document_bodies": {
+            "items": {
+              "$ref": "#/components/schemas/KitDocumentBody"
+            },
+            "type": "array",
+            "title": "Document Bodies",
             "default": []
           }
         },
@@ -36555,6 +37634,17 @@
                 "type": "null"
               }
             ]
+          },
+          "automation_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation Template"
           }
         },
         "additionalProperties": false,
@@ -36566,6 +37656,26 @@
         ],
         "title": "KitChangeResult",
         "description": "What a kit add or remove changed, or why it changed nothing."
+      },
+      "KitDocumentBody": {
+        "properties": {
+          "digest": {
+            "type": "string",
+            "title": "Digest"
+          },
+          "content_base64": {
+            "type": "string",
+            "title": "Content Base64"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "digest",
+          "content_base64"
+        ],
+        "title": "KitDocumentBody",
+        "description": "One governed Document body a kit carries, named by its CAS digest."
       },
       "KitFile": {
         "properties": {
@@ -36762,6 +37872,17 @@
             "type": "array",
             "title": "Files",
             "default": []
+          },
+          "automation_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation Template"
           }
         },
         "additionalProperties": false,
@@ -38608,6 +39729,19 @@
             ],
             "title": "Evaluation Time",
             "description": "Reads EVALUATION INSTANT. An assertion only: the occurrence's instant is the daemon clock's, and an assertion outside the ProcedureMandate skew bound refuses."
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters",
+            "description": "Per-run values over the Line's parameters (checked against the Procedure's params Contract). A run whose parameters differ from the Line's runs without the Line's mandate: it may propose, never settle. Triggers always run on the Line's own parameters."
           }
         },
         "additionalProperties": false,
@@ -38617,6 +39751,26 @@
         ],
         "title": "LineRunRequest",
         "description": "One manual run of an accepted Line, now: never a Trigger's occurrence.\n\nThe run uses the Line's own inputs, budgets, authority ceiling and mandate\nand is recorded on its history. ``event`` is the retained Capture event a\nLine whose Procedure takes an event input runs on; one the enabled Line\nalready admitted refuses unless ``repeat`` says to run it again."
+      },
+      "LineTarget": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "line",
+            "title": "Kind",
+            "default": "line"
+          },
+          "line": {
+            "$ref": "#/components/schemas/ArtifactNameRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "line"
+        ],
+        "title": "LineTarget",
+        "description": "Run one Line, whatever version of it is accepted when the Trigger fires."
       },
       "LineTriggerBinding": {
         "properties": {
@@ -41626,6 +42780,12 @@
             "title": "Lines",
             "default": 0
           },
+          "runbooks": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Runbooks",
+            "default": 0
+          },
           "captures": {
             "type": "integer",
             "minimum": 0.0,
@@ -41683,7 +42843,7 @@
           "operations"
         ],
         "title": "OrientArtifactCounts",
-        "description": "How many of each family exist; each operational family is its own section.\n\n``lines``, ``capture_contracts``, ``resolution_contracts`` and ``mandates``\ncount accepted artifacts, ``captures`` the Captures accepted Claims cite,\nand ``runs`` / ``running`` the Procedure runs admitted and still running."
+        "description": "How many of each family exist; each operational family is its own section.\n\n``lines``, ``runbooks``, ``capture_contracts``, ``resolution_contracts`` and\n``mandates`` count live accepted artifacts, ``captures`` the Captures accepted Claims cite,\nand ``runs`` / ``running`` the Procedure runs admitted and still running."
       },
       "OrientAttention": {
         "properties": {
@@ -41946,6 +43106,34 @@
         "type": "object",
         "title": "OrientEnablements",
         "description": "The instance's enabled Lines as its Line consumer reports them, no daemon scope needed.\n\n``running`` enablements are admitting their own due work; ``stalled`` ones have\ndue work older than the stall horizon; ``stopped`` ones stopped for any\nreason but a deliberate disable. ``needs_attention`` names up to three\nstalled or stopped Lines (``Line:<name> stopped (<reason>)``), each a\n``get`` reference."
+      },
+      "OrientEvidenceCounts": {
+        "properties": {
+          "admitted": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Admitted"
+          },
+          "own_word": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Own Word"
+          },
+          "unmet": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unmet"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "admitted",
+          "own_word",
+          "unmet"
+        ],
+        "title": "OrientEvidenceCounts",
+        "description": "How the live Claims of one ClaimType are backed (W8).\n\n``admitted``: they cite a Capture admitted under the ClaimType's evidence\nrule (independent evidence, not the author's own words). ``own_word``: no\ncaptured evidence, and the type's rule permits a Claim on its own words.\n``unmet``: the type requires captured evidence and none was admitted."
       },
       "OrientFloor": {
         "properties": {
@@ -42229,6 +43417,26 @@
         ],
         "title": "OrientKindDetail",
         "description": "One kind in full, with a few Subject IDs to read next.\n\n``incoming`` names, in full, the Subject-valued predicates of other kinds\nwhose values may name this kind's Subjects: the reverse follows a ``query``\non this kind can take (``follow`` with ``direction: \"reverse\"``). It is\nomitted when nothing points at the kind."
+      },
+      "OrientKindEnd": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "kind"
+        ],
+        "title": "OrientKindEnd",
+        "description": "One Subject-valued key part of a pair kind: its key ClaimType and the end's kind."
       },
       "OrientKindSummary": {
         "properties": {
@@ -42764,6 +43972,16 @@
             ],
             "title": "Subjects With Value"
           },
+          "evidence_counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrientEvidenceCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "kit": {
             "anyOf": [
               {
@@ -42785,7 +44003,7 @@
           "type"
         ],
         "title": "OrientPredicate",
-        "description": "One predicate of a kind: compact by default, in full under ``orient(kind=...)``.\n\n``name`` is the short name a query field uses against this kind; ``predicate``\nis the full ClaimType predicate. ``type`` is the native Contract type spelling,\nincluding enum members and\n``subject<K1 | K2>`` for a Subject-valued predicate.\n``evidence`` names the CaptureContracts the ClaimType admits; a digest that\nnames no accepted contract shows as ``unresolved:<short digest>``.\n``None`` (omitted on the wire) inherits the kind's evidence set; an empty\ntuple (``[]`` on the wire) explicitly admits no contracts. Standalone\ndescriptors always carry an explicit set.\n\n``description`` is the ClaimType's (v7) description: its first sentence, at\nmost 160 characters, in a compact descriptor; all of it in full.\n``evidence_requirement`` appears only when it is not ``self`` (``none``: the\nClaim's own origin supports it; ``captured``: a Capture under a declared\ncontract is required). A full descriptor also carries each described enum\nmember, the role a write defaults to, and ``revision_evidence``: what a\nstatement-changing revision keeps.\nA full descriptor also names how the ClaimType settles rival Claims\n(``contention``), its format version (``format``: 10 for\n``cruxible-claim-type-v11``), its accepted ``revision`` and its ledger\n``path``, which a kit's drifted paths name. Under ``orient(kind=K)`` a\ndescriptor counts the kind's ``live_claims`` of the predicate and\n``subjects_with_value``: its live Subjects with at least one, both read\nfrom counters Claim writes maintain.\n``kit`` (claim_types section only) is the installed kit that owns the\nClaimType: its receipt records the definition. Absent when no kit owns it."
+        "description": "One predicate of a kind: compact by default, in full under ``orient(kind=...)``.\n\n``name`` is the short name a query field uses against this kind; ``predicate``\nis the full ClaimType predicate. ``type`` is the native Contract type spelling,\nincluding enum members and\n``subject<K1 | K2>`` for a Subject-valued predicate.\n``evidence`` names the CaptureContracts the ClaimType admits; a digest that\nnames no accepted contract shows as ``unresolved:<short digest>``.\n``None`` (omitted on the wire) inherits the kind's evidence set; an empty\ntuple (``[]`` on the wire) explicitly admits no contracts. Standalone\ndescriptors always carry an explicit set.\n\n``description`` is the ClaimType's (v7) description: its first sentence, at\nmost 160 characters, in a compact descriptor; all of it in full.\n``evidence_requirement`` appears only when it is not ``self`` (``none``: the\nClaim's own origin supports it; ``captured``: a Capture under a declared\ncontract is required). A full descriptor also carries each described enum\nmember, the role a write defaults to, and ``revision_evidence``: what a\nstatement-changing revision keeps.\nA full descriptor also names how the ClaimType settles rival Claims\n(``contention``), its format version (``format``: 10 for\n``cruxible-claim-type-v11``), its accepted ``revision`` and its ledger\n``path``, which a kit's drifted paths name. Under ``orient(kind=K)`` a\ndescriptor counts the kind's ``live_claims`` of the predicate and\n``subjects_with_value``: its live Subjects with at least one, both read\nfrom counters Claim writes maintain. A full descriptor's\n``evidence_counts`` splits the ClaimType's live Claims (every kind) by how\nthey are backed: admitted captured evidence, own words, or unmet.\n``kit`` (claim_types section only) is the installed kit that owns the\nClaimType: its receipt records the definition. Absent when no kit owns it."
       },
       "OrientPrediction": {
         "properties": {
@@ -42949,6 +44167,18 @@
             ],
             "title": "Mirror Url"
           },
+          "retention_generations": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retention Generations"
+          },
           "floor": {
             "anyOf": [
               {
@@ -43027,6 +44257,7 @@
                   "runs",
                   "running",
                   "lines",
+                  "runbooks",
                   "captures",
                   "capture_contracts",
                   "predictions",
@@ -43172,6 +44403,20 @@
               }
             ],
             "title": "Lines"
+          },
+          "runbooks": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OrientRunbook"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runbooks"
           },
           "captures": {
             "anyOf": [
@@ -43430,7 +44675,81 @@
           "evaluation_time"
         ],
         "title": "OrientResult",
-        "description": "One orient answer; which parts are present depends on the request.\n\n- no ``kind``/``section``: ``you``, ``kinds`` (paged by ``limit``/``cursor``),\n  ``artifacts``, ``queries`` and ``attention``;\n- ``kind``: ``kind_detail``;\n- ``section``: that section's rows (``documents``, ``procedures``,\n  ``claim_types``, ``subject_kinds``, ``queries``, ``operations``, or an\n  operational family:\n  ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,\n  ``predictions``, ``mandates``), the logical sources runs landed\n  Captures from (``sources``), the principal registry (``principals``),\n  the governed policies in force (``policies``), the accepted generations\n  newest first (``generations``), the Subject graph (``graph``), the\n  pins between live definitions (``pins``) or what just happened, newest\n  first (``activity``), paged.\n  The default map counts the operational families under ``artifacts`` and\n  never inlines their rows.\n\n``next`` is rendered for the requesting surface."
+        "description": "One orient answer; which parts are present depends on the request.\n\n- no ``kind``/``section``: ``you``, ``kinds`` (paged by ``limit``/``cursor``),\n  ``artifacts``, ``queries`` and ``attention``;\n- ``kind``: ``kind_detail``;\n- ``section``: that section's rows (``documents``, ``procedures``,\n  ``claim_types``, ``subject_kinds``, ``queries``, ``operations``, or an\n  operational family:\n  ``runs``, ``running``, ``lines``, ``runbooks``, ``captures``,\n  ``capture_contracts``,\n  ``predictions``, ``mandates``), the logical sources runs landed\n  Captures from (``sources``), the principal registry (``principals``),\n  the governed policies in force (``policies``), the accepted generations\n  newest first (``generations``), the Subject graph (``graph``), the\n  pins between live definitions (``pins``) or what just happened, newest\n  first (``activity``), paged.\n  The default map counts the operational families under ``artifacts`` and\n  never inlines their rows.\n\n``next`` is rendered for the requesting surface."
+      },
+      "OrientRunbook": {
+        "properties": {
+          "runbook": {
+            "type": "string",
+            "title": "Runbook"
+          },
+          "lifecycle": {
+            "type": "string",
+            "enum": [
+              "live",
+              "retired"
+            ],
+            "title": "Lifecycle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "steps": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Steps"
+          },
+          "triggers_total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Triggers Total",
+            "default": 0
+          },
+          "last_run": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "stopped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "runbook",
+          "lifecycle",
+          "steps"
+        ],
+        "title": "OrientRunbook",
+        "description": "One Runbook row: its steps, Triggers aimed at it, and its latest run (read live)."
       },
       "OrientSource": {
         "properties": {
@@ -43654,6 +44973,14 @@
             ],
             "title": "Uniqueness"
           },
+          "ends": {
+            "items": {
+              "$ref": "#/components/schemas/OrientKindEnd"
+            },
+            "type": "array",
+            "title": "Ends",
+            "default": []
+          },
           "kit": {
             "anyOf": [
               {
@@ -43673,7 +45000,7 @@
           "rule"
         ],
         "title": "OrientSubjectKind",
-        "description": "One live SubjectKind: how core names a new Subject of the kind.\n\n``rule`` is ``keys`` (named by its key ClaimTypes, in key order, ``unique``\nor ``hint``) or ``minted`` (core mints the id). A kind with no live\nSubjectKind has no row: no new Subject of it can be created. ``kit`` is\nthe installed kit that owns the SubjectKind, absent when no kit owns it."
+        "description": "One live SubjectKind: how core names a new Subject of the kind.\n\n``rule`` is ``keys`` (named by its key ClaimTypes, in key order, ``unique``\nor ``hint``) or ``minted`` (core mints the id). A kind with no live\nSubjectKind has no row: no new Subject of it can be created. ``ends``\nlists a pair kind's Subject-valued key parts, in key order: a pair kind is\nkeyed by its ends. ``kit`` is the installed kit that owns the SubjectKind,\nabsent when no kit owns it."
       },
       "OrientYou": {
         "properties": {
@@ -46759,6 +48086,7 @@
               "extract_format_unsupported",
               "read_ceiling_exceeded",
               "query_contract_violated",
+              "state_tap_refused",
               "repeat_exhausted",
               "budget_exhausted",
               "runtime_reference_unresolved",
@@ -48030,6 +49358,15 @@
             },
             "type": "array",
             "title": "Admitted Inputs"
+          },
+          "late_reads": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Late Reads",
+            "default": []
           },
           "attribution": {
             "$ref": "#/components/schemas/ProcedureRunAttribution"
@@ -50789,6 +52126,17 @@
             "type": "array",
             "title": "Stale Paths",
             "default": []
+          },
+          "accepted_generation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Generation"
           }
         },
         "additionalProperties": false,
@@ -53874,7 +55222,14 @@
           },
           "traversal": {
             "items": {
-              "$ref": "#/components/schemas/QueryTraversalStep"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/QueryTraversalStep"
+                },
+                {
+                  "$ref": "#/components/schemas/QueryPairStep"
+                }
+              ]
             },
             "type": "array",
             "title": "Traversal",
@@ -54134,7 +55489,14 @@
           },
           "traversal": {
             "items": {
-              "$ref": "#/components/schemas/QueryTraversalStep"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/QueryTraversalStep"
+                },
+                {
+                  "$ref": "#/components/schemas/QueryPairStep"
+                }
+              ]
             },
             "type": "array",
             "title": "Traversal",
@@ -55433,6 +56795,123 @@
         ],
         "title": "QueryOrdering",
         "description": "One typed ordering key; canonical address bytes remain the final tiebreak."
+      },
+      "QueryPairPart": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "playbill-query-pair-part-v1",
+            "title": "Tag",
+            "default": "playbill-query-pair-part-v1"
+          },
+          "part": {
+            "type": "string",
+            "title": "Part"
+          },
+          "binding": {
+            "type": "string",
+            "title": "Binding"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "part",
+          "binding"
+        ],
+        "title": "QueryPairPart",
+        "description": "One Subject-valued key part of a pair hop and the earlier binding that names its end."
+      },
+      "QueryPairStep": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "playbill-query-pair-step-v1",
+            "title": "Tag",
+            "default": "playbill-query-pair-step-v1"
+          },
+          "binding": {
+            "type": "string",
+            "title": "Binding"
+          },
+          "subject_kind": {
+            "type": "string",
+            "title": "Subject Kind"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/QueryPairPart"
+            },
+            "type": "array",
+            "title": "Parts"
+          },
+          "fact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fact"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": true
+          },
+          "where": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/QueryComparisonFilter"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QueryMembershipFilter"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QueryClaimPresenceFilter"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QueryConjunctionFilter"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QueryDisjunctionFilter"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QueryNegationFilter"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "all_of": "#/components/schemas/QueryConjunctionFilter",
+                    "any_of": "#/components/schemas/QueryDisjunctionFilter",
+                    "claim_presence": "#/components/schemas/QueryClaimPresenceFilter",
+                    "comparison": "#/components/schemas/QueryComparisonFilter",
+                    "membership": "#/components/schemas/QueryMembershipFilter",
+                    "not": "#/components/schemas/QueryNegationFilter"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Where"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding",
+          "subject_kind",
+          "parts"
+        ],
+        "title": "QueryPairStep",
+        "description": "One pair-Subject hop: the pair of ``subject_kind`` whose ends are bound Subjects.\n\nWithout ``fact``, ``parts`` name the pair's whole key: the hop binds the\nlive pair whose key Claims name exactly those ends. With ``fact``, one part\nis bound: the hop binds every live pair of that end holding a visible,\npositive ``fact`` Claim. Either way the edge is the pair's visible key Claim;\ncandidates come from the Subject key index or the pair index, never from a\nscan of the end's pairs."
       },
       "QueryParameterBinding": {
         "properties": {
@@ -58943,6 +60422,1064 @@
         "title": "RunRow",
         "description": "One Procedure run as a list row, newest admission first; ``status`` never orders."
       },
+      "RunbookAuthoringPayload": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-runbook-authoring-payload-v1",
+            "title": "Tag",
+            "default": "cruxible-runbook-authoring-payload-v1"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookStepAuthoring"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Steps",
+            "default": []
+          },
+          "retire": {
+            "type": "boolean",
+            "title": "Retire",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RunbookAuthoringPayload",
+        "description": "One Runbook decision (D-R36): an ordered list of Lines and internal actions.\n\nNo branching, no parameters of its own and no new action kinds: each Line\nstep runs as that Line's manual occurrence, on its own parameters and\nauthority. ``retire`` retires the accepted Runbook (``steps`` then unused)."
+      },
+      "RunbookInput": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "runbook",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The Runbook name, e.g. 'security.catch-up'."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookStepAuthoring"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "In run order: {line: <Line name>} or {action: <internal action>}.",
+            "default": []
+          },
+          "retire": {
+            "type": "boolean",
+            "title": "Retire",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "RunbookInput",
+        "description": "An ordered list of Lines and internal actions, run in order (D-R36).\n\nEach step names exactly one accepted Line (``line``) or registered internal\naction (``action``). No branching, no parameters of its own: a Line step runs\nas that Line's manual occurrence, on its own parameters, budgets and authority.\nA run stops at the first step that fails or whose writes go to review.\n``retire`` retires the accepted Runbook."
+      },
+      "RunbookOrderProblem": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "reads_later_write",
+              "reads_unwritten"
+            ],
+            "title": "Kind"
+          },
+          "step": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Step"
+          },
+          "claim_type": {
+            "type": "string",
+            "title": "Claim Type"
+          },
+          "written_by_steps": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Written By Steps",
+            "default": []
+          },
+          "outside_writers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Outside Writers",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "step",
+          "claim_type"
+        ],
+        "title": "RunbookOrderProblem",
+        "description": "A read the order cannot serve: reported, never fixed."
+      },
+      "RunbookPreview": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-runbook-preview-v1",
+            "title": "Tag",
+            "default": "cruxible-runbook-preview-v1"
+          },
+          "runbook": {
+            "type": "string",
+            "title": "Runbook"
+          },
+          "runbook_artifact_digest": {
+            "type": "string",
+            "title": "Runbook Artifact Digest"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "generation_root": {
+            "type": "string",
+            "title": "Generation Root"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookPreviewStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "order_problems": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookOrderProblem"
+            },
+            "type": "array",
+            "title": "Order Problems",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "runbook",
+          "runbook_artifact_digest",
+          "generation_root",
+          "steps"
+        ],
+        "title": "RunbookPreview",
+        "description": "A static composed graph of one Runbook, from accepted definitions only.\n\nIt never executes a step, reads no Claims, Captures or journals, and\npredicts no outcome: no record counts, no value changes, no whether a\nproposal happens. It says what each step can do."
+      },
+      "RunbookPreviewAuthority": {
+        "properties": {
+          "max_authority": {
+            "type": "string",
+            "enum": [
+              "observe",
+              "propose",
+              "settle"
+            ],
+            "title": "Max Authority"
+          },
+          "mandates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Mandates",
+            "default": []
+          },
+          "grants": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "propose",
+                  "settle"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grants"
+          },
+          "settles": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookSettleScope"
+            },
+            "type": "array",
+            "title": "Settles",
+            "default": []
+          },
+          "settles_creation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Settles Creation",
+            "default": []
+          },
+          "subject_scope": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Scope"
+          },
+          "subjects": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "expected"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects"
+          },
+          "conditional": {
+            "type": "boolean",
+            "title": "Conditional",
+            "default": false
+          },
+          "condition_query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition Query"
+          },
+          "condition_fallback": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "refuse",
+                  "propose"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition Fallback"
+          },
+          "review_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/SettleScopeGap"
+            },
+            "type": "array",
+            "title": "Review Gaps",
+            "default": []
+          },
+          "proposes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Proposes",
+            "default": []
+          },
+          "proposes_creation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Proposes Creation",
+            "default": []
+          },
+          "may_stop_run": {
+            "type": "boolean",
+            "title": "May Stop Run"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "max_authority",
+          "may_stop_run"
+        ],
+        "title": "RunbookPreviewAuthority",
+        "description": "What the step's Line may do with its writes, from its Mandate scope.\n\nStatic: a write is shown as settling only when every restriction of the\ngrant can be proven from definitions (ClaimType, change kind, the value's\nevidence basis, no value or Subject restriction). Anything that cannot be\nproven is listed in ``review_gaps`` and may go to review."
+      },
+      "RunbookPreviewCall": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "slot": {
+            "type": "string",
+            "title": "Slot"
+          },
+          "signature_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature In"
+          },
+          "signature_out": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature Out"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effect"
+          },
+          "build": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation"
+          },
+          "captures": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Captures",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node_id",
+          "slot"
+        ],
+        "title": "RunbookPreviewCall",
+        "description": "One provider call: its slot's signature and the binding the Line pins."
+      },
+      "RunbookPreviewCascade": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "title": "Trigger"
+          },
+          "schedule": {
+            "type": "string",
+            "enum": [
+              "capture_landing",
+              "generation_accepted"
+            ],
+            "title": "Schedule"
+          },
+          "target_kind": {
+            "type": "string",
+            "enum": [
+              "line",
+              "action",
+              "runbook"
+            ],
+            "title": "Target Kind"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "capture_contract": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Contract"
+          },
+          "in_runbook": {
+            "type": "boolean",
+            "title": "In Runbook",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trigger",
+          "schedule",
+          "target_kind",
+          "target"
+        ],
+        "title": "RunbookPreviewCascade",
+        "description": "A Trigger the step's writes can set off, during or after the run."
+      },
+      "RunbookPreviewRead": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "claim_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Claim Types"
+          },
+          "subject_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subject Kinds",
+            "default": []
+          },
+          "key_claim_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Key Claim Types",
+            "default": []
+          },
+          "late": {
+            "type": "boolean",
+            "title": "Late",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node_id",
+          "claim_types"
+        ],
+        "title": "RunbookPreviewRead",
+        "description": "One read a step's Procedure declares, and the vocabulary behind it."
+      },
+      "RunbookPreviewStep": {
+        "properties": {
+          "step": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Step"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LineTarget"
+              },
+              {
+                "$ref": "#/components/schemas/ActionTarget"
+              }
+            ],
+            "title": "Target",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "action": "#/components/schemas/ActionTarget",
+                "line": "#/components/schemas/LineTarget"
+              }
+            }
+          },
+          "unavailable": {
+            "type": "boolean",
+            "title": "Unavailable",
+            "default": false
+          },
+          "procedure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure"
+          },
+          "reads": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookPreviewRead"
+            },
+            "type": "array",
+            "title": "Reads",
+            "default": []
+          },
+          "writes": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookPreviewWrite"
+            },
+            "type": "array",
+            "title": "Writes",
+            "default": []
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookPreviewCall"
+            },
+            "type": "array",
+            "title": "Calls",
+            "default": []
+          },
+          "authority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunbookPreviewAuthority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action_effect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Effect"
+          },
+          "cascades": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookPreviewCascade"
+            },
+            "type": "array",
+            "title": "Cascades",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step",
+          "target"
+        ],
+        "title": "RunbookPreviewStep"
+      },
+      "RunbookPreviewWrite": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "subject_kind": {
+            "type": "string",
+            "title": "Subject Kind"
+          },
+          "creates_subjects": {
+            "type": "boolean",
+            "title": "Creates Subjects",
+            "default": false
+          },
+          "claim_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Claim Types"
+          },
+          "creates_object_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Creates Object Kinds",
+            "default": []
+          },
+          "judges_absence": {
+            "type": "boolean",
+            "title": "Judges Absence",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node_id",
+          "subject_kind",
+          "claim_types"
+        ],
+        "title": "RunbookPreviewWrite",
+        "description": "One claims node a step's Procedure declares: the ClaimTypes it can write."
+      },
+      "RunbookRunResult": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-runbook-run-v1",
+            "title": "Tag",
+            "default": "cruxible-runbook-run-v1"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "runbook": {
+            "type": "string",
+            "title": "Runbook"
+          },
+          "runbook_artifact_digest": {
+            "type": "string",
+            "title": "Runbook Artifact Digest"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "trigger"
+            ],
+            "title": "Mode"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Finished At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "stopped"
+            ],
+            "title": "Status"
+          },
+          "stop_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "step_failed",
+                  "step_proposed",
+                  "line_not_enabled",
+                  "target_unavailable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Reason"
+          },
+          "stopped_at_step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped At Step"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookStepOutcome"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "runbook",
+          "runbook_artifact_digest",
+          "mode",
+          "started_at",
+          "finished_at",
+          "status",
+          "steps"
+        ],
+        "title": "RunbookRunResult",
+        "description": "One run of a Runbook: every step's outcome, in order, and why it stopped."
+      },
+      "RunbookSettleChange": {
+        "properties": {
+          "change": {
+            "type": "string",
+            "enum": [
+              "create",
+              "revise",
+              "retire"
+            ],
+            "title": "Change"
+          },
+          "basis": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "extracted",
+                "measured",
+                "derived",
+                "absence"
+              ]
+            },
+            "type": "array",
+            "title": "Basis"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "change",
+          "basis"
+        ],
+        "title": "RunbookSettleChange",
+        "description": "One change kind a settle grant covers, and the evidence bases it settles on."
+      },
+      "RunbookSettleScope": {
+        "properties": {
+          "claim_type": {
+            "type": "string",
+            "title": "Claim Type"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookSettleChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "binding_subject_role": {
+            "type": "string",
+            "enum": [
+              "subject",
+              "object"
+            ],
+            "title": "Binding Subject Role",
+            "default": "subject"
+          },
+          "value_from": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value From"
+          },
+          "value_to": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value To"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_type",
+          "changes"
+        ],
+        "title": "RunbookSettleScope",
+        "description": "One ClaimType a settle grant covers, with every restriction the grant states."
+      },
+      "RunbookStepAuthoring": {
+        "properties": {
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "action": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry, curation.detect.",
+                "examples": [
+                  "floor.refresh",
+                  "evidence.sweep",
+                  "prediction.anchor_retry",
+                  "curation.detect"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunbookStepAuthoring",
+        "description": "One Runbook step: exactly one of an accepted Line (by name) or a registered action."
+      },
+      "RunbookStepOutcome": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-runbook-step-outcome-v1",
+            "title": "Tag",
+            "default": "cruxible-runbook-step-outcome-v1"
+          },
+          "step": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Step"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LineTarget"
+              },
+              {
+                "$ref": "#/components/schemas/ActionTarget"
+              }
+            ],
+            "title": "Target",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "action": "#/components/schemas/ActionTarget",
+                "line": "#/components/schemas/LineTarget"
+              }
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "proposed",
+              "failed",
+              "not_enabled",
+              "unavailable",
+              "fired",
+              "not_run"
+            ],
+            "title": "Status"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "run_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Status"
+          },
+          "proposal_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Proposal Ids",
+            "default": []
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step",
+          "target",
+          "status"
+        ],
+        "title": "RunbookStepOutcome",
+        "description": "What one step did: its Line run (or action fire) and how it stood."
+      },
       "RuntimeCredentialBootstrapResult": {
         "properties": {
           "status": {
@@ -61395,6 +63932,9 @@
                     },
                     {
                       "type": "boolean"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SubjectObjectInput"
                     }
                   ]
                 },
@@ -61411,7 +63951,7 @@
               }
             ],
             "title": "Key",
-            "description": "Key ClaimType (predicate or short name) -> value, or just the value when the kind has one key; omit for a minted kind."
+            "description": "Key ClaimType (predicate or short name) -> value, or just the value when the kind has one key; omit for a minted kind. A pair's end is {\"kind\": \"subject\", \"subject\": ...}."
           },
           "rationale": {
             "anyOf": [
@@ -61439,7 +63979,7 @@
           "subject_kind"
         ],
         "title": "SubjectInput",
-        "description": "Create one Subject: name its kind and its key; core assigns the id.\n\n``key`` maps each key ClaimType of the kind's SubjectKind (by predicate, or by\nits last name under the kind) to its value; omit it for a minted kind. The\nid is the readable rendering of the canonical key (or a minted id), reported\nin the result; the key parts become Claims citing ``rationale`` as your own\nwords."
+        "description": "Create one Subject: name its kind and its key; core assigns the id.\n\n``key`` maps each key ClaimType of the kind's SubjectKind (by predicate, or by\nits last name under the kind) to its value; omit it for a minted kind. A\npair kind's end (a Subject-valued key part) is a Subject object: an existing\nSubject, or ``{subject_kind, key}`` naming one by key -- the live holder, or\nthe one a subject member of the same change set creates. The id is the\nreadable rendering of the canonical key (or a minted id), reported in the\nresult; the key parts become Claims citing ``rationale`` as your own words."
       },
       "SubjectKeyPart": {
         "properties": {
@@ -61457,6 +63997,9 @@
               },
               {
                 "type": "boolean"
+              },
+              {
+                "$ref": "#/components/schemas/SubjectClaimObject-Input"
               }
             ],
             "title": "Value"
@@ -61469,7 +64012,7 @@
           "value"
         ],
         "title": "SubjectKeyPart",
-        "description": "One key part: the key ClaimType and its value."
+        "description": "One key part: the key ClaimType and its value.\n\nA literal part's value is a string, an integer or a boolean. A\nSubject-valued part (a pair kind's end) names the end as a Subject Claim\nobject, by one of the existing address forms: the Subject itself\n(``artifact-v1``), the Subject a creation member of the same change lands on\n(``subject-creation-v1``), or the Subject its kind's key names\n(``subject-key-v1``). Lowering lands it on the end's path, which is the\npart's canonical value."
       },
       "SubjectKeyReference": {
         "properties": {
@@ -62575,6 +65118,17 @@
             "type": "boolean",
             "title": "Retire",
             "default": false
+          },
+          "runbook_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runbook Name"
           }
         },
         "additionalProperties": false,
@@ -62692,6 +65246,18 @@
             ],
             "title": "Action",
             "description": "The internal action this Trigger fires; omit for a Line."
+          },
+          "runbook_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runbook Name",
+            "description": "The Runbook this Trigger runs (cadence, cron or generation_accepted); each Line step runs under that Line's own enablement."
           },
           "retire": {
             "type": "boolean",

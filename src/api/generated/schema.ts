@@ -1026,6 +1026,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/{instance_id}/claim-attestations/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Prepare Claim Attestation Evidence */
+        post: operations["prepare_claim_attestation_evidence_api_v1__instance_id__claim_attestations_evidence_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/{instance_id}/claim-attestations": {
         parameters: {
             query?: never;
@@ -1693,6 +1710,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/{instance_id}/runbooks/{name}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Runbook */
+        post: operations["run_runbook_api_v1__instance_id__runbooks__name__runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/{instance_id}/runbooks/{name}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Runbook */
+        get: operations["preview_runbook_api_v1__instance_id__runbooks__name__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/{instance_id}/procedure-runs/{run_id}": {
         parameters: {
             query?: never;
@@ -2222,6 +2273,26 @@ export interface components {
              */
             fired_at: string;
             outcome: components["schemas"]["ActionRunOutcome"];
+        };
+        /**
+         * ActionTarget
+         * @description Fire one internal action; the worker that owns it follows its fires.
+         */
+        ActionTarget: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "action";
+            /**
+             * Action
+             * @description A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry, curation.detect.
+             * @example floor.refresh
+             * @example evidence.sweep
+             * @example prediction.anchor_retry
+             * @example curation.detect
+             */
+            action: string;
         };
         /** ActivationReceipt */
         ActivationReceipt: {
@@ -2829,7 +2900,7 @@ export interface components {
              */
             tag?: "cruxible-authoring-intent-compile-request-v4";
             /** Payload */
-            payload: components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
+            payload: components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["RunbookAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
             /** Reference Expectations */
             reference_expectations?: (components["schemas"]["AuthoringReferenceExpectation"] | components["schemas"]["AuthoringSlotExpectation"])[] | null;
             program_stamp?: components["schemas"]["AuthoringProgramStamp"] | null;
@@ -2897,7 +2968,7 @@ export interface components {
              */
             tag?: "playbill-authoring-input-compile-request-v1";
             /** Input */
-            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ChangeSetInput"];
+            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["RunbookInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ChangeSetInput"];
             /** Intent Id */
             intent_id?: string | null;
         };
@@ -2917,7 +2988,7 @@ export interface components {
              */
             tag?: "playbill-authoring-input-submit-request-v1";
             /** Input */
-            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ChangeSetInput"];
+            input: components["schemas"]["ClaimInput"] | components["schemas"]["ProcedureInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["RunbookInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ChangeSetInput"];
             /** Intent Id */
             intent_id?: string | null;
             /**
@@ -2949,7 +3020,7 @@ export interface components {
              */
             tag?: "cruxible-authoring-intent-compile-request-v4";
             /** Payload */
-            payload: components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
+            payload: components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["RunbookAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ChangeSetAuthoringPayload"];
             /** Reference Expectations */
             reference_expectations?: (components["schemas"]["AuthoringReferenceExpectation"] | components["schemas"]["AuthoringSlotExpectation"])[] | null;
             program_stamp?: components["schemas"]["AuthoringProgramStamp"] | null;
@@ -3206,7 +3277,7 @@ export interface components {
         };
         /**
          * Backlink
-         * @description One pointer into the target.
+         * @description One pointer into a Subject, ClaimType, Procedure or workspace section.
          */
         Backlink: {
             /**
@@ -4780,7 +4851,7 @@ export interface components {
              */
             tag: "playbill-change-set-authoring-payload-v1";
             /** Members */
-            members: (components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ClaimTypeAuthoringPayload"] | components["schemas"]["ClaimTypeSuccessionMember"] | components["schemas"]["ClaimRetirementMember"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["NoteAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["SubjectCreationAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"])[];
+            members: (components["schemas"]["ClaimAuthoringPayload"] | components["schemas"]["ClaimTypeAuthoringPayload"] | components["schemas"]["ClaimTypeSuccessionMember"] | components["schemas"]["ClaimRetirementMember"] | components["schemas"]["ResolutionContractAuthoringPayload"] | components["schemas"]["AttestationAuthoringPayload"] | components["schemas"]["NoteAuthoringPayload"] | components["schemas"]["SubjectAuthoringPayload"] | components["schemas"]["SubjectCreationAuthoringPayload"] | components["schemas"]["QueryDefinitionAuthoringPayload"] | components["schemas"]["ApprovalPolicyAuthoringPayload"] | components["schemas"]["ProcedureRuntimePolicyAuthoringPayload"] | components["schemas"]["ProcedureMandateAuthoringPayload"] | components["schemas"]["CaptureContractAuthoringPayload"] | components["schemas"]["LineAuthoringPayload"] | components["schemas"]["TriggerAuthoringPayload"] | components["schemas"]["RunbookAuthoringPayload"] | components["schemas"]["SubjectKindAuthoringPayload"] | components["schemas"]["ContractAuthoringPayload"] | components["schemas"]["ProcedureAuthoringPayload"])[];
             /** Rationale */
             rationale?: string | null;
         };
@@ -4792,7 +4863,7 @@ export interface components {
              */
             kind: "change_set";
             /** Members */
-            members: (components["schemas"]["ClaimInput"] | components["schemas"]["ClaimTypeInput"] | components["schemas"]["ClaimTypeSuccessionInput"] | components["schemas"]["ClaimRetirementInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ProcedureInput"])[];
+            members: (components["schemas"]["ClaimInput"] | components["schemas"]["ClaimTypeInput"] | components["schemas"]["ClaimTypeSuccessionInput"] | components["schemas"]["ClaimRetirementInput"] | components["schemas"]["SubjectInput"] | components["schemas"]["SubjectSuccessionInput"] | components["schemas"]["QueryDefinitionInput"] | components["schemas"]["ApprovalPolicyInput"] | components["schemas"]["ProcedureRuntimePolicyInput"] | components["schemas"]["ProcedureMandateInput"] | components["schemas"]["LineInput"] | components["schemas"]["TriggerInput"] | components["schemas"]["RunbookInput"] | components["schemas"]["SubjectKindInput"] | components["schemas"]["ContractInput"] | components["schemas"]["ProcedureInput"])[];
             /** Rationale */
             rationale?: string | null;
         };
@@ -4847,8 +4918,6 @@ export interface components {
              * @default []
              */
             capture_references?: components["schemas"]["ClaimAttestationCaptureReference"][];
-            /** Note */
-            note?: string | null;
         };
         /** ClaimAttestationAppendResult */
         ClaimAttestationAppendResult: {
@@ -4932,6 +5001,41 @@ export interface components {
              * @constant
              */
             require_current?: true;
+        };
+        /** ClaimAttestationEvidenceRequest */
+        ClaimAttestationEvidenceRequest: {
+            /**
+             * Tag
+             * @default cruxible-claim-attestation-evidence-request-v1
+             * @constant
+             */
+            tag?: "cruxible-claim-attestation-evidence-request-v1";
+            /** Claim Id */
+            claim_id: string;
+            /**
+             * Because
+             * @description Your own words: cited as a self-source Capture.
+             */
+            because?: string | null;
+            /**
+             * Evidence
+             * @description One write evidence option, observed by the writer-side adapter.
+             */
+            evidence?: (components["schemas"]["SelfEvidence"] | components["schemas"]["CaptureEvidence"] | components["schemas"]["FileEvidence"] | components["schemas"]["ContractEvidence"] | components["schemas"]["SectionEvidence"]) | null;
+        };
+        /** ClaimAttestationEvidenceResult */
+        ClaimAttestationEvidenceResult: {
+            /**
+             * Tag
+             * @default cruxible-claim-attestation-evidence-result-v1
+             * @constant
+             */
+            tag?: "cruxible-claim-attestation-evidence-result-v1";
+            /** Claim Id */
+            claim_id: string;
+            referent_coordinate: components["schemas"]["AcceptedCoordinate"];
+            /** Capture Digests */
+            capture_digests: string[];
         };
         /**
          * ClaimAttestationProcedureMeasurement
@@ -5135,8 +5239,16 @@ export interface components {
              * @constant
              */
             tag?: "cruxible-claim-evidence-admission-rule-v4";
-            /** Capture Contracts */
-            capture_contracts: components["schemas"]["CaptureContractAdmission"][];
+            /**
+             * Capture Contracts
+             * @default []
+             */
+            capture_contracts?: components["schemas"]["CaptureContractAdmission"][];
+            /**
+             * Capture Contract Families
+             * @default []
+             */
+            capture_contract_families?: "workspace_file"[];
         };
         /** ClaimEvidenceFreshness */
         ClaimEvidenceFreshness: {
@@ -5729,6 +5841,8 @@ export interface components {
              * @enum {string}
              */
             when_absent?: "keep" | "surface" | "mirror" | "inverse";
+            /** On */
+            on?: string | null;
         };
         /**
          * ClaimType
@@ -6366,6 +6480,32 @@ export interface components {
             held_value?: components["schemas"]["JsonValue"];
             incoming_value?: components["schemas"]["JsonValue"];
         };
+        /**
+         * ClaimsExpectByEnd
+         * @description ``expect: {by, ends}``: the run is complete for these ends of the pair part ``by``.
+         *
+         *     The row Subject is a pair kind; ``by`` names one of its Subject-valued key
+         *     parts (by predicate or short name) and ``ends`` references the list of
+         *     those ends (text references or structured rows, as ``expect`` names
+         *     Subjects). The pairs judged are those of each end that hold a live fact
+         *     of a template's ClaimType, found through the pair index; each is then
+         *     judged from its own Claims by the ordinary absence gates.
+         */
+        ClaimsExpectByEnd: {
+            /** By */
+            by: string;
+            /** Ends */
+            ends: unknown;
+        };
+        /**
+         * ClaimsExpectBySpec
+         * @description Absence by one end of a pair row: the run is complete for ``ends`` of part ``by``.
+         */
+        ClaimsExpectBySpec: {
+            /** By */
+            by: string;
+            ends: components["schemas"]["Template-Input"];
+        };
         /** ClaimsNode */
         ClaimsNode: {
             /**
@@ -6380,7 +6520,7 @@ export interface components {
             /** Where */
             where?: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"]) | null;
             /** Expect */
-            expect?: unknown | null;
+            expect?: components["schemas"]["ClaimsExpectByEnd"] | unknown | null;
             subject: components["schemas"]["ClaimsSubject"];
             /** Claims */
             claims: components["schemas"]["ClaimTemplate"][];
@@ -6445,7 +6585,8 @@ export interface components {
             /** Where */
             where?: (components["schemas"]["Comparison"] | components["schemas"]["Membership"] | components["schemas"]["Presence"] | components["schemas"]["AllOf"] | components["schemas"]["AnyOf"] | components["schemas"]["Not"]) | null;
             subject: components["schemas"]["ClaimsSubjectSpec"];
-            expect?: components["schemas"]["Ref"] | null;
+            /** Expect */
+            expect?: components["schemas"]["ClaimsExpectBySpec"] | components["schemas"]["Ref"] | null;
         };
         /** ClaimsSubject */
         ClaimsSubject: {
@@ -6962,7 +7103,7 @@ export interface components {
              * Key
              * @description One key value, or parts {"predicate", "value"}; none for a minted kind.
              */
-            key?: string | number | boolean | components["schemas"]["SubjectKeyPart"][] | null;
+            key?: string | number | boolean | components["schemas"]["CreateKeyPart"][] | null;
             /**
              * Create New
              * @description Hint kinds only: create another live holder of the key.
@@ -6975,6 +7116,19 @@ export interface components {
              * @default false
              */
             expect_new?: boolean;
+        };
+        /**
+         * CreateKeyPart
+         * @description One key part of a create: a literal, or (a pair's end) a Subject.
+         */
+        CreateKeyPart: {
+            /** Predicate */
+            predicate: string;
+            /**
+             * Value
+             * @description A Subject-valued part takes kind/id or {created: label}.
+             */
+            value: string | number | boolean | components["schemas"]["CreatedSubject"];
         };
         /**
          * CreatedSubject
@@ -8588,6 +8742,24 @@ export interface components {
             rule?: string | null;
         };
         /**
+         * GetBacklinks
+         * @description ``detail="backlinks"`` (D-R32): one page of the pointers into the reference.
+         *
+         *     The same rows as the ``backlinks`` read: notes and Documents ``about`` a
+         *     Subject and the sections its live Claims cite; the Documents that ``guides``
+         *     a ClaimType or Procedure.
+         */
+        GetBacklinks: {
+            /**
+             * Target
+             * @description What the links point into, as resolved.
+             */
+            target: string;
+            /** Links */
+            links: components["schemas"]["Backlink"][];
+            withheld?: components["schemas"]["BodyRestricted"] | null;
+        };
+        /**
          * GetBatchRequest
          * @description Several references read at one coordinate and one detail: an SDK-internal route.
          *
@@ -8812,10 +8984,18 @@ export interface components {
         /**
          * GetCaptureReducer
          * @description What computed a derived Capture: the provider build, operation and its node's input.
+         *
+         *     ``provider`` and ``operation`` name what the digests pin: the build's
+         *     ``Provider:NAME/BUILD`` reference (absent when no accepted Provider has
+         *     that artifact) and the operation the Capture's invocation called.
          */
         GetCaptureReducer: {
             /** Digest */
             digest: string;
+            /** Provider */
+            provider?: string | null;
+            /** Operation */
+            operation?: string | null;
             /** Provider Build */
             provider_build: string;
             /** Operation Signature */
@@ -9033,6 +9213,34 @@ export interface components {
              */
             next?: string[];
         };
+        /**
+         * GetEndPairs
+         * @description The pairs a Subject is an end of through one key part of one pair kind, in id order.
+         *
+         *     A pair is listed when it holds a visible fact: a live, positive, supported
+         *     and current Claim (a query's default visibility at the read's instant). A
+         *     pair whose facts are all hidden (not yet effective, expired, stale,
+         *     contradicted) is counted in ``hidden``; one whose facts are all retired is
+         *     a historical shell, reached through ``incoming``.
+         */
+        GetEndPairs: {
+            /** Kind */
+            kind: string;
+            /** Part */
+            part: string;
+            /** Pairs */
+            pairs: string[];
+            /**
+             * Hidden
+             * @default 0
+             */
+            hidden?: number;
+            /**
+             * More
+             * @default false
+             */
+            more?: boolean;
+        };
         /** GetEvidence */
         GetEvidence: {
             /** Value */
@@ -9055,6 +9263,11 @@ export interface components {
             roles: ("normative" | "observation" | "environment_binding" | "derivation")[];
             /** Contracts */
             contracts: string[];
+            /**
+             * Families
+             * @default []
+             */
+            families?: "workspace_file"[];
             /**
              * Admission
              * @enum {string}
@@ -9335,6 +9548,16 @@ export interface components {
             /** Qualifier */
             qualifier?: string | null;
         };
+        /**
+         * GetKindEnd
+         * @description One Subject-valued key part of a pair kind: its key ClaimType and the end's kind.
+         */
+        GetKindEnd: {
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+        };
         /** GetLineCard */
         GetLineCard: {
             /** Line */
@@ -9607,6 +9830,43 @@ export interface components {
              */
             flags?: ("stale" | "contested" | "contradicted" | "uncovered" | "unsure_hold")[];
         };
+        /**
+         * GetPairEnd
+         * @description One end of a pair Subject: the key part that names it and the Subject it names.
+         */
+        GetPairEnd: {
+            /** Part */
+            part: string;
+            /** Subject */
+            subject: string;
+            /** Claim */
+            claim?: string | null;
+            /**
+             * Flags
+             * @default []
+             */
+            flags?: ("stale" | "contested" | "contradicted" | "uncovered" | "unsure_hold")[];
+        };
+        /**
+         * GetPairs
+         * @description One page of the pairs a Subject is an end of, by pair kind and key part.
+         *
+         *     Read through the pair index one page at a time: a page examines at most
+         *     twice its ``limit`` plus eight candidate pairs, never the Subject's whole
+         *     set of pairs nor any other Subject's. Hidden candidates are counted per
+         *     group, never listed; a page may hold fewer rows than ``limit`` while
+         *     ``truncated`` says more candidates follow.
+         */
+        GetPairs: {
+            /**
+             * Kind
+             * @default pairs
+             * @constant
+             */
+            kind?: "pairs";
+            /** Groups */
+            groups: components["schemas"]["GetEndPairs"][];
+        };
         /** GetPendingInput */
         GetPendingInput: {
             /** Name */
@@ -9859,6 +10119,8 @@ export interface components {
             admitted_at?: string | null;
             /** Rationale */
             rationale?: string | null;
+            /** Generation */
+            generation?: number | null;
             /**
              * Changes
              * @default []
@@ -9996,7 +10258,7 @@ export interface components {
              * @default summary
              * @enum {string}
              */
-            detail?: "summary" | "evidence" | "why" | "history" | "incoming" | "runs" | "proof" | "body";
+            detail?: "summary" | "evidence" | "why" | "history" | "incoming" | "pairs" | "runs" | "backlinks" | "proof" | "body";
             range?: components["schemas"]["ByteRange"] | null;
             /** At */
             at?: components["schemas"]["AcceptedCoordinate"] | string | null;
@@ -10068,19 +10330,21 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "claim" | "subject" | "claim_type" | "document" | "procedure" | "query" | "capture_contract" | "trigger" | "subject_kind" | "proposal" | "line" | "capture" | "resolution_contract" | "mandate" | "procedure_run" | "principal" | "approval_policy" | "procedure_runtime_policy" | "provider" | "contract";
+            kind: "claim" | "subject" | "claim_type" | "document" | "procedure" | "query" | "capture_contract" | "trigger" | "subject_kind" | "proposal" | "line" | "capture" | "resolution_contract" | "mandate" | "procedure_run" | "principal" | "approval_policy" | "procedure_runtime_policy" | "provider" | "contract" | "runbook";
             /**
              * Detail
              * @enum {string}
              */
-            detail: "summary" | "evidence" | "why" | "history" | "incoming" | "runs" | "proof" | "body";
+            detail: "summary" | "evidence" | "why" | "history" | "incoming" | "pairs" | "runs" | "backlinks" | "proof" | "body";
             /** Card */
-            card?: components["schemas"]["GetClaimCard"] | components["schemas"]["GetSubjectCard"] | components["schemas"]["GetClaimTypeCard"] | components["schemas"]["GetDocumentCard"] | components["schemas"]["GetProcedureCard"] | components["schemas"]["GetQueryCard"] | components["schemas"]["GetCaptureContractCard"] | components["schemas"]["GetTriggerCard"] | components["schemas"]["GetSubjectKindCard"] | components["schemas"]["GetProposalCard"] | components["schemas"]["GetLineCard"] | components["schemas"]["GetCaptureCard"] | components["schemas"]["GetResolutionContractCard"] | components["schemas"]["GetMandateCard"] | components["schemas"]["GetProcedureRunCard"] | components["schemas"]["GetPrincipalCard"] | components["schemas"]["GetApprovalPolicyCard"] | components["schemas"]["GetProcedureRuntimePolicyCard"] | components["schemas"]["GetProviderCard"] | components["schemas"]["GetContractCard"] | null;
+            card?: components["schemas"]["GetClaimCard"] | components["schemas"]["GetSubjectCard"] | components["schemas"]["GetClaimTypeCard"] | components["schemas"]["GetDocumentCard"] | components["schemas"]["GetProcedureCard"] | components["schemas"]["GetQueryCard"] | components["schemas"]["GetCaptureContractCard"] | components["schemas"]["GetTriggerCard"] | components["schemas"]["GetSubjectKindCard"] | components["schemas"]["GetProposalCard"] | components["schemas"]["GetLineCard"] | components["schemas"]["GetCaptureCard"] | components["schemas"]["GetResolutionContractCard"] | components["schemas"]["GetMandateCard"] | components["schemas"]["GetProcedureRunCard"] | components["schemas"]["GetPrincipalCard"] | components["schemas"]["GetApprovalPolicyCard"] | components["schemas"]["GetProcedureRuntimePolicyCard"] | components["schemas"]["GetProviderCard"] | components["schemas"]["GetContractCard"] | components["schemas"]["GetRunbookCard"] | null;
             evidence?: components["schemas"]["GetEvidence"] | null;
             /** History */
             history?: (components["schemas"]["GetHistory"] | components["schemas"]["GetSubjectHistory"]) | null;
             incoming?: components["schemas"]["GetIncoming"] | null;
+            pairs?: components["schemas"]["GetPairs"] | null;
             runs?: components["schemas"]["GetLineRuns"] | null;
+            backlinks?: components["schemas"]["GetBacklinks"] | null;
             body?: components["schemas"]["GetBody"] | null;
             /** Why */
             why?: {
@@ -10165,6 +10429,32 @@ export interface components {
             started_at: string;
         };
         /**
+         * GetRunListMember
+         * @description One member of a call's ``list<capture>`` output, as the run journaled it (D-R37 a).
+         *
+         *     ``index`` orders the list; ``request`` is the member's identity (the request
+         *     digest its coordinate carries). ``status`` is core's acquisition decision:
+         *     ``selected`` (committed), ``omitted`` (dropped; the list is then
+         *     incomplete) or ``refused``; ``reason`` is its first reason code.
+         */
+        GetRunListMember: {
+            /** Field */
+            field: string;
+            /** Index */
+            index: number;
+            /** Capture */
+            capture?: string | null;
+            /** Request */
+            request?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "selected" | "omitted" | "defaulted" | "refused";
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
          * GetRunNode
          * @description One node that finished, in journal order.
          *
@@ -10188,6 +10478,21 @@ export interface components {
             duration_us?: number | null;
             /** Summary */
             summary?: (components["schemas"]["ExtractRunSummary"] | components["schemas"]["TransformRunSummary"] | components["schemas"]["ReadRunSummary"] | components["schemas"]["CallRunSummary"] | components["schemas"]["GuardRunSummary"] | components["schemas"]["ClaimsRunSummary"] | components["schemas"]["EgressRunSummary"] | components["schemas"]["HaltRunSummary"] | components["schemas"]["RepeatRunSummary"]) | null;
+            /**
+             * Members
+             * @default []
+             */
+            members?: components["schemas"]["GetRunListMember"][];
+            /**
+             * Members Truncated
+             * @default false
+             */
+            members_truncated?: boolean;
+            /**
+             * Incomplete Captures
+             * @default []
+             */
+            incomplete_captures?: string[];
         };
         /**
          * GetRunOutcome
@@ -10225,6 +10530,63 @@ export interface components {
              */
             enabled_by_withheld?: boolean;
         };
+        /**
+         * GetRunbookCard
+         * @description One Runbook (D-R36): its steps, the Triggers aimed at it and its recent runs.
+         *
+         *     Steps and Triggers are definitions at the read coordinate; the runs are its
+         *     retained run records, read live, newest first, each with every step's outcome.
+         */
+        GetRunbookCard: {
+            /** Runbook */
+            runbook: string;
+            /** Description */
+            description?: string | null;
+            /** Lifecycle */
+            lifecycle: string;
+            /** Steps */
+            steps: components["schemas"]["GetRunbookStep"][];
+            /**
+             * Triggers
+             * @default []
+             */
+            triggers?: components["schemas"]["GetLineTrigger"][];
+            /**
+             * Triggers Total
+             * @default 0
+             */
+            triggers_total?: number;
+            /**
+             * Recent Runs
+             * @default []
+             */
+            recent_runs?: components["schemas"]["RunbookRunResult"][];
+            /**
+             * Runs More
+             * @default false
+             */
+            runs_more?: boolean;
+            /**
+             * Next
+             * @default []
+             */
+            next?: string[];
+        };
+        /**
+         * GetRunbookStep
+         * @description One step of a Runbook: its target and whether it can run now.
+         */
+        GetRunbookStep: {
+            /** Step */
+            step: number;
+            /** Target */
+            target: string;
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "available" | "line_missing" | "line_retired" | "line_takes_event" | "action_unregistered";
+        };
         /** GetSubjectCard */
         GetSubjectCard: {
             /** Subject */
@@ -10233,10 +10595,20 @@ export interface components {
             kind: string;
             /** Lifecycle */
             lifecycle: string;
+            /**
+             * Ends
+             * @default []
+             */
+            ends?: components["schemas"]["GetPairEnd"][];
             /** Claims */
             claims: components["schemas"]["GetSubjectClaim"][];
             /** Incoming Count */
             incoming_count: number;
+            /**
+             * Pairs
+             * @default []
+             */
+            pairs?: components["schemas"]["GetEndPairs"][];
             /**
              * Next
              * @default []
@@ -10310,6 +10682,16 @@ export interface components {
             };
             /** Uniqueness */
             uniqueness?: ("unique" | "hint") | null;
+            /**
+             * Pair
+             * @default false
+             */
+            pair?: boolean;
+            /**
+             * Ends
+             * @default []
+             */
+            ends?: components["schemas"]["GetKindEnd"][];
             /** Live Subjects */
             live_subjects: number;
             /** Kit */
@@ -11425,6 +11807,21 @@ export interface components {
             content_base64: string;
         };
         /**
+         * KitAutomationTemplate
+         * @description The kit's automation template, as ``kit build`` checks and carries it (D-R48).
+         *
+         *     One authoring change set of Lines, Triggers, Mandates and Runbooks, at
+         *     ``path`` inside the kit. It is an inert file: never installed, never
+         *     submitted by ``kit add`` or an upgrade. The adopter tailors it (Line names,
+         *     sources, cron times, Mandate expiries) and submits it as their own change.
+         */
+        KitAutomationTemplate: {
+            /** Path */
+            path: string;
+            /** Content */
+            content: string;
+        };
+        /**
          * KitBuildProvider
          * @description A provider package to name in the kit, staged in the body store: the built
          *     wheel, the uv lock it was built with, and the wheels of the dependencies that
@@ -11471,6 +11868,7 @@ export interface components {
              * @default []
              */
             providers?: components["schemas"]["KitBuildProvider"][];
+            automation_template?: components["schemas"]["KitAutomationTemplate"] | null;
         };
         /** KitBuildResult */
         KitBuildResult: {
@@ -11510,6 +11908,11 @@ export interface components {
              * @default []
              */
             files?: components["schemas"]["KitFileBytes"][];
+            /**
+             * Document Bodies
+             * @default []
+             */
+            document_bodies?: components["schemas"]["KitDocumentBody"][];
         };
         /**
          * KitChangeResult
@@ -11576,6 +11979,18 @@ export interface components {
             /** Detail */
             detail?: string | null;
             coordinate?: components["schemas"]["GetCoordinate"] | null;
+            /** Automation Template */
+            automation_template?: string | null;
+        };
+        /**
+         * KitDocumentBody
+         * @description One governed Document body a kit carries, named by its CAS digest.
+         */
+        KitDocumentBody: {
+            /** Digest */
+            digest: string;
+            /** Content Base64 */
+            content_base64: string;
         };
         /**
          * KitFile
@@ -11672,6 +12087,8 @@ export interface components {
              * @default []
              */
             files?: components["schemas"]["KitFile"][];
+            /** Automation Template */
+            automation_template?: string | null;
         };
         /**
          * KitOwnershipConflictRefusal
@@ -12518,6 +12935,25 @@ export interface components {
              * @description Reads EVALUATION INSTANT. An assertion only: the occurrence's instant is the daemon clock's, and an assertion outside the ProcedureMandate skew bound refuses.
              */
             evaluation_time?: string | null;
+            /**
+             * Parameters
+             * @description Per-run values over the Line's parameters (checked against the Procedure's params Contract). A run whose parameters differ from the Line's runs without the Line's mandate: it may propose, never settle. Triggers always run on the Line's own parameters.
+             */
+            parameters?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * LineTarget
+         * @description Run one Line, whatever version of it is accepted when the Trigger fires.
+         */
+        LineTarget: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            line: components["schemas"]["ArtifactNameRef"];
         };
         /**
          * LineTriggerBinding
@@ -13753,8 +14189,8 @@ export interface components {
          * OrientArtifactCounts
          * @description How many of each family exist; each operational family is its own section.
          *
-         *     ``lines``, ``capture_contracts``, ``resolution_contracts`` and ``mandates``
-         *     count accepted artifacts, ``captures`` the Captures accepted Claims cite,
+         *     ``lines``, ``runbooks``, ``capture_contracts``, ``resolution_contracts`` and
+         *     ``mandates`` count live accepted artifacts, ``captures`` the Captures accepted Claims cite,
          *     and ``runs`` / ``running`` the Procedure runs admitted and still running.
          */
         OrientArtifactCounts: {
@@ -13773,6 +14209,11 @@ export interface components {
              * @default 0
              */
             lines?: number;
+            /**
+             * Runbooks
+             * @default 0
+             */
+            runbooks?: number;
             /**
              * Captures
              * @default 0
@@ -13965,6 +14406,23 @@ export interface components {
             needs_attention?: string[];
         };
         /**
+         * OrientEvidenceCounts
+         * @description How the live Claims of one ClaimType are backed (W8).
+         *
+         *     ``admitted``: they cite a Capture admitted under the ClaimType's evidence
+         *     rule (independent evidence, not the author's own words). ``own_word``: no
+         *     captured evidence, and the type's rule permits a Claim on its own words.
+         *     ``unmet``: the type requires captured evidence and none was admitted.
+         */
+        OrientEvidenceCounts: {
+            /** Admitted */
+            admitted: number;
+            /** Own Word */
+            own_word: number;
+            /** Unmet */
+            unmet: number;
+        };
+        /**
          * OrientFloor
          * @description The workspace's greppable floor: the coordinate it is at, and how stale.
          *
@@ -14125,6 +14583,16 @@ export interface components {
              * @default []
              */
             sample_subject_ids?: string[];
+        };
+        /**
+         * OrientKindEnd
+         * @description One Subject-valued key part of a pair kind: its key ClaimType and the end's kind.
+         */
+        OrientKindEnd: {
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
         };
         /**
          * OrientKindSummary
@@ -14312,7 +14780,9 @@ export interface components {
          *     ``path``, which a kit's drifted paths name. Under ``orient(kind=K)`` a
          *     descriptor counts the kind's ``live_claims`` of the predicate and
          *     ``subjects_with_value``: its live Subjects with at least one, both read
-         *     from counters Claim writes maintain.
+         *     from counters Claim writes maintain. A full descriptor's
+         *     ``evidence_counts`` splits the ClaimType's live Claims (every kind) by how
+         *     they are backed: admitted captured evidence, own words, or unmet.
          *     ``kit`` (claim_types section only) is the installed kit that owns the
          *     ClaimType: its receipt records the definition. Absent when no kit owns it.
          */
@@ -14362,6 +14832,7 @@ export interface components {
             live_claims?: number | null;
             /** Subjects With Value */
             subjects_with_value?: number | null;
+            evidence_counts?: components["schemas"]["OrientEvidenceCounts"] | null;
             /** Kit */
             kit?: string | null;
         };
@@ -14431,7 +14902,8 @@ export interface components {
          *     - ``section``: that section's rows (``documents``, ``procedures``,
          *       ``claim_types``, ``subject_kinds``, ``queries``, ``operations``, or an
          *       operational family:
-         *       ``runs``, ``running``, ``lines``, ``captures``, ``capture_contracts``,
+         *       ``runs``, ``running``, ``lines``, ``runbooks``, ``captures``,
+         *       ``capture_contracts``,
          *       ``predictions``, ``mandates``), the logical sources runs landed
          *       Captures from (``sources``), the principal registry (``principals``),
          *       the governed policies in force (``policies``), the accepted generations
@@ -14467,6 +14939,8 @@ export interface components {
             evaluation_time: string;
             /** Mirror Url */
             mirror_url?: string | null;
+            /** Retention Generations */
+            retention_generations?: number | null;
             floor?: components["schemas"]["OrientFloor"] | null;
             you?: components["schemas"]["OrientYou"] | null;
             /** Kinds */
@@ -14475,7 +14949,7 @@ export interface components {
             attention?: components["schemas"]["OrientAttention"] | null;
             kind_detail?: components["schemas"]["OrientKindDetail"] | null;
             /** Section */
-            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "operations" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources" | "contracts") | null;
+            section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "operations" | "runs" | "running" | "lines" | "runbooks" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources" | "contracts") | null;
             /** Documents */
             documents?: components["schemas"]["OrientDocument"][] | null;
             /** Procedures */
@@ -14494,6 +14968,8 @@ export interface components {
             runs?: components["schemas"]["RunRow"][] | null;
             /** Lines */
             lines?: components["schemas"]["OrientLine"][] | null;
+            /** Runbooks */
+            runbooks?: components["schemas"]["OrientRunbook"][] | null;
             /** Captures */
             captures?: components["schemas"]["OrientCapture"][] | null;
             /** Capture Contracts */
@@ -14530,6 +15006,32 @@ export interface components {
              * @default []
              */
             next?: string[];
+        };
+        /**
+         * OrientRunbook
+         * @description One Runbook row: its steps, Triggers aimed at it, and its latest run (read live).
+         */
+        OrientRunbook: {
+            /** Runbook */
+            runbook: string;
+            /**
+             * Lifecycle
+             * @enum {string}
+             */
+            lifecycle: "live" | "retired";
+            /** Description */
+            description?: string | null;
+            /** Steps */
+            steps: number;
+            /**
+             * Triggers Total
+             * @default 0
+             */
+            triggers_total?: number;
+            /** Last Run */
+            last_run?: ("completed" | "stopped") | null;
+            /** Last Run At */
+            last_run_at?: string | null;
         };
         /**
          * OrientSource
@@ -14611,8 +15113,10 @@ export interface components {
          *
          *     ``rule`` is ``keys`` (named by its key ClaimTypes, in key order, ``unique``
          *     or ``hint``) or ``minted`` (core mints the id). A kind with no live
-         *     SubjectKind has no row: no new Subject of it can be created. ``kit`` is
-         *     the installed kit that owns the SubjectKind, absent when no kit owns it.
+         *     SubjectKind has no row: no new Subject of it can be created. ``ends``
+         *     lists a pair kind's Subject-valued key parts, in key order: a pair kind is
+         *     keyed by its ends. ``kit`` is the installed kit that owns the SubjectKind,
+         *     absent when no kit owns it.
          */
         OrientSubjectKind: {
             /** Kind */
@@ -14629,6 +15133,11 @@ export interface components {
             keys?: string[];
             /** Uniqueness */
             uniqueness?: ("unique" | "hint") | null;
+            /**
+             * Ends
+             * @default []
+             */
+            ends?: components["schemas"]["OrientKindEnd"][];
             /** Kit */
             kit?: string | null;
         };
@@ -16038,7 +16547,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "guard_refused" | "decode_invalid" | "decoded_limit_exceeded" | "extract.header_invalid@1" | "extract_decoding_undeclared" | "extract_duplicate_key" | "extract_format_unsupported" | "read_ceiling_exceeded" | "query_contract_violated" | "repeat_exhausted" | "budget_exhausted" | "runtime_reference_unresolved" | "contract_input_refused" | "contract_output_refused" | "result_not_canonical" | "line_binding_required" | "source_acquisition_unavailable" | "source_material_unavailable" | "terminal_not_available" | "terminal_egress_unverified" | "proposal_item_invalid" | "claims_absence_invalid" | "claims_expect_outside_only_keys" | "claims_enumeration_invalid" | "claims_expect_provider_enumeration_unsupported" | "claims_inverse_unit_unresolved" | "claims_absence_binding_invalid" | "proposal_item_evidence_missing" | "proposal_item_evidence_ambiguous" | "inbox_item_invalid" | "inbox_item_evidence_ambiguous" | "inbox_item_over_budget" | "proposal_lowering_refused" | "proposal_candidate_refused" | "settle_mandate_missing" | "settle_mandate_ambiguous" | "settle_condition_refused" | "settle_publication_refused" | "proposal_target_paths_mismatch" | "proposal_receipt_incomplete" | "effectful_operation_payload_mismatch" | "procedure_mandate_required" | "procedure_mandate_superseded" | "procedure_mandate_expired" | "procedure_mandate_procedure_mismatch" | "procedure_mandate_grant_insufficient" | "procedure_mandate_namespace_mismatch" | "procedure_mandate_not_applicable" | "procedure_authority_admission_invalid" | "procedure_authority_admission_mismatch" | "provider_unavailable" | "cruxible.acquisition.unavailable" | "cruxible.acquisition.stale" | "cruxible.acquisition.oversized" | "cruxible.acquisition.refused" | "cruxible.acquisition.replayability_ineligible" | "cruxible.acquisition.origin_ineligible" | "effect_grant_unrecognized" | "effect_dispatch_requires_actor" | "effect_dispatch_requires_authenticated_actor" | "terminal_authority_capped_by_procedure_terminal_capability" | "terminal_authority_capped_by_line_max_authority" | "terminal_authority_capped_by_propagated_sensitivity" | "terminal_authority_capped_by_mandate_grant" | "provider_acquisition_plan_required" | "provider_acquisition_plan_mismatch" | "workspace_file_read_refused" | "provider_effect_declaration_mismatch" | "unknown_extra" | "budget_wall_clock" | "budget_output_size" | "budget_cost" | "secret_bundle_too_large" | "operation_refused" | "provider_protocol_violation";
+            code: "guard_refused" | "decode_invalid" | "decoded_limit_exceeded" | "extract.header_invalid@1" | "extract_decoding_undeclared" | "extract_duplicate_key" | "extract_format_unsupported" | "read_ceiling_exceeded" | "query_contract_violated" | "state_tap_refused" | "repeat_exhausted" | "budget_exhausted" | "runtime_reference_unresolved" | "contract_input_refused" | "contract_output_refused" | "result_not_canonical" | "line_binding_required" | "source_acquisition_unavailable" | "source_material_unavailable" | "terminal_not_available" | "terminal_egress_unverified" | "proposal_item_invalid" | "claims_absence_invalid" | "claims_expect_outside_only_keys" | "claims_enumeration_invalid" | "claims_expect_provider_enumeration_unsupported" | "claims_inverse_unit_unresolved" | "claims_absence_binding_invalid" | "proposal_item_evidence_missing" | "proposal_item_evidence_ambiguous" | "inbox_item_invalid" | "inbox_item_evidence_ambiguous" | "inbox_item_over_budget" | "proposal_lowering_refused" | "proposal_candidate_refused" | "settle_mandate_missing" | "settle_mandate_ambiguous" | "settle_condition_refused" | "settle_publication_refused" | "proposal_target_paths_mismatch" | "proposal_receipt_incomplete" | "effectful_operation_payload_mismatch" | "procedure_mandate_required" | "procedure_mandate_superseded" | "procedure_mandate_expired" | "procedure_mandate_procedure_mismatch" | "procedure_mandate_grant_insufficient" | "procedure_mandate_namespace_mismatch" | "procedure_mandate_not_applicable" | "procedure_authority_admission_invalid" | "procedure_authority_admission_mismatch" | "provider_unavailable" | "cruxible.acquisition.unavailable" | "cruxible.acquisition.stale" | "cruxible.acquisition.oversized" | "cruxible.acquisition.refused" | "cruxible.acquisition.replayability_ineligible" | "cruxible.acquisition.origin_ineligible" | "effect_grant_unrecognized" | "effect_dispatch_requires_actor" | "effect_dispatch_requires_authenticated_actor" | "terminal_authority_capped_by_procedure_terminal_capability" | "terminal_authority_capped_by_line_max_authority" | "terminal_authority_capped_by_propagated_sensitivity" | "terminal_authority_capped_by_mandate_grant" | "provider_acquisition_plan_required" | "provider_acquisition_plan_mismatch" | "workspace_file_read_refused" | "provider_effect_declaration_mismatch" | "unknown_extra" | "budget_wall_clock" | "budget_output_size" | "budget_cost" | "secret_bundle_too_large" | "operation_refused" | "provider_protocol_violation";
             /** Message */
             message: string;
             /** Node Id */
@@ -16548,6 +17057,13 @@ export interface components {
             validated_pins: components["schemas"]["ArtifactPin"][];
             /** Admitted Inputs */
             admitted_inputs: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Late Reads
+             * @default []
+             */
+            late_reads?: {
                 [key: string]: unknown;
             }[];
             attribution: components["schemas"]["ProcedureRunAttribution"];
@@ -17570,6 +18086,8 @@ export interface components {
              * @default []
              */
             stale_paths?: string[];
+            /** Accepted Generation */
+            accepted_generation?: number | null;
         };
         /** ProposalReadmitRequest */
         ProposalReadmitRequest: {
@@ -18951,7 +19469,7 @@ export interface components {
              * Traversal
              * @default []
              */
-            traversal?: components["schemas"]["QueryTraversalStep"][];
+            traversal?: (components["schemas"]["QueryTraversalStep"] | components["schemas"]["QueryPairStep"])[];
             /** Where */
             where?: (components["schemas"]["QueryComparisonFilter"] | components["schemas"]["QueryMembershipFilter"] | components["schemas"]["QueryClaimPresenceFilter"] | components["schemas"]["QueryConjunctionFilter"] | components["schemas"]["QueryDisjunctionFilter"] | components["schemas"]["QueryNegationFilter"]) | null;
             /** Result Binding */
@@ -19042,7 +19560,7 @@ export interface components {
              * Traversal
              * @default []
              */
-            traversal?: components["schemas"]["QueryTraversalStep"][];
+            traversal?: (components["schemas"]["QueryTraversalStep"] | components["schemas"]["QueryPairStep"])[];
             /** Where */
             where?: (components["schemas"]["QueryComparisonFilter"] | components["schemas"]["QueryMembershipFilter"] | components["schemas"]["QueryClaimPresenceFilter"] | components["schemas"]["QueryConjunctionFilter"] | components["schemas"]["QueryDisjunctionFilter"] | components["schemas"]["QueryNegationFilter"]) | null;
             /** Result Binding */
@@ -19570,6 +20088,56 @@ export interface components {
              * @enum {string}
              */
             value_type: "string" | "integer" | "boolean" | "decimal" | "timestamp" | "subject_reference";
+        };
+        /**
+         * QueryPairPart
+         * @description One Subject-valued key part of a pair hop and the earlier binding that names its end.
+         */
+        QueryPairPart: {
+            /**
+             * Tag
+             * @default playbill-query-pair-part-v1
+             * @constant
+             */
+            tag?: "playbill-query-pair-part-v1";
+            /** Part */
+            part: string;
+            /** Binding */
+            binding: string;
+        };
+        /**
+         * QueryPairStep
+         * @description One pair-Subject hop: the pair of ``subject_kind`` whose ends are bound Subjects.
+         *
+         *     Without ``fact``, ``parts`` name the pair's whole key: the hop binds the
+         *     live pair whose key Claims name exactly those ends. With ``fact``, one part
+         *     is bound: the hop binds every live pair of that end holding a visible,
+         *     positive ``fact`` Claim. Either way the edge is the pair's visible key Claim;
+         *     candidates come from the Subject key index or the pair index, never from a
+         *     scan of the end's pairs.
+         */
+        QueryPairStep: {
+            /**
+             * Tag
+             * @default playbill-query-pair-step-v1
+             * @constant
+             */
+            tag?: "playbill-query-pair-step-v1";
+            /** Binding */
+            binding: string;
+            /** Subject Kind */
+            subject_kind: string;
+            /** Parts */
+            parts: components["schemas"]["QueryPairPart"][];
+            /** Fact */
+            fact?: string | null;
+            /**
+             * Required
+             * @default true
+             */
+            required?: boolean;
+            /** Where */
+            where?: (components["schemas"]["QueryComparisonFilter"] | components["schemas"]["QueryMembershipFilter"] | components["schemas"]["QueryClaimPresenceFilter"] | components["schemas"]["QueryConjunctionFilter"] | components["schemas"]["QueryDisjunctionFilter"] | components["schemas"]["QueryNegationFilter"]) | null;
         };
         /**
          * QueryParameterBinding
@@ -20968,6 +21536,457 @@ export interface components {
             /** Nodes Done */
             nodes_done: number;
         };
+        /**
+         * RunbookAuthoringPayload
+         * @description One Runbook decision (D-R36): an ordered list of Lines and internal actions.
+         *
+         *     No branching, no parameters of its own and no new action kinds: each Line
+         *     step runs as that Line's manual occurrence, on its own parameters and
+         *     authority. ``retire`` retires the accepted Runbook (``steps`` then unused).
+         */
+        RunbookAuthoringPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            tag: "cruxible-runbook-authoring-payload-v1";
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Steps
+             * @default []
+             */
+            steps?: components["schemas"]["RunbookStepAuthoring"][];
+            /**
+             * Retire
+             * @default false
+             */
+            retire?: boolean;
+        };
+        /**
+         * RunbookInput
+         * @description An ordered list of Lines and internal actions, run in order (D-R36).
+         *
+         *     Each step names exactly one accepted Line (``line``) or registered internal
+         *     action (``action``). No branching, no parameters of its own: a Line step runs
+         *     as that Line's manual occurrence, on its own parameters, budgets and authority.
+         *     A run stops at the first step that fails or whose writes go to review.
+         *     ``retire`` retires the accepted Runbook.
+         */
+        RunbookInput: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "runbook";
+            /**
+             * Name
+             * @description The Runbook name, e.g. 'security.catch-up'.
+             */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Steps
+             * @description In run order: {line: <Line name>} or {action: <internal action>}.
+             * @default []
+             */
+            steps?: components["schemas"]["RunbookStepAuthoring"][];
+            /**
+             * Retire
+             * @default false
+             */
+            retire?: boolean;
+        };
+        /**
+         * RunbookOrderProblem
+         * @description A read the order cannot serve: reported, never fixed.
+         */
+        RunbookOrderProblem: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "reads_later_write" | "reads_unwritten";
+            /** Step */
+            step: number;
+            /** Claim Type */
+            claim_type: string;
+            /**
+             * Written By Steps
+             * @default []
+             */
+            written_by_steps?: number[];
+            /**
+             * Outside Writers
+             * @default []
+             */
+            outside_writers?: string[];
+        };
+        /**
+         * RunbookPreview
+         * @description A static composed graph of one Runbook, from accepted definitions only.
+         *
+         *     It never executes a step, reads no Claims, Captures or journals, and
+         *     predicts no outcome: no record counts, no value changes, no whether a
+         *     proposal happens. It says what each step can do.
+         */
+        RunbookPreview: {
+            /**
+             * Tag
+             * @default cruxible-runbook-preview-v1
+             * @constant
+             */
+            tag?: "cruxible-runbook-preview-v1";
+            /** Runbook */
+            runbook: string;
+            /** Runbook Artifact Digest */
+            runbook_artifact_digest: string;
+            /** Description */
+            description?: string | null;
+            /** Generation Root */
+            generation_root: string;
+            /** Steps */
+            steps: components["schemas"]["RunbookPreviewStep"][];
+            /**
+             * Order Problems
+             * @default []
+             */
+            order_problems?: components["schemas"]["RunbookOrderProblem"][];
+        };
+        /**
+         * RunbookPreviewAuthority
+         * @description What the step's Line may do with its writes, from its Mandate scope.
+         *
+         *     Static: a write is shown as settling only when every restriction of the
+         *     grant can be proven from definitions (ClaimType, change kind, the value's
+         *     evidence basis, no value or Subject restriction). Anything that cannot be
+         *     proven is listed in ``review_gaps`` and may go to review.
+         */
+        RunbookPreviewAuthority: {
+            /**
+             * Max Authority
+             * @enum {string}
+             */
+            max_authority: "observe" | "propose" | "settle";
+            /**
+             * Mandates
+             * @default []
+             */
+            mandates?: string[];
+            /** Grants */
+            grants?: ("propose" | "settle") | null;
+            /**
+             * Settles
+             * @default []
+             */
+            settles?: components["schemas"]["RunbookSettleScope"][];
+            /**
+             * Settles Creation
+             * @default []
+             */
+            settles_creation?: string[];
+            /** Subject Scope */
+            subject_scope?: string[] | null;
+            /** Subjects */
+            subjects?: "expected" | null;
+            /**
+             * Conditional
+             * @default false
+             */
+            conditional?: boolean;
+            /** Condition Query */
+            condition_query?: string | null;
+            /** Condition Fallback */
+            condition_fallback?: ("refuse" | "propose") | null;
+            /**
+             * Review Gaps
+             * @default []
+             */
+            review_gaps?: components["schemas"]["SettleScopeGap"][];
+            /**
+             * Proposes
+             * @default []
+             */
+            proposes?: string[];
+            /**
+             * Proposes Creation
+             * @default []
+             */
+            proposes_creation?: string[];
+            /** May Stop Run */
+            may_stop_run: boolean;
+        };
+        /**
+         * RunbookPreviewCall
+         * @description One provider call: its slot's signature and the binding the Line pins.
+         */
+        RunbookPreviewCall: {
+            /** Node Id */
+            node_id: string;
+            /** Slot */
+            slot: string;
+            /** Signature In */
+            signature_in?: string | null;
+            /** Signature Out */
+            signature_out?: string | null;
+            /** Effect */
+            effect?: string | null;
+            /** Build */
+            build?: string | null;
+            /** Operation */
+            operation?: string | null;
+            /**
+             * Captures
+             * @default []
+             */
+            captures?: string[];
+        };
+        /**
+         * RunbookPreviewCascade
+         * @description A Trigger the step's writes can set off, during or after the run.
+         */
+        RunbookPreviewCascade: {
+            /** Trigger */
+            trigger: string;
+            /**
+             * Schedule
+             * @enum {string}
+             */
+            schedule: "capture_landing" | "generation_accepted";
+            /**
+             * Target Kind
+             * @enum {string}
+             */
+            target_kind: "line" | "action" | "runbook";
+            /** Target */
+            target: string;
+            /** Capture Contract */
+            capture_contract?: string | null;
+            /**
+             * In Runbook
+             * @default false
+             */
+            in_runbook?: boolean;
+        };
+        /**
+         * RunbookPreviewRead
+         * @description One read a step's Procedure declares, and the vocabulary behind it.
+         */
+        RunbookPreviewRead: {
+            /** Node Id */
+            node_id: string;
+            /** Query */
+            query?: string | null;
+            /** Claim Types */
+            claim_types: string[];
+            /**
+             * Subject Kinds
+             * @default []
+             */
+            subject_kinds?: string[];
+            /**
+             * Key Claim Types
+             * @default []
+             */
+            key_claim_types?: string[];
+            /**
+             * Late
+             * @default false
+             */
+            late?: boolean;
+        };
+        /** RunbookPreviewStep */
+        RunbookPreviewStep: {
+            /** Step */
+            step: number;
+            /** Target */
+            target: components["schemas"]["LineTarget"] | components["schemas"]["ActionTarget"];
+            /**
+             * Unavailable
+             * @default false
+             */
+            unavailable?: boolean;
+            /** Procedure */
+            procedure?: string | null;
+            /**
+             * Reads
+             * @default []
+             */
+            reads?: components["schemas"]["RunbookPreviewRead"][];
+            /**
+             * Writes
+             * @default []
+             */
+            writes?: components["schemas"]["RunbookPreviewWrite"][];
+            /**
+             * Calls
+             * @default []
+             */
+            calls?: components["schemas"]["RunbookPreviewCall"][];
+            authority?: components["schemas"]["RunbookPreviewAuthority"] | null;
+            /** Action Effect */
+            action_effect?: string | null;
+            /**
+             * Cascades
+             * @default []
+             */
+            cascades?: components["schemas"]["RunbookPreviewCascade"][];
+        };
+        /**
+         * RunbookPreviewWrite
+         * @description One claims node a step's Procedure declares: the ClaimTypes it can write.
+         */
+        RunbookPreviewWrite: {
+            /** Node Id */
+            node_id: string;
+            /** Subject Kind */
+            subject_kind: string;
+            /**
+             * Creates Subjects
+             * @default false
+             */
+            creates_subjects?: boolean;
+            /** Claim Types */
+            claim_types: string[];
+            /**
+             * Creates Object Kinds
+             * @default []
+             */
+            creates_object_kinds?: string[];
+            /**
+             * Judges Absence
+             * @default false
+             */
+            judges_absence?: boolean;
+        };
+        /**
+         * RunbookRunResult
+         * @description One run of a Runbook: every step's outcome, in order, and why it stopped.
+         */
+        RunbookRunResult: {
+            /**
+             * Tag
+             * @default cruxible-runbook-run-v1
+             * @constant
+             */
+            tag?: "cruxible-runbook-run-v1";
+            /** Run Id */
+            run_id: string;
+            /** Runbook */
+            runbook: string;
+            /** Runbook Artifact Digest */
+            runbook_artifact_digest: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "manual" | "trigger";
+            /** Trigger */
+            trigger?: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * Finished At
+             * Format: date-time
+             */
+            finished_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "completed" | "stopped";
+            /** Stop Reason */
+            stop_reason?: ("step_failed" | "step_proposed" | "line_not_enabled" | "target_unavailable") | null;
+            /** Stopped At Step */
+            stopped_at_step?: number | null;
+            /** Steps */
+            steps: components["schemas"]["RunbookStepOutcome"][];
+        };
+        /**
+         * RunbookSettleChange
+         * @description One change kind a settle grant covers, and the evidence bases it settles on.
+         */
+        RunbookSettleChange: {
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "create" | "revise" | "retire";
+            /** Basis */
+            basis: ("extracted" | "measured" | "derived" | "absence")[];
+        };
+        /**
+         * RunbookSettleScope
+         * @description One ClaimType a settle grant covers, with every restriction the grant states.
+         */
+        RunbookSettleScope: {
+            /** Claim Type */
+            claim_type: string;
+            /** Changes */
+            changes: components["schemas"]["RunbookSettleChange"][];
+            /**
+             * Binding Subject Role
+             * @default subject
+             * @enum {string}
+             */
+            binding_subject_role?: "subject" | "object";
+            /** Value From */
+            value_from?: (string | boolean)[] | null;
+            /** Value To */
+            value_to?: (string | boolean)[] | null;
+        };
+        /**
+         * RunbookStepAuthoring
+         * @description One Runbook step: exactly one of an accepted Line (by name) or a registered action.
+         */
+        RunbookStepAuthoring: {
+            /** Line */
+            line?: string | null;
+            /** Action */
+            action?: string | null;
+        };
+        /**
+         * RunbookStepOutcome
+         * @description What one step did: its Line run (or action fire) and how it stood.
+         */
+        RunbookStepOutcome: {
+            /**
+             * Tag
+             * @default cruxible-runbook-step-outcome-v1
+             * @constant
+             */
+            tag?: "cruxible-runbook-step-outcome-v1";
+            /** Step */
+            step: number;
+            /** Target */
+            target: components["schemas"]["LineTarget"] | components["schemas"]["ActionTarget"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "succeeded" | "proposed" | "failed" | "not_enabled" | "unavailable" | "fired" | "not_run";
+            /** Run Id */
+            run_id?: string | null;
+            /** Run Status */
+            run_status?: string | null;
+            /**
+             * Proposal Ids
+             * @default []
+             */
+            proposal_ids?: string[];
+            /** Event Id */
+            event_id?: number | null;
+            /** Code */
+            code?: string | null;
+            /** Message */
+            message?: string | null;
+        };
         /** RuntimeCredentialBootstrapResult */
         RuntimeCredentialBootstrapResult: {
             /**
@@ -21940,10 +22959,12 @@ export interface components {
          * @description Create one Subject: name its kind and its key; core assigns the id.
          *
          *     ``key`` maps each key ClaimType of the kind's SubjectKind (by predicate, or by
-         *     its last name under the kind) to its value; omit it for a minted kind. The
-         *     id is the readable rendering of the canonical key (or a minted id), reported
-         *     in the result; the key parts become Claims citing ``rationale`` as your own
-         *     words.
+         *     its last name under the kind) to its value; omit it for a minted kind. A
+         *     pair kind's end (a Subject-valued key part) is a Subject object: an existing
+         *     Subject, or ``{subject_kind, key}`` naming one by key -- the live holder, or
+         *     the one a subject member of the same change set creates. The id is the
+         *     readable rendering of the canonical key (or a minted id), reported in the
+         *     result; the key parts become Claims citing ``rationale`` as your own words.
          */
         SubjectInput: {
             /**
@@ -21958,10 +22979,10 @@ export interface components {
             subject_kind: string;
             /**
              * Key
-             * @description Key ClaimType (predicate or short name) -> value, or just the value when the kind has one key; omit for a minted kind.
+             * @description Key ClaimType (predicate or short name) -> value, or just the value when the kind has one key; omit for a minted kind. A pair's end is {"kind": "subject", "subject": ...}.
              */
             key?: {
-                [key: string]: string | number | boolean;
+                [key: string]: string | number | boolean | components["schemas"]["SubjectObjectInput"];
             } | string | number | boolean;
             /**
              * Rationale
@@ -21978,12 +22999,20 @@ export interface components {
         /**
          * SubjectKeyPart
          * @description One key part: the key ClaimType and its value.
+         *
+         *     A literal part's value is a string, an integer or a boolean. A
+         *     Subject-valued part (a pair kind's end) names the end as a Subject Claim
+         *     object, by one of the existing address forms: the Subject itself
+         *     (``artifact-v1``), the Subject a creation member of the same change lands on
+         *     (``subject-creation-v1``), or the Subject its kind's key names
+         *     (``subject-key-v1``). Lowering lands it on the end's path, which is the
+         *     part's canonical value.
          */
         SubjectKeyPart: {
             /** Predicate */
             predicate: string;
             /** Value */
-            value: string | number | boolean;
+            value: string | number | boolean | components["schemas"]["SubjectClaimObject-Input"];
         };
         /**
          * SubjectKeyReference
@@ -22422,6 +23451,8 @@ export interface components {
              * @default false
              */
             retire?: boolean;
+            /** Runbook Name */
+            runbook_name?: string | null;
         };
         /** TriggerEventReference */
         TriggerEventReference: {
@@ -22466,6 +23497,11 @@ export interface components {
              * @description The internal action this Trigger fires; omit for a Line.
              */
             action?: string | null;
+            /**
+             * Runbook Name
+             * @description The Runbook this Trigger runs (cadence, cron or generation_accepted); each Line step runs under that Line's own enablement.
+             */
+            runbook_name?: string | null;
             /**
              * Retire
              * @default false
@@ -26555,7 +27591,7 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: string | null;
-                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "operations" | "runs" | "running" | "lines" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources" | "contracts") | null;
+                section?: ("documents" | "procedures" | "claim_types" | "subject_kinds" | "queries" | "operations" | "runs" | "running" | "lines" | "runbooks" | "captures" | "capture_contracts" | "predictions" | "mandates" | "principals" | "policies" | "generations" | "graph" | "pins" | "activity" | "sources" | "contracts") | null;
                 limit?: number;
                 cursor?: string | null;
                 /** @description An accepted generation's Git OID, or a unique prefix of at least 12 hex characters; the four coordinate fields also pin one. */
@@ -28094,6 +29130,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClaimTypeMigrationPreflight"] | components["schemas"]["ClaimTypeMigrationResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    prepare_claim_attestation_evidence_api_v1__instance_id__claim_attestations_evidence_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClaimAttestationEvidenceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClaimAttestationEvidenceResult"];
                 };
             };
             /** @description Bad request error envelope */
@@ -31474,6 +32599,178 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProcedureRunState"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    run_runbook_api_v1__instance_id__runbooks__name__runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunbookRunResult"];
+                };
+            };
+            /** @description Bad request error envelope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication error envelope */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Permission error envelope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found error envelope */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict error envelope */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation error envelope */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error envelope */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    preview_runbook_api_v1__instance_id__runbooks__name__preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instance_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunbookPreview"];
                 };
             };
             /** @description Bad request error envelope */
