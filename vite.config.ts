@@ -31,7 +31,8 @@ export default defineConfig({
         target: DAEMON_SOCKET ? { socketPath: DAEMON_SOCKET, protocol: "http:", host: "localhost", port: 80 } : DAEMON_URL,
         changeOrigin: true,
       },
-      "/api": {
+      // "/api/v1", not "/api": the app imports the repository's own api/pin.json in dev.
+      "/api/v1": {
         // http-proxy connects through socketPath; host/port only shape the Host header.
         target: DAEMON_SOCKET ? { socketPath: DAEMON_SOCKET, protocol: "http:", host: "localhost", port: 80 } : DAEMON_URL,
         changeOrigin: true,

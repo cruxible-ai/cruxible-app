@@ -100,7 +100,7 @@ holds an unpinned page on the head it opened on and offers the newer one.
 ### How the token is handled
 
 The daemon has no CORS, so the Vite dev server fronts it: `vite.config.ts`
-proxies `/api` to the socket or URL and, on each proxied request, sets
+proxies `/api/v1` and `/version` to the socket or URL and, on each proxied request, sets
 `Authorization: Bearer $CRUXIBLE_SERVER_BEARER_TOKEN` (unless the request
 already carries one). The token is read from the shell environment of the
 **dev-server process** — it is deliberately not a `VITE_`-prefixed variable,
