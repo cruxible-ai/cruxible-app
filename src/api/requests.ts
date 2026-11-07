@@ -40,7 +40,13 @@ export type OkResponse<P extends keyof paths, M extends Method> =
  * /get with detail="body" (a Document's body, by byte range) is gated the
  * same way, and the Docs page says so the same way. GET /runbooks/{name}/preview
  * reads accepted definitions only (it executes nothing); POST
- * /runbooks/{name}/runs, which runs every step, is not on the list.
+ * /runbooks/{name}/runs, which runs every step, is not on the list. The About
+ * page's reads are all READ_ONLY and write nothing: GET /version (core's version
+ * and SDK contract digest, unauthenticated like /health), /host (the host's
+ * compatibility; core drops its managed root for an instance-scoped credential,
+ * and the page never shows it), /whoami (the caller as resolved; no secret, a
+ * credential's label at most) and /providers (installed Provider builds and the
+ * configured repository's packages, read from local files).
  */
 export const READ_ROUTES = [
   "GET /api/v1/{instance_id}/head",
@@ -60,6 +66,10 @@ export const READ_ROUTES = [
   "POST /api/v1/{instance_id}/proposals/{proposal_id}/review",
   "POST /api/v1/{instance_id}/procedures/{name}/readings",
   "GET /api/v1/{instance_id}/runbooks/{name}/preview",
+  "GET /version",
+  "GET /api/v1/{instance_id}/host",
+  "GET /api/v1/{instance_id}/whoami",
+  "GET /api/v1/{instance_id}/providers",
 ] as const satisfies readonly `${"GET" | "POST"} ${keyof paths}`[];
 
 const READ_ROUTE_SET: ReadonlySet<string> = new Set(READ_ROUTES);

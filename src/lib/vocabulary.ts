@@ -299,6 +299,15 @@ const RUNBOOK_RUN: Record<string, Term> = {
   target_unavailable: t("Target unavailable", "Target unavailable: a step's target cannot run"),
 };
 
+/** A daemon host's compatibility (GET /host). */
+const HOST: Record<string, Term> = {
+  writable: ok("Writable", "Writable: governed writes are accepted"),
+  uninitialized: t("Uninitialized", "Uninitialized: the host exists but no instance was bootstrapped on it"),
+  reseed_required: t("Reseed required", "Reseed required: the host state cannot be served as it is; the reason says why", "wrong"),
+  decommissioned: t("Decommissioned", "Decommissioned: reads keep serving; every write is refused"),
+  refused: t("Refused", "Refused: the host's location is outside this daemon's state root", "wrong"),
+};
+
 /** Lifecycle of definitions (kinds, contracts, Subjects). */
 const LIFECYCLE: Record<string, Term> = {
   live: ok("Live", "Live: in accepted state"),
@@ -328,6 +337,7 @@ export const VOCABULARY = {
   member: MEMBER,
   runbookStep: RUNBOOK_STEP,
   runbookRun: RUNBOOK_RUN,
+  host: HOST,
 } as const;
 
 export type Concept = keyof typeof VOCABULARY;

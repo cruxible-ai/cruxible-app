@@ -40,25 +40,25 @@ export const FIXTURE_INSTANCE_ID = "inst_fixture";
 
 export function buildHandlers(base = "", fixtures: RecordedFixture[] = FIXTURES) {
   const byKey = new Map(fixtures.map((fixture) => [fixture.key, fixture]));
-  return [
-    http.all(`${base}/api/v1/*`, async ({ request }) => {
-      const url = new URL(request.url);
-      const text = request.method === "GET" ? "" : await request.text();
-      const body = text === "" ? null : (JSON.parse(text) as unknown);
-      const key = fixtureKey(
-        request.method,
-        normalizePath(url.pathname),
-        queryFromSearch(url.searchParams),
-        body,
+  const answer = async ({ request }: { request: Request }) => {
+    const url = new URL(request.url);
+    const text = request.method === "GET" ? "" : await request.text();
+    const body = text === "" ? null : (JSON.parse(text) as unknown);
+    const key = fixtureKey(
+      request.method,
+      normalizePath(url.pathname),
+      queryFromSearch(url.searchParams),
+      body,
+    );
+    const fixture = byKey.get(key);
+    if (!fixture) {
+      return HttpResponse.json(
+        errorEnvelope("FixtureNotRecorded", `no recorded fixture for ${key}`),
+        { status: 404 },
       );
-      const fixture = byKey.get(key);
-      if (!fixture) {
-        return HttpResponse.json(
-          errorEnvelope("FixtureNotRecorded", `no recorded fixture for ${key}`),
-          { status: 404 },
-        );
-      }
-      return HttpResponse.json(fixture.response as never, { status: fixture.status });
-    }),
-  ];
+    }
+    return HttpResponse.json(fixture.response as never, { status: fixture.status });
+  };
+  // the playbill routes, and core's version at the daemon root
+  return [http.all(`${base}/api/v1/*`, answer), http.get(`${base}/version`, answer)];
 }

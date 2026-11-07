@@ -3,7 +3,8 @@
 #
 # Builds the FastAPI app in-process against a throwaway HOME and state root
 # (no daemon, nothing under ~/.cruxible*), dumps app.openapi() to
-# api/openapi.json, records the core commit in api/pin.json, then regenerates
+# api/openapi.json, records the core commit, version and SDK contract digest
+# (what GET /version answers) in api/pin.json, then regenerates
 # the TypeScript types with `pnpm gen:api`.
 #
 #   CRUXIBLE_CORE_DIR=~/src/cruxible PYTHON=~/src/cruxible/.venv/bin/python \
@@ -29,17 +30,30 @@ env -i PATH="$PATH" HOME="$scratch/home" \
   XDG_STATE_HOME="$scratch/home/.local/state" XDG_CACHE_HOME="$scratch/home/.cache" \
   CRUXIBLE_STATE_ROOT="$scratch/state" \
   PYTHONPATH="$core/src:$core/packages/cruxible-client/src" \
-  "$python" - "$app_root/api/openapi.json" <<'PY'
+  "$python" - "$app_root/api/openapi.json" "$app_root/api/pin.json" "$commit" <<'PY'
 import json
 import sys
 
+from cruxible_client.contracts.authoring.models import AUTHORING_SDK_CONTRACT_SNAPSHOT_DIGEST
+from cruxible_core import __version__
 from cruxible_core.server.app import create_app
 
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(create_app().openapi(), handle, indent=2)
     handle.write("\n")
+# What GET /version answers for this build: the About page compares the daemon's against it.
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(
+        {
+            "core_commit": sys.argv[3],
+            "core_version": __version__,
+            "sdk_contract_snapshot_digest": AUTHORING_SDK_CONTRACT_SNAPSHOT_DIGEST,
+        },
+        handle,
+        indent=2,
+    )
+    handle.write("\n")
 PY
 
-printf '{\n  "core_commit": "%s"\n}\n' "$commit" > "$app_root/api/pin.json"
 (cd "$app_root" && pnpm gen:api)
 echo "pinned api/openapi.json to cruxible-core $commit"

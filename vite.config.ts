@@ -26,6 +26,11 @@ export default defineConfig({
   optimizeDeps: { include: ["elkjs/lib/elk.bundled.js"] },
   server: {
     proxy: {
+      // core's version (GET /version) sits at the daemon root, beside /api.
+      "/version": {
+        target: DAEMON_SOCKET ? { socketPath: DAEMON_SOCKET, protocol: "http:", host: "localhost", port: 80 } : DAEMON_URL,
+        changeOrigin: true,
+      },
       "/api": {
         // http-proxy connects through socketPath; host/port only shape the Host header.
         target: DAEMON_SOCKET ? { socketPath: DAEMON_SOCKET, protocol: "http:", host: "localhost", port: 80 } : DAEMON_URL,

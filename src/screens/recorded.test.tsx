@@ -253,15 +253,41 @@ describe("recorded reference world", () => {
     expect(links.getByRole("link", { name: "ClaimType:security.app_exposure.justification" })).toBeInTheDocument();
   }, 20000);
 
-  it("About: the ledger mirror is behind, with Git's reason and the command that publishes", async () => {
+  it("About: versions beside the pin, the host, the caller, principals and approval, health, kits and Providers", async () => {
     renderApp(`${I}/about`, RECORDED);
     const m = await main();
+    // versions: the daemon answers the build the console is pinned to
+    const versions = within(await m.findByRole("table", { name: "Versions" }, SLOW));
+    expect(versions.getAllByText("0.5.1")).toHaveLength(2);
+    expect(versions.getAllByText("Same")).toHaveLength(2);
+    expect(versions.queryByText("Differs")).toBeNull();
+    // the host
+    const host = within(await m.findByRole("list", { name: "Host" }, SLOW));
+    expect(host.getAllByText("Writable").length).toBeGreaterThan(0);
+    expect(host.getByText("runbooks-v1")).toBeInTheDocument();
+    expect(host.getByText("None attached")).toBeInTheDocument();
+    expect(await host.findByText("64", undefined, SLOW)).toBeInTheDocument();
+    // the caller: a local operator, read_only, who cannot author
+    const you = within(await m.findByRole("list", { name: "You" }, SLOW));
+    expect(you.getByText("Local operator")).toBeInTheDocument();
+    expect(you.getByText("read_only")).toBeInTheDocument();
+    expect(you.getByText("cruxible.identity.principal_unconfigured")).toBeInTheDocument();
+    // principals and the approval policy
+    const principals = within(await m.findByRole("table", { name: "Principals" }, SLOW));
+    expect(principals.getByRole("link", { name: "owner" })).toBeInTheDocument();
+    expect(await m.findByRole("link", { name: "Self-approval allowed" }, SLOW)).toBeInTheDocument();
+    // the ledger mirror, then the other facets
     expect(await m.findByText("https://127.0.0.1:9/cruxible/ledger.git", undefined, SLOW)).toBeInTheDocument();
-    expect(m.getAllByText("Behind").length).toBeGreaterThan(0);
     expect(m.getByText("Git said")).toBeInTheDocument();
     expect(m.getByText(/Failed to connect to 127\.0\.0\.1 port 9/)).toBeInTheDocument();
     expect(m.getByText("cruxible ledger publish --json")).toBeInTheDocument();
-  });
+    expect(within(m.getByRole("table", { name: "Health" })).getAllByRole("row")).toHaveLength(9);
+    // kits and Providers
+    expect(await m.findByText("None installed", undefined, SLOW)).toBeInTheDocument();
+    const providers = within(await m.findByRole("table", { name: "Installed Providers" }, SLOW));
+    expect(providers.getByRole("link", { name: "security-osv-provider" })).toBeInTheDocument();
+    expect(providers.getByRole("link", { name: "cruxible-provider-web" })).toBeInTheDocument();
+  }, 20000);
 
   it("contract page: security.kev-catalog with its logical source and the Line that retains it", async () => {
     renderApp(`${I}/contracts/security.kev-catalog`, RECORDED);

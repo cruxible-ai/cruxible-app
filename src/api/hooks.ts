@@ -281,7 +281,7 @@ export function useOntologyKinds() {
 
 /** All rows of one paged orient section, following next_cursor. */
 function useOrientSectionAll<
-  K extends "claim_types" | "subject_kinds" | "lines" | "runbooks" | "mandates" | "capture_contracts" | "pins" | "procedures" | "documents" | "captures",
+  K extends "claim_types" | "subject_kinds" | "lines" | "runbooks" | "principals" | "mandates" | "capture_contracts" | "pins" | "procedures" | "documents" | "captures",
 >(
   section: K,
   enabled = true,
@@ -383,6 +383,54 @@ export function useRunbookPreview(name: string | null) {
         }),
       ),
   });
+}
+
+/** Core's version and SDK contract digest (GET /version: daemon-wide, no instance). */
+export function useVersion() {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["version"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => unwrap(await client.GET("/version", {})),
+  });
+}
+
+/** The host's compatibility, compiler revision, workspace and floor delivery (head-only). */
+export function useHost() {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["host", instanceId],
+    staleTime: 60_000,
+    queryFn: async () => unwrap(await client.GET("/api/v1/{instance_id}/host", { params: { path: { instance_id: instanceId } } })),
+  });
+}
+
+/** The caller as the daemon resolves it: authenticated, actor source, permission tier, can author. */
+export function useWhoAmI() {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["whoami", instanceId],
+    staleTime: 60_000,
+    queryFn: async () => unwrap(await client.GET("/api/v1/{instance_id}/whoami", { params: { path: { instance_id: instanceId } } })),
+  });
+}
+
+/** Installed Provider builds and the configured repository's packages (head-only). */
+export function useProviders() {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["providers", instanceId],
+    staleTime: 5 * 60_000,
+    queryFn: async () => unwrap(await client.GET("/api/v1/{instance_id}/providers", { params: { path: { instance_id: instanceId } } })),
+  });
+}
+
+/** Every principal of the trust root (id, kind, status, key). */
+export function usePrincipals(enabled = true) {
+  return useOrientSectionAll("principals", enabled);
 }
 
 /** Every Mandate (procedure, grants, state, expiry). */

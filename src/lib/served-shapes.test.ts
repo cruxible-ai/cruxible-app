@@ -91,3 +91,28 @@ describe("Runbook preview", () => {
     expect(authorityRows(1, null)).toEqual([]);
   });
 });
+
+describe("About: versions and health", () => {
+  it("marks a daemon whose version or SDK contract differs from the console's pin, and only when both are known", async () => {
+    const { versionRows } = await import("./about");
+    const pin = { core_commit: "c", core_version: "0.5.1", sdk_contract_snapshot_digest: "sha256:a" };
+    expect(versionRows({ version: "0.5.1", sdk_contract_snapshot_digest: "sha256:a" }, pin).map((r) => r.differs)).toEqual([false, false]);
+    expect(versionRows({ version: "0.5.2", sdk_contract_snapshot_digest: "sha256:b" }, pin).map((r) => r.differs)).toEqual([true, true]);
+    // a pin made before it recorded them, or a daemon not yet read: no mark
+    expect(versionRows({ version: "0.5.2" }, { core_commit: "c" }).map((r) => r.differs)).toEqual([false, false]);
+    expect(versionRows(undefined, pin).map((r) => r.daemon)).toEqual([null, null]);
+  });
+
+  it("lists every facet but the mirror, with the repair next names unless it is withheld", async () => {
+    const { healthRows, HEALTH_FACETS } = await import("./about");
+    const ok = { state: "current" };
+    const status = Object.fromEntries([...HEALTH_FACETS, "ledger_mirror"].map((f) => [f, ok])) as never as Parameters<typeof healthRows>[0];
+    (status as Record<string, unknown>).compiler = { state: "upgrade_available", detail: { running_compiler_revision: "r2" }, repair: { operation: "cruxible.compiler.upgrade", target: "x", required_change: "upgrade_the_compiler" } };
+    (status as Record<string, unknown>).floor = { state: "stale", repair: { operation: "hand_edit", target: "y", required_change: "z" }, repair_hidden: true };
+    const rows = healthRows(status);
+    expect(rows.map((r) => r.facet)).not.toContain("ledger_mirror");
+    expect(rows).toHaveLength(HEALTH_FACETS.length);
+    expect(rows.find((r) => r.facet === "compiler")).toMatchObject({ repair: "upgrade the compiler", detail: "running_compiler_revision: r2" });
+    expect(rows.find((r) => r.facet === "floor")!.repair).toBeNull();
+  });
+});

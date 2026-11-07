@@ -59,7 +59,7 @@ const { values: args } = parseArgs({
     instance: { type: "string" },
     out: { type: "string", default: "src/fixtures/recorded" },
     // Record one group into the existing set (same coordinate) instead of
-    // replacing it: "graph" or "ontology".
+    // replacing it: "graph", "ontology" or "about".
     only: { type: "string" },
   },
 });
@@ -102,6 +102,9 @@ async function call<T>(
     ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
   });
   const json = (await response.json()) as unknown;
+  // The host's managed root is the recording machine's own path: keep it out
+  // of the fixtures, as core does for an instance-scoped credential.
+  if (template === `${P}/host` && json && typeof json === "object") (json as { managed_root?: unknown }).managed_root = null;
   const body = opts.body === undefined ? null : JSON.parse(JSON.stringify(opts.body));
   const key = fixtureKey(
     method,
@@ -124,7 +127,7 @@ async function call<T>(
 
 const P = "/api/v1/{instance_id}";
 
-async function orientAll(coordinate: AcceptedCoordinate, section?: "claim_types" | "subject_kinds" | "lines" | "mandates" | "documents" | "runbooks" | "procedures") {
+async function orientAll(coordinate: AcceptedCoordinate, section?: "claim_types" | "subject_kinds" | "lines" | "mandates" | "documents" | "runbooks" | "procedures" | "principals") {
   const pages: OrientResult[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < 20; page += 1) {
@@ -155,6 +158,25 @@ async function recordMandate(mandate: string) {
   const [read] = await fetchCards([`Mandate:${name}`]).catch(() => [undefined]);
   const query = (read?.card as { condition?: { query?: string } | null } | undefined)?.condition?.query;
   if (query) await fetchCards([query]).catch(() => null);
+}
+
+// The About page: core's version, the host, the caller, the Providers, the
+// principals and the approval policy (kits and the next page are read below
+// for the whole set; `--only about` reads them here too).
+if (!args.only || args.only === "about") {
+  await call("get", "/version");
+  await call("get", `${P}/host`);
+  await call("get", `${P}/whoami`);
+  await call("get", `${P}/providers`);
+  await orientAll(C, "principals");
+  await fetchCards(["ApprovalPolicy:instance"]).catch(() => null);
+  if (args.only === "about") {
+    await call("get", `${P}/kits`);
+    await call("get", `${P}/orient`, { query: orientQuery({ coordinate: C, limit: ORIENT_PAGE }) });
+    await call("post", `${P}/next`, { body: nextBody({ coordinate: C, evaluationTime: new Date().toISOString(), limit: NEXT_PAGE }) });
+    writeRecordings(false);
+    process.exit(0);
+  }
 }
 
 // The whole-graph screen: every page of orient section=graph, from the first
@@ -455,7 +477,7 @@ function writeRecordings(replace: boolean) {
   for (const [key, rec] of recordings) {
     // `--only` adds its group; the head it re-read is already in the set.
     if (!replace && rec.template === `${P}/head`) continue;
-    const slug = rec.template.replace(`${P}/`, "").replace(/[{}]/g, "").replace(/[^a-z0-9]+/gi, "-");
+    const slug = rec.template.replace(`${P}/`, "").replace(/[{}]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+/, "");
     const define = rec.status === 200 ? "defineFixture" : "defineErrorFixture";
     const spec = {
       method: rec.method,
