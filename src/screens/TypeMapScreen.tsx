@@ -495,6 +495,20 @@ function KindPanel({
           </div>
         </PanelSection>
       )}
+      {(rule?.ends ?? []).length > 0 && (
+        <PanelSection title="Pair of">
+          <div className="space-y-0.5 text-[12px]" title="A pair kind: a relationship with facts of its own, keyed by one Subject per end">
+            {rule!.ends!.map((end) => (
+              <div key={end.key}>
+                <span className="text-zinc-500">{end.key.startsWith(`${kind}.`) ? end.key.slice(kind.length + 1) : end.key} </span>
+                <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(end.kind)}`)} className="font-mono text-zinc-200 hover:underline">
+                  {end.kind}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </PanelSection>
+      )}
       {groupByWriter(predicates.filter((p) => !(rule?.keys ?? []).includes(p.predicate)), writers).map((group) => (
         <div key={group.title} className="mt-4 border-t border-zinc-800 pt-3">
           {group.line ? (

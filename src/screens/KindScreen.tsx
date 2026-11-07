@@ -55,6 +55,8 @@ export function KindScreen() {
   const kits = useKits();
 
   const rule = (subjectKinds.data?.rows ?? []).find((row) => row.kind === kind);
+  // a pair kind's Subject-valued key parts and their end kinds (orient, else the kind card)
+  const pairEnds = rule?.ends ?? kindCard?.ends ?? [];
   const rows = useMemo(() => claimTypesOfKind(claimTypes.data?.rows ?? [], kind), [claimTypes.data, kind]);
   const pointing = useMemo(() => claimTypesPointingAt(claimTypes.data?.rows ?? [], kind), [claimTypes.data, kind]);
   const predicates = useMemo(() => rows.map((row) => row.predicate), [rows]);
@@ -128,6 +130,20 @@ export function KindScreen() {
                 "Identity undeclared"
               )}
             </Fact>
+            {pairEnds.length > 0 && (
+              <Fact label="Pair of" title="A pair kind: a relationship with facts of its own, keyed by one Subject per end">
+                <span className="flex flex-wrap gap-x-3">
+                  {pairEnds.map((end) => (
+                    <span key={end.key} className="whitespace-nowrap" title={end.key}>
+                      <span className="text-zinc-500">{end.key.startsWith(`${kind}.`) ? end.key.slice(kind.length + 1) : end.key} </span>
+                      <Link to={link(`/i/${instanceId}/kinds/${encodeURIComponent(end.kind)}`)} className="font-mono text-zinc-100 hover:underline">
+                        {end.kind}
+                      </Link>
+                    </span>
+                  ))}
+                </span>
+              </Fact>
+            )}
             <Fact label="Kit">{rule?.kit ? <span className="font-mono">{rule.kit}</span> : "Authored in this instance"}</Fact>
             <Fact label="ClaimTypes">
               <span className="font-mono">{rows.length}</span>

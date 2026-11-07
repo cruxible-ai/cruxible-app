@@ -11,6 +11,7 @@ import {
   HISTORY_PAGE,
   GRAPH_PAGE,
   INCOMING_PAGE,
+  PAIRS_PAGE,
   LANDING_TRIGGERS_QUERY,
   LEDGER_PAGE,
   ACTIVITY_PAGE,
@@ -1128,6 +1129,14 @@ export function useNeighborhood(root: string | null, depth: number) {
 /** One page of the Subject-valued Claims pointing at a Subject (keyset-paged). */
 export function useIncoming(ref: string | null, cursor?: string) {
   return useGet(ref, "incoming", { limit: INCOMING_PAGE, ...(cursor !== undefined ? { cursor } : {}) });
+}
+
+/**
+ * One page of the pairs a Subject is an end of (get detail=pairs), by pair
+ * kind and key part, through the pair index; the served cursor continues it.
+ */
+export function usePairs(ref: string | null, cursor?: string) {
+  return useGet(ref, "pairs", { limit: PAIRS_PAGE, ...(cursor !== undefined ? { cursor } : {}) });
 }
 
 /** One page of a Line's runs, newest first (keyset-paged). */

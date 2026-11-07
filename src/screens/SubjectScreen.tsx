@@ -53,6 +53,7 @@ import {
 import { FieldList, FieldRow, KeyMark } from "@/components/FieldList";
 import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { IncomingList } from "@/components/IncomingList";
+import { EndPairsPanel, PairEndsPanel } from "@/components/Pairs";
 import { useAtLink, withAt } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
 import { lineName } from "@/lib/lines";
@@ -221,13 +222,19 @@ export function SubjectScreen() {
 
       <WithRail
         rail={
-          subject.incoming_count > 0 ? (
-            <Panel title="Pointed at by">
-              <IncomingList subject={subject.subject} total={subject.incoming_count} summaries />
-            </Panel>
+          subject.incoming_count > 0 || (subject.pairs ?? []).length > 0 ? (
+            <>
+              {(subject.pairs ?? []).length > 0 && <EndPairsPanel subject={subject.subject} groups={subject.pairs!} />}
+              {subject.incoming_count > 0 && (
+                <Panel title="Pointed at by">
+                  <IncomingList subject={subject.subject} total={subject.incoming_count} summaries />
+                </Panel>
+              )}
+            </>
           ) : null
         }
       >
+        {(subject.ends ?? []).length > 0 && <PairEndsPanel ends={subject.ends!} />}
         <Panel
           title="Fields"
         >

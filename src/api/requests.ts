@@ -151,6 +151,9 @@ export function captureReadBody(capture: string, coordinate: AcceptedCoordinate)
 /** Incoming links per page (get allows up to 200). */
 export const INCOMING_PAGE = 50;
 
+/** Pairs per page of an end's pair listing (get detail=pairs; up to 200). */
+export const PAIRS_PAGE = 50;
+
 /** Line runs per page (get allows up to 200). */
 export const LINE_RUNS_PAGE = 20;
 
