@@ -38,7 +38,9 @@ export type OkResponse<P extends keyof paths, M extends Method> =
  * writes nothing but needs GOVERNED_WRITE (bodies can be private): a Capture
  * page reads its contents through it, and says so when the token can't. POST
  * /get with detail="body" (a Document's body, by byte range) is gated the
- * same way, and the Docs page says so the same way.
+ * same way, and the Docs page says so the same way. GET /runbooks/{name}/preview
+ * reads accepted definitions only (it executes nothing); POST
+ * /runbooks/{name}/runs, which runs every step, is not on the list.
  */
 export const READ_ROUTES = [
   "GET /api/v1/{instance_id}/head",
@@ -57,6 +59,7 @@ export const READ_ROUTES = [
   "POST /api/v1/{instance_id}/captures/read",
   "POST /api/v1/{instance_id}/proposals/{proposal_id}/review",
   "POST /api/v1/{instance_id}/procedures/{name}/readings",
+  "GET /api/v1/{instance_id}/runbooks/{name}/preview",
 ] as const satisfies readonly `${"GET" | "POST"} ${keyof paths}`[];
 
 const READ_ROUTE_SET: ReadonlySet<string> = new Set(READ_ROUTES);

@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useGetBatch, useInstanceId, useLines, useMandates, useNext } from "@/api/hooks";
+import { useGetBatch, useInstanceId, useLines, useMandates, useNext, useRunbooks } from "@/api/hooks";
+import { runbookName } from "@/lib/runbooks";
 import { NEXT_PAGE } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { Chip, SignalDot } from "@/components/Chip";
@@ -297,7 +298,7 @@ export function LinesScreen() {
     <Page>
       <PageHeader
         title="Lines"
-        description="What starts each Line, what it ends in, and how its last run went."
+        description="What starts each Line, what it ends in, and how its last run went; below, the Runbooks that run Lines in order."
         summary={
           lines.data ? (
             <>
@@ -338,7 +339,68 @@ export function LinesScreen() {
           />
         </Panel>
       )}
+      <RunbooksPanel />
     </Page>
+  );
+}
+
+type RunbookRow = Schemas["OrientRunbook"];
+
+/**
+ * Every Runbook at the pinned generation (orient section=runbooks): an
+ * ordered list of Line runs and actions started by hand or by a Trigger; its
+ * description as written, steps, Triggers aimed at it and its latest run
+ * (read live). Shown only when the instance has one.
+ */
+function RunbooksPanel() {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const runbooks = useRunbooks();
+  const rows = runbooks.data?.rows ?? [];
+  const columns = useMemo<Column<RunbookRow>[]>(
+    () => [
+      {
+        id: "runbook",
+        header: "Runbook",
+        hideable: false,
+        sortValue: (r) => runbookName(r.runbook),
+        className: "whitespace-nowrap",
+        cell: (r) => (
+          <span className="inline-flex items-baseline gap-2">
+            <Link to={link(`/i/${instanceId}/runbooks/${encodeURIComponent(runbookName(r.runbook))}`)} className="font-mono text-[12px] text-zinc-100 hover:underline">
+              {runbookName(r.runbook)}
+            </Link>
+            {r.lifecycle === "retired" && <span className="t-meta">Retired</span>}
+          </span>
+        ),
+      },
+      { id: "description", header: "Description", className: "text-[12px] text-zinc-300", cell: (r) => r.description ?? <span className="text-zinc-600">—</span> },
+      { id: "steps", header: "Steps", numeric: true, sortValue: (r) => r.steps, className: "font-mono", cell: (r) => r.steps },
+      { id: "triggers", header: "Triggers", numeric: true, sortValue: (r) => r.triggers_total ?? 0, className: "font-mono", cell: (r) => r.triggers_total ?? 0 },
+      {
+        id: "last",
+        header: "Last run",
+        sortValue: (r) => r.last_run_at ?? null,
+        className: "whitespace-nowrap",
+        cell: (r) =>
+          r.last_run ? (
+            <span className="inline-flex items-baseline gap-2" title={r.last_run_at ?? undefined}>
+              <Chip concept="runbookRun" value={r.last_run} />
+              {r.last_run_at && <span className="text-[12px] text-zinc-400">{formatRelative(r.last_run_at)}</span>}
+            </span>
+          ) : (
+            <span className="text-zinc-600">Never run</span>
+          ),
+      },
+    ],
+    [instanceId, link],
+  );
+  if (runbooks.error) return <LoadState error={runbooks.error} />;
+  if (!runbooks.data || rows.length === 0) return null;
+  return (
+    <Panel title="Runbooks" meta={<span>{rows.length}</span>}>
+      <DataTable rows={rows} columns={columns} rowKey={(r) => r.runbook} urlKey="runbooks" label="Runbooks" toolbar={rows.length > 10} maxHeight="none" />
+    </Panel>
   );
 }
 

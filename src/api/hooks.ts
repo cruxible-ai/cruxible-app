@@ -281,7 +281,7 @@ export function useOntologyKinds() {
 
 /** All rows of one paged orient section, following next_cursor. */
 function useOrientSectionAll<
-  K extends "claim_types" | "subject_kinds" | "lines" | "mandates" | "capture_contracts" | "pins" | "procedures" | "documents" | "captures",
+  K extends "claim_types" | "subject_kinds" | "lines" | "runbooks" | "mandates" | "capture_contracts" | "pins" | "procedures" | "documents" | "captures",
 >(
   section: K,
   enabled = true,
@@ -355,6 +355,34 @@ export function useDocuments(enabled = true) {
 /** Every Line (lifecycle, procedure, authority, trigger, enablement). */
 export function useLines(enabled = true) {
   return useOrientSectionAll("lines", enabled);
+}
+
+/** Every Runbook (steps, Triggers aimed at it, its latest run read live). */
+export function useRunbooks(enabled = true) {
+  return useOrientSectionAll("runbooks", enabled);
+}
+
+/**
+ * One Runbook's static preview (definitions only; nothing runs). The route
+ * takes no coordinate: it reads the daemon's head, so it is keyed on the
+ * head's oid and refreshed as the head moves.
+ */
+export function useRunbookPreview(name: string | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  const head = useHead(null);
+  const oid = head.data?.coordinate.git_oid ?? null;
+  return useQuery({
+    queryKey: ["runbook-preview", instanceId, name, oid],
+    enabled: name !== null && oid !== null,
+    staleTime: 60_000,
+    queryFn: async () =>
+      unwrap(
+        await client.GET("/api/v1/{instance_id}/runbooks/{name}/preview", {
+          params: { path: { instance_id: instanceId, name: name! } },
+        }),
+      ),
+  });
 }
 
 /** Every Mandate (procedure, grants, state, expiry). */
