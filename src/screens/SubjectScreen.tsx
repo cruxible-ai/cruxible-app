@@ -7,6 +7,7 @@ import {
   useCard,
   useClaimEvidence,
   useClaimRevisions,
+  useGet,
   useGetBatch,
   useInstanceId,
   useOntologyKinds,
@@ -29,6 +30,8 @@ import {
 import { actionChipClass, ChangeMark, Chip, SignalDot } from "@/components/Chip";
 import { Corroboration, type CorroborationSummary } from "@/components/Corroboration";
 import { CountsMark } from "@/components/CountsMark";
+import { AttestationEvidence } from "@/components/AttestationEvidence";
+import { accountOf, attestationAccounts } from "@/lib/attestation-evidence";
 import { LongText } from "@/components/LongText";
 import { Fact, Page, PageHeader, WithRail } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel, SubSection } from "@/components/Panel";
@@ -528,7 +531,7 @@ function ClaimDetail({
             })}
             {backing.absence && backing.absence.members.length > 1 && <AbsenceWitness members={backing.absence.members} />}
           </SubSection>
-          {ev.attestations.length > 0 && <AttestationList attestations={ev.attestations} />}
+          {ev.attestations.length > 0 && <AttestationList attestations={ev.attestations} claimId={claimId} />}
         </>
       )}
 
@@ -725,16 +728,42 @@ const ATTESTATION_COLUMNS: Column<GetAttestationEvidence>[] = [
 
 /**
  * A Claim version's attestations, accepted and recorded, each with whether it
- * counts toward the verdict and why. Ones no longer current are dimmed.
+ * counts toward the verdict and why. Ones no longer current are dimmed. A row
+ * opens to what it cites, like a write's evidence (the Claim's why read names
+ * each attestation's cited Captures: one read when attestations are listed).
  */
-function AttestationList({ attestations }: { attestations: GetAttestationEvidence[] }) {
+function AttestationList({ attestations, claimId }: { attestations: GetAttestationEvidence[]; claimId: string }) {
+  const why = useGet(claimId, "why");
+  const accounts = useMemo(() => attestationAccounts(why.data?.why), [why.data]);
+  const account = (a: GetAttestationEvidence) => accountOf(a, accounts);
+  const columns = useMemo<Column<GetAttestationEvidence>[]>(
+    () => [
+      ...ATTESTATION_COLUMNS,
+      {
+        id: "cites",
+        header: "Cites",
+        title: "The Captures the attestation cites; open the row for each",
+        className: "whitespace-nowrap text-zinc-400",
+        cell: (a) => {
+          const found = accountOf(a, accounts);
+          if (why.isPending) return <span className="animate-pulse text-zinc-600">…</span>;
+          return found ? `${found.cited.length} ${found.cited.length === 1 ? "Capture" : "Captures"}` : <span className="text-zinc-600">—</span>;
+        },
+      },
+    ],
+    [accounts, why.isPending],
+  );
   return (
     <SubSection title="Attestations" meta={attestations.length}>
+      {why.error && <div className="text-red-400/80">{why.error.message}</div>}
       <DataTable
         rows={attestations}
-        columns={ATTESTATION_COLUMNS}
+        columns={columns}
         rowKey={(a) => `${a.event ?? a.principal}\n${a.at}\n${attestations.indexOf(a)}`}
+        rowLabel={(a) => `Attestation by ${a.principal}`}
         rowClassName={(a) => (a.current ? "" : "opacity-60")}
+        canExpand={(a) => account(a) !== undefined}
+        expanded={(a) => <AttestationEvidence account={account(a)!} />}
         label="Attestations"
         toolbar={false}
         maxHeight="none"
