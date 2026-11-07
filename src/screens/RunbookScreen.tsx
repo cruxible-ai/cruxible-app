@@ -10,7 +10,7 @@ import { RefLink } from "@/components/RefLink";
 import { ShortId } from "@/components/ShortId";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
-import { authorityRows, runbookName, targetOf, type AuthorityRow, type RunbookTarget } from "@/lib/runbooks";
+import { authorityRows, runbookName, runGroups, targetKey, targetOf, type AuthorityRow, type RunbookTarget, type RunGroupData } from "@/lib/runbooks";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
@@ -136,12 +136,33 @@ function TargetLink({ target }: { target: RunbookTarget | string }) {
 }
 
 /**
- * The retained runs, newest first: one row per run (how it started, when, how
- * it ended and why it stopped), one column per step with its outcome, linked
- * to the Line run it made.
+ * The retained runs, newest first. A run is read by its own definition, never
+ * the current one: runs are grouped by the Runbook revision they ran
+ * (`runbook_artifact_digest`), and each group's step columns are the targets
+ * its own outcomes name, so a later revision's steps never relabel an older
+ * run. One row per run (when, how it started, how it ended and why it
+ * stopped), one column per step with its outcome, linked to the Line run it
+ * made.
  */
 function RecentRuns({ card }: { card: Card }) {
   const runs = card.recent_runs ?? [];
+  const groups = useMemo(() => runGroups(runs), [runs]);
+  return (
+    <Panel title="Recent runs" meta={<span>{card.runs_more ? `newest ${runs.length}` : runs.length}</span>}>
+      {runs.length === 0 ? (
+        <EmptyState>Never run</EmptyState>
+      ) : (
+        <div className="space-y-4">
+          {groups.map((group) => (
+            <RunGroup key={group.digest} group={group} labelled={groups.length > 1} />
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function RunGroup({ group, labelled }: { group: RunGroupData; labelled: boolean }) {
   const columns = useMemo<Column<Run>[]>(
     () => [
       {
@@ -149,7 +170,7 @@ function RecentRuns({ card }: { card: Card }) {
         header: "Run",
         className: "whitespace-nowrap",
         cell: (r) => (
-          <span title={[r.run_id, `definition ${r.runbook_artifact_digest}`].join("\n")} className="text-[12px] text-zinc-300">
+          <span title={r.run_id} className="text-[12px] text-zinc-300">
             {formatWhen(r.started_at)}
           </span>
         ),
@@ -176,30 +197,43 @@ function RecentRuns({ card }: { card: Card }) {
           </span>
         ),
       },
-      ...card.steps.map(
+      ...group.steps.map(
         (step): Column<Run> => ({
-          id: `step-${step.step}`,
+          id: `step-${step.step}-${step.target}`,
           header: (
             <span title={step.target}>
               {step.step} · {shortTarget(step.target)}
             </span>
           ),
-          label: `Step ${step.step}`,
+          label: `Step ${step.step} ${step.target}`,
           className: "whitespace-nowrap",
-          cell: (r) => <StepOutcome outcome={r.steps.find((o) => o.step === step.step)} />,
+          cell: (r) => (
+            <StepOutcome
+              outcome={r.steps.find((o) => o.step === step.step && targetKey(o.target) === step.target)}
+            />
+          ),
         }),
       ),
     ],
-    [card.steps],
+    [group.steps],
   );
   return (
-    <Panel title="Recent runs" meta={<span>{card.runs_more ? `newest ${runs.length}` : runs.length}</span>}>
-      {runs.length === 0 ? (
-        <EmptyState>Never run</EmptyState>
-      ) : (
-        <DataTable rows={runs} columns={columns} rowKey={(r) => r.run_id} label="Recent runs" toolbar={false} maxHeight="none" />
+    <div>
+      {labelled && (
+        <div className="mb-1 text-[12px] text-zinc-500">
+          Revision <ShortId value={group.digest} className="text-zinc-400" />
+          <span className="text-zinc-600"> · {group.runs.length}</span>
+        </div>
       )}
-    </Panel>
+      <DataTable
+        rows={group.runs}
+        columns={columns}
+        rowKey={(r) => r.run_id}
+        label={labelled ? `Runs of ${group.digest}` : "Recent runs"}
+        toolbar={false}
+        maxHeight="none"
+      />
+    </div>
   );
 }
 

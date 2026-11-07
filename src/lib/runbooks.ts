@@ -58,3 +58,38 @@ export function authorityRows(step: number, authority: Authority | null | undefi
   for (const kind of authority.proposes_creation ?? []) rows.push({ step, what: kind, whatKind: "creates", goes: "proposes", changes: [], gaps: [] });
   return rows;
 }
+
+type Run = Schemas["RunbookRunResult"];
+
+/** A target as one string: `Line:<name>` for a Line, the action's name for an action. */
+export function targetKey(target: RunbookTarget | string): string {
+  const { kind, name } = targetOf(target);
+  return kind === "line" ? `Line:${name}` : name;
+}
+
+export interface RunGroupData {
+  digest: string;
+  runs: Run[];
+  /** The steps these runs' own outcomes name, in step order. */
+  steps: { step: number; target: string }[];
+}
+
+/**
+ * Runs by the Runbook revision they ran (`runbook_artifact_digest`), in the
+ * order served (newest first); each group's steps are the targets its own
+ * outcomes name, never the current definition's.
+ */
+export function runGroups(runs: readonly Run[]): RunGroupData[] {
+  const byDigest = new Map<string, RunGroupData>();
+  for (const run of runs) {
+    let group = byDigest.get(run.runbook_artifact_digest);
+    if (!group) byDigest.set(run.runbook_artifact_digest, (group = { digest: run.runbook_artifact_digest, runs: [], steps: [] }));
+    group.runs.push(run);
+    for (const outcome of run.steps) {
+      const target = targetKey(outcome.target);
+      if (!group.steps.some((s) => s.step === outcome.step && s.target === target)) group.steps.push({ step: outcome.step, target });
+    }
+  }
+  for (const group of byDigest.values()) group.steps.sort((a, b) => a.step - b.step || (a.target < b.target ? -1 : 1));
+  return [...byDigest.values()];
+}
