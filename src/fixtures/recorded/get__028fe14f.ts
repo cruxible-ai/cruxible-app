@@ -1,0 +1,53 @@
+// Recorded from cruxible-core ad70ccc439f11b25afbbd3b6ad9c831eae1ca2ad by scripts/record-fixtures.ts; do not edit.
+// POST /api/v1/{instance_id}/get c00eca64
+import { defineFixture } from "../fixture";
+
+export default defineFixture({
+  "method": "post",
+  "path": "/api/v1/{instance_id}/get",
+  "body": {
+    "ref": "security.inventory/pkg-maven-com.example-log4j-demo-app-1.0.0",
+    "detail": "incoming",
+    "at": {
+      "tag": "playbill-accepted-coordinate-v1",
+      "git_oid": "30e90cc6ad34f4237ffd2292af5a59e0cef2fa8e",
+      "semantic_root": "sha256:b33d1f5292aa0730b794fd12f6a4615c81cc35a380e96fe0eece5e094e85b4b2",
+      "generation_root": "sha256:77bcd8f847583c3f84492e8f156c888d836bb350fa250e77616e4d098e6c1e29",
+      "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf"
+    },
+    "surface": "sdk",
+    "limit": 50
+  },
+  "response": {
+    "tag": "playbill-get-result-v1",
+    "ref": "security.inventory/pkg-maven-com.example-log4j-demo-app-1.0.0",
+    "kind": "subject",
+    "detail": "incoming",
+    "incoming": {
+      "kind": "incoming",
+      "claims": [
+        {
+          "claim": "CLM-0edce0aae1b86e5820bf4796a93904fd",
+          "subject": "security.occurrence/pkg-maven-com.example-log4j-demo-app-1.0.0--pkg-maven-org.slf4j-slf4j-api-1.7.32",
+          "predicate": "security.occurrence.inventory"
+        },
+        {
+          "claim": "CLM-26a8f13c7043a67741f93284b0207957",
+          "subject": "security.occurrence/pkg-maven-com.example-log4j-demo-app-1.0.0--pkg-maven-org.apache.logging.log4j-log4j-core-2.14.1",
+          "predicate": "security.occurrence.inventory"
+        },
+        {
+          "claim": "CLM-f37229fc9fc2cda5714cd728b89a6e57",
+          "subject": "security.occurrence/pkg-maven-com.example-log4j-demo-app-1.0.0--pkg-maven-org.apache.logging.log4j-log4j-api-2.14.1",
+          "predicate": "security.occurrence.inventory"
+        }
+      ]
+    },
+    "truncated": false,
+    "coordinate": {
+      "git_oid": "30e90cc6ad34",
+      "generation": 22
+    },
+    "evaluation_time": "2026-11-07T22:22:58.996251Z"
+  }
+});

@@ -53,16 +53,18 @@ and export it as `CRUXIBLE_SERVER_BEARER_TOKEN` before `pnpm dev`; set
 | Kind      | one Subject kind as the ontology defines it: identity, kit, what points at it; per ClaimType its value or target kind, cardinality, role, evidence contracts, freshness, kit (and local edits), contention policy, format and revision, who may settle it (typed Mandate scope), live Claims and the share of Subjects with a value (maintained counters); a row expands to its evidence rules and the definitions that pin it |
 | Contract  | one capture contract, read Input → Contract → Output: under the title, what it is in one sentence; its terms in plain words from the stored contract (`get --detail proof`: shape, who obtains it, replay, size, retention, erasure, selector privacy, grade); grade and source kinds; its logical sources (contracts no longer list them: each comes from the source steps that retain it and the landing Triggers that select it), with who retains and selects each; the Procedures that capture under it (definition pins), with their interfaces and Lines, and which retain Captures and which read its landings; the Triggers on its landings, the logical sources they select and the Lines they start; the ClaimTypes that admit or require it |
 | Evidence flow | logical sources → capture contracts → the Triggers their landings fire (and the Lines they start) and the ClaimTypes that admit them, in columns; a source node is a logical source the definitions name (retained by a source step, literally or through a Line parameter, or selected by a landing Trigger); hover traces a node's path (a source lights only the Triggers that select it), focus keeps only it |
-| Subject   | a Subject's card: every field's value and read flags, each Claim's verdict and contenders, evidence admitted; per Claim on expand its evidence (each cited Capture as evidence, own words or a passage of its source, with its state: admitted, not admitted or not evidence; each attestation, accepted or recorded, with whether it counts toward the verdict and why; rationale), admission accounts and revisions; the field history, paged |
+| Subject   | a Subject's card: every field's value and read flags, each Claim's verdict and contenders, evidence admitted; per Claim on expand its evidence (each cited Capture as evidence, own words or a passage of its source, with its state: admitted, not admitted or not evidence; each attestation, accepted or recorded, with whether it counts toward the verdict and why, opening to what it cites like a write: its own words, each cited Capture as own words, a section by heading path, a passage or evidence; rationale), admission accounts and revisions; a pair Subject's ends (key part, end kind, the end linked); an end's live pairs per pair kind and key part, every pair a page at a time (`get` detail=pairs); its backlinks (Documents and notes about it, the workspace sections its Claims cite, drift since cited); the field history, paged |
 | Neighborhood | a Subject's outgoing links (Subject-valued Claims), depth 1 or 2, at most 150 Subjects, plus the first page of what points at it; every node pages its incoming links |
 | Next      | the `next` queue, a page of 100 at a time, grouped by severity and then by reason (a repair or detail shared by a whole group shows once), filterable by family; each reason renders its own detail fields; repairs show as text with their CLI command |
 | Beliefs   | contested, stale and drifted beliefs: tabs over the `next` page in hand; a resurfaced attestation shows its basis and note, and a recorded contradiction with no consequence policy says it does not count toward the verdict |
 | Ledger    | accepted generations newest first: sequence (opens the instance pinned there), oid, proposer, approvals, reason, change count; a row expands to its change set |
 | Proposals | proposals by state (waiting for review, incomplete, settled); each opens its review: the proposal's words and a summary first, each change marked `+` create, `~` revise, `−` retire (ClaimType, Subject, value before and after) with its raw field deltas behind a disclosure, prior refusals, governance, recorded approvals, item reasons. Approving, activating and rejecting stay on the CLI/MCP |
-| Lines     | every Line: Procedure, trigger, max authority, mandates, enablement, last run, inbox unread, `next` rows |
+| Lines     | every Line: Procedure, trigger, max authority, mandates, enablement, last run, inbox unread, `next` rows; every Runbook: description, steps, Triggers, last run |
+| Runbook   | one Runbook (`get Runbook:<name>`): steps with target and whether each can run, the Triggers aimed at it, recent runs with each step's outcome linked to its Line run; its static preview at the head (`runbook preview`) as tables: order problems, per step the Procedure, authority, Mandates and condition, reads, writes and creates, provider calls and the builds bound, what settles and what goes to proposal, cascades |
 | Line      | triggers, enablements, occurrences, runs (paged); the Line as authored (parameters, trigger input, bindings, what it retains, the logical sources its landing Triggers select) beside its Procedure's definition (slots with their interface and the build that binds each, steps with the contracts, interfaces, queries and ClaimTypes they name); the Procedure's track record, measurement reviews and resolution dispositions, readings (paged), mandate scope and condition query, the Line's inbox (paged) |
-| Run       | nodes, the terminal refusal, terminal egress with the proposal produced, Captures read, receipt and attribution (withheld where the credential may not see them) |
-| Docs      | the instance's Documents (title, kind, media type, revision), findable by name, title, kind or type, beside a reader: markdown rendered, HTML in a sandboxed frame (no scripts, no same-origin, nothing remote loads), JSON pretty-printed, other text as text, binary as a download; a Raw toggle and a Download on each. Bodies read through `get` detail=body, which takes governed_write (a read_only token gets the CLI command instead) |
+| Run       | nodes (a list call's members: index, Capture, kept or not and why), completeness and its reasons, the terminal refusal, terminal egress with the proposal produced, Captures read, receipt and attribution (withheld where the credential may not see them) |
+| Docs      | the instance's Documents (title, kind, media type, revision), findable by name, title, kind or type, beside a reader with the Document's links (guides a ClaimType or Procedure, about a Subject): markdown rendered, HTML in a sandboxed frame (no scripts, no same-origin, nothing remote loads), JSON pretty-printed, other text as text, binary as a download; a Raw toggle and a Download on each. Bodies read through `get` detail=body, which takes governed_write (a read_only token gets the CLI command instead) |
+| About     | Settings → About this instance: the ledger mirror from `next`'s `ledger_mirror` facet (remote, publication state, Git's reason when behind, the publish command) |
 | Reference | any other ref `get` resolves (Claim, Capture, Line, run, …), its card field by field; a Procedure leads with its definition (slots, steps), a Trigger with its schedule (contract, logical sources, the Line it starts); a Capture with its contents (markdown and HTML rendered as on Docs, with Raw; governed_write) |
 
 **Color.** Two signals only: an amber dot means waiting on you or someone,
@@ -111,9 +113,12 @@ no proxy, no token in the client).
 ### No daemon handy
 
 `VITE_CRUXIBLE_FIXTURES=1 pnpm dev` serves the recorded world in
-`src/fixtures/recorded/` (read from a security kit 1.3.0 reference instance on
-the pinned core: the example automation, an SBOM, OSV, KEV and EPSS runs, the
-repository and registry pulls, a contested assessment) through an MSW worker at the network layer — same code paths,
+`src/fixtures/recorded/` (read from a scratch instance holding the security kit's
+pilot definitions on the pinned core: the automation template adopted and
+`security.start` run once (SBOM import, OSV, KEV, EPSS), the demo app's pair
+Subjects, judgments citing sections, a contested and a rejected judgment, an
+attestation with evidence, the dependency guidance Document and a ledger mirror
+that never published) through an MSW worker at the network layer — same code paths,
 canned data. `VITE_CRUXIBLE_FIXTURES=authored` serves the small hand-authored
 world in `src/fixtures/authored/` instead (contested slots, refusals, second
 pages; the Playwright smoke runs on it). A fixture answers only the exact
@@ -132,8 +137,9 @@ contract). The recorder replaces `src/fixtures/recorded/` only.
 
 - **Read-only.** The client refuses any route outside a read allow-list
   (`src/api/requests.ts`) before a request is sent. Several reads are POSTs
-  (`get`, `query`, `next`, proposal review); the routes that start runs,
-  record measurements or evaluate Lines are not on the list.
+  (`get`, `query`, `next`, proposal review); the routes that start runs or
+  Runbooks, record measurements or evaluate Lines are not on the list (a
+  Runbook's preview, which runs nothing, is).
 - **Localhost.** Built for a daemon on your own machine. There is no login
   screen, no session handling, no multi-user story.
 - **Pinned API surface.** Types are generated from `api/openapi.json`, pinned

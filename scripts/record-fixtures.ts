@@ -13,7 +13,9 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { parseArgs } from "node:util";
 import {
   CLAIM_READ_BATCH_MAX,
+  captureReadBody,
   claimReadBatchBody,
+  documentBodyRange,
   getBatchBody,
   getBody,
   GET_BATCH_MAX,
@@ -30,6 +32,7 @@ import {
   isReadRoute,
   NEXT_PAGE,
   nextBody,
+  PAIRS_PAGE,
   orientQuery,
   proposalsQuery,
   queryBody,
@@ -42,6 +45,13 @@ import { walkNeighborhood, type CardFetcher, type IncomingReader } from "../src/
 import { lineName } from "../src/lib/lines.ts";
 import { ontologyKinds } from "../src/lib/type-graph.ts";
 import { changeSetRun, changeSets } from "../src/lib/change-sets.ts";
+import { attestationAccounts } from "../src/lib/attestation-evidence.ts";
+
+/** A Capture's handle, as the app reads it (lib/next-reasons captureHandle). */
+const captureHandle = (digest: string) => `CAP-${digest.replace(/^sha256:/, "").slice(0, 12)}`;
+
+/** The page size the Subject page's backlinks read (components/Backlinks BACKLINKS_PAGE). */
+const BACKLINKS_PAGE = 50;
 
 const { values: args } = parseArgs({
   options: {
@@ -114,7 +124,7 @@ async function call<T>(
 
 const P = "/api/v1/{instance_id}";
 
-async function orientAll(coordinate: AcceptedCoordinate, section?: "claim_types" | "subject_kinds" | "lines" | "mandates") {
+async function orientAll(coordinate: AcceptedCoordinate, section?: "claim_types" | "subject_kinds" | "lines" | "mandates" | "documents" | "runbooks" | "procedures") {
   const pages: OrientResult[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < 20; page += 1) {
@@ -242,9 +252,10 @@ await call("post", `${P}/next`, {
   body: nextBody({ coordinate: C, evaluationTime: new Date().toISOString(), limit: NEXT_PAGE }),
 });
 
-// Kind details for the three largest kinds; for two sample Subjects, every
-// read the Subject page makes, and the neighborhood walk at depth 1 and 2.
-const kinds = [...(orient?.kinds ?? [])].sort((a, b) => b.subjects - a.subjects).slice(0, 3);
+// Kind details for every kind with Subjects (pair kinds and their ends
+// included); for one sample Subject of each, every read the Subject page
+// makes, and the neighborhood walk at depth 1 and 2.
+const kinds = [...(orient?.kinds ?? [])].filter((k) => k.subjects > 0).sort((a, b) => b.subjects - a.subjects);
 const samples: string[] = [];
 for (const kind of kinds) {
   const detail = await call<OrientResult>("get", `${P}/orient`, {
@@ -282,8 +293,24 @@ async function recordSubject(ref: string) {
     await call("post", `${P}/claims/read-batch`, { body: claimReadBatchBody(full.slice(i, i + CLAIM_READ_BATCH_MAX), C) });
   }
   for (const id of ids.slice(0, 12)) {
-    await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "evidence" }) });
+    const evidence = await call<GetResult>("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "evidence" }) });
     await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
+    // Attestations listed: the Claim's why read (cited Captures), then on expand their cards, proofs and own words.
+    if ((evidence?.evidence?.attestations ?? []).length > 0) {
+      const why = await call<GetResult>("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "why" }) });
+      for (const account of attestationAccounts(why?.why)) {
+        const refs = account.cited.map((d) => `Capture:${d}`);
+        if (refs.length === 0) continue;
+        await fetchCards(refs).catch(() => null);
+        await call("post", `${P}/get-batch`, { body: getBatchBody(refs, C, "proof") });
+        for (const digest of account.cited) await call("post", `${P}/captures/read`, { body: captureReadBody(captureHandle(digest), C) });
+      }
+    }
+  }
+  // The Subject page's backlinks, and an end's first page of pairs (its "List every pair").
+  await call("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "backlinks", limit: BACKLINKS_PAGE }) });
+  if (((read?.card as { pairs?: unknown[] } | undefined)?.pairs ?? []).length > 0) {
+    await call("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "pairs", limit: PAIRS_PAGE }) });
   }
   const walked = [];
   for (const depth of [1, 2]) {
@@ -296,7 +323,7 @@ async function recordSubject(ref: string) {
 // Sample Subjects, then the most pointed-at Subject their walks reached (a
 // hub shows the incoming column and a fuller neighborhood).
 const seen = new Map<string, number>();
-for (const ref of samples.slice(0, 3)) {
+for (const ref of samples) {
   for (const graph of await recordSubject(ref)) {
     for (const node of graph.nodes) if (node.card) seen.set(node.ref, node.incomingCount ?? 0);
   }
@@ -307,9 +334,35 @@ if (hub) {
   await recordSubject(hub[0]);
 }
 
-// ClaimType cards (the type map loads one on click).
-for (const item of claimTypes.slice(0, 30)) {
+// ClaimType cards (the type map loads one on click), and the Documents that
+// guide each (an expanded row's Guided by: its backlinks' first page).
+for (const item of claimTypes.slice(0, 40)) {
   await call("post", `${P}/get`, { body: getBody({ ref: `ClaimType:${item.predicate}`, coordinate: C }) });
+  await call("post", `${P}/get`, { body: getBody({ ref: `ClaimType:${item.predicate}`, coordinate: C, detail: "backlinks", limit: BACKLINKS_PAGE }) });
+}
+
+// Docs: the documents section, the cards, each body's first range and its
+// proof (the Document's own links).
+{
+  const docs = (await orientAll(C, "documents")).flatMap((page) => page.documents ?? []);
+  if (docs.length > 0) {
+    await call("post", `${P}/get-batch`, { body: getBatchBody(docs.map((doc) => `Document:${doc.name}`), C) });
+    for (const doc of docs) {
+      await call("post", `${P}/get`, { body: documentBodyRange(doc.name, C, 0) });
+      await call("post", `${P}/get`, { body: getBody({ ref: `Document:${doc.name}`, coordinate: C, detail: "proof" }) });
+    }
+  }
+}
+
+// Runbooks: the section (the Lines page), each card, its preview (head-only),
+// and the Line runs its recent runs made.
+const runbookRuns = new Set<string>();
+for (const row of (await orientAll(C, "runbooks")).flatMap((page) => page.runbooks ?? [])) {
+  const name = row.runbook.replace(/^Runbook:/, "");
+  const [card] = await fetchCards([`Runbook:${name}`]).catch(() => [undefined]);
+  await call("get", `${P}/runbooks/{name}/preview`, { pathParams: { name } });
+  const recent = (card?.card as { recent_runs?: { steps: { run_id?: string | null }[] }[] } | undefined)?.recent_runs ?? [];
+  for (const run of recent) for (const step of run.steps) if (step.run_id) runbookRuns.add(step.run_id);
 }
 
 // Ledger: the first two generation pages and the proposals their rows peek.
@@ -385,9 +438,14 @@ for (const line of lines) {
   const recent = (card?.card as { recent_runs?: { run: string }[] } | undefined)?.recent_runs ?? [];
   runId ??= recent[0]?.run.replace(/^ProcedureRun:/, "") ?? null;
 }
-if (runId) {
-  await fetchCards([`ProcedureRun:${runId}`]).catch(() => null);
-  await call("get", `${P}/procedure-runs/{run_id}`, { pathParams: { run_id: runId } });
+for (const run of new Set([...(runId ? [runId] : []), ...runbookRuns])) {
+  await fetchCards([`ProcedureRun:${run}`]).catch(() => null);
+  await call("get", `${P}/procedure-runs/{run_id}`, { pathParams: { run_id: run } });
+}
+// Procedure pages (the reference card) and the Documents that guide each.
+for (const row of (await orientAll(C, "procedures")).flatMap((page) => page.procedures ?? [])) {
+  const ref = `Procedure:${String(row.name).replace(/^Procedure:/, "")}`;
+  await call("post", `${P}/get`, { body: getBody({ ref, coordinate: C, detail: "backlinks", limit: BACKLINKS_PAGE }) });
 }
 
 /** Write the recordings: replace the set, or (`--only`) add to it. */

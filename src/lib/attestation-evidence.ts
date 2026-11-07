@@ -65,17 +65,17 @@ export type Citation =
 /** A cited Capture's citation, read off its envelope; evidence when it is neither authored words nor a workspace selection. */
 export function citationOf(proof: unknown): Citation {
   const envelope = record(record(proof)?.envelope);
-  const producer = record(envelope?.producer);
-  if (producer?.kind === "Principal") return { kind: "own_words" };
   const source = record(envelope?.source);
   const selection = record(record(source?.selector)?.working_selection);
   const identity = str(source?.source_identity);
+  // A workspace selection first: the writer who observed it is its producer too.
   if (selection && identity) {
     const section = record(selection.section);
     const path = Array.isArray(section?.path) ? section.path.filter((p): p is string => typeof p === "string") : [];
     if (path.length > 0) return { kind: "section", source: identity, path };
     return { kind: "passage", source: identity, anchor: str(selection.anchor) };
   }
+  if (record(envelope?.producer)?.kind === "Principal") return { kind: "own_words" };
   return { kind: "evidence" };
 }
 
