@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useDocumentBody, useDocuments, useGetBatch, type DocumentBody } from "@/api/hooks";
+import { useDocumentBody, useDocuments, useGet, useGetBatch, type DocumentBody } from "@/api/hooks";
+import { DocumentLinks } from "@/components/Backlinks";
+import { documentLinks } from "@/lib/document-links";
 import { ApiError } from "@/api/data-source";
 import { DOCUMENT_READ_MAX_BYTES } from "@/api/requests";
 import { cardOf, type Schemas } from "@/api/schemas";
@@ -9,7 +11,7 @@ import { FieldList } from "@/components/FieldList";
 import { InfoButton } from "@/components/InfoButton";
 import { PageDescription } from "@/components/Page";
 import { BodyView } from "@/components/BodyView";
-import { Disclosure, LoadState, Panel } from "@/components/Panel";
+import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
 import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { bodyFormat, extensionFor } from "@/lib/body-format";
@@ -318,6 +320,8 @@ function DocumentReader({
   reading: boolean;
 }) {
   const read = useDocumentBody(row.name);
+  const links = useGet(`Document:${row.name}`, "proof");
+  const declared = useMemo(() => documentLinks(links.data?.proof), [links.data]);
   const body = readOf(read.data);
   const decoded = useMemo(() => (body ? decodeText(body.bytes) : null), [body]);
   const format = decoded ? bodyFormat(decoded, { contentType: row.media_type, name: row.name }) : null;
@@ -385,7 +389,10 @@ function DocumentReader({
       meta={meta}
     >
       <div className="t-meta -mt-1 mb-3 font-mono">Document:{row.name}</div>
-      {content}
+      <SubSection title="Links" meta={links.data ? declared.length : undefined}>
+        <DocumentLinks links={declared} isPending={links.isPending} error={links.error} />
+      </SubSection>
+      <div className="mt-4">{content}</div>
     </Panel>
   );
 }

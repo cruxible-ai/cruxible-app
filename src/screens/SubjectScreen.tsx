@@ -57,6 +57,7 @@ import { FieldList, FieldRow, KeyMark } from "@/components/FieldList";
 import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { IncomingList } from "@/components/IncomingList";
 import { EndPairsPanel, PairEndsPanel } from "@/components/Pairs";
+import { BacklinksPanel } from "@/components/Backlinks";
 import { useAtLink, withAt } from "@/lib/at";
 import { formatRef, parseRef } from "@/lib/cruxible-ref";
 import { lineName } from "@/lib/lines";
@@ -262,6 +263,7 @@ export function SubjectScreen() {
           </FieldList>
         </Panel>
 
+        <BacklinksPanel subject={subject.subject} />
         <ConnectionsPanel subject={subject} />
         <HistoryPanel subjectRef={subject.subject} keys={keys} />
       </WithRail>
@@ -747,15 +749,14 @@ function AttestationList({ attestations, claimId }: { attestations: GetAttestati
         cell: (a) => {
           const found = accountOf(a, accounts);
           if (why.isPending) return <span className="animate-pulse text-zinc-600">…</span>;
-          return found ? `${found.cited.length} ${found.cited.length === 1 ? "Capture" : "Captures"}` : <span className="text-zinc-600">—</span>;
+          return found ? `${found.cited.length} ${found.cited.length === 1 ? "Capture" : "Captures"}` : <span className="text-zinc-600" title={why.error?.message}>—</span>;
         },
       },
     ],
-    [accounts, why.isPending],
+    [accounts, why.isPending, why.error],
   );
   return (
     <SubSection title="Attestations" meta={attestations.length}>
-      {why.error && <div className="text-red-400/80">{why.error.message}</div>}
       <DataTable
         rows={attestations}
         columns={columns}

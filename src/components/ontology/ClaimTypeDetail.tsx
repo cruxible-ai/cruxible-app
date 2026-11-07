@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { roleWord } from "@/lib/vocabulary";
 import { useGet, useInstanceId, usePins } from "@/api/hooks";
 import { RefLink } from "@/components/RefLink";
+import { GuidedBy } from "@/components/Backlinks";
 import { cardOf, type OrientPredicate } from "@/api/schemas";
 import { useAtLink } from "@/lib/at";
 import { sentence } from "@/lib/text";
@@ -127,6 +128,10 @@ export function ClaimTypeDetail({
                     </span>
                   </div>
                 ))}
+        </dd>
+        <dt className="text-zinc-600">Guided by</dt>
+        <dd>
+          <GuidedBy target={`ClaimType:${descriptor.predicate}`} />
         </dd>
         <dt className="text-zinc-600">Pinned by</dt>
         <dd>

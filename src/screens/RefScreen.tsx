@@ -9,6 +9,7 @@ import { Fact, Page, PageHeader } from "@/components/Page";
 import { ShortId, shortId } from "@/components/ShortId";
 import { CaptureContents } from "@/components/CaptureContents";
 import { CitedBy } from "@/components/CitedBy";
+import { GuidedBy } from "@/components/Backlinks";
 import { AccessValue, CaptureDerivation, ListSiblings, useDerivationSources } from "@/components/CaptureLineage";
 import { formatSize } from "@/lib/capture-body";
 import { Chip } from "@/components/Chip";
@@ -90,6 +91,11 @@ export function RefScreen() {
                     </Fact>
                   )}
                 </>
+              )}
+              {procedure && (
+                <Fact label="Guided by">
+                  <GuidedBy target={procedure.procedure.startsWith("Procedure:") ? procedure.procedure : `Procedure:${procedure.procedure}`} />
+                </Fact>
               )}
               <Fact label="Kind">{humanize(read.data.kind)}</Fact>
               <Fact label="Generation">
