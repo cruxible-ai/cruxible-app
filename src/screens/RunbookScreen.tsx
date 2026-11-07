@@ -389,7 +389,7 @@ type ReadRow = Schemas["RunbookPreviewRead"] & { step: number };
 const READ_COLUMNS: Column<ReadRow>[] = [
   stepColumn(),
   { id: "node", header: "Node", className: "font-mono text-[12px] text-zinc-300", cell: (r) => r.node_id },
-  { id: "query", header: "Query", className: "break-all", cell: (r) => (r.query ? <RefLink value={`QueryDefinition:${r.query}`}><span className="font-mono text-[12px]">{r.query}</span></RefLink> : <span className="text-zinc-600">—</span>) },
+  { id: "query", header: "Query", className: "whitespace-nowrap", cell: (r) => (r.query ? <RefLink value={`QueryDefinition:${r.query}`}><span className="font-mono text-[12px]">{r.query}</span></RefLink> : <span className="text-zinc-600">—</span>) },
   { id: "claim_types", header: "ClaimTypes", cell: (r) => <ClaimTypes names={r.claim_types} /> },
   { id: "kinds", header: "Kinds", cell: (r) => <Kinds names={r.subject_kinds ?? []} /> },
   { id: "late", header: "Late", title: "Read after the step's own writes", className: "text-[12px] text-zinc-300", cell: (r) => (r.late ? "Yes" : <span className="text-zinc-600">No</span>) },

@@ -57,7 +57,6 @@ function MirrorPanel({ mirror }: { mirror: MirrorStatus | null }) {
   }
   const fields = [
     { key: "url", label: "Remote", value: mirror.url ? <span className="break-all font-mono text-[12px] text-zinc-200">{mirror.url}</span> : <span className="text-zinc-500">—</span> },
-    { key: "state", label: "Publication", value: <HealthChip state={mirror.state} /> },
     ...(mirror.published !== null || mirror.requested !== null
       ? [
           {
