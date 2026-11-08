@@ -1,5 +1,5 @@
 import { Fragment, useState, type ComponentType } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   CircleAlert,
   FileText,
@@ -67,6 +67,7 @@ interface Tab {
   label: string;
   icon: ComponentType<{ className?: string }>;
   end?: boolean;
+  active?: boolean;
   waiting?: { count: number; title: string } | null;
   /** A rule under this tab: Dashboard and Overview are set apart from the views below. */
   dividerAfter?: boolean;
@@ -79,6 +80,7 @@ interface Tab {
  */
 export function AppShell() {
   const instanceId = useInstanceId();
+  const { pathname } = useLocation();
   const link = useAtLink();
   const head = useHead(null);
   const attention = useOrient().data?.attention;
@@ -106,7 +108,7 @@ export function AppShell() {
       icon: GitPullRequest,
       waiting: (attention?.open_proposals ?? 0) > 0 ? { count: attention!.open_proposals, title: term("proposal", "open").meaning } : null,
     },
-    { path: "/lines", label: "Lines", icon: Workflow },
+    { path: "/automation", label: "Automation", icon: Workflow, active: pathname.startsWith(`/i/${instanceId}/lines/`) },
     { path: "/docs", label: "Docs", icon: FileText },
     { path: "/ledger", label: "Ledger", icon: History },
   ];
@@ -153,7 +155,7 @@ export function AppShell() {
               <NavLink
                 to={link(`/i/${instanceId}${tab.path}`)}
                 end={tab.end ?? false}
-                className={({ isActive }) => item(isActive)}
+                className={({ isActive }) => item(isActive || tab.active === true)}
                 {...(collapsed ? { title: tab.label, "aria-label": tab.label } : {})}
               >
                 <span className="inline-flex items-center gap-2">

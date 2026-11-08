@@ -51,7 +51,7 @@ export function LinesScreen() {
   const mandates = useMandates();
   const flow = useFlowModel();
   const next = useNext({ limit: NEXT_PAGE });
-  usePageTitle("Lines");
+  usePageTitle("Automation");
   const rows = useMemo(
     () => [...(lines.data?.rows ?? [])].sort((a, b) => stateRank(a) - stateRank(b) || (lineName(a.line) < lineName(b.line) ? -1 : 1)),
     [lines.data],
@@ -297,7 +297,7 @@ export function LinesScreen() {
   return (
     <Page>
       <PageHeader
-        title="Lines"
+        title="Automation"
         description="What starts each Line, what it ends in, and how its last run went; below, the Runbooks that run Lines in order."
         summary={
           lines.data ? (

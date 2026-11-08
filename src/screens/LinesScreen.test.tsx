@@ -10,6 +10,20 @@ import { ORIENT_PAGE } from "@/api/hooks";
 afterEach(cleanup);
 
 describe("Lines", () => {
+  it("opens Automation and redirects old index bookmarks with their pin and filters", async () => {
+    renderApp("/i/inst_fixture/automation");
+    expect(await screen.findByRole("heading", { name: "Automation" })).toBeInTheDocument();
+    expect(document.title).toBe("Automation · Cruxible");
+    expect(within(screen.getByRole("navigation")).getByRole("link", { name: "Automation" })).toHaveAttribute("href", "/i/inst_fixture/automation");
+    cleanup();
+    renderApp("/i/inst_fixture/lines?at=42&f.state=stopped");
+    expect(await screen.findByRole("heading", { name: "Automation" })).toBeInTheDocument();
+    const main = within(screen.getByRole("main"));
+    expect(await main.findByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
+    expect(main.queryByRole("link", { name: "kev-triage" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Generation 42 · pinned/ })).toBeInTheDocument();
+  });
+
   it("reads each Line from what starts it to what it ends in, running first, with its last run and what needs you", async () => {
     renderApp("/i/inst_fixture/lines");
     const main = within(await screen.findByRole("main"));
@@ -52,6 +66,7 @@ describe("Line page", () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const main = within(await screen.findByRole("main"));
     expect(await main.findByRole("heading", { name: "kev-triage" })).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation")).getByRole("link", { name: "Automation" })).toHaveClass("bg-zinc-800");
     expect(main.getByText("Daily at 06:00 UTC")).toBeInTheDocument();
     expect(main.getByText("withheld")).toBeInTheDocument();
     expect(await main.findByText("Page 1 · 12 in all")).toBeInTheDocument();

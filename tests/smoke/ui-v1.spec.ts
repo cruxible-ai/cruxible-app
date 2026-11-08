@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 // Runs against `VITE_CRUXIBLE_FIXTURES=authored` (playwright.config.ts's
 // default, overridable with UI_SMOKE_WORLD): the MSW worker serves
 // src/fixtures/authored/ at the network layer, offline.
-test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs preset, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
+test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs preset, automation, Line graphs, run, Procedure graph, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
@@ -111,8 +111,11 @@ test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evi
   await expect(page).toHaveURL(/\/next\?at=42$/);
   await expect(page.getByText("Line inbox unread", { exact: true })).toBeVisible();
 
-  // Lines -> a Line -> one of its runs.
-  await page.locator("aside").getByRole("link", { name: "Lines" }).click();
+  // Automation -> a Line -> one of its runs. Old index bookmarks keep filters.
+  await page.goto("/i/inst_fixture/lines?sort=-line");
+  await expect(page).toHaveURL(/\/automation\?sort=-line$/);
+  await expect(page.getByRole("heading", { name: "Automation" })).toBeVisible();
+  await page.locator("aside").getByRole("link", { name: "Automation" }).click();
   await page.getByRole("link", { name: "kev-triage", exact: true }).click();
   await expect(page).toHaveURL(/\/lines\/kev-triage$/);
   await expect(page.getByText("Page 1 · 12 in all")).toBeVisible();
