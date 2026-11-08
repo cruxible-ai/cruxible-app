@@ -1,4 +1,4 @@
-// Recorded from cruxible-core ad70ccc439f11b25afbbd3b6ad9c831eae1ca2ad by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core 43155c13550cd3423be94ac3831dbfba51f1dd79 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch f029a318
 import { defineFixture } from "../fixture";
 
@@ -73,7 +73,7 @@ export default defineFixture({
             "status_detail"
           ]
         },
-        "evaluation_time": "2026-11-07T22:22:57.048276Z"
+        "evaluation_time": "2026-11-08T19:47:55.070806Z"
       },
       {
         "tag": "playbill-get-result-v1",
@@ -118,7 +118,7 @@ export default defineFixture({
             "status_detail"
           ]
         },
-        "evaluation_time": "2026-11-07T22:22:57.059304Z"
+        "evaluation_time": "2026-11-08T19:47:55.087004Z"
       }
     ]
   }

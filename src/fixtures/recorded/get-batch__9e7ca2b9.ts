@@ -1,4 +1,4 @@
-// Recorded from cruxible-core ad70ccc439f11b25afbbd3b6ad9c831eae1ca2ad by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core 43155c13550cd3423be94ac3831dbfba51f1dd79 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/get-batch 2c88ea8f
 import { defineFixture } from "../fixture";
 
@@ -95,7 +95,7 @@ export default defineFixture({
             "runs_more"
           ]
         },
-        "evaluation_time": "2026-11-07T22:22:59.989941Z"
+        "evaluation_time": "2026-11-08T19:48:00.908776Z"
       }
     ]
   }

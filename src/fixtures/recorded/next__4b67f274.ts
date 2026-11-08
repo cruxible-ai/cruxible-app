@@ -1,4 +1,4 @@
-// Recorded from cruxible-core ad70ccc439f11b25afbbd3b6ad9c831eae1ca2ad by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core 43155c13550cd3423be94ac3831dbfba51f1dd79 by scripts/record-fixtures.ts; do not edit.
 // POST /api/v1/{instance_id}/next 42025a73
 import { defineFixture } from "../fixture";
 
@@ -13,7 +13,7 @@ export default defineFixture({
       "generation_root": "sha256:77bcd8f847583c3f84492e8f156c888d836bb350fa250e77616e4d098e6c1e29",
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf"
     },
-    "evaluation_time": "2026-11-07T22:22:55.134Z",
+    "evaluation_time": "2026-11-08T19:47:54.834Z",
     "access_profile": {
       "tag": "playbill-coverage-access-profile-v1",
       "profile_id": "console",
@@ -34,7 +34,7 @@ export default defineFixture({
       "generation_root": "sha256:77bcd8f847583c3f84492e8f156c888d836bb350fa250e77616e4d098e6c1e29",
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf"
     },
-    "evaluation_time": "2026-11-07T22:22:55.134000Z",
+    "evaluation_time": "2026-11-08T19:47:54.834000Z",
     "observed_domains": [
       "accepted_state"
     ],
@@ -66,12 +66,12 @@ export default defineFixture({
         "tag": "playbill-next-health-v1",
         "state": "behind",
         "detail": {
-          "attempted_at": "2026-11-07T22:22:36.980689+00:00",
+          "attempted_at": "2026-11-08T19:43:41.031665+00:00",
           "message": "fatal: unable to access 'https://127.0.0.1:9/cruxible/ledger.git/': Failed to connect to 127.0.0.1 port 9 after 0 ms: Couldn't connect to server",
           "mirror_url": "https://127.0.0.1:9/cruxible/ledger.git",
           "publication_command": "cruxible ledger publish --json",
           "published_sequence": 0,
-          "requested_sequence": 2
+          "requested_sequence": 4
         },
         "repair": {
           "operation": "hand_edit",
@@ -494,7 +494,7 @@ export default defineFixture({
     ],
     "total_items": 7,
     "next_cursor": null,
-    "result_digest": "sha256:1470dc8a89d38bc946849609afe2caa1dc91157ca4f88947d56374ae55ed5302",
+    "result_digest": "sha256:f62cf6b5f1afd9f4115a593d6939a90e6f866bd2ddcc5bdc8721893c77a18ee1",
     "delta_since": null,
     "attestation_head_digest": "sha256:6f1ea399a38db206f6558b5f6aa902a0ec10fc4491ca7dbc943910e9a6008986"
   }

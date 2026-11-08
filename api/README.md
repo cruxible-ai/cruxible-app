@@ -1,11 +1,14 @@
 # Pinned daemon contract
 
-`openapi.json` is the inter-repo contract with the cruxible-core daemon. It is generated
-offline from a core checkout (the FastAPI app is built in-process against a throwaway
-HOME and state root; no daemon runs). `pin.json` records the core commit it came from,
+`openapi.json` is the inter-repo contract with the cruxible-core daemon. The current pin was read
+from a read-only daemon serving a copy of the previous console world under
+`coordinator-scratch/console2-scratch`, using the read-only `console-core` checkout.
+`pin.json` records the core commit it came from,
 and that build's version and SDK contract digest (what `GET /version` answers; the About
 page marks a daemon that answers otherwise):
-currently **cruxible-core `ad70ccc43`** (taken from a scratch daemon's served `/openapi.json`).
+currently **cruxible-core `43155c135`** (taken from a scratch daemon's served `/openapi.json`).
+The served version remains **0.5.1**; the SDK digest, OpenAPI schema and regenerated
+TypeScript types are unchanged from the previous pin.
 
 TypeScript types (`src/api/generated/`) are generated from this file, never hand-written,
 and the fixture responses under `src/fixtures/recorded/` (recorded at this pin) and

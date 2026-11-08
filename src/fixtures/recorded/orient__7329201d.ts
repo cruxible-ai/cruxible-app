@@ -1,4 +1,4 @@
-// Recorded from cruxible-core ad70ccc439f11b25afbbd3b6ad9c831eae1ca2ad by scripts/record-fixtures.ts; do not edit.
+// Recorded from cruxible-core 43155c13550cd3423be94ac3831dbfba51f1dd79 by scripts/record-fixtures.ts; do not edit.
 // GET /api/v1/{instance_id}/orient 2a785617
 import { defineFixture } from "../fixture";
 
@@ -25,7 +25,7 @@ export default defineFixture({
     },
     "generation": 22,
     "accepted_at": "2026-11-07T22:22:25.432116Z",
-    "evaluation_time": "2026-11-07T22:22:55.355745Z",
+    "evaluation_time": "2026-11-08T19:47:55.273154Z",
     "mirror_url": "https://127.0.0.1:9/cruxible/ledger.git",
     "retention_generations": 64,
     "kind_detail": {
