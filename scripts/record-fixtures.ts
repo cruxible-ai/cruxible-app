@@ -39,13 +39,13 @@ import {
   readingsBody,
   reviewBody,
 } from "../src/api/requests.ts";
-import type { AcceptedCoordinate, GetResult, OrientResult } from "../src/api/schemas.ts";
+import type { AcceptedCoordinate, GetResult, NextResult, OrientResult } from "../src/api/schemas.ts";
 import { digest8, fixtureKey, normalizePath, normalizeQuery } from "../src/fixtures/key.ts";
 import { walkNeighborhood, type CardFetcher, type IncomingReader } from "../src/lib/neighborhood.ts";
 import { lineName } from "../src/lib/lines.ts";
 import { ontologyKinds } from "../src/lib/type-graph.ts";
 import { changeSetRun, changeSets } from "../src/lib/change-sets.ts";
-import { attestationAccounts } from "../src/lib/attestation-evidence.ts";
+import { attestationAccounts, nextAttestationClaim } from "../src/lib/attestation-evidence.ts";
 
 /** A Capture's handle, as the app reads it (lib/next-reasons captureHandle). */
 const captureHandle = (digest: string) => `CAP-${digest.replace(/^sha256:/, "").slice(0, 12)}`;
@@ -270,9 +270,23 @@ await orientAll(C, "subject_kinds");
 const ontology = ontologyKinds(orient?.kinds ?? [], claimTypes);
 const lines = (await orientAll(C, "lines")).flatMap((page) => page.lines ?? []);
 await call("get", `${P}/kits`);
-await call("post", `${P}/next`, {
+const next = await call<NextResult>("post", `${P}/next`, {
   body: nextBody({ coordinate: C, evaluationTime: new Date().toISOString(), limit: NEXT_PAGE }),
 });
+// Next reason details can open attestations even outside the sampled Subjects.
+const attestationClaims = new Set((next?.items ?? []).map(nextAttestationClaim).filter((claim): claim is string => claim !== null));
+for (const claim of attestationClaims) await recordAttestationEvidence(claim);
+
+async function recordAttestationEvidence(claim: string) {
+  const why = await call<GetResult>("post", `${P}/get`, { body: getBody({ ref: claim, coordinate: C, detail: "why" }) });
+  for (const account of attestationAccounts(why?.why)) {
+    const refs = account.cited.map((d) => `Capture:${d}`);
+    if (refs.length === 0) continue;
+    await fetchCards(refs).catch(() => null);
+    await call("post", `${P}/get-batch`, { body: getBatchBody(refs, C, "proof") });
+    for (const digest of account.cited) await call("post", `${P}/captures/read`, { body: captureReadBody(captureHandle(digest), C) });
+  }
+}
 
 // Kind details for every kind with Subjects (pair kinds and their ends
 // included); for one sample Subject of each, every read the Subject page
@@ -319,14 +333,7 @@ async function recordSubject(ref: string) {
     await call("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "history", limit: HISTORY_PAGE }) });
     // Attestations listed: the Claim's why read (cited Captures), then on expand their cards, proofs and own words.
     if ((evidence?.evidence?.attestations ?? []).length > 0) {
-      const why = await call<GetResult>("post", `${P}/get`, { body: getBody({ ref: id, coordinate: C, detail: "why" }) });
-      for (const account of attestationAccounts(why?.why)) {
-        const refs = account.cited.map((d) => `Capture:${d}`);
-        if (refs.length === 0) continue;
-        await fetchCards(refs).catch(() => null);
-        await call("post", `${P}/get-batch`, { body: getBatchBody(refs, C, "proof") });
-        for (const digest of account.cited) await call("post", `${P}/captures/read`, { body: captureReadBody(captureHandle(digest), C) });
-      }
+      if (!attestationClaims.has(id)) await recordAttestationEvidence(id);
     }
   }
   // The Subject page's backlinks, and an end's first page of pairs (its "List every pair").

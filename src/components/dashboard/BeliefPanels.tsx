@@ -44,7 +44,7 @@ export function StaleBeliefsPanel() {
         sortValue: (row) => row.stale,
         cell: (row) =>
           row.stale ? (
-            <Link to={link(`/i/${instanceId}/beliefs?tab=stale`)} className="text-amber-300 hover:underline" title="Open the stale Beliefs">
+            <Link to={link(`/i/${instanceId}/next?preset=beliefs&f.family=stale`)} className="text-amber-300 hover:underline" title="Open stale beliefs in Next">
               {row.stale.toLocaleString()}
             </Link>
           ) : (
@@ -137,7 +137,7 @@ function EvidenceRow({ row }: { row: KindEvidence }) {
   const link = useAtLink();
   const total = row.admitted + row.own_word + row.unmet;
   const target = (key: keyof EvidenceCounts) =>
-    key === "unmet" ? link(`/i/${instanceId}/beliefs?tab=stale`) : link(`/i/${instanceId}/kinds/${encodeURIComponent(row.kind)}?view=claim-types`);
+    key === "unmet" ? link(`/i/${instanceId}/next?preset=beliefs&f.family=stale`) : link(`/i/${instanceId}/kinds/${encodeURIComponent(row.kind)}?view=claim-types`);
   return (
     <li className="text-[12px]">
       <div className="flex items-baseline gap-3">

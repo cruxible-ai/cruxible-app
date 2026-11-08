@@ -101,7 +101,7 @@ describe("Dashboard", () => {
     const stale = await panel("Stale beliefs");
     expect(await stale.findByText("3 stale")).toBeInTheDocument();
     const vulnerability = stale.getByRole("link", { name: "security.vulnerability" }).closest("tr")!;
-    expect(within(vulnerability).getByRole("link", { name: "2" })).toHaveAttribute("href", "/i/inst_fixture/beliefs?tab=stale");
+    expect(within(vulnerability).getByRole("link", { name: "2" })).toHaveAttribute("href", "/i/inst_fixture/next?preset=beliefs&f.family=stale");
     expect(within(vulnerability).getByRole("link", { name: /kev_listed 1d/ })).toHaveAttribute(
       "href",
       "/i/inst_fixture/kinds/security.vulnerability?claim_type=security.vulnerability.kev_listed",
@@ -110,7 +110,7 @@ describe("Dashboard", () => {
     const evidence = await panel("Evidence coverage");
     expect(evidence.getByText("2 not admitted")).toBeInTheDocument();
     const bar = within(evidence.getByRole("group", { name: "security.vulnerability evidence" }));
-    expect(bar.getByRole("link", { name: "Required, not admitted: 1" })).toHaveAttribute("href", "/i/inst_fixture/beliefs?tab=stale");
+    expect(bar.getByRole("link", { name: "Required, not admitted: 1" })).toHaveAttribute("href", "/i/inst_fixture/next?preset=beliefs&f.family=stale");
     expect(bar.getByRole("link", { name: "Admitted evidence: 2" })).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability?view=claim-types");
     expect(bar.getByRole("link", { name: "Own words: 4" })).toBeInTheDocument();
     expect(current.queryByText("Not served by this daemon")).toBeNull();

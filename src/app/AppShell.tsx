@@ -11,7 +11,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Route,
-  Scale,
   Search,
   Waypoints,
   Workflow,
@@ -101,7 +100,6 @@ export function AppShell() {
       icon: CircleAlert,
       waiting: (attention?.next_items ?? 0) > 0 ? { count: attention!.next_items, title: "Items waiting on you: open Next for the repairs" } : null,
     },
-    { path: "/beliefs", label: "Beliefs", icon: Scale },
     {
       path: "/proposals",
       label: "Proposals",

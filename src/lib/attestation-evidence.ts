@@ -1,4 +1,4 @@
-import type { GetAttestationEvidence } from "../api/schemas.ts";
+import type { GetAttestationEvidence, NextItem } from "../api/schemas.ts";
 
 /**
  * What one attestation cites (D-R42): the same evidence a write takes
@@ -53,6 +53,25 @@ export function accountOf(attestation: GetAttestationEvidence, accounts: readonl
     if (byEvent) return byEvent;
   }
   return accounts.find((a) => a.principal === attestation.principal && a.at === attestation.at && a.stance === attestation.stance && a.record === attestation.record);
+}
+
+/** Only attestation findings have attestation evidence to open. */
+export function nextAttestationClaim(item: NextItem): string | null {
+  if (!["claim_new_evidence_unreviewed", "claim_new_evidence_supporting", "claim_contradicting_evidence_available"].includes(item.reason)) return null;
+  return str(record(item.detail)?.claim_id) ?? (item.subject_identity.startsWith("Claim:") ? item.subject_identity.slice(6) : null);
+}
+
+/** Match the finding's exact event; older responses identify who, when and stance. */
+export function nextAttestationAccounts(item: NextItem, why: unknown): AttestationAccount[] {
+  const detail = record(item.detail);
+  if (!detail) return [];
+  return attestationAccounts(why).filter((account) => {
+    if (str(detail.attestation_event_digest)) return account.event === detail.attestation_event_digest;
+    if (str(detail.attestation_envelope_digest)) return account.attestation === detail.attestation_envelope_digest;
+    const at = str(detail.attested_at);
+    return !!at && !!account.at && Date.parse(account.at) === Date.parse(at)
+      && account.principal === detail.attesting_principal && account.stance === detail.stance;
+  });
 }
 
 /** How one cited Capture reads, from its envelope (get detail=proof): own words, a section, a passage, or evidence. */

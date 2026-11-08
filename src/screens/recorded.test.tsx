@@ -56,6 +56,22 @@ const node = (id: string) => document.querySelector(`[data-testid="procedure-gra
 const panel = (m: ReturnType<typeof within>, title: string) => within(m.getByRole("heading", { name: title }).closest("section")!);
 
 describe("recorded reference world", () => {
+  it("Next reason detail opens the matching attestation's cited evidence", async () => {
+    renderApp(`${I}/next?preset=beliefs`, RECORDED);
+    const m = await main();
+    const table = within(await m.findByRole("table", { name: "Next" }));
+    const row = table.getAllByRole("row").find((r) => within(r).queryByText("New evidence, unreviewed"))!;
+    expect(within(row).queryByRole("table", { name: "Attestation evidence" })).toBeNull();
+    fireEvent.click(within(row).getByRole("button", { name: "Evidence" }));
+    const evidence = within(await within(row).findByRole("table", { name: "Attestation evidence" }));
+    expect(await evidence.findByText("Own words")).toBeInTheDocument();
+    expect(await evidence.findByText(/Section Triage notes › log4j-api 2.14.1/)).toBeInTheDocument();
+    expect(evidence.getAllByRole("row")).toHaveLength(3);
+    expect(await within(row).findByText("Checking whether the demo app passes attacker-controlled patterns to log4j-api.")).toBeInTheDocument();
+    fireEvent.click(within(row).getByRole("button", { name: "Hide evidence" }));
+    expect(within(row).queryByRole("table", { name: "Attestation evidence" })).toBeNull();
+  });
+
   it("dashboard: what needs you, no Line enabled yet, and no kits", async () => {
     renderApp(I, RECORDED);
     const m = await main();

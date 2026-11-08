@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 // Runs against `VITE_CRUXIBLE_FIXTURES=authored` (playwright.config.ts's
 // default, overridable with UI_SMOKE_WORLD): the MSW worker serves
 // src/fixtures/authored/ at the network layer, offline.
-test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
+test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evidence flow, type map, Subject, neighborhood, palette, next, review, ledger, beliefs preset, lines and their graphs, run, Procedure graph, pin", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/i\/inst_fixture$/);
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
@@ -100,9 +100,16 @@ test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evi
   await expect(page.getByRole("button", { name: /approve|activate|reject|withdraw/i })).toHaveCount(0);
   await page.locator("aside").getByRole("link", { name: "Ledger" }).click();
   await expect(page.getByRole("link", { name: "g42" })).toBeVisible();
-  await page.locator("aside").getByRole("link", { name: "Beliefs" }).click();
-  await page.getByRole("button", { name: /Stale beliefs/ }).click();
+  await expect(page.locator("aside").getByRole("link", { name: "Beliefs" })).toHaveCount(0);
+  await page.goto("/i/inst_fixture/beliefs?at=42");
+  await expect(page).toHaveURL(/\/next\?at=42&preset=beliefs$/);
+  await expect(page.getByRole("heading", { name: "Next" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Beliefs", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Evidence expired", { exact: true })).toBeVisible();
+  await expect(page.getByText("Line inbox unread", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "All", exact: true }).click();
+  await expect(page).toHaveURL(/\/next\?at=42$/);
+  await expect(page.getByText("Line inbox unread", { exact: true })).toBeVisible();
 
   // Lines -> a Line -> one of its runs.
   await page.locator("aside").getByRole("link", { name: "Lines" }).click();

@@ -127,7 +127,7 @@ function Snapshot({ o }: { o: OrientResult }) {
     {
       label: "Beliefs",
       value: o.artifacts?.claims?.accepted ?? 0,
-      to: "/beliefs",
+      to: "/next?preset=beliefs",
       title: "Live Claims",
       bar: names.map((kind) => {
         const claims = liveClaims(detailOf.get(kind)?.predicates ?? []);
@@ -195,9 +195,9 @@ function Snapshot({ o }: { o: OrientResult }) {
   const counts = o.artifacts?.claims;
   const states: ClaimStateCount[] = [
     { key: "accepted", word: "Accepted", count: counts?.accepted ?? 0, color: "#a3a094", to: "/ledger" },
-    { key: "conflicted", word: "Conflicted", count: counts?.conflicted ?? 0, color: "#ff6961", to: "/beliefs?tab=contested" },
+    { key: "conflicted", word: "Conflicted", count: counts?.conflicted ?? 0, color: "#ff6961", to: "/next?preset=beliefs&f.family=contested" },
     { key: "overturned", word: "Overturned", count: counts?.overturned ?? 0, color: "#58554b", to: "/ledger" },
-    { key: "ineligible", word: "Ineligible", count: counts?.ineligible ?? 0, color: "#403d34", to: "/beliefs?tab=stale" },
+    { key: "ineligible", word: "Ineligible", count: counts?.ineligible ?? 0, color: "#403d34", to: "/next?preset=beliefs&f.family=stale" },
     { key: "retired", word: "Retired", count: counts?.retired ?? 0, color: "#2f2d27", to: "/ledger" },
   ].filter((s) => s.count > 0 || s.key === "accepted" || s.key === "conflicted");
 

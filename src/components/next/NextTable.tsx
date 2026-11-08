@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react";
 import type { NextItem, NextSeverity } from "@/api/schemas";
+import { useGet } from "@/api/hooks";
+import { AttestationEvidence } from "@/components/AttestationEvidence";
 import { Chip } from "@/components/Chip";
 import { CountsMark } from "@/components/CountsMark";
 import { DataTable, useTableState, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
+import { LoadState } from "@/components/Panel";
+import { nextAttestationAccounts, nextAttestationClaim } from "@/lib/attestation-evidence";
 import { FAMILY_LABEL, captureHandle, detailRecord, familyOf, reasonMeta, splitDetail, type FieldSpec } from "@/lib/next-reasons";
 import { formatDateTime, formatRelative } from "@/lib/text";
 import { term } from "@/lib/vocabulary";
@@ -64,7 +68,7 @@ export function NextTable({
 }: {
   items: readonly NextItem[];
   urlKey?: string;
-  /** Show the Family column (the Beliefs tabs are families already). */
+  /** Include the optional Family column. */
   family?: boolean;
   partial?: string | null;
   label?: string;
@@ -295,6 +299,8 @@ function FindingsCell({ item }: { item: NextItem }) {
 
 function DetailCell({ item, shared }: { item: NextItem; shared: ReasonShare | undefined }) {
   const [raw, setRaw] = useState(false);
+  const [evidence, setEvidence] = useState(false);
+  const claim = nextAttestationClaim(item);
   const { fields, counts, rest } = ownDetail(item, shared);
   const split = { rest };
   return (
@@ -309,17 +315,40 @@ function DetailCell({ item, shared }: { item: NextItem; shared: ReasonShare | un
           </span>
         ))}
         {counts && <CountsMark counts={counts.counts} reason={counts.reason} />}
+        {claim && (
+          <button onClick={() => setEvidence((v) => !v)} className="text-zinc-400 hover:text-zinc-200" aria-expanded={evidence}>
+            {evidence ? "Hide evidence" : "Evidence"}
+          </button>
+        )}
         {split.rest !== null && (
           <button onClick={() => setRaw((v) => !v)} className="whitespace-nowrap text-zinc-500 hover:text-zinc-200" aria-expanded={raw}>
             {raw ? "Hide detail" : "More detail"}
           </button>
         )}
       </span>
+      {evidence && claim && <ReasonAttestationEvidence item={item} claim={claim} />}
       {raw && split.rest !== null && (
         <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap border-l border-zinc-800 pl-3 text-[11px] text-zinc-400">
           {JSON.stringify(split.rest, null, 2)}
         </pre>
       )}
+    </div>
+  );
+}
+
+/** Read only after expansion, at the queue's pinned coordinate. */
+function ReasonAttestationEvidence({ item, claim }: { item: NextItem; claim: string }) {
+  const why = useGet(claim, "why");
+  if (why.isPending) return <LoadState />;
+  if (why.error) return <LoadState error={why.error} />;
+  const accounts = nextAttestationAccounts(item, why.data?.why);
+  return (
+    <div className="mt-2">
+      {accounts.length === 0 ? (
+        <span className="text-zinc-500">No attestation evidence</span>
+      ) : accounts.map((account, i) => (
+          <AttestationEvidence key={account.event ?? account.attestation ?? i} account={account} />
+        ))}
     </div>
   );
 }

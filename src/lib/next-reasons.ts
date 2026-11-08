@@ -3,7 +3,7 @@ import { sentence } from "./text.ts";
 
 /**
  * What the console knows about each `next` reason: a label, the family that
- * groups it (the beliefs tabs filter by family), and the detail fields worth
+ * groups it (the Beliefs preset filters by family), and the detail fields worth
  * rendering. `NextItem.detail` is untyped in the contract (`detail: Any`,
  * design gap G7), so each reason names its fields here, read with runtime
  * type checks; anything else in a detail falls back to a JSON view. The
@@ -221,9 +221,8 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   kit_resume_blocked: { label: "Kit resume blocked", family: "operations", fields: [f("kit_id", "Kit"), f("version", "Version"), f("actor_id", "Actor"), f("recorded_at", "Recorded", "time"), f("detail", "")] },
 };
 
-/** The beliefs tabs: next families about accepted Claims. */
-export const BELIEF_TABS = ["contested", "stale", "drifted"] as const satisfies readonly NextFamily[];
-export type BeliefTab = (typeof BELIEF_TABS)[number];
+/** The Beliefs preset: the former contested, stale and drifted families. */
+export const BELIEF_FAMILIES: readonly NextFamily[] = ["contested", "stale", "drifted"];
 
 /**
  * A reason's metadata. The table is total over the pinned contract; a reason

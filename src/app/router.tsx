@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useLocation, useParams } from "react-router-dom";
 import { LoadState } from "@/components/Panel";
 import { AppShell } from "./AppShell";
 import { RouteError } from "./RouteError";
@@ -9,7 +9,6 @@ import { TypeMapScreen } from "@/screens/TypeMapScreen";
 import { RefScreen } from "@/screens/RefScreen";
 import { SubjectScreen } from "@/screens/SubjectScreen";
 import { NextScreen } from "@/screens/NextScreen";
-import { BeliefsScreen } from "@/screens/BeliefsScreen";
 import { LedgerScreen } from "@/screens/LedgerScreen";
 import { ProposalsScreen } from "@/screens/ProposalsScreen";
 import { ProposalScreen } from "@/screens/ProposalScreen";
@@ -40,6 +39,18 @@ function RootRedirect() {
   );
 }
 
+/** Keep bookmarked list filters and generation pins when a page moves. */
+function ListRedirect({ page, preset }: { page: string; preset?: string }) {
+  const { instanceId } = useParams();
+  const { search, hash } = useLocation();
+  const params = new URLSearchParams(search);
+  if (preset) {
+    params.set("preset", preset);
+    params.delete("tab");
+  }
+  return <Navigate to={`/i/${instanceId}/${page}${params.size ? `?${params}` : ""}${hash}`} replace />;
+}
+
 export const routes = [
   { path: "/", element: <RootRedirect />, errorElement: <RouteError /> },
   {
@@ -66,7 +77,7 @@ export const routes = [
       { path: "ref/:ref", element: <RefScreen /> },
       { path: "s/:ref", element: <SubjectScreen /> },
       { path: "next", element: <NextScreen /> },
-      { path: "beliefs", element: <BeliefsScreen /> },
+      { path: "beliefs", element: <ListRedirect page="next" preset="beliefs" /> },
       { path: "docs", element: <DocsScreen /> },
       { path: "ledger", element: <LedgerScreen /> },
       { path: "proposals", element: <ProposalsScreen /> },

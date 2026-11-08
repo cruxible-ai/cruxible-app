@@ -27,7 +27,7 @@ describe("Overview", () => {
     expect(subjects).toHaveAttribute("href", `${I}/map`);
     await waitFor(() => expect(subjects).toHaveTextContent("138"));
     expect(hero.getByRole("link", { name: /^Beliefs/ })).toHaveTextContent("16");
-    expect(hero.getByRole("link", { name: /^Beliefs/ })).toHaveAttribute("href", `${I}/beliefs`);
+    expect(hero.getByRole("link", { name: /^Beliefs/ })).toHaveAttribute("href", `${I}/next?preset=beliefs`);
     expect(hero.getByRole("link", { name: /^Lines/ })).toHaveAttribute("href", `${I}/lines`);
     expect(hero.getByRole("link", { name: /^Generations/ })).toHaveTextContent("42");
     expect(await hero.findByRole("link", { name: /^Sources/ })).toHaveAttribute("href", `${I}/flow`);
@@ -73,7 +73,7 @@ describe("Overview", () => {
     const stands = await section("How it stands");
     const captured = await stands.findByRole("link", { name: "security.assessment: 2 Claims, evidence Captured" });
     expect(captured).toHaveAttribute("href", `${I}/kinds/security.assessment?view=claim-types`);
-    expect(stands.getByRole("link", { name: "Conflicted: 1 Claim" })).toHaveAttribute("href", `${I}/beliefs?tab=contested`);
+    expect(stands.getByRole("link", { name: "Conflicted: 1 Claim" })).toHaveAttribute("href", `${I}/next?preset=beliefs&f.family=contested`);
     expect(stands.getByRole("link", { name: /Waiting for review/ })).toHaveAttribute("href", `${I}/proposals?status=open`);
     fireEvent.mouseEnter(captured);
     expect(within(await stands.findByRole("tooltip")).getByText("2 of 6")).toBeInTheDocument();
