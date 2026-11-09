@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCard, useHead, useInstanceId, usePin, useRunbookPreview } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { Chip } from "@/components/Chip";
+import { Chip, SignalDot } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel, SubSection } from "@/components/Panel";
@@ -10,7 +10,7 @@ import { RefLink } from "@/components/RefLink";
 import { ShortId } from "@/components/ShortId";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
-import { authorityRows, runbookName, runGroups, targetKey, targetOf, type AuthorityRow, type RunbookTarget, type RunGroupData } from "@/lib/runbooks";
+import { authorityRows, runbookName, runGroups, stepTally, targetKey, targetOf, type AuthorityRow, type RunbookTarget, type RunGroupData } from "@/lib/runbooks";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
@@ -61,6 +61,11 @@ export function RunbookScreen() {
                 {last ? (
                   <span className="inline-flex items-baseline gap-2">
                     <Chip concept="runbookRun" value={last.status} />
+                    {incompleteSteps(last) > 0 && (
+                      <span className="text-[12px] text-zinc-300">
+                        {incompleteSteps(last)} {incompleteSteps(last) === 1 ? "step" : "steps"} incomplete
+                      </span>
+                    )}
                     <span>{formatWhen(last.finished_at)}</span>
                   </span>
                 ) : (
@@ -242,6 +247,9 @@ const shortTarget = (target: string) => {
   return name.slice(name.lastIndexOf(".") + 1);
 };
 
+/** Steps of a run whose daemon says they did not see everything (0 when it does not say). */
+const incompleteSteps = (run: Run) => run.steps.filter((o) => stepTally(o).complete === false).length;
+
 /** One step's outcome in a run: its word, linked to the Line run; a failure's code and message on hover. */
 function StepOutcome({ outcome }: { outcome: Run["steps"][number] | undefined }) {
   if (!outcome) return <span className="text-zinc-600">—</span>;
@@ -250,9 +258,19 @@ function StepOutcome({ outcome }: { outcome: Run["steps"][number] | undefined })
       <Chip concept="runbookRun" value={outcome.status} />
     </span>
   );
+  const tally = stepTally(outcome);
   return (
-    <span className="inline-flex items-baseline gap-2">
+    <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
       {outcome.run_id ? <RefLink value={outcome.run_id}>{chip}</RefLink> : chip}
+      {tally.complete === false && (
+        <span className="inline-flex items-baseline gap-1 text-[12px] text-zinc-300" title="The run did not see everything it expected to read">
+          <SignalDot signal="waiting" title="Incomplete" />
+          incomplete
+        </span>
+      )}
+      {tally.counts.length > 0 && (
+        <span className="text-[12px] text-zinc-500">{tally.counts.map((c) => `${c.n} ${c.word}`).join(" · ")}</span>
+      )}
       {(outcome.proposal_ids ?? []).map((id) => (
         <RefLink key={id} value={id} short />
       ))}

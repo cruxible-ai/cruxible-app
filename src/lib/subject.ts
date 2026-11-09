@@ -46,12 +46,17 @@ export function isKeyField(keys: ReadonlySet<string> | undefined, predicate: str
  * card's flags and its verdict when it is not `supported`. Empty `states`
  * means every Claim read is supported.
  */
-export function claimStates(cards: Iterable<Pick<GetClaimCard, "verdict" | "flags">>): { total: number; states: Map<string, number> } {
+export function claimStates(
+  cards: Iterable<Pick<GetClaimCard, "verdict" | "flags"> & { claim?: string }>,
+  drifted: ReadonlySet<string> = new Set(),
+): { total: number; states: Map<string, number> } {
   let total = 0;
   const states = new Map<string, number>();
   for (const card of cards) {
     total += 1;
     const own = new Set<string>(card.flags ?? []);
+    // a served drift row names the Claim: a cited source changed since it was cited
+    if (card.claim !== undefined && drifted.has(card.claim)) own.add("drifted");
     if (card.verdict !== "supported") own.add(card.verdict);
     for (const state of own) states.set(state, (states.get(state) ?? 0) + 1);
   }

@@ -59,6 +59,12 @@ describe("Subject page helpers", () => {
     expect(Object.fromEntries(states)).toEqual({ contested: 2, stale: 1, contradicted: 1 });
   });
 
+  it("counts a Claim the queue says drifted as drifted, not supported", () => {
+    const cards = [{ claim: "CLM-a", verdict: "supported" }, { claim: "CLM-b", verdict: "supported" }];
+    expect(claimStates(cards).states.size).toBe(0);
+    expect(Object.fromEntries(claimStates(cards, new Set(["CLM-b"])).states)).toEqual({ drifted: 1 });
+  });
+
   it("hides core's proposal boilerplate and finds the run in it", () => {
     expect(reasonWords({ kind: "change_set", text: BOILERPLATE, proposal: "p" })).toBeNull();
     expect(reasonWords({ kind: "change_set", text: "Vendor says no.", proposal: "p", truncated: true })).toBe("Vendor says no.…");

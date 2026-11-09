@@ -93,3 +93,41 @@ export function runGroups(runs: readonly Run[]): RunGroupData[] {
   for (const group of byDigest.values()) group.steps.sort((a, b) => a.step - b.step || (a.target < b.target ? -1 : 1));
   return [...byDigest.values()];
 }
+
+/** Count keys a step outcome may serve, in reading order, with their words. */
+const STEP_COUNT_WORDS: [string, string][] = [
+  ["written", "written"],
+  ["settled", "settled"],
+  ["proposed", "proposed"],
+  ["inbox", "to inbox"],
+  ["inbox_items", "to inbox"],
+  ["refused", "refused"],
+];
+
+export interface StepTally {
+  /** false: the step's run did not see everything it expected (a short read, a count mismatch). */
+  complete: boolean | null;
+  counts: { key: string; word: string; n: number }[];
+}
+
+/**
+ * What a step's run wrote and whether it was complete, when the daemon serves
+ * it: `complete` and counts either flat on the outcome or under `counts`.
+ * Older daemons serve neither; the tally is then empty and the page shows the
+ * status alone. Fields are read with runtime checks, never assumed.
+ */
+export function stepTally(outcome: object): StepTally {
+  const record = outcome as Record<string, unknown>;
+  const nested = typeof record.counts === "object" && record.counts !== null ? (record.counts as Record<string, unknown>) : {};
+  const counts: StepTally["counts"] = [];
+  const seen = new Set<string>();
+  for (const [key, word] of STEP_COUNT_WORDS) {
+    const value = typeof nested[key] === "number" ? nested[key] : record[key];
+    if (typeof value === "number" && Number.isFinite(value) && !seen.has(word)) {
+      seen.add(word);
+      counts.push({ key, word, n: value });
+    }
+  }
+  const complete = typeof record.complete === "boolean" ? record.complete : typeof nested.complete === "boolean" ? nested.complete : null;
+  return { complete, counts };
+}

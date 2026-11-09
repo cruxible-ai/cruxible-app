@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
+import type { GetClaimCard, NextResult } from "@/api/schemas";
+import { ClaimsTally } from "@/screens/SubjectScreen";
+import { AUTHORED } from "@/fixtures/handlers";
 
 afterEach(cleanup);
 
@@ -160,6 +163,36 @@ describe("Subject page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Older →" }));
     expect(await screen.findByRole("button", { name: "← Newer" })).toBeInTheDocument();
     expect(screen.queryByText("Vendor advisory says rel-1 never shipped the build.")).toBeNull();
+  });
+
+  it("marks a Claim the queue says drifted, on its field and in the header", async () => {
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/next"))!;
+    const response = fixture.response as NextResult;
+    const related = `CLM-${(0xb3).toString(16).padStart(32, "0")}`;
+    renderApp(VULNERABILITY, [...AUTHORED, {
+      ...fixture,
+      response: {
+        ...response,
+        unobserved_domains: response.unobserved_domains.filter((d) => d !== "workspace_sources"),
+        observed_domains: [...response.observed_domains, "workspace_sources"],
+        items: [{ item_id: "drift", reason: "citation_drifted", severity: "repair", subject_identity: `Claim:${related}`, repair: null }],
+        total_items: 1,
+      },
+    }]);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("drifted")).toBeInTheDocument();
+    expect(main.getByText("Drifted")).toBeInTheDocument();
+    expect(main.queryByText("All supported")).toBeNull();
+  });
+
+  it("says drift was not observed beside All supported, and nothing until the queue answers", () => {
+    const cards = [{ claim: "CLM-a", verdict: "supported" }] as GetClaimCard[];
+    render(<ClaimsTally cards={cards} drifted={new Set()} driftObserved={false} />);
+    expect(screen.getByText("Supported")).toBeInTheDocument();
+    expect(screen.getByText("· drift not observed")).toBeInTheDocument();
+    cleanup();
+    render(<ClaimsTally cards={cards} drifted={new Set()} driftObserved={null} />);
+    expect(screen.queryByText("· drift not observed")).toBeNull();
   });
 
   it("says plainly when the Subject does not exist at this generation", async () => {

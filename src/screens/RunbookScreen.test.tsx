@@ -85,5 +85,23 @@ describe("Runbook page", () => {
     expect(links).toEqual(["/i/inst_fixture/runs/RUN-A", "/i/inst_fixture/runs/RUN-C"]);
     // the current definition's one step, as the card lists it
     expect(within(main.getByRole("table", { name: "Steps" })).getByRole("link", { name: "demo.b" })).toBeInTheDocument();
+    // no counts served (an older daemon): the status stands alone
+    expect(main.queryByText(/incomplete/)).toBeNull();
+  });
+
+  it("shows a step's counts and an incomplete step when the run serves them", async () => {
+    const counted = REVISED.map((fixture) => {
+      if (fixture !== REVISED[AUTHORED.length]) return fixture;
+      const response = structuredClone(fixture.response) as { results: { card: { recent_runs: Schemas["RunbookRunResult"][] } }[] };
+      const steps = response.results[0]!.card.recent_runs[0]!.steps as (Schemas["RunbookStepOutcome"] & Record<string, unknown>)[];
+      Object.assign(steps[0]!, { complete: false, counts: { written: 0, settled: 0, inbox: 9 } });
+      return { ...fixture, response };
+    });
+    renderApp("/i/inst_fixture/runbooks/demo", counted);
+    const main = within(await screen.findByRole("main"));
+    const current = within(await main.findByRole("table", { name: `Runs of ${D("2")}` }));
+    expect(current.getByText("incomplete")).toBeInTheDocument();
+    expect(current.getByText("0 written · 0 settled · 9 to inbox")).toBeInTheDocument();
+    expect(main.getByText("1 step incomplete")).toBeInTheDocument();
   });
 });

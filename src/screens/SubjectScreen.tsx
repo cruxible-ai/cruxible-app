@@ -10,6 +10,7 @@ import {
   useGet,
   useGetBatch,
   useInstanceId,
+  useNext,
   useOntologyKinds,
   useRunAuthor,
   useSubjectHistory,
@@ -75,6 +76,8 @@ import { changeSetRun, changeSets, reasonWords } from "@/lib/change-sets";
 import { claimStates, evidenceNeed, isKeyField, keyPredicates, type EvidenceNeed } from "@/lib/subject";
 import { formatWhen, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { NEXT_PAGE } from "@/api/requests";
+import { driftedClaims } from "@/lib/next-reasons";
 import { term, type Term } from "@/lib/vocabulary";
 
 type SubjectClaim = GetSubjectCard["claims"][number];
@@ -140,6 +143,10 @@ export function SubjectScreen() {
     for (const event of h?.kind === "subject" ? h.events : []) if (!out.has(event.claim)) out.set(event.claim, event);
     return out;
   }, [firstHistory.data]);
+  // Drift comes from the next queue (the Next page's first page, one shared cache entry):
+  // served drift rows mark their Claims; with no workspace observation, the tally says so.
+  const next = useNext({ limit: NEXT_PAGE });
+  const drift = useMemo(() => driftedClaims(next.data), [next.data]);
   usePageTitle(ref ?? raw);
 
   if (!ref) {
@@ -186,7 +193,7 @@ export function SubjectScreen() {
           ) : verdicts.isPending ? (
             <span className="t-meta animate-pulse">Reading verdicts…</span>
           ) : (
-            <ClaimsTally cards={[...claimCards.values()]} />
+            <ClaimsTally cards={[...claimCards.values()]} drifted={drift.claims} driftObserved={drift.observed} />
           )
         }
         facts={
@@ -258,6 +265,7 @@ export function SubjectScreen() {
                 envelopes={admission.envelopes}
                 focus={focusClaim}
                 provenance={provenance}
+                drifted={drift.claims}
               />
             ))}
           </FieldList>
@@ -275,8 +283,17 @@ export function SubjectScreen() {
  * "4 Claims · all supported", or the count in each state that is not the
  * normal one ("4 Claims · 2 contested · 1 stale"), each with its signal.
  */
-function ClaimsTally({ cards }: { cards: GetClaimCard[] }) {
-  const { total, states } = claimStates(cards);
+export function ClaimsTally({
+  cards,
+  drifted,
+  driftObserved,
+}: {
+  cards: GetClaimCard[];
+  drifted: ReadonlySet<string>;
+  /** null: the queue has not answered (or refused); drift is then left unsaid. */
+  driftObserved: boolean | null;
+}) {
+  const { total, states } = claimStates(cards, drifted);
   const noun = `${total} ${total === 1 ? "Claim" : "Claims"}`;
   return (
     <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px]">
@@ -285,6 +302,14 @@ function ClaimsTally({ cards }: { cards: GetClaimCard[] }) {
         <span className="inline-flex items-baseline gap-1.5">
           <span className="text-zinc-400">·</span>
           <Chip term={{ ...term("claim", "supported"), word: total === 1 ? "Supported" : "All supported" }} />
+          {driftObserved === false && (
+            <span
+              className="text-zinc-500"
+              title="Whether a cited file changed is checked only beside the workspace: run cruxible next there (or the MCP cruxible_next)"
+            >
+              · drift not observed
+            </span>
+          )}
         </span>
       ) : (
         [...states.entries()].map(([state, count]) => {
@@ -345,6 +370,7 @@ function ClaimRow({
   envelopes,
   focus,
   provenance,
+  drifted,
 }: {
   kind: string;
   entry: SubjectClaim;
@@ -355,6 +381,7 @@ function ClaimRow({
   envelopes: Map<string, Record<string, unknown>>;
   focus: string | null;
   provenance: Map<string, SubjectHistoryEvent>;
+  drifted: ReadonlySet<string>;
 }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
@@ -367,7 +394,13 @@ function ClaimRow({
   useEffect(() => {
     if (focused) rowRef.current?.scrollIntoView?.({ block: "center" });
   }, [focused]);
-  const flags: readonly string[] = [...new Set([...(entry.flags ?? []), ...(entry.nones ?? []).flatMap((none) => none.flags ?? [])])];
+  const flags: readonly string[] = [
+    ...new Set([
+      ...(entry.flags ?? []),
+      ...(entry.nones ?? []).flatMap((none) => none.flags ?? []),
+      ...(ids.some((id) => drifted.has(id)) ? ["drifted"] : []),
+    ]),
+  ];
   const predicate = descriptor?.predicate ?? entry.predicate;
   const need: EvidenceNeed = isKey ? "none" : evidenceNeed(descriptor);
   // The reason the row already shows under the value; the detail does not repeat it.

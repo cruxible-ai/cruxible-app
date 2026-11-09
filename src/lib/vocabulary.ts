@@ -70,6 +70,7 @@ const CLAIM: Record<string, Term> = {
   stale_evidence: t("Stale evidence", "Stale evidence: a cited Capture is past its freshness; re-observe it", "waiting"),
   uncovered: t("Uncovered", "Uncovered: no admitted evidence backs it; cite a Capture its ClaimType admits", "waiting"),
   unresolved: t("Unresolved", "Unresolved: the verdict is not decided yet", "waiting"),
+  drifted: t("Drifted", "Drifted: a source it cites changed since it was cited; re-read it, then re-bind or retire the Claim", "waiting"),
   unsure_hold: t("Held", "Held: an unsure attestation holds it for a look", "waiting"),
   contradicted: t("Contradicted", "Contradicted: a contradiction that counts toward the verdict stands against it", "wrong"),
   conflicted: t("Conflicted", "Conflicted: more Claims than the slot allows stand; settle which one holds", "wrong"),
