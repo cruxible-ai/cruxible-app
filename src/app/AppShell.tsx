@@ -21,6 +21,7 @@ import { SettingsMenu } from "@/components/SettingsMenu";
 import { useAtLink, useRawAtParam } from "@/lib/at";
 import { SignalDot } from "@/components/Chip";
 import { term } from "@/lib/vocabulary";
+import { nextCount } from "@/lib/next-reasons";
 import { AtPicker } from "./AtPicker";
 
 const COLLAPSED_KEY = "cruxible.sidebar.collapsed";
@@ -100,7 +101,8 @@ export function AppShell() {
       path: "/next",
       label: "Next",
       icon: CircleAlert,
-      waiting: (attention?.next_items ?? 0) > 0 ? { count: attention!.next_items, title: "Items waiting on you: open Next for the repairs" } : null,
+      // orient counts problems (next_items) and setup choices apart; the Next page lists both
+      waiting: nextCount(attention) > 0 ? { count: nextCount(attention), title: "Items on Next, setup choices included: open Next for the repairs" } : null,
     },
     {
       path: "/proposals",

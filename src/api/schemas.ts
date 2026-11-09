@@ -16,6 +16,7 @@ export type NextResult = Schemas["NextResult"];
 export type NextItem = Schemas["NextItem"];
 export type NextReason = NextItem["reason"];
 export type NextSeverity = NextItem["severity"];
+export type NextRepair = Schemas["NextRepair"];
 export type NextHealth = Schemas["NextHealth"];
 export type GetResult = Schemas["GetResult"];
 export type ClaimViewRecord = Schemas["ClaimViewRecord"];

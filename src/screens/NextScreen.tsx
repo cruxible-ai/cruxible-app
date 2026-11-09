@@ -39,6 +39,8 @@ export function NextScreen() {
     ([, n]) => n > 0,
   );
   const more = page.data ? page.data.total_items > items.length : false;
+  // Drift needs the workspace's files: the daemon checks it only when a client that sees them asks.
+  const driftUnobserved = page.data ? page.data.unobserved_domains.includes("workspace_sources") : false;
   return (
     <Page>
       <PageHeader
@@ -46,7 +48,10 @@ export function NextScreen() {
         summary={
           page.data ? (
             page.data.total_items === 0 ? (
-              "None"
+              <StatsRow>
+                <span>None</span>
+                {driftUnobserved && <DriftUnobserved />}
+              </StatsRow>
             ) : (
               <>
                 <StatsRow>
@@ -55,6 +60,7 @@ export function NextScreen() {
                     <SeverityCount key={severity} severity={severity} count={n} />
                   ))}
                   {more && <span>counts for this page</span>}
+                  {driftUnobserved && <DriftUnobserved />}
                 </StatsRow>
               </>
             )
@@ -72,7 +78,7 @@ export function NextScreen() {
           </button>
           {beliefs && (
             <InfoButton label="Beliefs preset">
-              Contested, stale and drifted reasons on this page. Workspace drift is checked only by the CLI or MCP with a workspace observation.
+              Contested, stale and drifted reasons on this page.{driftUnobserved && " Drifted citations are not observed here: run cruxible next in the workspace."}
             </InfoButton>
           )}
         </div>
@@ -102,6 +108,18 @@ export function NextScreen() {
       )}
       {page.data && items.length === 0 && page.data.total_items > 0 && <EmptyState>None on this page</EmptyState>}
     </Page>
+  );
+}
+
+/** Drift was not checked: no workspace observation reached the queue. */
+function DriftUnobserved() {
+  return (
+    <span
+      className="text-zinc-500"
+      title="Drifted citations need the workspace's files, which the console cannot read. Run cruxible next (or the MCP cruxible_next) in the workspace to check them."
+    >
+      Drift not observed
+    </span>
   );
 }
 

@@ -131,6 +131,63 @@ describe("Beliefs", () => {
     renderApp("/i/inst_fixture/next?preset=beliefs&f.family=drifted");
     expect(await screen.findByText("No match")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Beliefs preset" }));
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Workspace drift is checked only by the CLI or MCP");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Drifted citations are not observed here: run cruxible next in the workspace.");
+  });
+
+  it("says drift was not observed when no workspace observation reached the queue, and nothing when it was", async () => {
+    renderApp("/i/inst_fixture/next");
+    expect(await screen.findByText("Drift not observed")).toBeInTheDocument();
+    cleanup();
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/next"))!;
+    const response = fixture.response as NextResult;
+    renderApp("/i/inst_fixture/next", [...AUTHORED, {
+      ...fixture,
+      response: {
+        ...response,
+        observed_domains: [...response.observed_domains, "workspace_sources"],
+        unobserved_domains: response.unobserved_domains.filter((d) => d !== "workspace_sources"),
+        items: [...response.items, {
+          item_id: "drift", reason: "citation_drifted", severity: "repair", subject_identity: "Claim:CLM-drift",
+          related_identities: ["citation:abc"],
+          detail: { drift_state: "changed", logical_source: { plane: "external", identity: "notes" }, expected_commitment_digest: "sha256:" + "1".repeat(64) },
+          repair: { operation: "cruxible.rebind", target: "Claim:CLM-drift", required_change: "rebind_or_retire_drifted_claim", command: "cruxible rebind CLM-drift --because BECAUSE" },
+        }],
+        total_items: response.total_items + 1,
+      },
+    }]);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText(REASONS.citation_drifted.label)).toBeInTheDocument();
+    expect(main.getByText("notes")).toBeInTheDocument();
+    expect(main.getByText("cruxible rebind CLM-drift --because BECAUSE")).toBeInTheDocument();
+    expect(main.queryByText("Drift not observed")).toBeNull();
+  });
+
+  it("prints repairs as CLI commands with the MCP tool, never SDK code", async () => {
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/next"))!;
+    const response = fixture.response as NextResult;
+    renderApp("/i/inst_fixture/next", [...AUTHORED, {
+      ...fixture,
+      response: {
+        ...response,
+        items: [
+          {
+            item_id: "sdk", reason: "line_inbox_unread", severity: "repair", subject_identity: "Line:security.kev-triage",
+            repair: { operation: "cruxible.inbox.list", target: "Line:security.kev-triage", required_change: "read_unread_inbox_items", command: 'cx.inbox().list(line="security.kev-triage", status="unread")' },
+          },
+          {
+            item_id: "withheld", reason: "line_not_enabled", severity: "setup", subject_identity: "Line:security.osv-query", repair: null,
+            repair_requires: { operation: "cruxible.line.enable", tool: "cruxible_line_enable", tier: "governed_write", because: ["tier"] },
+          },
+        ],
+        total_items: 2,
+      },
+    }]);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("cruxible inbox list")).toBeInTheDocument();
+    expect(main.queryByText(/cx\.inbox/)).toBeNull();
+    expect(main.getByText("cruxible_inbox_list")).toBeInTheDocument();
+    expect(main.getByText("cruxible line enable security.osv-query")).toBeInTheDocument();
+    expect(main.getByText("cruxible_line_enable")).toBeInTheDocument();
+    expect(main.getByText("needs governed_write")).toBeInTheDocument();
   });
 });

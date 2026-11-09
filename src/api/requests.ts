@@ -262,7 +262,8 @@ export function nextBody(args: NextArgs): RequestBody<"/api/v1/{instance_id}/nex
     at: args.coordinate,
     evaluation_time: args.evaluationTime,
     access_profile: { ...CONSOLE_ACCESS_PROFILE, permitted_access_classes: [...CONSOLE_ACCESS_PROFILE.permitted_access_classes] },
-    caller_surface: "sdk",
+    // Repairs render as CLI commands: the console is read-only, so a person runs them from the CLI (or the MCP tool).
+    caller_surface: "cli",
     ...(args.limit !== undefined ? { limit: args.limit } : {}),
     ...(args.cursor !== undefined ? { cursor: args.cursor } : {}),
   };

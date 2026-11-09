@@ -34,7 +34,7 @@ export const FAMILY_LABEL: Record<NextFamily, string> = {
 };
 
 /** How a detail field renders. */
-export type FieldKind = "text" | "words" | "count" | "time" | "ref" | "run" | "capture" | "claim" | "list" | "digest" | "cause";
+export type FieldKind = "text" | "words" | "count" | "time" | "ref" | "run" | "capture" | "claim" | "list" | "digest" | "cause" | "source";
 
 export interface FieldSpec {
   key: string;
@@ -118,7 +118,14 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   citation_drifted: {
     label: "Cited source drifted",
     family: "drifted",
-    fields: [f("citation_id", "Citation"), f("source_id", "Source"), f("expected_source_digest", "Expected", "digest"), f("observed_source_digest", "Observed", "digest")],
+    // the served detail: drift_state, logical_source {plane, identity}, the commitment digests
+    fields: [
+      f("drift_state", "", "words"),
+      f("logical_source", "Source", "source"),
+      f("source_id", "Source"),
+      f("expected_commitment_digest", "Expected", "digest"),
+      f("observed_window_digest", "Observed", "digest"),
+    ],
   },
   citation_source_unobserved: {
     label: "Cited source not observed",
@@ -260,4 +267,25 @@ export function splitDetail(reason: NextReason, detail: unknown) {
 /** The Capture handle get resolves for a capture digest: CAP- plus 12 hex. */
 export function captureHandle(digest: string): string {
   return `CAP-${digest.replace(/^sha256:/, "").slice(0, 12)}`;
+}
+
+/** The Next page's item count, as orient reports it: problems plus setup choices. */
+export function nextCount(attention: { next_items: number; setup_items?: number } | null | undefined): number {
+  return (attention?.next_items ?? 0) + (attention?.setup_items ?? 0);
+}
+
+/**
+ * The Claims the queue page says drifted (citation_drifted rows and findings,
+ * `Claim:CLM-…` or a bare id), and whether drift was observed at all:
+ * `observed` is null until the queue answers.
+ */
+export function driftedClaims(
+  page: { items: readonly { reason: NextReason; subject_identity: string; findings?: readonly { reason: NextReason; subject_identity: string }[] }[]; unobserved_domains: readonly string[] } | undefined,
+): { claims: ReadonlySet<string>; observed: boolean | null } {
+  if (!page) return { claims: new Set(), observed: null };
+  const claims = new Set<string>();
+  for (const row of page.items.flatMap((item) => [item, ...(item.findings ?? [])])) {
+    if (row.reason === "citation_drifted") claims.add(row.subject_identity.replace(/^Claim:/, ""));
+  }
+  return { claims, observed: !page.unobserved_domains.includes("workspace_sources") };
 }

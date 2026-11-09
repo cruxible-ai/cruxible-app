@@ -4,6 +4,7 @@ import { InfoButton } from "@/components/InfoButton";
 import { RefLink } from "@/components/RefLink";
 import { parseRef } from "@/lib/cruxible-ref";
 import { captureHandle, type FieldSpec } from "@/lib/next-reasons";
+import { REPAIR_DOORS, isSdkCode } from "@/lib/repair-tools";
 import { formatDateTime, formatWhen } from "@/lib/text";
 
 export function FieldValue({ spec, value }: { spec: FieldSpec; value: unknown }) {
@@ -32,6 +33,9 @@ export function FieldValue({ spec, value }: { spec: FieldSpec; value: unknown })
         {value.slice(0, 19)}…
       </span>
     );
+  }
+  if (spec.kind === "source" && typeof value === "object" && value !== null && typeof (value as { identity?: unknown }).identity === "string") {
+    return <span className="font-mono">{(value as { identity: string }).identity}</span>;
   }
   if (spec.kind === "count" && typeof value === "number") return <span className="font-mono">{value}</span>;
   if (spec.kind === "words" && typeof value === "string") return <span>{value.replaceAll("_", " ")}</span>;
@@ -64,30 +68,53 @@ export function FieldValue({ spec, value }: { spec: FieldSpec; value: unknown })
   return <span>{String(value)}</span>;
 }
 
-/** The repair as text: what to change, and the CLI command when there is one. */
+/**
+ * The repair as text: the CLI command when the queue served one, else the CLI
+ * command path; the MCP tool beside it. A withheld repair names the door and
+ * what running it needs. SDK code (an older daemon) is never shown as a command.
+ */
 export function RepairText({ item }: { item: NextItem }) {
   if (!item.repair && !item.repair_requires) return null;
+  const operation = item.repair?.operation ?? item.repair_requires!.operation;
+  const door = REPAIR_DOORS[operation];
+  const served = item.repair?.command && !isSdkCode(item.repair.command) ? item.repair.command : null;
+  // a withheld Line repair still names its Line: the row is about it
+  const line = operation.startsWith("cruxible.line.") && item.subject_identity.startsWith("Line:") ? ` ${item.subject_identity.slice(5)}` : "";
+  const cli = served ?? (door ? `cruxible ${door.cli}${line}` : null);
+  const mcp = item.repair_requires?.tool ?? door?.mcp ?? null;
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12px]">
-      {item.repair?.command ? (
-        <code className="font-mono text-[11px] text-zinc-300" title="Run from the CLI or MCP; the console is read-only">
-          {item.repair.command}
+    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px]">
+      {cli ? (
+        <code className="font-mono text-[11px] text-zinc-300" title={served ? "CLI command; run it from a terminal (the console is read-only)" : "CLI command path; the arguments are the row's"}>
+          {cli}
         </code>
       ) : (
-        item.repair && <span className="font-mono text-zinc-400">{item.repair.operation}</span>
+        item.repair && <span className="text-zinc-400">Edit by hand</span>
       )}
-      {item.repair?.required_change && <InfoButton label="What the repair changes">{item.repair.required_change}</InfoButton>}
+      {mcp && (
+        <span className="text-zinc-500" title="The MCP tool that performs it">
+          · MCP <code className="font-mono text-[11px] text-zinc-400">{mcp}</code>
+        </span>
+      )}
+      {item.repair?.required_change && <InfoButton label="What the repair changes">{item.repair.required_change.replaceAll("_", " ")}</InfoButton>}
       {item.repair_requires && (
         <>
           <span className="text-zinc-500">needs {item.repair_requires.tier}</span>
           <InfoButton label="Why the repair is not shown">
-            The repair needs a {item.repair_requires.tier} token ({item.repair_requires.because.join(", ")}). The console reads without one.
+            Running it needs {item.repair_requires.because.map((gate) => GATE_WORDS[gate](item.repair_requires!)).join(" and ")}. The console reads without write access, so the queue withholds the full command.
           </InfoButton>
         </>
       )}
     </span>
   );
 }
+
+const GATE_WORDS: Record<NonNullable<NextItem["repair_requires"]>["because"][number], (r: NonNullable<NextItem["repair_requires"]>) => string> = {
+  tier: (r) => `${r.tier} access`,
+  profile: (r) => `the ${r.profile ?? "full"} MCP tool profile`,
+  authoring: () => "a principal that can author",
+  author: () => "the proposal's author",
+};
 
 export const repairKey = (item: NextItem) =>
   JSON.stringify([item.repair?.operation, item.repair?.required_change, item.repair?.command, item.repair_requires]);

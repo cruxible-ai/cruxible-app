@@ -22,7 +22,7 @@ export default defineFixture({
         "public"
       ]
     },
-    "caller_surface": "sdk",
+    "caller_surface": "cli",
     "limit": 100
   },
   "response": {
