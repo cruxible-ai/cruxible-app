@@ -77,7 +77,7 @@ import { claimStates, evidenceNeed, isKeyField, keyPredicates, type EvidenceNeed
 import { formatWhen, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { NEXT_PAGE } from "@/api/requests";
-import { driftedClaims } from "@/lib/next-reasons";
+import { driftedClaims, type DriftRead } from "@/lib/next-reasons";
 import { term, type Term } from "@/lib/vocabulary";
 
 type SubjectClaim = GetSubjectCard["claims"][number];
@@ -143,8 +143,9 @@ export function SubjectScreen() {
     for (const event of h?.kind === "subject" ? h.events : []) if (!out.has(event.claim)) out.set(event.claim, event);
     return out;
   }, [firstHistory.data]);
-  // Drift comes from the next queue (the Next page's first page, one shared cache entry):
-  // served drift rows mark their Claims; with no workspace observation, the tally says so.
+  // Drift comes from the next queue's first page (the Next page's cache entry; `next` has
+  // no Claim filter and the console reads one page): served drift rows mark their Claims,
+  // and the tally says when drift was not observed or the page did not cover the queue.
   const next = useNext({ limit: NEXT_PAGE });
   const drift = useMemo(() => driftedClaims(next.data), [next.data]);
   usePageTitle(ref ?? raw);
@@ -193,7 +194,7 @@ export function SubjectScreen() {
           ) : verdicts.isPending ? (
             <span className="t-meta animate-pulse">Reading verdicts…</span>
           ) : (
-            <ClaimsTally cards={[...claimCards.values()]} drifted={drift.claims} driftObserved={drift.observed} />
+            <ClaimsTally cards={[...claimCards.values()]} drift={drift} />
           )
         }
         facts={
@@ -283,17 +284,8 @@ export function SubjectScreen() {
  * "4 Claims · all supported", or the count in each state that is not the
  * normal one ("4 Claims · 2 contested · 1 stale"), each with its signal.
  */
-export function ClaimsTally({
-  cards,
-  drifted,
-  driftObserved,
-}: {
-  cards: GetClaimCard[];
-  drifted: ReadonlySet<string>;
-  /** null: the queue has not answered (or refused); drift is then left unsaid. */
-  driftObserved: boolean | null;
-}) {
-  const { total, states } = claimStates(cards, drifted);
+export function ClaimsTally({ cards, drift }: { cards: GetClaimCard[]; drift: DriftRead }) {
+  const { total, states } = claimStates(cards, drift.claims);
   const noun = `${total} ${total === 1 ? "Claim" : "Claims"}`;
   return (
     <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px]">
@@ -302,14 +294,6 @@ export function ClaimsTally({
         <span className="inline-flex items-baseline gap-1.5">
           <span className="text-zinc-400">·</span>
           <Chip term={{ ...term("claim", "supported"), word: total === 1 ? "Supported" : "All supported" }} />
-          {driftObserved === false && (
-            <span
-              className="text-zinc-500"
-              title="Whether a cited file changed is checked only beside the workspace: run cruxible next there (or the MCP cruxible_next)"
-            >
-              · drift not observed
-            </span>
-          )}
         </span>
       ) : (
         [...states.entries()].map(([state, count]) => {
@@ -323,6 +307,35 @@ export function ClaimsTally({
           );
         })
       )}
+      <DriftCoverage drift={drift} />
+    </span>
+  );
+}
+
+/**
+ * How far the drift marks reach: unsaid until the queue answers; "drift not
+ * observed" with no workspace observation; "drift checked in N of M" when the
+ * page in hand has a continuation, so an unmarked Claim may still have drifted.
+ */
+function DriftCoverage({ drift }: { drift: DriftRead }) {
+  if (drift.observed === null) return null;
+  if (!drift.observed) {
+    return (
+      <span
+        className="text-zinc-500"
+        title="Whether a cited file changed is checked only beside the workspace: run cruxible next there (or the MCP cruxible_next)"
+      >
+        · drift not observed
+      </span>
+    );
+  }
+  if (drift.complete) return null;
+  return (
+    <span
+      className="text-zinc-500"
+      title="The console reads one page of the next queue; drift rows past it are not shown here. Run cruxible next (or the MCP cruxible_next) for the whole queue"
+    >
+      · drift checked in {drift.read} of {drift.total} queue items
     </span>
   );
 }

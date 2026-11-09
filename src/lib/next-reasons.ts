@@ -274,18 +274,46 @@ export function nextCount(attention: { next_items: number; setup_items?: number 
   return (attention?.next_items ?? 0) + (attention?.setup_items ?? 0);
 }
 
+/** What one `next` page says about drift, and how much of the queue it covers. */
+export interface DriftRead {
+  /** Claims a citation_drifted row or finding on the page names (bare CLM ids). */
+  claims: ReadonlySet<string>;
+  /** null until the queue answers; false when no workspace observation reached it. */
+  observed: boolean | null;
+  /** The page holds every queue item (no continuation): a Claim absent here did not drift. */
+  complete: boolean;
+  /** Items read, and the queue's total. */
+  read: number;
+  total: number;
+}
+
 /**
- * The Claims the queue page says drifted (citation_drifted rows and findings,
- * `Claim:CLM-…` or a bare id), and whether drift was observed at all:
- * `observed` is null until the queue answers.
+ * The Claims the page in hand says drifted (citation_drifted rows and
+ * findings, `Claim:CLM-…` or a bare id). `next` has no Claim filter, so a
+ * page with a continuation covers only part of the queue: `complete` says
+ * whether an absent Claim is known not drifted. The console never pages on
+ * to look (one page per read).
  */
 export function driftedClaims(
-  page: { items: readonly { reason: NextReason; subject_identity: string; findings?: readonly { reason: NextReason; subject_identity: string }[] }[]; unobserved_domains: readonly string[] } | undefined,
-): { claims: ReadonlySet<string>; observed: boolean | null } {
-  if (!page) return { claims: new Set(), observed: null };
+  page:
+    | {
+        items: readonly { reason: NextReason; subject_identity: string; findings?: readonly { reason: NextReason; subject_identity: string }[] }[];
+        unobserved_domains: readonly string[];
+        total_items?: number;
+        next_cursor?: string | null;
+      }
+    | undefined,
+): DriftRead {
+  if (!page) return { claims: new Set(), observed: null, complete: false, read: 0, total: 0 };
   const claims = new Set<string>();
   for (const row of page.items.flatMap((item) => [item, ...(item.findings ?? [])])) {
     if (row.reason === "citation_drifted") claims.add(row.subject_identity.replace(/^Claim:/, ""));
   }
-  return { claims, observed: !page.unobserved_domains.includes("workspace_sources") };
+  return {
+    claims,
+    observed: !page.unobserved_domains.includes("workspace_sources"),
+    complete: !page.next_cursor,
+    read: page.items.length,
+    total: page.total_items ?? page.items.length,
+  };
 }

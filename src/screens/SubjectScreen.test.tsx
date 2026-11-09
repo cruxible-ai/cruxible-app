@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { renderApp } from "@/test/render";
 import type { GetClaimCard, NextResult } from "@/api/schemas";
 import { ClaimsTally } from "@/screens/SubjectScreen";
+import { driftedClaims } from "@/lib/next-reasons";
 import { AUTHORED } from "@/fixtures/handlers";
 
 afterEach(cleanup);
@@ -187,12 +188,36 @@ describe("Subject page", () => {
 
   it("says drift was not observed beside All supported, and nothing until the queue answers", () => {
     const cards = [{ claim: "CLM-a", verdict: "supported" }] as GetClaimCard[];
-    render(<ClaimsTally cards={cards} drifted={new Set()} driftObserved={false} />);
+    render(<ClaimsTally cards={cards} drift={driftedClaims({ items: [], unobserved_domains: ["workspace_sources"] })} />);
     expect(screen.getByText("Supported")).toBeInTheDocument();
     expect(screen.getByText("· drift not observed")).toBeInTheDocument();
     cleanup();
-    render(<ClaimsTally cards={cards} drifted={new Set()} driftObserved={null} />);
-    expect(screen.queryByText("· drift not observed")).toBeNull();
+    render(<ClaimsTally cards={cards} drift={driftedClaims(undefined)} />);
+    expect(screen.queryByText(/drift/)).toBeNull();
+  });
+
+  it("a drift row past the first queue page: no marker, and the tally says coverage is incomplete", async () => {
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/next"))!;
+    const response = fixture.response as NextResult;
+    // the first page holds 100 other items; the related Claim's drift row is item 101, behind next_cursor
+    const filler = Array.from({ length: 100 }, (_, i) => ({
+      item_id: `other-${i}`, reason: "line_not_enabled" as const, severity: "setup" as const, subject_identity: `Line:demo.l${i}`, repair: null,
+    }));
+    renderApp(VULNERABILITY, [...AUTHORED, {
+      ...fixture,
+      response: {
+        ...response,
+        unobserved_domains: response.unobserved_domains.filter((d) => d !== "workspace_sources"),
+        observed_domains: [...response.observed_domains, "workspace_sources"],
+        items: filler,
+        total_items: 101,
+        next_cursor: "page-2",
+      },
+    }]);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("· drift checked in 100 of 101 queue items")).toBeInTheDocument();
+    expect(main.queryByText("drifted")).toBeNull();
+    expect(main.queryByText("Drifted")).toBeNull();
   });
 
   it("says plainly when the Subject does not exist at this generation", async () => {

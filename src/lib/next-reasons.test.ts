@@ -9,7 +9,7 @@ describe("next counts and drift", () => {
   });
 
   it("collects drifted Claims from rows and findings and says whether drift was observed", () => {
-    expect(driftedClaims(undefined)).toEqual({ claims: new Set(), observed: null });
+    expect(driftedClaims(undefined)).toEqual({ claims: new Set(), observed: null, complete: false, read: 0, total: 0 });
     const page = {
       unobserved_domains: [],
       items: [
@@ -17,7 +17,9 @@ describe("next counts and drift", () => {
         { reason: "claim_conflicted" as const, subject_identity: "Claim:CLM-x", findings: [{ reason: "citation_drifted" as const, subject_identity: "CLM-b" }] },
       ],
     };
-    expect(driftedClaims(page)).toEqual({ claims: new Set(["CLM-a", "CLM-b"]), observed: true });
+    expect(driftedClaims(page)).toEqual({ claims: new Set(["CLM-a", "CLM-b"]), observed: true, complete: true, read: 2, total: 2 });
+    // a continuation: only the page in hand is covered
+    expect(driftedClaims({ ...page, total_items: 101, next_cursor: "c" })).toMatchObject({ complete: false, read: 2, total: 101 });
     expect(driftedClaims({ items: [], unobserved_domains: ["workspace_sources"] }).observed).toBe(false);
   });
 });
