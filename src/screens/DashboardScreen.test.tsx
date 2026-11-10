@@ -90,8 +90,6 @@ describe("Dashboard", () => {
 
   it("shows whether the knowledge is current: freshness per source, stale beliefs and evidence per kind", async () => {
     renderApp("/i/inst_fixture");
-    const current = within(await screen.findByRole("region", { name: "Current" }));
-
     const freshness = await panel("Freshness");
     const sources = within(await freshness.findByRole("list", { name: "Sources" }));
     const kev = await sources.findByRole("link", { name: "cisa.kev.catalog" });
@@ -115,7 +113,7 @@ describe("Dashboard", () => {
     expect(bar.getByRole("link", { name: "Required, not admitted: 1" })).toHaveAttribute("href", "/i/inst_fixture/next?preset=beliefs&f.family=stale");
     expect(bar.getByRole("link", { name: "Admitted evidence: 2" })).toHaveAttribute("href", "/i/inst_fixture/kinds/security.vulnerability?view=claim-types");
     expect(bar.getByRole("link", { name: "Own words: 4" })).toBeInTheDocument();
-    expect(current.queryByText("Not served by this daemon")).toBeNull();
+    expect(screen.queryByText("Not served by this daemon")).toBeNull();
   });
 
   it("shows no stale or evidence card when the daemon does not serve those counts", async () => {

@@ -71,20 +71,19 @@ export function DashboardScreen() {
       <NeedsYou orient={o} next={next.data} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
       <LinesAttention enablements={o.attention?.enablements} />
 
-      {/* Cards a daemon does not serve are absent: the row fills with the ones it does. */}
-      <section aria-label="Current" className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[repeat(auto-fit,minmax(22rem,1fr))]">
-        <FreshnessPanel label={lineLabel} />
-        <StaleBeliefsPanel />
-        <EvidenceCoveragePanel />
-      </section>
-
+      {/* Two columns that flow on their own, so a short card leaves no hole beside a tall one: whether the
+          knowledge is current and what happened on the left; what comes next, per-kind beliefs and health on the right.
+          Cards a daemon does not serve are absent. */}
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)]">
         <div className="min-w-0 space-y-5">
+          <FreshnessPanel label={lineLabel} />
           <SinceLastLooked key={o.instance} head={o.generation} pinned={pinned} />
           <CompactActivity label={lineLabel} />
         </div>
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <ComingUp rows={lines.data?.rows} pending={lines.isPending} error={lines.error} />
+          <EvidenceCoveragePanel />
+          <StaleBeliefsPanel />
           <HealthPanel next={next.data} pending={next.isPending} error={next.error} />
           <KitsPanel />
         </div>
