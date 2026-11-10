@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { KEV_EXPOSURE, RELEASE, RELEASE_EXPOSURE } from "@/fixtures/authored/queries";
+import { AUTHORED } from "@/fixtures/handlers";
+import type { Schemas } from "@/api/schemas";
 
 afterEach(cleanup);
 
@@ -110,5 +112,21 @@ describe("Query page", () => {
     // the value in the URL fills the input and runs
     expect(await section("Results").findByText("Rows 1–2 of 2+")).toBeInTheDocument();
     expect(section("Results").getByLabelText(/release/)).toHaveValue(RELEASE);
+  });
+  it("lets the one key column stand for the row's Subject instead of a Subject column that repeats it", async () => {
+    // the first page's rows name their Subject (a vulnerability, keyed by cve_id alone)
+    const keyed = AUTHORED.map((fixture) => {
+      const response = fixture.response as Schemas["QueryResultRecord"];
+      if (!fixture.path.endsWith("/query") || response.rows?.[0]?.cve_id !== "CVE-2024-3094") return fixture;
+      const rows = response.rows.map((row) => ({ ...row, subject: `security.vulnerability/${String(row.cve_id).toLowerCase()}`, subject_id: String(row.cve_id).toLowerCase() }));
+      return { ...fixture, response: { ...response, rows } };
+    });
+    renderApp(page(KEV_EXPOSURE), keyed);
+    await screen.findByRole("heading", { name: "Results" });
+    const results = section("Results");
+    const cve = await results.findByRole("link", { name: "CVE-2024-3094" });
+    expect(cve).toHaveAttribute("href", expect.stringContaining("/s/security.vulnerability%2Fcve-2024-3094"));
+    expect(results.queryByRole("columnheader", { name: "Subject" })).toBeNull();
+    expect(results.queryByText("cve-2024-3094")).toBeNull();
   });
 });

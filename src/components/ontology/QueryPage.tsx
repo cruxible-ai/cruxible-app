@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useCard, useClaimTypes, useInstanceId, useOrientKinds, useSourceModel, useStateQuery } from "@/api/hooks";
+import { useCard, useClaimTypes, useInstanceId, useOrientKinds, useSourceModel, useStateQuery, useSubjectKinds } from "@/api/hooks";
 import type { Schemas } from "@/api/schemas";
 import { actionChipClass, SignalDot } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
@@ -11,6 +11,7 @@ import { Pager } from "@/screens/ProposalsScreen";
 import { useAtLink } from "@/lib/at";
 import { decimalPlaces, fixedText, isNumericType } from "@/lib/numbers";
 import { defaultText, paramInput, paramKey, paramRun, QUERY_PAGE } from "@/lib/query-params";
+import { keyPredicates } from "@/lib/subject";
 import { term } from "@/lib/vocabulary";
 import {
   columnField,
@@ -386,7 +387,9 @@ function Results({ view }: { view: QueryView }) {
   const page = result.data;
   const rows = (page?.rows ?? []) as ResultRow[];
   const rowKey = useRowKeys(rows);
-  const columns = useMemo(() => resultColumns(page, rows), [page, rows]);
+  const subjectKinds = useSubjectKinds();
+  const keys = useMemo(() => keyPredicates(subjectKinds.data?.rows), [subjectKinds.data]);
+  const columns = useMemo(() => resultColumns(page, rows, keys), [page, rows, keys]);
   const first = pages[pages.length - 1]?.offset ?? 0;
   const capped = page?.capped ?? [];
   const total = page ? first + rows.length + (page.remaining ?? 0) : null;
@@ -471,8 +474,8 @@ function Results({ view }: { view: QueryView }) {
   );
 }
 
-/** A Subject the row is about: linked by its id, with a dot when the row carries a Claim signal. */
-function RowSubject({ row }: { row: ResultRow }) {
+/** A Subject the row is about: linked by its id (or `text`, its key's value), with a dot when the row carries a Claim signal. */
+function RowSubject({ row, text }: { row: ResultRow; text?: string }) {
   const subject = typeof row.subject === "string" ? row.subject : null;
   const id = typeof row.subject_id === "string" ? row.subject_id : null;
   const flags = Array.isArray(row.flags) ? row.flags.filter((flag): flag is string => typeof flag === "string") : [];
@@ -484,18 +487,32 @@ function RowSubject({ row }: { row: ResultRow }) {
       {signal && <SignalDot signal={signal} title={signals.map((t) => t.meaning).join("\n")} />}
       <RefLink value={subject}>
         <span className="font-mono text-[12px]" title={subject}>
-          {id ?? subject}
+          {text ?? id ?? subject}
         </span>
       </RefLink>
     </span>
   );
 }
 
-/** The served columns, led by the row's Subject when the rows carry one the columns do not name. */
-function resultColumns(page: Schemas["QueryResultRecord"] | undefined, rows: readonly ResultRow[]): Column<ResultRow>[] {
+/**
+ * The served columns, led by the row's Subject when the rows carry one the
+ * columns do not name. When the rows' kind is keyed by one field and a column
+ * serves it, that column stands for the Subject (its value links to the
+ * Subject; the Subject's id would repeat it), as on the kind table.
+ */
+function resultColumns(
+  page: Schemas["QueryResultRecord"] | undefined,
+  rows: readonly ResultRow[],
+  keys: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
+): Column<ResultRow>[] {
   if (!page) return [];
   const served = page.columns.map((column) => ({ column, field: columnField(column.name) }));
-  const leadSubject = !served.some(({ field }) => field === "subject_id") && rows.some((row) => typeof row.subject === "string");
+  const kindKeys = page.kind ? [...(keys.get(page.kind) ?? [])] : [];
+  const subjectKey =
+    kindKeys.length === 1
+      ? served.find(({ column }) => column.predicate === kindKeys[0] && column.cardinality !== "many" && column.type.split(":", 1)[0] !== "subject")?.column.name ?? null
+      : null;
+  const leadSubject = subjectKey === null && !served.some(({ field }) => field === "subject_id") && rows.some((row) => typeof row.subject === "string");
   const lead: Column<ResultRow>[] = leadSubject
     ? [{ id: "subject", header: "Subject", title: "The Subject the row is about", hideable: false, className: "whitespace-nowrap", cell: (row) => <RowSubject row={row} /> }]
     : [];
@@ -520,8 +537,9 @@ function resultColumns(page: Schemas["QueryResultRecord"] | undefined, rows: rea
         cell: (row) => {
           const value = row[column.name];
           if (value === null || value === undefined) return <span className="text-zinc-600">—</span>;
-          // the Subject's id links to its page
+          // the Subject's id links to its page; so does the one key field that stands for it
           if (field === "subject_id") return <RowSubject row={row} />;
+          if (column.name === subjectKey && typeof row.subject === "string") return <RowSubject row={row} text={String(value)} />;
           if (field === "subject_kind" && typeof value === "string") {
             return (
               <RefLink value={`SubjectKind:${value}`}>
