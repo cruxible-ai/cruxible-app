@@ -4,7 +4,8 @@
  * URL + bearer token), so everything here is data, not code.
  *
  * Resolution order: `window.__CRUXIBLE_CONFIG__` (injected by whoever serves
- * the bundle) → Vite env vars (development) → same-origin defaults.
+ * the bundle; `src/main.tsx` fills it from `cruxible console`'s
+ * `/__console/config`) → Vite env vars (development) → same-origin defaults.
  */
 export interface AppConfig {
   /** API origin; '' means same-origin (local daemon serving the bundle, or the dev proxy). */
@@ -13,6 +14,8 @@ export interface AppConfig {
   apiToken?: string | undefined;
   /** Instance to land on when the URL doesn't name one. */
   defaultInstanceId?: string | undefined;
+  /** `cruxible console`'s session token, sent in X-Cruxible-Console-Session (never a cookie). */
+  sessionToken?: string | undefined;
 }
 
 declare global {
@@ -28,5 +31,6 @@ export function loadConfig(): AppConfig {
     apiToken: injected.apiToken ?? import.meta.env.VITE_CRUXIBLE_API_TOKEN ?? undefined,
     defaultInstanceId:
       injected.defaultInstanceId ?? import.meta.env.VITE_CRUXIBLE_INSTANCE_ID ?? undefined,
+    sessionToken: injected.sessionToken ?? undefined,
   };
 }

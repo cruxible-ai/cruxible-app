@@ -4,6 +4,7 @@ import { server } from "@/test/msw-server";
 import { errorEnvelope } from "@/fixtures/envelopes";
 import { ApiError, createApiClient, unwrap, WriteRouteRefused } from "./data-source";
 import { READ_ROUTES } from "./requests";
+import { SESSION_HEADER } from "@/lib/console-session";
 import type { Head } from "./schemas";
 
 const BASE = "https://cloud.example";
@@ -55,6 +56,57 @@ describe("data-source boundary", () => {
     await client.GET("/api/v1/{instance_id}/head", { params: { path: { instance_id: "inst_x" } } });
 
     expect(seenAuth).toBeNull();
+  });
+
+  it("sends the cruxible console session header when served that way", async () => {
+    let seen: string | null = null;
+    server.use(
+      http.get(`${BASE}/api/v1/:instanceId/head`, ({ request }) => {
+        seen = request.headers.get(SESSION_HEADER);
+        return HttpResponse.json(HEAD);
+      }),
+    );
+    const client = createApiClient({ baseUrl: BASE, sessionToken: "session-1" });
+    await client.GET("/api/v1/{instance_id}/head", { params: { path: { instance_id: "inst_x" } } });
+    expect(seen).toBe("session-1");
+  });
+
+  it("sends no session header under the dev server (no session)", async () => {
+    let seen: string | null = "unset";
+    let cookie: string | null = "unset";
+    server.use(
+      http.get(`${BASE}/api/v1/:instanceId/head`, ({ request }) => {
+        seen = request.headers.get(SESSION_HEADER);
+        cookie = request.headers.get("cookie");
+        return HttpResponse.json(HEAD);
+      }),
+    );
+    const client = createApiClient({ baseUrl: BASE });
+    await client.GET("/api/v1/{instance_id}/head", { params: { path: { instance_id: "inst_x" } } });
+    expect(seen).toBeNull();
+    expect(cookie).toBeNull();
+  });
+
+  it("reports a refused console session once, and only that refusal", async () => {
+    let code = "console.session_required";
+    server.use(
+      http.get(`${BASE}/api/v1/:instanceId/head`, () =>
+        HttpResponse.json(errorEnvelope("ConsoleSessionRequired", "Open the link", code), { status: 401 }),
+      ),
+    );
+    let rejected = 0;
+    const client = createApiClient({ baseUrl: BASE, sessionToken: "old", onSessionRejected: () => rejected++ });
+    const read = () =>
+      client.GET("/api/v1/{instance_id}/head", { params: { path: { instance_id: "inst_x" } } });
+    await read();
+    await read();
+    expect(rejected).toBe(1);
+
+    code = "auth.missing";
+    let other = 0;
+    const second = createApiClient({ baseUrl: BASE, sessionToken: "s", onSessionRejected: () => other++ });
+    await second.GET("/api/v1/{instance_id}/head", { params: { path: { instance_id: "inst_x" } } });
+    expect(other).toBe(0);
   });
 
   it("surfaces the daemon error envelope as ApiError", async () => {

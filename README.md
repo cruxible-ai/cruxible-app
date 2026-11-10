@@ -10,6 +10,13 @@ CLI/MCP surface. See [caveats](#alpha-caveats).
 
 ## Run
 
+**From an installed Cruxible.** `cruxible console` (cruxible-core 0.5.x) serves a
+pre-built copy of this app on `127.0.0.1` and opens it: no Node, no checkout. The
+link it prints stores a session token in the browser's storage for that exact
+address; the app sends it in `X-Cruxible-Console-Session` on every request and reads
+the instance from `/__console/config` (`src/lib/console-session.ts`). The rest of
+this section is the development setup.
+
 Requires Node ≥ 22 and pnpm, plus a running Cruxible daemon, cruxible-core
 0.5.x ([quickstart](https://github.com/cruxible-ai/cruxible/blob/main/docs/quickstart.md));
 the contract this build is generated from is pinned in `api/pin.json`.
