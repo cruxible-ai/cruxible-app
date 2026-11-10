@@ -90,7 +90,33 @@ interface CronSpec {
 
 /** Core searches four centuries of days before concluding an expression never fires. */
 const HORIZON_DAYS = 400 * 366;
-const DIGITS = /^[0-9]+$/;
+/**
+ * The zero of every run of ten Unicode decimal digits (category Nd) in the
+ * Unicode version core's Python reads (15.1). Core parses numbers with
+ * str.isdigit() and int(), which take any decimal digit ("٠", "０", "𝟏"); a
+ * character isdigit() accepts that is not a decimal digit (a superscript) makes
+ * int() raise, so core refuses the expression, as this does.
+ */
+const DECIMAL_ZEROS = [
+  0x30, 0x660, 0x6f0, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xde6, 0xe50, 0xed0, 0xf20, 0x1040, 0x1090, 0x17e0, 0x1810, 0x1946,
+  0x19d0, 0x1a80, 0x1a90, 0x1b50, 0x1bb0, 0x1c40, 0x1c50, 0xa620, 0xa8d0, 0xa900, 0xa9d0, 0xa9f0, 0xaa50, 0xabf0, 0xff10, 0x104a0, 0x10d30, 0x11066, 0x110f0,
+  0x11136, 0x111d0, 0x112f0, 0x11450, 0x114d0, 0x11650, 0x116c0, 0x11730, 0x118e0, 0x11950, 0x11c50, 0x11d50, 0x11da0, 0x11f50, 0x16a60, 0x16ac0, 0x16b50,
+  0x1d7ce, 0x1d7d8, 0x1d7e2, 0x1d7ec, 0x1d7f6, 0x1e140, 0x1e2f0, 0x1e4f0, 0x1e950, 0x1fbf0,
+];
+
+/** A number written in decimal digits of any script, as Python's int() reads it; null when any character is not one. */
+function decimalNumber(text: string): number | null {
+  if (text === "") return null;
+  let value = 0;
+  for (const char of text) {
+    const code = char.codePointAt(0)!;
+    let zero = -1;
+    for (const z of DECIMAL_ZEROS) if (z <= code) zero = z;
+    if (zero < 0 || code - zero > 9) return null;
+    value = value * 10 + (code - zero);
+  }
+  return value;
+}
 
 function cronField(text: string, low: number, high: number): Set<number> | null {
   const values = new Set<number>();
@@ -100,8 +126,9 @@ function cronField(text: string, low: number, high: number): Set<number> | null 
     const stepText = slashAt < 0 ? null : item.slice(slashAt + 1);
     let step = 1;
     if (stepText !== null) {
-      if (!DIGITS.test(stepText) || Number(stepText) === 0) return null;
-      step = Number(stepText);
+      const parsedStep = decimalNumber(stepText);
+      if (parsedStep === null || parsedStep === 0) return null;
+      step = parsedStep;
     }
     let first: number;
     let last: number;
@@ -112,9 +139,11 @@ function cronField(text: string, low: number, high: number): Set<number> | null 
       const dashAt = base.indexOf("-");
       const firstText = dashAt < 0 ? base : base.slice(0, dashAt);
       const lastText = dashAt < 0 ? null : base.slice(dashAt + 1);
-      if (!DIGITS.test(firstText) || (lastText !== null && !DIGITS.test(lastText))) return null;
-      first = Number(firstText);
-      last = lastText !== null ? Number(lastText) : stepText !== null ? high : first;
+      const parsedFirst = decimalNumber(firstText);
+      const parsedLast = lastText === null ? null : decimalNumber(lastText);
+      if (parsedFirst === null || (lastText !== null && parsedLast === null)) return null;
+      first = parsedFirst;
+      last = parsedLast !== null ? parsedLast : stepText !== null ? high : first;
       if (lastText !== null && first > last) return null;
     }
     if (first < low || last > high) return null;
