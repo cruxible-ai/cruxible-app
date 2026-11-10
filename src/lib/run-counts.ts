@@ -66,15 +66,3 @@ export function countOf(counts: RunCounts | null | undefined, key: string): numb
   const value = (counts as Record<string, unknown>)[key];
   return typeof value === "number" ? value : value === null ? null : undefined;
 }
-
-/** The non-zero counts, for a one-line tally ("32 written · 9 to inbox"); an unknown inbox count reads "?". */
-export function countTally(counts: RunCounts | null | undefined): string {
-  if (!counts) return "";
-  return countColumns([counts])
-    .flatMap((column) => {
-      const n = countOf(counts, column.key);
-      if (n === null) return [`? ${column.word.toLowerCase()}`];
-      return n ? [`${n} ${column.word.toLowerCase()}`] : [];
-    })
-    .join(" · ");
-}

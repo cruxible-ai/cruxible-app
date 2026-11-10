@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { AUTHORED } from "@/fixtures/handlers";
 import { defineFixture } from "@/fixtures/fixture";
@@ -69,46 +69,71 @@ const REVISED = [
   }),
 ];
 
+const counts = (over: Partial<Schemas["RunCounts"]>): Schemas["RunCounts"] => ({
+  tag: "cruxible-run-counts-v1",
+  complete: true,
+  incomplete_reasons: [],
+  written: 0,
+  settled: 0,
+  proposed: 0,
+  unchanged: 0,
+  retired: 0,
+  refused: 0,
+  top_refusals: [],
+  inbox: 0,
+  needs_attention: false,
+  ...over,
+});
+
+/** The revised Runbook's card with its runs changed by `edit`. */
+function withRuns(edit: (newer: Schemas["RunbookRunResult"], older: Schemas["RunbookRunResult"]) => void) {
+  return REVISED.map((fixture) => {
+    if (fixture !== REVISED[AUTHORED.length]) return fixture;
+    const response = structuredClone(fixture.response) as { results: { card: { recent_runs: Schemas["RunbookRunResult"][] } }[] };
+    const [newer, older] = response.results[0]!.card.recent_runs;
+    edit(newer!, older!);
+    return { ...fixture, response };
+  });
+}
+
+/** The table's body rows under the header line whose text matches `header`, up to the next header. */
+function rowsUnder(table: HTMLElement, header: RegExp): HTMLElement[] {
+  const rows = within(table).getAllByRole("row").slice(1);
+  const at = rows.findIndex((row) => header.test(row.textContent ?? "") && row.querySelectorAll("td").length === 1);
+  const out: HTMLElement[] = [];
+  for (const row of rows.slice(at + 1)) {
+    if (row.querySelectorAll("td").length === 1) break;
+    out.push(row);
+  }
+  return out;
+}
+
 describe("Runbook page", () => {
-  it("reads each retained run by the revision it ran: an older run keeps its own steps after a revision", async () => {
+  it("lists each run's steps one row each, read by the revision it ran: an older run keeps its own steps", async () => {
     renderApp("/i/inst_fixture/runbooks/demo", REVISED);
     const main = within(await screen.findByRole("main"));
-    const current = within(await main.findByRole("table", { name: `Runs of ${D("2")}` }));
-    expect(current.getByRole("columnheader", { name: "1 · b" })).toBeInTheDocument();
-    expect(current.queryByRole("columnheader", { name: /· a$|· c$/ })).toBeNull();
-    expect(current.getByText("Succeeded").closest("a")).toHaveAttribute("href", "/i/inst_fixture/runs/RUN-B");
-    const old = within(main.getByRole("table", { name: `Runs of ${D("1")}` }));
-    expect(old.getByRole("columnheader", { name: "1 · a" })).toBeInTheDocument();
-    expect(old.getByRole("columnheader", { name: "2 · c" })).toBeInTheDocument();
-    expect(old.queryByRole("columnheader", { name: "1 · b" })).toBeNull();
-    const links = old.getAllByText("Succeeded").map((el) => el.closest("a")!.getAttribute("href"));
+    const table = await main.findByRole("table", { name: "Recent runs" });
+    // two revisions among the runs: each run's header line names its own
+    const newer = rowsUnder(table, /revision/);
+    expect(newer).toHaveLength(1);
+    expect(within(newer[0]!).getByRole("link", { name: "demo.b" })).toBeInTheDocument();
+    expect(within(newer[0]!).getByText("Succeeded").closest("a")).toHaveAttribute("href", "/i/inst_fixture/runs/RUN-B");
+    const all = within(table).getAllByRole("row").slice(1).filter((row) => row.querySelectorAll("td").length > 1);
+    expect(all.map((row) => within(row).getAllByRole("link")[0]!.textContent)).toEqual(["demo.b", "demo.a", "demo.c"]);
+    const links = all.slice(1).map((row) => within(row).getByText("Succeeded").closest("a")!.getAttribute("href"));
     expect(links).toEqual(["/i/inst_fixture/runs/RUN-A", "/i/inst_fixture/runs/RUN-C"]);
     // the current definition's one step, as the card lists it
     expect(within(main.getByRole("table", { name: "Steps" })).getByRole("link", { name: "demo.b" })).toBeInTheDocument();
+    // no counts served (an older daemon): no count columns, no flag
+    expect(main.queryByText("needs attention")).toBeNull();
+    expect(within(table).queryByRole("columnheader", { name: "Written" })).toBeNull();
+    expect(within(table).queryByRole("columnheader", { name: "Complete" })).toBeNull();
   });
 
-  it("flags a run and its steps that need attention, and opens to the steps' counts", async () => {
-    const counts = (over: Partial<Schemas["RunCounts"]>): Schemas["RunCounts"] => ({
-      tag: "cruxible-run-counts-v1",
-      complete: true,
-      incomplete_reasons: [],
-      written: 0,
-      settled: 0,
-      proposed: 0,
-      unchanged: 0,
-      retired: 0,
-      refused: 0,
-      top_refusals: [],
-      inbox: 0,
-      needs_attention: false,
-      ...over,
-    });
-    const flagged = REVISED.map((fixture) => {
-      if (fixture !== REVISED[AUTHORED.length]) return fixture;
-      const response = structuredClone(fixture.response) as { results: { card: { recent_runs: Schemas["RunbookRunResult"][] } }[] };
-      const [newer, older] = response.results[0]!.card.recent_runs;
+  it("flags a run and its steps that need attention, with every count a column", async () => {
+    const flagged = withRuns((newer, older) => {
       // the newer run: its one step posted to the inbox with an unknown count, refused one item and was incomplete
-      newer!.steps[0]!.counts = counts({
+      newer.steps[0]!.counts = counts({
         complete: false,
         incomplete_reasons: [{ node: "catalog", kind: "incomplete_input" } as Schemas["CompletenessReason"]],
         written: 3,
@@ -118,52 +143,61 @@ describe("Runbook page", () => {
         inbox: null,
         needs_attention: true,
       });
-      newer!.attention_steps = [1];
+      newer.attention_steps = [1];
       // the older run: step 1 wrote quietly, step 2 (an action) has no counts
-      older!.steps[0]!.counts = counts({ written: 2, settled: 2 });
-      older!.attention_steps = [];
-      return { ...fixture, response };
+      older.steps[0]!.counts = counts({ written: 2, settled: 2 });
+      older.attention_steps = [];
     });
     renderApp("/i/inst_fixture/runbooks/demo", flagged);
     const main = within(await screen.findByRole("main"));
-    const current = within(await main.findByRole("table", { name: `Runs of ${D("2")}` }));
-    // the run and its step carry the flag; the inline tally names the non-zero counts
-    expect(current.getByTitle("Needs attention: step 1")).toHaveTextContent("needs attention");
-    expect(current.getAllByRole("img", { name: /^Needs attention/ })).toHaveLength(1); // the step's dot
-    expect(current.getByText("3 written · 3 settled · 1 refused · ? to inbox")).toBeInTheDocument();
-    // the header's last run says the same
-    expect(main.getAllByTitle("Needs attention: step 1")).toHaveLength(2);
-    // the older run: counts, no flag
-    const old = within(main.getByRole("table", { name: `Runs of ${D("1")}` }));
-    expect(old.queryByText("needs attention")).toBeNull();
-    expect(old.getByText("2 written · 2 settled")).toBeInTheDocument();
-
-    // a run opens to its steps with the counts as columns
-    fireEvent.click(current.getByRole("button", { name: "Expand RBR-new" }));
-    const steps = within(await main.findByRole("table", { name: "Step counts of RBR-new" }));
+    const table = await main.findByRole("table", { name: "Recent runs" });
     for (const header of ["#", "Target", "Outcome", "Written", "Settled", "Proposed", "Unchanged", "Retired", "Refused", "To inbox", "Complete", "Top refusals"]) {
-      expect(steps.getByRole("columnheader", { name: header })).toBeInTheDocument();
+      expect(within(table).getByRole("columnheader", { name: header })).toBeInTheDocument();
     }
-    const row = within(steps.getAllByRole("row")[1]!);
+    // the run's header line and the page header carry the flag, naming the step on hover
+    expect(main.getAllByTitle("Needs attention: step 1")).toHaveLength(2);
+    const [step] = rowsUnder(table, /needs attention/);
+    const row = within(step!);
     expect(row.getByRole("img", { name: /^Needs attention/ })).toBeInTheDocument();
     expect(row.getByTitle(/the inbox could not be read/)).toHaveTextContent("?");
     expect(row.getByText("No")).toHaveAttribute("title", "catalog · incomplete_input");
     expect(row.getByText("extract_refused.value_invalid")).toBeInTheDocument();
-
     // the older run: an unflagged step with counts and an action step without (dashes)
-    fireEvent.click(old.getByRole("button", { name: "Expand RBR-old" }));
-    const oldSteps = within(await main.findByRole("table", { name: "Step counts of RBR-old" }));
-    const [, first, second] = oldSteps.getAllByRole("row");
+    const all = within(table).getAllByRole("row").slice(1).filter((r) => r.querySelectorAll("td").length > 1);
+    const [, first, second] = all;
     expect(within(first!).queryByRole("img", { name: /^Needs attention/ })).toBeNull();
     expect(within(first!).getAllByText("2")).toHaveLength(2);
     expect(within(second!).getAllByText("—").length).toBeGreaterThan(5);
   });
 
-  it("serves no counts: no flag, no tally, no expansion", async () => {
+  it("keeps reads of what no Line writes apart from order problems", async () => {
+    const fixtures = REVISED.map((fixture) =>
+      fixture.path.endsWith("/runbooks/demo/preview")
+        ? {
+            ...fixture,
+            response: {
+              ...(fixture.response as Schemas["RunbookPreview"]),
+              order_problems: [
+                { kind: "reads_unwritten", step: 1, claim_type: "demo.verdict" },
+                { kind: "reads_later_write", step: 1, claim_type: "demo.score", written_by_steps: [2], outside_writers: [] },
+              ],
+            },
+          }
+        : fixture,
+    );
+    renderApp("/i/inst_fixture/runbooks/demo", fixtures);
+    const main = within(await screen.findByRole("main"));
+    const problems = within(await main.findByRole("table", { name: "Order problems" }));
+    expect(problems.getByText("demo.score")).toBeInTheDocument();
+    expect(problems.queryByText("demo.verdict")).toBeNull();
+    const unwritten = within(main.getByRole("table", { name: "Read, written by no Line" }));
+    expect(unwritten.getByText("demo.verdict")).toBeInTheDocument();
+  });
+
+  it("shows neither table beyond order problems when the preview reports none", async () => {
     renderApp("/i/inst_fixture/runbooks/demo", REVISED);
     const main = within(await screen.findByRole("main"));
-    const current = within(await main.findByRole("table", { name: `Runs of ${D("2")}` }));
-    expect(current.queryByText("needs attention")).toBeNull();
-    expect(current.queryByRole("button", { name: /^Expand/ })).toBeNull();
+    expect(await main.findByText("None: no step reads what a later step writes")).toBeInTheDocument();
+    expect(main.queryByRole("table", { name: "Read, written by no Line" })).toBeNull();
   });
 });

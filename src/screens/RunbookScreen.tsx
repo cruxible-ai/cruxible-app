@@ -11,8 +11,7 @@ import { AttentionDot, AttentionMark, RunCountsTable } from "@/components/RunCou
 import { ShortId } from "@/components/ShortId";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
-import { countTally } from "@/lib/run-counts";
-import { attentionSteps, authorityRows, runbookName, runGroups, stepNeedsAttention, targetKey, targetOf, type AuthorityRow, type RunbookTarget, type RunGroupData } from "@/lib/runbooks";
+import { attentionSteps, authorityRows, runbookName, stepNeedsAttention, targetKey, targetOf, type AuthorityRow, type RunbookTarget } from "@/lib/runbooks";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
@@ -139,174 +138,105 @@ function TargetLink({ target }: { target: RunbookTarget | string }) {
 }
 
 /**
- * The retained runs, newest first. A run is read by its own definition, never
- * the current one: runs are grouped by the Runbook revision they ran
- * (`runbook_artifact_digest`), and each group's step columns are the targets
- * its own outcomes name, so a later revision's steps never relabel an older
- * run. One row per run (when, how it started, how it ended and why it
- * stopped), one column per step with its outcome, linked to the Line run it
- * made. A run or step that needs attention carries the amber flag; a run whose
- * steps serve counts opens to a table of them.
+ * The retained runs, newest first, each a header line (when, how it started,
+ * how it ended and why it stopped, the flag when a step needs attention, and
+ * its Runbook revision when the runs span several) over one row per step: its
+ * target and outcome as the run recorded them (a run is read by its own
+ * definition, never the current one), linked to the Line run it made, then
+ * what that Line run did, every count a column. Steps that need attention
+ * carry the amber dot.
  */
 function RecentRuns({ card }: { card: Card }) {
   const runs = card.recent_runs ?? [];
-  const groups = useMemo(() => runGroups(runs), [runs]);
+  const rows = useMemo(() => runs.flatMap((run) => run.steps.map((outcome): StepRow => ({ run, outcome }))), [runs]);
+  const revisions = new Set(runs.map((r) => r.runbook_artifact_digest)).size;
+  const group = useMemo(
+    () => ({ key: (row: StepRow) => row.run.run_id, header: (members: StepRow[]) => <RunHeader run={members[0]!.run} revision={revisions > 1} /> }),
+    [revisions],
+  );
   return (
     <Panel title="Recent runs" meta={<span>{card.runs_more ? `newest ${runs.length}` : runs.length}</span>}>
       {runs.length === 0 ? (
         <EmptyState>Never run</EmptyState>
       ) : (
-        <div className="space-y-4">
-          {groups.map((group) => (
-            <RunGroup key={group.digest} group={group} labelled={groups.length > 1} />
-          ))}
-        </div>
+        <RunCountsTable rows={rows} counts={stepCounts} lead={STEP_LEAD} rowKey={(r) => `${r.run.run_id}\n${r.outcome.step}\n${targetKey(r.outcome.target)}`} label="Recent runs" group={group} />
       )}
     </Panel>
   );
 }
 
-function RunGroup({ group, labelled }: { group: RunGroupData; labelled: boolean }) {
-  const columns = useMemo<Column<Run>[]>(
-    () => [
-      {
-        id: "run",
-        header: "Run",
-        className: "whitespace-nowrap",
-        cell: (r) => (
-          <span title={r.run_id} className="text-[12px] text-zinc-300">
-            {formatWhen(r.started_at)}
-          </span>
-        ),
-      },
-      {
-        id: "mode",
-        header: "Started by",
-        className: "whitespace-nowrap text-zinc-400",
-        cell: (r) => (r.mode === "trigger" && r.trigger ? <RefLink value={r.trigger} /> : "Hand"),
-      },
-      {
-        id: "status",
-        header: "Ended",
-        className: "whitespace-nowrap",
-        cell: (r) => (
-          <span className="inline-flex items-baseline gap-1.5">
-            <Chip concept="runbookRun" value={r.status} />
-            {r.stop_reason && (
-              <span className="text-[12px] text-zinc-500">
-                {term("runbookRun", r.stop_reason).word.toLowerCase()}
-                {r.stopped_at_step != null && ` at step ${r.stopped_at_step}`}
-              </span>
-            )}
-            {attentionSteps(r).length > 0 && <AttentionMark title={stepsTitle(attentionSteps(r))} />}
-          </span>
-        ),
-      },
-      ...group.steps.map(
-        (step): Column<Run> => ({
-          id: `step-${step.step}-${step.target}`,
-          header: (
-            <span title={step.target}>
-              {step.step} · {shortTarget(step.target)}
-            </span>
-          ),
-          label: `Step ${step.step} ${step.target}`,
-          className: "whitespace-nowrap",
-          cell: (r) => (
-            <StepOutcome run={r} outcome={r.steps.find((o) => o.step === step.step && targetKey(o.target) === step.target)} />
-          ),
-        }),
-      ),
-    ],
-    [group.steps],
-  );
-  return (
-    <div>
-      {labelled && (
-        <div className="mb-1 text-[12px] text-zinc-500">
-          Revision <ShortId value={group.digest} className="text-zinc-400" />
-          <span className="text-zinc-600"> · {group.runs.length}</span>
-        </div>
-      )}
-      <DataTable
-        rows={group.runs}
-        columns={columns}
-        rowKey={(r) => r.run_id}
-        label={labelled ? `Runs of ${group.digest}` : "Recent runs"}
-        expanded={(r) => <StepCounts run={r} />}
-        canExpand={(r) => r.steps.some((o) => o.counts)}
-        toolbar={false}
-        maxHeight="none"
-      />
-    </div>
-  );
+type Outcome = Run["steps"][number];
+interface StepRow {
+  run: Run;
+  outcome: Outcome;
 }
 
-const shortTarget = (target: string) => {
-  const name = targetOf(target).name;
-  return name.slice(name.lastIndexOf(".") + 1);
-};
+const stepCounts = (r: StepRow) => r.outcome.counts;
+
+/** One run's header line: when (its id on hover), who started it, how it ended. */
+function RunHeader({ run, revision }: { run: Run; revision: boolean }) {
+  const attention = attentionSteps(run);
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-3 text-[12px]">
+      <span title={run.run_id} className="text-zinc-200">
+        {formatWhen(run.started_at)}
+      </span>
+      <span className="text-zinc-400">{run.mode === "trigger" && run.trigger ? <RefLink value={run.trigger} /> : "Hand"}</span>
+      <span className="inline-flex items-baseline gap-1.5">
+        <Chip concept="runbookRun" value={run.status} />
+        {run.stop_reason && (
+          <span className="text-zinc-500">
+            {term("runbookRun", run.stop_reason).word.toLowerCase()}
+            {run.stopped_at_step != null && ` at step ${run.stopped_at_step}`}
+          </span>
+        )}
+      </span>
+      {attention.length > 0 && <AttentionMark title={stepsTitle(attention)} />}
+      {revision && (
+        <span className="text-zinc-500">
+          revision <ShortId value={run.runbook_artifact_digest} className="text-zinc-400" />
+        </span>
+      )}
+    </span>
+  );
+}
 
 /** Which steps the flag names, on its hover. */
 const stepsTitle = (steps: number[]) => `Needs attention: ${steps.length === 1 ? "step" : "steps"} ${steps.join(", ")}`;
 
-type Outcome = Run["steps"][number];
+const STEP_LEAD: Column<StepRow>[] = [
+  {
+    id: "step",
+    header: "#",
+    numeric: true,
+    className: "whitespace-nowrap font-mono text-zinc-500",
+    cell: ({ run, outcome }) => (
+      <span className="inline-flex items-baseline gap-1.5">
+        {stepNeedsAttention(run, outcome) && <AttentionDot />}
+        {outcome.step}
+      </span>
+    ),
+  },
+  { id: "target", header: "Target", className: "break-all", cell: ({ outcome }) => <TargetLink target={outcome.target} /> },
+  { id: "status", header: "Outcome", className: "whitespace-nowrap", cell: ({ outcome }) => <StepOutcome outcome={outcome} /> },
+];
 
-/** One step's outcome in a run: its word, linked to the Line run; a failure's code and message on hover. */
-function StepOutcome({ run, outcome }: { run: Run; outcome: Outcome | undefined }) {
-  if (!outcome) return <span className="text-zinc-600">—</span>;
+/** One step's outcome: its word, linked to the Line run; a failure's code and message on hover; the proposals it opened. */
+function StepOutcome({ outcome }: { outcome: Outcome }) {
   const chip = (
     <span title={[outcome.run_status && `run ${outcome.run_status}`, outcome.code, outcome.message].filter(Boolean).join("\n") || undefined}>
       <Chip concept="runbookRun" value={outcome.status} />
     </span>
   );
-  const tally = countTally(outcome.counts);
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
       {outcome.run_id ? <RefLink value={outcome.run_id}>{chip}</RefLink> : chip}
-      {stepNeedsAttention(run, outcome) && <AttentionDot />}
-      {tally && <span className="text-[12px] text-zinc-500">{tally}</span>}
       {(outcome.proposal_ids ?? []).map((id) => (
         <RefLink key={id} value={id} short />
       ))}
     </span>
   );
 }
-
-/**
- * One run's steps with their counts as columns (a row's expansion): step,
- * target, outcome linked to the Line run, then what each Line run did. Steps
- * that need attention carry the amber dot; an action step has no counts.
- */
-function StepCounts({ run }: { run: Run }) {
-  const lead = useMemo<Column<Outcome>[]>(
-    () => [
-      {
-        id: "step",
-        header: "#",
-        numeric: true,
-        className: "whitespace-nowrap font-mono text-zinc-500",
-        cell: (o) => (
-          <span className="inline-flex items-baseline gap-1.5">
-            {stepNeedsAttention(run, o) && <AttentionDot />}
-            {o.step}
-          </span>
-        ),
-      },
-      { id: "target", header: "Target", className: "break-all", cell: (o) => <TargetLink target={o.target} /> },
-      {
-        id: "status",
-        header: "Outcome",
-        className: "whitespace-nowrap",
-        cell: (o) => (o.run_id ? <RefLink value={o.run_id}><Chip concept="runbookRun" value={o.status} /></RefLink> : <Chip concept="runbookRun" value={o.status} />),
-      },
-    ],
-    [run],
-  );
-  return <RunCountsTable rows={run.steps} counts={outcomeCounts} lead={lead} rowKey={(o) => `${o.step}\n${targetKey(o.target)}`} label={`Step counts of ${run.run_id}`} />;
-}
-
-const outcomeCounts = (o: Outcome) => o.counts;
 
 /** The static preview: what each step can do, from accepted definitions at the head. */
 function PreviewPanel({ preview, isPending, error }: { preview: Preview | undefined; isPending: boolean; error: Error | null }) {
@@ -339,19 +269,28 @@ function PreviewTables({ preview }: { preview: Preview }) {
   const calls = preview.steps.flatMap((s) => (s.calls ?? []).map((c) => ({ step: s.step, ...c })));
   const authority = preview.steps.flatMap((s) => authorityRows(s.step, s.authority));
   const cascades = preview.steps.flatMap((s) => (s.cascades ?? []).map((c) => ({ step: s.step, ...c })));
-  const problems = preview.order_problems ?? [];
+  // A read of a ClaimType a later step writes is an order problem; one no Line writes at all
+  // (reads_unwritten) is not the order's doing: it holds what is written directly, if anything.
+  const problems = (preview.order_problems ?? []).filter((p) => p.kind !== "reads_unwritten");
+  const unwritten = (preview.order_problems ?? []).filter((p) => p.kind === "reads_unwritten");
   return (
     <div className="space-y-4">
+      <SubSection title="Steps" meta={preview.steps.length}>
+        <DataTable rows={preview.steps} columns={PREVIEW_STEP_COLUMNS} rowKey={(s) => String(s.step)} label="Preview steps" toolbar={false} maxHeight="none" />
+      </SubSection>
       <SubSection title="Order problems" meta={problems.length}>
         {problems.length === 0 ? (
-          <EmptyState>None: every step reads only what an earlier step, or something outside the Runbook, writes</EmptyState>
+          <EmptyState>None: no step reads what a later step writes</EmptyState>
         ) : (
           <DataTable rows={problems} columns={PROBLEM_COLUMNS} rowKey={(p) => `${p.step}\n${p.claim_type}\n${p.kind}`} label="Order problems" toolbar={false} maxHeight="none" />
         )}
       </SubSection>
-      <SubSection title="Steps" meta={preview.steps.length}>
-        <DataTable rows={preview.steps} columns={PREVIEW_STEP_COLUMNS} rowKey={(s) => String(s.step)} label="Preview steps" toolbar={false} maxHeight="none" />
-      </SubSection>
+      {unwritten.length > 0 && (
+        <SubSection title="Read, written by no Line" meta={unwritten.length}>
+          <p className="t-meta mb-1.5">No Line writes these ClaimTypes; a step reads what people or agents enter directly.</p>
+          <DataTable rows={unwritten} columns={UNWRITTEN_COLUMNS} rowKey={(p) => `${p.step}\n${p.claim_type}`} label="Read, written by no Line" toolbar={false} maxHeight="none" />
+        </SubSection>
+      )}
       <SubSection title="Reads" meta={reads.length}>
         <Rows rows={reads} columns={READ_COLUMNS} label="Reads" />
       </SubSection>
@@ -424,6 +363,8 @@ const PROBLEM_COLUMNS: Column<Schemas["RunbookOrderProblem"]>[] = [
     },
   },
 ];
+
+const UNWRITTEN_COLUMNS: Column<Schemas["RunbookOrderProblem"]>[] = [stepColumn(), { id: "claim_type", header: "ClaimType", cell: (p) => <ClaimTypes names={[p.claim_type]} /> }];
 
 const PREVIEW_STEP_COLUMNS: Column<PreviewStep>[] = [
   stepColumn(),

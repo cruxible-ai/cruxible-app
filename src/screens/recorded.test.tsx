@@ -206,7 +206,7 @@ describe("recorded reference world", () => {
     expect(runs.getAllByText("Succeeded")).toHaveLength(4);
     expect(runs.getAllByText("Succeeded")[1]!.closest("a")).toHaveAttribute("href", `${I}/runs/${OSV_RUN}`);
     // the static preview
-    expect(await m.findByText(/None: every step reads only what an earlier step/, undefined, SLOW)).toBeInTheDocument();
+    expect(await m.findByText("None: no step reads what a later step writes", undefined, SLOW)).toBeInTheDocument();
     const calls = within(m.getByRole("table", { name: "Calls" }));
     expect(calls.getByText("sbom.components")).toBeInTheDocument();
     expect(calls.getByText("osv.query")).toBeInTheDocument();

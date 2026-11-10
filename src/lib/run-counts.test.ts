@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Schemas } from "../api/schemas.ts";
-import { countColumns, countOf, countTally } from "./run-counts.ts";
+import { countColumns, countOf } from "./run-counts.ts";
 import { lineAttention } from "./lines.ts";
 
 const COUNTS: Schemas["RunCounts"] = {
@@ -30,11 +30,9 @@ describe("run counts", () => {
     expect(countOf(later, "inbox_seen_again")).toBe(4);
   });
 
-  it("tallies the non-zero counts and reads an unknown inbox count as ?", () => {
-    expect(countTally(COUNTS)).toBe("5 written · 3 settled · 2 proposed · 1 to inbox");
-    expect(countTally({ ...COUNTS, written: 0, settled: 0, proposed: 0, inbox: null })).toBe("? to inbox");
-    expect(countTally(null)).toBe("");
+  it("reads a count that is not served as undefined and an unknown one as null", () => {
     expect(countOf(undefined, "written")).toBeUndefined();
+    expect(countOf({ ...COUNTS, inbox: null }, "inbox")).toBeNull();
   });
 });
 

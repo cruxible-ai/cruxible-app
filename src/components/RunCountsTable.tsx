@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { SignalDot } from "@/components/Chip";
-import { DataTable, type Column } from "@/components/DataTable";
+import { DataTable, type Column, type RowGroup } from "@/components/DataTable";
 import { ATTENTION_MEANING, countColumns, countOf, type RunCounts } from "@/lib/run-counts";
 
 /** The needs-attention flag: an amber dot and the word; what it means on hover. */
@@ -33,17 +33,23 @@ export function RunCountsTable<T>({
   lead,
   rowKey,
   label,
+  group,
 }: {
   rows: readonly T[];
   counts: (row: T) => RunCounts | null | undefined;
   lead: Column<T>[];
   rowKey: (row: T) => string;
   label: string;
+  /** Rows under header lines (one run's steps under the run). */
+  group?: RowGroup<T>;
 }) {
   const served = rows.map(counts);
-  const shape = countColumns(served)
-    .map((c) => c.key)
-    .join("\n");
+  // No row serves counts (an older daemon, action steps only): the lead columns alone.
+  const shape = served.some(Boolean)
+    ? countColumns(served)
+        .map((c) => c.key)
+        .join("\n")
+    : null;
   const columns = useMemo<Column<T>[]>(() => {
     const countCols = countColumns(rows.map(counts)).map(
       (column): Column<T> => ({
@@ -65,6 +71,7 @@ export function RunCountsTable<T>({
         },
       }),
     );
+    if (shape === null) return lead;
     return [
       ...lead,
       ...countCols,
@@ -106,5 +113,5 @@ export function RunCountsTable<T>({
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the count fields served
   }, [lead, counts, shape]);
-  return <DataTable rows={rows} columns={columns} rowKey={rowKey} label={label} toolbar={false} maxHeight="none" />;
+  return <DataTable rows={rows} columns={columns} rowKey={rowKey} label={label} toolbar={false} maxHeight="none" {...(group ? { group } : {})} />;
 }
