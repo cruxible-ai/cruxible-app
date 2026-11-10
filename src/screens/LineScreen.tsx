@@ -5,7 +5,6 @@ import {
   useGet,
   useGetBatch,
   useInbox,
-  useInboxItem,
   useInstanceId,
   useLineRuns,
   useMandates,
@@ -24,6 +23,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
 import { NextTable } from "@/components/next/NextTable";
+import { InboxTable } from "@/components/inbox/InboxTable";
 import { LineDefinitionPanel } from "@/components/ontology/Definitions";
 import { Parts } from "@/components/Parts";
 import { InfoButton } from "@/components/InfoButton";
@@ -322,7 +322,6 @@ function LineGraphPanel({
 
 type LineCard = Schemas["GetLineCard"];
 type RunRow = Schemas["RunRow"];
-type InboxEntry = Schemas["InboxListEntry"];
 
 /** Occurrences due (waiting for dispatch: amber) and scheduled. */
 export function DueCount({ due, scheduled }: { due: number; scheduled: number }) {
@@ -954,156 +953,56 @@ function Readings({ procedure }: { procedure: string }) {
   );
 }
 
+/** The Line's inbox items, a daemon page at a time, in the Inbox page's rows (the Line said by the page). */
 function InboxPanel({ line }: { line: string }) {
-  const [cursors, setCursors] = useState<string[]>([]);
-  const [open, setOpen] = useState<string | null>(null);
-  const inbox = useInbox(line, undefined, INBOX_PAGE, cursors[cursors.length - 1]);
-  const item = useInboxItem(open);
-  const entries = inbox.data?.entries ?? [];
-  const inboxColumns = useMemo<Column<InboxEntry>[]>(
-    () => [
-      {
-        id: "status",
-        header: "State",
-        sortValue: (entry) => term("inbox", entry.item.status).word,
-        filter: { kind: "enum", values: (entry) => [entry.item.status] },
-        options: ["unread", "acknowledged", "dismissed", "linked"],
-        optionLabel: (value) => term("inbox", value).word,
-        className: "whitespace-nowrap",
-        cell: (entry) => <Chip concept="inbox" value={entry.item.status} />,
-      },
-      {
-        id: "item",
-        header: "Item",
-        title: "Open an item to read its whole payload",
-        hideable: false,
-        sortValue: (entry) => entry.item.item_id,
-        filter: { kind: "text", text: (entry) => entry.item.item_id },
-        className: "whitespace-nowrap",
-        cell: (entry) => (
-          <button
-            onClick={() => setOpen((current) => (current === entry.item.item_id ? null : entry.item.item_id))}
-            className="font-mono text-[12px] text-zinc-200 hover:underline"
-            title={entry.item.item_id}
-          >
-            {entry.item.item_id.slice(0, 16)}…
-          </button>
-        ),
-      },
-      {
-        id: "node",
-        header: "Node",
-        sortValue: (entry) => entry.item.node_id,
-        filter: { kind: "enum", values: (entry) => [entry.item.node_id] },
-        className: "font-mono text-[12px] text-zinc-500",
-        cell: (entry) => entry.item.node_id,
-      },
-      {
-        id: "seen",
-        header: "Seen",
-        title: "How many times runs posted it",
-        numeric: true,
-        sortValue: (entry) => entry.item.occurrences,
-        className: "text-[12px] text-zinc-500",
-        cell: (entry) => `×${entry.item.occurrences}`,
-      },
-      {
-        id: "last",
-        header: "Last seen",
-        sortValue: (entry) => entry.item.recent_sightings[0]?.posted_at ?? null,
-        className: "whitespace-nowrap text-[12px] text-zinc-500",
-        cell: (entry) => {
-          const last = entry.item.recent_sightings[0];
-          return last ? (
-            <>
-              {formatDateTime(last.posted_at)} by{" "}
-              <RefLink value={`ProcedureRun:${last.run_id}`}>
-                <span className="font-mono" title={last.run_id}>
-                  {shortRunId(last.run_id)}
-                </span>
-              </RefLink>
-            </>
-          ) : (
-            "—"
-          );
-        },
-      },
-      {
-        id: "preview",
-        header: "Payload",
-        filter: { kind: "text", text: (entry) => previewText(entry.payload_preview) },
-        className: "max-w-[28rem]",
-        cell: (entry) => <InboxPreview value={entry.payload_preview} />,
-      },
-    ],
-    [],
-  );
+  const [cursors, setCursors] = useState<{ cursor: string; offset: number }[]>([]);
+  const inbox = useInbox(line, undefined, INBOX_PAGE, cursors[cursors.length - 1]?.cursor);
+  const entries = useMemo(() => inbox.data?.entries ?? [], [inbox.data]);
+  const first = cursors[cursors.length - 1]?.offset ?? 0;
+  const nextCursor = inbox.data?.next_cursor ?? null;
   return (
     <Panel
       title="Inbox"
       meta={
-        <span className="flex gap-2">
+        <span className="flex items-baseline gap-3">
           {cursors.length > 0 && (
             <button onClick={() => setCursors((c) => c.slice(0, -1))} className="hover:text-zinc-200">
               ← Newer
             </button>
           )}
-          <span>Page {cursors.length + 1}</span>
-          {inbox.data?.next_cursor && (
-            <button onClick={() => setCursors((c) => [...c, inbox.data!.next_cursor!])} className="hover:text-zinc-200">
+          {nextCursor && (
+            <button onClick={() => setCursors((c) => [...c, { cursor: nextCursor, offset: first + entries.length }])} className="hover:text-zinc-200">
               Older →
             </button>
           )}
+          <InboxPageLink line={line} />
         </span>
       }
     >
       {inbox.isPending && <LoadState />}
       {inbox.error && <LoadState error={inbox.error} />}
-      {inbox.data && (
-        <DataTable
-          rows={entries}
-          columns={inboxColumns}
-          rowKey={(entry) => entry.item.item_id}
-          rowLabel={(entry) => entry.item.item_id}
-          urlKey="inbox"
-          label="Inbox"
-          partial={inbox.data.next_cursor || cursors.length > 0 ? `${cursors.length === 0 ? "the newest" : "this page of"} ${entries.length} inbox items` : null}
-          open={open}
-          onToggle={(id) => setOpen(open === id ? null : id)}
-          expanded={() => (
-            <div className="border border-zinc-800 bg-zinc-900/40 p-1.5 text-[12px]">
-              {item.isPending && <div className="animate-pulse text-zinc-600">Reading…</div>}
-              {item.error && <div className="text-red-400/80">{item.error.message}</div>}
-              {item.data && (
-                <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-[11px] text-zinc-400">{JSON.stringify(item.data.payload, null, 2)}</pre>
-              )}
-            </div>
-          )}
-          empty="None"
-        />
-      )}
+      {inbox.data &&
+        (entries.length === 0 ? (
+          <div className="text-[13px] text-zinc-500">None</div>
+        ) : (
+          <InboxTable
+            key={first}
+            entries={entries}
+            line={line}
+            count={`Items ${first + 1}–${first + entries.length}${nextCursor ? "" : ` of ${first + entries.length}`}`}
+          />
+        ))}
     </Panel>
   );
 }
 
-/**
- * An inbox item's payload preview on one line: structured previews as
- * compact JSON, truncated with the whole preview on hover; opening the item
- * reads its full payload.
- */
-function previewText(value: unknown): string {
-  return typeof value === "string"
-    ? value
-    : typeof value === "object" && value !== null && typeof (value as { preview?: unknown }).preview === "string"
-      ? (value as { preview: string }).preview
-      : JSON.stringify(value);
-}
-
-function InboxPreview({ value }: { value: unknown }) {
-  const text = previewText(value);
+/** The Line's items on the Inbox page, where statuses filter on the daemon. */
+function InboxPageLink({ line }: { line: string }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
   return (
-    <div className="truncate font-mono text-[11px] text-zinc-400" title={text}>
-      {text}
-    </div>
+    <Link to={link(`/i/${instanceId}/inbox?line=${encodeURIComponent(line)}`)} className="hover:text-zinc-200">
+      Open in Inbox
+    </Link>
   );
 }

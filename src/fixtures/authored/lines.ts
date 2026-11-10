@@ -16,7 +16,9 @@ const CVE = "cve-applicability";
 const PROCEDURE = "security.kev-triage";
 const MANDATE = "security.kev-settle";
 const QUERY = "QueryDefinition:security.kev_exposure";
-const INBOX_ITEM = "INB-" + "7".repeat(64);
+/** The Line page's one inbox item (kev-triage). */
+export const LINE_INBOX_ITEM = "INB-" + "7".repeat(64);
+const INBOX_ITEM = LINE_INBOX_ITEM;
 
 const BASE_ORIENT = {
   tag: "playbill-orient-v1" as const,
