@@ -19,7 +19,8 @@ describe("Next", () => {
     const table = within(await main.findByRole("table", { name: "Next" }));
     await table.findAllByText("Blocking");
     expect(table.getAllByRole("cell").filter((td) => td.getAttribute("colspan"))).toHaveLength(0);
-    const types = table.getAllByRole("row").filter((row) => row.closest("tbody")).map((row) => within(row).getAllByRole("cell")[0]!.textContent);
+    // the Item column follows Severity
+    const types = table.getAllByRole("row").filter((row) => row.closest("tbody")).map((row) => within(row).getAllByRole("cell")[1]!.textContent);
     expect(types).toEqual([...types].sort((a, b) => a!.localeCompare(b!)));
     // claim_stale_evidence: expired capture rendered as a Capture link, Subject path as a Subject link
     expect(main.getByText(REASONS.claim_stale_evidence.label)).toBeInTheDocument();
@@ -28,11 +29,14 @@ describe("Next", () => {
       "href",
       "/i/inst_fixture/s/security.vulnerability%2Fcve-2024-3094",
     );
-    // a repair is text, with its CLI command; the console offers no action
-    expect(main.getByText("cruxible inbox list --line kev-triage")).toBeInTheDocument();
-    // a Line's unread inbox row opens that Line's unread items on the Inbox page
+    // a Line's unread inbox row opens that Line's unread items on the Inbox page (from the repair's arguments)
     expect(main.getByRole("link", { name: "Open in Inbox" })).toHaveAttribute("href", "/i/inst_fixture/inbox?line=kev-triage&status=unread");
-    expect(main.queryByRole("button", { name: /approve|reject|activate|run/i })).toBeNull();
+    // its CLI command is text behind CLI / MCP; the console offers no action
+    expect(main.queryByText("cruxible inbox list --line kev-triage")).toBeNull();
+    fireEvent.click(main.getByRole("button", { name: "CLI / MCP" }));
+    expect(main.getByText("cruxible inbox list --line kev-triage")).toBeInTheDocument();
+    // copy buttons name the command they copy; no button acts
+    expect(main.queryByRole("button", { name: /^(approve|reject|activate|run)/i })).toBeNull();
     // unnamed detail keys fall back to JSON on demand
     expect(main.getByRole("button", { name: "More detail" })).toBeInTheDocument();
     // proposal rows open the proposal page
@@ -49,7 +53,7 @@ describe("Next", () => {
     const table = within(await main.findByRole("table", { name: "Next" }));
     await table.findAllByText(REASONS.claim_stale_evidence.label);
     expect(table.getAllByRole("cell").filter((td) => td.getAttribute("colspan"))).toHaveLength(0);
-    const labels = table.getAllByRole("row").filter((row) => row.closest("tbody")).map((row) => within(row).getAllByRole("cell")[0]!.textContent);
+    const labels = table.getAllByRole("row").filter((row) => row.closest("tbody")).map((row) => within(row).getAllByRole("cell")[1]!.textContent);
     expect(labels).toEqual([...labels].sort((a, b) => a!.localeCompare(b!)));
   });
 
@@ -185,11 +189,13 @@ describe("Beliefs", () => {
       },
     }]);
     const main = within(await screen.findByRole("main"));
-    expect(await main.findByText("cruxible inbox list")).toBeInTheDocument();
+    await main.findAllByRole("button", { name: "CLI / MCP" });
+    for (const toggle of main.getAllByRole("button", { name: "CLI / MCP" })) fireEvent.click(toggle);
+    expect(main.getByText("cruxible inbox list")).toBeInTheDocument();
     expect(main.queryByText(/cx\.inbox/)).toBeNull();
     expect(main.getByText("cruxible_inbox_list")).toBeInTheDocument();
     expect(main.getByText("cruxible line enable security.osv-query")).toBeInTheDocument();
     expect(main.getByText("cruxible_line_enable")).toBeInTheDocument();
-    expect(main.getByText("needs governed_write")).toBeInTheDocument();
+    expect(main.getByText("Needs governed write")).toBeInTheDocument();
   });
 });

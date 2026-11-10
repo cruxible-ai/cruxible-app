@@ -34,12 +34,22 @@ export const FAMILY_LABEL: Record<NextFamily, string> = {
 };
 
 /** How a detail field renders. */
-export type FieldKind = "text" | "words" | "count" | "time" | "ref" | "run" | "capture" | "claim" | "list" | "digest" | "cause" | "source";
+export type FieldKind = "text" | "words" | "count" | "time" | "ref" | "run" | "capture" | "claim" | "list" | "digest" | "cause" | "source" | "prose";
 
 export interface FieldSpec {
   key: string;
   label: string;
   kind: FieldKind;
+  /**
+   * A prose field's inputs: the typed detail keys core builds the sentence
+   * from (service/discovery/next.py). When every one of them is in the
+   * detail, the row's subject, typed fields and repair already say what the
+   * sentence says, so it is not shown; `[]` marks a constant sentence that
+   * restates the reason itself. A prose field without `restates` carries
+   * something nothing else in the row does (a refusal, a cause, guidance)
+   * and is shown as written.
+   */
+  restates?: readonly string[];
 }
 
 /** Whether the row's attestation counts toward the verdict, when its detail says. */
@@ -57,6 +67,8 @@ export interface ReasonMeta {
 }
 
 const f = (key: string, label: string, kind: FieldKind = "text"): FieldSpec => ({ key, label, kind });
+/** Core's sentence: shown as written, unless `restates` names the typed keys it is built from (see FieldSpec). */
+const prose = (key: string, restates?: readonly string[]): FieldSpec => (restates ? { key, label: "", kind: "prose", restates } : { key, label: "", kind: "prose" });
 
 /** An attestation `claim attest` recorded and next resurfaces: the Claim, its Capture if any, who, when, basis, note. */
 const DOOR_FIELDS: FieldSpec[] = [
@@ -113,7 +125,7 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   claim_uncovered: {
     label: "Not covered by admitted evidence",
     family: "stale",
-    fields: [f("predicate", "Predicate"), f("verdict", "Verdict"), f("currency", "Currency"), f("policy_hint", "Hint")],
+    fields: [f("predicate", "Predicate"), f("verdict", "Verdict"), f("currency", "Currency"), prose("policy_hint")],
   },
   citation_drifted: {
     label: "Cited source drifted",
@@ -140,7 +152,8 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   workspace_binding_missing: {
     label: "Bound workspace file missing",
     family: "drifted",
-    fields: [f("document_id", "Document"), f("source_id", "Source"), f("locator", "Locator"), f("message", "")],
+    // "the file catalog binds a workspace file that does not exist": the reason itself
+    fields: [f("document_id", "Document"), f("source_id", "Source"), f("locator", "Locator"), prose("message", [])],
   },
   claim_new_evidence_supporting: {
     label: "New supporting evidence",
@@ -160,12 +173,13 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   proposal_stale: {
     label: "Proposal stale against accepted state",
     family: "proposals",
-    fields: [f("proposal_id", "Proposal", "ref"), f("target_ref", "Target")],
+    // the author's row explains readmit (stale_repair), the approver's says it awaits the author (detail): both restate the reason and repair
+    fields: [f("proposal_id", "Proposal", "ref"), f("target_ref", "Target"), f("stale_paths", "Stale paths", "list"), prose("stale_repair", []), prose("detail", [])],
   },
   proposal_awaiting_approval: {
     label: "Proposal awaiting approval",
     family: "proposals",
-    fields: [f("actor_id", "Proposed by"), f("admitted_at", "Admitted", "time"), f("signer_id", "Signer"), f("eligible_approvals", "Eligible approvals", "list")],
+    fields: [f("actor_id", "Proposed by"), f("admitted_at", "Admitted", "time"), f("signer_id", "Signer"), f("eligible_approvals", "Eligible approvals", "list"), f("minimum_distinct_signers", "Signers needed", "count")],
   },
   proposal_awaiting_activation: {
     label: "Proposal awaiting activation",
@@ -175,39 +189,48 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   line_coverage_gap: {
     label: "Line coverage gap",
     family: "lines",
-    fields: [f("since", "Since", "time"), f("until", "Until", "time"), f("detail", "")],
+    fields: [f("since", "Since", "time"), f("until", "Until", "time"), prose("detail", [])],
   },
   line_work_pending: {
     label: "Line work pending",
     family: "lines",
-    fields: [f("due", "Due", "count"), f("oldest_eligible_at", "Oldest", "time"), f("detail", "")],
+    fields: [f("due", "Due", "count"), f("oldest_eligible_at", "Oldest", "time"), prose("detail", [])],
   },
   line_disabled_by_upgrade: {
     label: "Line disabled by upgrade",
     family: "lines",
-    fields: [f("procedure_version", "Version"), f("detail", "")],
+    // "disabled by upgrade to {version}; enable to resume"
+    fields: [f("procedure_version", "Version"), prose("detail", ["procedure_version"])],
   },
   line_not_enabled: {
     label: "Line not enabled",
     family: "lines",
-    fields: [f("detail", "")],
+    fields: [prose("detail", [])],
   },
   line_run_failed: {
     label: "Line run failed",
     family: "lines",
-    fields: [f("run_id", "Run", "run"), f("finalized_at", "At", "time"), f("failure_code", "Code", "words"), f("cause", "Cause", "cause"), f("detail", "")],
+    fields: [f("run_id", "Run", "run"), f("finalized_at", "At", "time"), f("failure_code", "Code", "words"), f("cause", "Cause", "cause"), prose("detail", [])],
   },
   line_settled_prior_refusals: {
     label: "Line settled over prior refusals",
     family: "lines",
-    fields: [f("settled_items_matching_refusals", "Items", "list"), f("settled_runs", "Runs", "list"), f("latest_run_id", "Latest run"), f("latest_settled_at", "Latest", "time")],
+    // the sentence names a second way out (bind a fixed Procedure) no repair carries: shown
+    fields: [
+      f("settled_items_matching_refusals", "Items", "count"),
+      f("settled_runs", "Runs", "count"),
+      f("latest_run_id", "Latest run", "run"),
+      f("latest_settled_at", "Latest", "time"),
+      prose("detail"),
+    ],
   },
   line_inbox_unread: {
     label: "Line inbox unread",
     family: "lines",
-    fields: [f("unread", "Unread", "count"), f("availability", "Availability"), f("detail", "")],
+    // "{count} new inbox items from {line}." restates unread and the row's Line; the unavailable row's sentence says why
+    fields: [f("unread", "Unread", "count"), f("availability", "Availability", "words"), f("payload_digest", "Payload", "digest"), prose("detail", ["unread"])],
   },
-  floor_invalid: { label: "Workspace floor invalid", family: "projections", fields: [f("state", "State"), f("message", "")] },
+  floor_invalid: { label: "Workspace floor invalid", family: "projections", fields: [f("reported_status", "Status", "words"), f("state", "State"), prose("message")] },
   projection_dirty: {
     label: "Projection edited",
     family: "projections",
@@ -216,16 +239,19 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   projection_backing_stale: {
     label: "Projection backing stale",
     family: "projections",
-    fields: [f("source_id", "Source"), f("block_id", "Block"), f("backing_state", "Backing"), f("stale_backings", "Stale backings", "list")],
+    // message: the refusal when the dependency check refused with no issue to name
+    fields: [f("source_id", "Source"), f("block_id", "Block"), f("backing_state", "Backing", "words"), f("stale_backings", "Stale backings", "list"), prose("message")],
   },
-  projection_marker_invalid: { label: "Projection marker invalid", family: "projections", fields: [f("source_id", "Source"), f("block_id", "Block")] },
+  projection_marker_invalid: { label: "Projection marker invalid", family: "projections", fields: [f("source_id", "Source"), f("block_id", "Block"), f("marker_status", "Marker", "words")] },
   unregistered_projection_block: { label: "Unregistered projection block", family: "projections", fields: [f("source_id", "Source"), f("block_id", "Block")] },
   prediction_settleable: { label: "Prediction settleable", family: "predictions", fields: [f("bound_contract_id", "Contract"), f("window", "Window", "list")] },
   prediction_window_unbindable: { label: "Prediction window unbindable", family: "predictions", fields: [f("code", "Code")] },
-  mandate_expiring: { label: "Mandate expiring", family: "operations", fields: [f("procedure_identity", "Procedure", "ref"), f("expires_at", "Expires", "time"), f("grants", "Grants", "list")] },
-  consumer_stalled: { label: "Consumer stalled", family: "operations", fields: [f("kind", "Kind"), f("state", "State")] },
+  mandate_expiring: { label: "Mandate expiring", family: "operations", fields: [f("line_identity", "Line", "ref"), f("procedure_identity", "Procedure", "ref"), f("expires_at", "Expires", "time"), f("grants", "Grants", "list")] },
+  // a stopped Line arm's detail and a consumer's last_error are the only place the cause appears
+  consumer_stalled: { label: "Consumer stalled", family: "operations", fields: [f("kind", "Kind"), f("state", "State", "words"), f("stop_reason", "Stopped", "words"), prose("last_error"), prose("detail")] },
   subject_kind_undeclared: { label: "Subject kind undeclared", family: "operations", fields: [f("kind", "Kind"), f("live_subjects", "Live Subjects", "count")] },
-  kit_resume_blocked: { label: "Kit resume blocked", family: "operations", fields: [f("kit_id", "Kit"), f("version", "Version"), f("actor_id", "Actor"), f("recorded_at", "Recorded", "time"), f("detail", "")] },
+  // detail: the refusal, carried nowhere else
+  kit_resume_blocked: { label: "Kit resume blocked", family: "operations", fields: [f("kit_id", "Kit"), f("version", "Version"), f("actor_id", "Actor"), f("recorded_at", "Recorded", "time"), prose("detail")] },
 };
 
 /** The Beliefs preset: the former contested, stale and drifted families. */
@@ -251,13 +277,22 @@ export function detailRecord(detail: unknown): Record<string, unknown> | null {
     : null;
 }
 
-/** The named fields present in a detail, and the rest (rendered as JSON). */
+/** Whether a prose field adds to the row: false when the typed keys it restates are all present (see FieldSpec.restates). */
+export function proseAdds(spec: FieldSpec, record: Record<string, unknown>): boolean {
+  if (spec.kind !== "prose" || !spec.restates) return true;
+  return !spec.restates.every((key) => record[key] !== undefined && record[key] !== null);
+}
+
+/**
+ * The named fields present in a detail, and the rest (rendered as JSON). A
+ * prose field that only restates the row is dropped (from both).
+ */
 export function splitDetail(reason: NextReason, detail: unknown) {
   const record = detailRecord(detail);
   if (!record) return { fields: [] as { spec: FieldSpec; value: unknown }[], rest: detail ?? null };
   const specs = reasonMeta(reason).fields;
   const fields = specs
-    .filter((spec) => record[spec.key] !== undefined && record[spec.key] !== null)
+    .filter((spec) => record[spec.key] !== undefined && record[spec.key] !== null && record[spec.key] !== "" && proseAdds(spec, record))
     .map((spec) => ({ spec, value: record[spec.key] }));
   const named = new Set(specs.map((spec) => spec.key));
   const restEntries = Object.entries(record).filter(([key, value]) => !named.has(key) && value !== null);

@@ -1,62 +1,41 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import type { NextItem, NextSeverity } from "@/api/schemas";
-import { useGet, useInstanceId } from "@/api/hooks";
+import { useGet } from "@/api/hooks";
 import { AttestationEvidence } from "@/components/AttestationEvidence";
-import { actionChipClass, Chip } from "@/components/Chip";
+import { Chip } from "@/components/Chip";
 import { CountsMark } from "@/components/CountsMark";
-import { DataTable, useTableState, type Column } from "@/components/DataTable";
+import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { LoadState } from "@/components/Panel";
+import { shortId } from "@/components/ShortId";
 import { nextAttestationAccounts, nextAttestationClaim } from "@/lib/attestation-evidence";
-import { FAMILY_LABEL, captureHandle, detailRecord, familyOf, reasonMeta, splitDetail, type FieldSpec } from "@/lib/next-reasons";
+import { FAMILY_LABEL, captureHandle, detailRecord, familyOf, reasonMeta, splitDetail } from "@/lib/next-reasons";
 import { formatDateTime, formatRelative } from "@/lib/text";
-import { useAtLink } from "@/lib/at";
-import { lineName } from "@/lib/lines";
 import { term } from "@/lib/vocabulary";
-import { FieldValue, RepairText, repairKey } from "./NextFields";
+import { FieldValue, RepairCell } from "./NextFields";
 
 const SEVERITY_RANK: Record<NextSeverity, number> = { blocking: 0, repair: 1, warning: 2, setup: 3 };
+export const SEVERITIES: readonly NextSeverity[] = ["blocking", "repair", "warning", "setup"];
 
-interface ReasonShare {
-  /** Every row of the reason has the same repair: the group line shows it once. */
-  sharedRepair: boolean;
-  /** Detail fields with one value across the reason's rows: the group line shows them. */
-  common: { spec: FieldSpec; value: unknown }[];
-  /** Every row of the reason began at the same time: the group line says since when. */
-  sharedSince: boolean;
-}
+/** The Severity header's ⓘ: each level's meaning, from the glossary. */
+export const SEVERITY_INFO = (
+  <span className="flex flex-col gap-1">
+    {SEVERITIES.map((severity) => (
+      <span key={severity}>{term("severity", severity).meaning}</span>
+    ))}
+  </span>
+);
 
-/** Per reason, what its rows share (over every row in hand, so filtering never moves it). */
-export function reasonShares(items: readonly NextItem[]): Map<string, ReasonShare> {
-  const byReason = new Map<string, NextItem[]>();
-  for (const item of items) byReason.set(item.reason, [...(byReason.get(item.reason) ?? []), item]);
-  const out = new Map<string, ReasonShare>();
-  for (const [reason, rows] of byReason) {
-    const sharedRepair = rows.every((row) => repairKey(row) === repairKey(rows[0]!));
-    const first = splitDetail(rows[0]!.reason, rows[0]!.detail).fields;
-    const common =
-      rows.length > 1
-        ? first.filter(({ spec, value }) =>
-            rows.every((row) => {
-              const other = splitDetail(row.reason, row.detail).fields.find((f) => f.spec.key === spec.key);
-              return other !== undefined && JSON.stringify(other.value) === JSON.stringify(value);
-            }),
-          )
-        : [];
-    const sharedSince = rows.every((row) => (row.since ?? null) === (rows[0]!.since ?? null));
-    out.set(reason, { sharedRepair, common, sharedSince });
-  }
-  return out;
-}
+/** The Repair header's ⓘ. */
+export const REPAIR_INFO =
+  "What clears the row. A repair that only reads opens here (Open in Inbox); the rest run from the CLI or MCP, shown as text to copy: the console never runs one. When the caller cannot run it, the row says what running it needs.";
 
 /**
- * `next` rows in the shared table: severity, reason, family, what the row is
- * about, the reason's named detail fields, and the repair as text. Unsorted,
- * rows group by severity, then reason (the group line carries the label, the
- * count, and the repair and detail every row of the reason shares); a sort
- * flattens the groups and each row then shows everything. The console never
- * runs a repair.
+ * `next` rows in the shared table, one row per item, each saying one thing
+ * once: how bad (severity), what kind of item, what it is about (the ref,
+ * linked, its kind as a quiet tag), what is wrong (the reason's typed fields
+ * as label and value; core's sentence only when it adds to them), and what to
+ * do (the repair). Ordered by item type, then severity; a header sorts.
  *
  * `partial` names the rows when the queue has more pages ("this page of
  * 100"): `next` has no server-side filter or order (gap G7).
@@ -77,7 +56,6 @@ export function NextTable({
   label?: string;
   empty?: string;
 }) {
-  // plain rows, ordered by item type, then severity
   const ordered = useMemo(
     () =>
       [...items].sort(
@@ -86,76 +64,46 @@ export function NextTable({
       ),
     [items],
   );
-  const shares = useMemo(() => reasonShares(items), [items]);
-  // the columns depend on whether rows are grouped (no sort); read the sort first
-  const probe = useMemo(() => nextColumns({ grouped: false, shares, family, items }), [shares, family, items]);
-  const [state] = useTableState(probe, urlKey);
-  // rows are not grouped: every row carries its own type, severity, since and repair
-  const grouped = false && state.sort === null;
-  const columns = useMemo(() => nextColumns({ grouped, shares, family, items }), [grouped, shares, family, items]);
-  return (
-    <DataTable
-      rows={ordered}
-      columns={columns}
-      rowKey={(item) => item.item_id}
-      urlKey={urlKey}
-      label={label}
-      partial={partial}
-      empty={empty}
-    />
-  );
+  const columns = useMemo(() => nextColumns({ family, items }), [family, items]);
+  return <DataTable rows={ordered} columns={columns} rowKey={(item) => item.item_id} urlKey={urlKey} label={label} partial={partial} empty={empty} />;
 }
 
-
-/**
- * The columns a page needs. Grouped (no sort), the group line carries severity,
- * reason and whatever a reason's rows share, so those columns hide and a
- * column no row fills (related refs, own detail, findings, a per-row repair)
- * is left out; Family and the item id are there to switch on.
- */
-function nextColumns({
-  grouped,
-  shares,
-  family,
-  items,
-}: {
-  grouped: boolean;
-  shares: Map<string, ReasonShare>;
-  family: boolean;
-  items: readonly NextItem[];
-}): Column<NextItem>[] {
-  const anyRelated = items.some((item) => (item.related_identities?.length ?? 0) > 0);
+/** The columns a page needs: Detail, Findings and Repair only when some row fills them. */
+function nextColumns({ family, items }: { family: boolean; items: readonly NextItem[] }): Column<NextItem>[] {
   const anyFindings = items.some((item) => (item.findings?.length ?? 0) > 0);
-  const anyDetail = items.some((item) => hasOwnDetail(item, grouped ? shares.get(item.reason) : undefined));
-  const anySince = items.some((item) => item.since && !(grouped && shares.get(item.reason)?.sharedSince));
-  const anyRepair = items.some((item) => (item.repair || item.repair_requires) && !(grouped && shares.get(item.reason)?.sharedRepair));
+  const anyDetail = items.some(hasDetail);
+  const anyRepair = items.some((item) => item.repair || item.repair_requires);
   const columns: (Column<NextItem> | null)[] = [
+    {
+      id: "severity",
+      header: "Severity",
+      info: SEVERITY_INFO,
+      sortValue: (item) => SEVERITY_RANK[item.severity],
+      filter: { kind: "enum", values: (item) => [item.severity] },
+      options: SEVERITIES,
+      optionLabel: (value) => term("severity", value).word,
+      title: "How bad, and since when the condition holds (when the queue says)",
+      className: "whitespace-nowrap",
+      // since when, under the severity: how bad and for how long, said once per row
+      cell: (item) => (
+        <span className="flex flex-col gap-0.5">
+          <Chip concept="severity" value={item.severity} />
+          {item.since && <Since iso={item.since} />}
+        </span>
+      ),
+    },
     {
       id: "reason",
       header: "Item",
       sortValue: (item) => reasonMeta(item.reason).label,
       filter: { kind: "enum", values: (item) => [item.reason] },
       optionLabel: (value) => reasonMeta(value as NextItem["reason"]).label,
-      className: "min-w-[8rem]",
-      defaultHidden: grouped,
-      cell: (item) =>
-        grouped ? null : (
-          <span className="text-zinc-100" title={item.reason}>
-            {reasonMeta(item.reason).label}
-          </span>
-        ),
-    },
-    {
-      id: "severity",
-      header: "Severity",
-      sortValue: (item) => SEVERITY_RANK[item.severity],
-      filter: { kind: "enum", values: (item) => [item.severity] },
-      options: ["blocking", "repair", "warning", "setup"],
-      optionLabel: (value) => term("severity", value).word,
-      className: "whitespace-nowrap",
-      // grouped: the group line says it
-      defaultHidden: grouped,
-      cell: (item) => (grouped ? null : <Chip concept="severity" value={item.severity} />),
+      className: "min-w-[7rem] max-w-[11rem]",
+      cell: (item) => (
+        <span className="text-zinc-100" title={item.reason}>
+          {reasonMeta(item.reason).label}
+        </span>
+      ),
     },
     family
       ? {
@@ -172,48 +120,24 @@ function nextColumns({
     {
       id: "about",
       header: "About",
-      title: "The Subject, Claim, Line or proposal the item is about",
+      title: "The Subject, Claim, Line or proposal the item is about; under it, what else the row names (the other side of a conflict, the evidence)",
       hideable: false,
       sortValue: (item) => item.subject_identity,
       filter: { kind: "text", text: (item) => [item.subject_identity, ...(item.related_identities ?? [])].join(" ") },
-      className: "min-w-[15rem] max-w-[24rem] break-words",
-      cell: (item) => {
-        // "Line:security.kev-triage" reads as the name, linked, with its kind beside it
-        const colon = item.subject_identity.indexOf(":");
-        const prefix = colon > 0 ? item.subject_identity.slice(0, colon) : null;
-        // a Claim id reads as itself; definitions (Line, Proposal, …) name their kind
-        const kind = prefix && prefix !== "Claim" && prefix !== "sha256" ? prefix : null;
-        return (
-          <span className="inline-flex items-baseline gap-2">
-            <RefLink value={item.subject_identity} short className="hover:underline">
-              {kind ? item.subject_identity.slice(colon + 1) : undefined}
-            </RefLink>
-            {kind && <span className="text-[11px] text-zinc-500">{kind}</span>}
-          </span>
-        );
-      },
+      cell: (item) => (
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <About identity={item.subject_identity} />
+          <Related refs={item.related_identities ?? []} />
+        </span>
+      ),
     },
-    anyRelated
-      ? {
-          id: "related",
-          header: "Related",
-          title: "What else the row names: the other side of a conflict, the evidence, the Procedure",
-          className: "min-w-[10rem] max-w-[22rem] break-words text-[12px]",
-          cell: (item) =>
-            (item.related_identities ?? []).map((ref, i) => (
-              <span key={ref}>
-                {i > 0 && ", "}
-                <RefLink value={ref.startsWith("Capture:sha256:") ? captureHandle(ref.slice(8)) : ref} short />
-              </span>
-            )),
-        }
-      : null,
     anyDetail
       ? {
           id: "detail",
           header: "Detail",
+          title: "What is wrong: the item's figures, as the queue serves them",
           filter: { kind: "text", text: (item) => JSON.stringify(item.detail ?? "") },
-          cell: (item) => <DetailCell item={item} shared={grouped ? shares.get(item.reason) : undefined} />,
+          cell: (item) => <DetailCell item={item} />,
         }
       : null,
     anyFindings
@@ -226,16 +150,6 @@ function nextColumns({
           cell: (item) => <FindingsCell item={item} />,
         }
       : null,
-    anySince
-      ? {
-          id: "since",
-          header: "Since",
-          title: "When the row's condition began, from the state that records it",
-          className: "whitespace-nowrap text-[12px]",
-          sortValue: (item) => item.since ?? "",
-          cell: (item) => (item.since && !(grouped && shares.get(item.reason)?.sharedSince) ? <Since iso={item.since} /> : null),
-        }
-      : null,
     {
       id: "item",
       header: "Item id",
@@ -243,44 +157,93 @@ function nextColumns({
       className: "font-mono text-[11px] text-zinc-500",
       cell: (item) => item.item_id,
     },
-    !anyRepair
-      ? null
-      : {
-      id: "repair",
-      header: "Repair",
-      title: "What to change, and the CLI command; run it from the CLI or MCP (the console is read-only)",
-      filter: { kind: "text", text: (item) => [item.repair?.operation, item.repair?.required_change, item.repair?.command].filter(Boolean).join(" ") },
-      className: "max-w-[28rem]",
-      cell: (item) => (grouped && shares.get(item.reason)?.sharedRepair ? null : <RepairText item={item} />),
-    },
+    anyRepair
+      ? {
+          id: "repair",
+          header: "Repair",
+          info: REPAIR_INFO,
+          filter: {
+            kind: "text",
+            text: (item) => [item.repair?.operation, item.repair?.required_change, item.repair?.command, item.repair_requires?.operation].filter(Boolean).join(" "),
+          },
+          cell: (item) => <RepairCell item={item} />,
+        }
+      : null,
   ];
   return columns.filter((column): column is Column<NextItem> => column !== null);
 }
 
-/** A row's own detail: the fields its group line does not show, what they imply, and the rest on request. */
-function ownDetail(item: NextItem, shared: ReasonShare | undefined) {
-  const meta = reasonMeta(item.reason);
-  const split = splitDetail(item.reason, item.detail);
-  const sharedKeys = new Set((shared?.common ?? []).map(({ spec }) => spec.key));
-  // A Claim field naming the row's own subject is already the row's link.
-  const fields = split.fields.filter(
-    ({ spec, value }) => !sharedKeys.has(spec.key) && !(spec.kind === "claim" && `Claim:${String(value)}` === item.subject_identity),
+/**
+ * What the row is about: its kind as a quiet tag, then the ref, linked, on
+ * one line (cut to the cell, whole on hover). "Line:security.kev-triage"
+ * reads as Line + the name; a Claim id, a proposal digest and a Subject path
+ * read as themselves (the link's page says the kind).
+ */
+export function About({ identity }: { identity: string }) {
+  const colon = identity.indexOf(":");
+  const prefix = colon > 0 ? identity.slice(0, colon) : null;
+  const kind = prefix && prefix !== "Claim" && prefix !== "sha256" ? prefix : null;
+  const name = kind ? identity.slice(colon + 1) : null;
+  return (
+    <span className="flex max-w-[16rem] min-w-[8rem] items-baseline gap-1.5 whitespace-nowrap" title={identity}>
+      {kind && <span className="shrink-0 text-[11px] text-zinc-500">{kind}</span>}
+      <span className="w-0 min-w-0 flex-1 truncate">
+        <RefLink value={identity} short className="hover:underline">
+          {name !== null ? <span className="font-mono text-[12.5px]">{shortId(name)}</span> : undefined}
+        </RefLink>
+      </span>
+    </span>
   );
+}
+
+const RELATED_SHOWN = 2;
+
+/** What else the row names, quietly under the ref: the first two linked, the count of the rest (all on hover). */
+function Related({ refs }: { refs: readonly string[] }) {
+  if (refs.length === 0) return null;
+  return (
+    <span className="flex max-w-[16rem] min-w-[8rem] items-baseline gap-x-2 whitespace-nowrap text-[11px] text-zinc-500" title={refs.join("\n")}>
+      {/* no minimum width of its own (w-0 flex-1): a narrow table cuts the refs instead of widening */}
+      <span className="w-0 min-w-0 flex-1 truncate [&_*]:text-[11px] [&_a]:text-zinc-400">
+        {refs.slice(0, RELATED_SHOWN).map((ref) => (
+          <span key={ref} className="mr-2">
+            <RefLink value={ref.startsWith("Capture:sha256:") ? captureHandle(ref.slice(8)) : ref} short />
+          </span>
+        ))}
+      </span>
+      {refs.length > RELATED_SHOWN && <span className="shrink-0">+{refs.length - RELATED_SHOWN}</span>}
+    </span>
+  );
+}
+
+function hasDetail(item: NextItem): boolean {
+  const split = splitDetail(item.reason, item.detail);
+  return ownFields(item, split.fields).length > 0 || split.rest !== null || countsOf(item) !== null;
+}
+
+/**
+ * The fields the row does not already say: a Claim field naming the row's own
+ * subject is the row's link; a time the queue also served as `since` is under
+ * the severity.
+ */
+function ownFields(item: NextItem, fields: ReturnType<typeof splitDetail>["fields"]) {
+  return fields.filter(
+    ({ spec, value }) =>
+      !(spec.kind === "claim" && `Claim:${String(value)}` === item.subject_identity) && !(spec.kind === "time" && item.since && value === item.since),
+  );
+}
+
+function countsOf(item: NextItem) {
   const record = detailRecord(item.detail);
-  const counts = record && meta.counts ? meta.counts(record) : null;
-  return { fields, counts, rest: split.rest };
+  const meta = reasonMeta(item.reason);
+  return record && meta.counts ? meta.counts(record) : null;
 }
 
-function hasOwnDetail(item: NextItem, shared: ReasonShare | undefined): boolean {
-  const own = ownDetail(item, shared);
-  return own.fields.length > 0 || own.counts !== null || own.rest !== null;
-}
-
-/** Since when a condition holds: relative, the exact time on hover. */
+/** Since when a condition holds, under its severity: relative ("23d 9h ago"), the exact time on hover. */
 function Since({ iso }: { iso: string }) {
   return (
-    <span className="text-[12px] text-zinc-500" title={`Since ${formatDateTime(iso)}`}>
-      since {formatRelative(iso)}
+    <span className="pl-3 text-[11px] text-zinc-500" title={`Since ${formatDateTime(iso)}`}>
+      {formatRelative(iso)}
     </span>
   );
 }
@@ -292,7 +255,7 @@ function FindingsCell({ item }: { item: NextItem }) {
   if (findings.length === 0) return null;
   return (
     <div className="text-[12px]">
-      <button onClick={() => setOpen((v) => !v)} className="font-mono text-zinc-300 hover:text-zinc-100" aria-expanded={open}>
+      <button onClick={() => setOpen((v) => !v)} className="tabular-nums text-zinc-300 hover:text-zinc-100" aria-expanded={open}>
         {findings.length}
       </button>
       {open && <div className="t-meta mt-0.5">{findings.map((finding) => reasonMeta(finding.reason).label).join("; ")}</div>}
@@ -300,25 +263,28 @@ function FindingsCell({ item }: { item: NextItem }) {
   );
 }
 
-function DetailCell({ item, shared }: { item: NextItem; shared: ReasonShare | undefined }) {
+/** The reason's typed fields as label and value (prose, unlabelled, under them), what they imply, the rest on request. */
+function DetailCell({ item }: { item: NextItem }) {
   const [raw, setRaw] = useState(false);
   const [evidence, setEvidence] = useState(false);
   const claim = nextAttestationClaim(item);
-  const { fields, counts, rest } = ownDetail(item, shared);
-  const split = { rest };
+  const split = splitDetail(item.reason, item.detail);
+  const fields = ownFields(item, split.fields);
+  const figures = fields.filter(({ spec }) => spec.kind !== "prose");
+  const prose = fields.filter(({ spec }) => spec.kind === "prose");
+  const counts = countsOf(item);
   return (
-    <div className="min-w-0 text-[12px]">
+    <div className="min-w-[10rem] max-w-[14rem] text-[12px] xl:max-w-[22rem]">
       <span className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-0.5">
-        {fields.map(({ spec, value }) => (
-          <span key={spec.key} className="inline-flex items-baseline gap-1.5">
-            {spec.label && <span className="text-zinc-500">{spec.label}</span>}
+        {figures.map(({ spec, value }) => (
+          <span key={spec.key} className="break-words">
+            {spec.label && <span className="mr-1.5 text-zinc-500">{spec.label}</span>}
             <span className="text-zinc-300">
               <FieldValue spec={spec} value={value} />
             </span>
           </span>
         ))}
         {counts && <CountsMark counts={counts.counts} reason={counts.reason} />}
-        {item.reason === "line_inbox_unread" && item.subject_identity.startsWith("Line:") && <InboxLink line={lineName(item.subject_identity)} />}
         {claim && (
           <button onClick={() => setEvidence((v) => !v)} className="text-zinc-400 hover:text-zinc-200" aria-expanded={evidence}>
             {evidence ? "Hide evidence" : "Evidence"}
@@ -330,6 +296,11 @@ function DetailCell({ item, shared }: { item: NextItem; shared: ReasonShare | un
           </button>
         )}
       </span>
+      {prose.map(({ spec, value }) => (
+        <div key={spec.key} className="mt-0.5">
+          <FieldValue spec={spec} value={value} />
+        </div>
+      ))}
       {evidence && claim && <ReasonAttestationEvidence item={item} claim={claim} />}
       {raw && split.rest !== null && (
         <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap border-l border-zinc-800 pl-3 text-[11px] text-zinc-400">
@@ -337,17 +308,6 @@ function DetailCell({ item, shared }: { item: NextItem; shared: ReasonShare | un
         </pre>
       )}
     </div>
-  );
-}
-
-/** A Line's unread items on the Inbox page. */
-function InboxLink({ line }: { line: string }) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
-  return (
-    <Link to={link(`/i/${instanceId}/inbox?line=${encodeURIComponent(line)}&status=unread`)} className={actionChipClass}>
-      Open in Inbox
-    </Link>
   );
 }
 
@@ -361,9 +321,9 @@ function ReasonAttestationEvidence({ item, claim }: { item: NextItem; claim: str
     <div className="mt-2">
       {accounts.length === 0 ? (
         <span className="text-zinc-500">No attestation evidence</span>
-      ) : accounts.map((account, i) => (
-          <AttestationEvidence key={account.event ?? account.attestation ?? i} account={account} />
-        ))}
+      ) : (
+        accounts.map((account, i) => <AttestationEvidence key={account.event ?? account.attestation ?? i} account={account} />)
+      )}
     </div>
   );
 }

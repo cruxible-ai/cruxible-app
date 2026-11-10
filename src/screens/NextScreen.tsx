@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { InfoButton } from "@/components/InfoButton";
 import { SignalDot, toggleChipClass } from "@/components/Chip";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
-import { NextTable } from "@/components/next/NextTable";
+import { NextTable, SEVERITIES } from "@/components/next/NextTable";
 import { Page, PageHeader } from "@/components/Page";
 import { PageNav } from "@/components/next/PageNav";
 import { Stat, StatsRow } from "@/components/StatsRow";
@@ -12,8 +12,6 @@ import { BELIEF_FAMILIES, familyOf } from "@/lib/next-reasons";
 import { humanize } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
-
-const SEVERITIES: NextSeverity[] = ["blocking", "repair", "warning", "setup"];
 
 /**
  * The `next` queue at the pinned generation, evaluated now: one page at a
@@ -50,17 +48,19 @@ export function NextScreen() {
             page.data.total_items === 0 ? (
               <StatsRow>
                 <span>None</span>
-                {driftUnobserved && <DriftUnobserved />}
+                {driftUnobserved && <DriftUnobserved domains={page.data.unobserved_domains} />}
               </StatsRow>
             ) : (
               <>
                 <StatsRow>
-                  <Stat n={page.data.total_items} label={page.data.total_items === 1 ? "item" : "items"} />
+                  <span title="Items in the queue, evaluated now at the pinned generation">
+                    <Stat n={page.data.total_items} label={page.data.total_items === 1 ? "item" : "items"} />
+                  </span>
                   {counts.map(([severity, n]) => (
                     <SeverityCount key={severity} severity={severity} count={n} />
                   ))}
                   {more && <span>counts for this page</span>}
-                  {driftUnobserved && <DriftUnobserved />}
+                  {driftUnobserved && <DriftUnobserved domains={page.data.unobserved_domains} />}
                 </StatsRow>
               </>
             )
@@ -91,9 +91,10 @@ export function NextScreen() {
           meta={
             <span className="inline-flex items-center gap-2">
               {beliefs ? `${rows.length} of ${items.length}` : items.length} on this page
-              {page.data.unobserved_domains.length > 0 && (
+              {/* the summary's "Drift not observed" carries this when drift is among them */}
+              {page.data.unobserved_domains.length > 0 && !driftUnobserved && (
                 <InfoButton label="What the console does not check">
-                  Not checked from the console: {page.data.unobserved_domains.map(humanize).join(", ")}. Items that need the workspace (drifted citations, edited projections) appear only from the CLI or MCP.
+                  <UnobservedDomains domains={page.data.unobserved_domains} />
                 </InfoButton>
               )}
             </span>
@@ -111,14 +112,37 @@ export function NextScreen() {
   );
 }
 
-/** Drift was not checked: no workspace observation reached the queue. */
-function DriftUnobserved() {
+/** What each observation domain of `next` covers (NextResult.unobserved_domains). */
+const DOMAIN_MEANING: Record<string, string> = {
+  accepted_state: "the instance's accepted state",
+  workspace_floor: "the workspace's installed floor",
+  workspace_sources: "the workspace files Claims cite: drifted citations",
+  workspace_projections: "the projected blocks in workspace files: edited projections",
+};
+
+/** The domains the queue did not observe, each with what it covers. */
+function UnobservedDomains({ domains }: { domains: readonly string[] }) {
   return (
-    <span
-      className="text-zinc-500"
-      title="Drifted citations need the workspace's files, which the console cannot read. Run cruxible next (or the MCP cruxible_next) in the workspace to check them."
-    >
+    <span className="flex flex-col gap-1">
+      <span>Not observed here, so their items are not listed:</span>
+      {domains.map((domain) => (
+        <span key={domain}>
+          {humanize(domain)}: {DOMAIN_MEANING[domain] ?? humanize(domain).toLowerCase()}.
+        </span>
+      ))}
+      <span>Run cruxible next (or the MCP cruxible_next) in the workspace to check them.</span>
+    </span>
+  );
+}
+
+/** Drift was not checked: no workspace observation reached the queue. */
+function DriftUnobserved({ domains }: { domains: readonly string[] }) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5 text-zinc-500">
       Drift not observed
+      <InfoButton label="What drift not observed means">
+        <UnobservedDomains domains={domains} />
+      </InfoButton>
     </span>
   );
 }
