@@ -200,7 +200,7 @@ describe("recorded reference world", () => {
     expect(steps.getByRole("link", { name: "security.sbom-import.app" })).toHaveAttribute("href", `${I}/lines/security.sbom-import.app`);
     const triggers = within(m.getByRole("table", { name: "Triggers" }));
     expect(triggers.getByRole("link", { name: "Trigger:security.start-weekly" })).toBeInTheDocument();
-    expect(triggers.getByText("on cron 0 5 * * 1 (UTC)")).toBeInTheDocument();
+    expect(triggers.getByTitle("on cron 0 5 * * 1 (UTC)")).toHaveTextContent(/^Every \w+ at /);
     const runs = within(m.getByRole("table", { name: "Recent runs" }));
     expect(runs.getByText("Completed")).toBeInTheDocument();
     expect(runs.getAllByText("Succeeded")).toHaveLength(4);

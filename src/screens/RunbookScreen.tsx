@@ -12,7 +12,8 @@ import { ShortId } from "@/components/ShortId";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
 import { attentionSteps, authorityRows, runbookName, stepNeedsAttention, targetKey, targetOf, type AuthorityRow, type RunbookTarget } from "@/lib/runbooks";
-import { formatWhen } from "@/lib/text";
+import { formatWhen, sentence } from "@/lib/text";
+import { wakeOf } from "@/lib/schedule";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
 
@@ -115,7 +116,13 @@ const TRIGGER_COLUMNS: Column<Schemas["GetLineTrigger"]>[] = [
       </span>
     ),
   },
-  { id: "fires", header: "Fires", className: "font-mono text-[12px] text-zinc-300", cell: (t) => t.fires },
+  {
+    id: "fires",
+    header: "Fires",
+    className: "text-[12px] text-zinc-300",
+    // in words and the viewer's time, as on every other screen; the definition as written on hover
+    cell: (t) => <span title={t.fires}>{sentence(wakeOf(t.fires).words)}</span>,
+  },
 ];
 
 /** A step's target: a Line (linked) or an internal action (by name). */
