@@ -40,6 +40,8 @@ import { LineStateDot } from "@/components/LineStateDot";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { localCronWords, wakeOf } from "@/lib/schedule";
 import { term } from "@/lib/vocabulary";
+import { RunbookWakeText } from "@/components/RunbookWake";
+import { useRunbookWakes, type RunbookWake } from "@/lib/useRunbookWakes";
 
 const READINGS_PAGE = 50;
 const INBOX_PAGE = 50;
@@ -406,6 +408,26 @@ function triggerColumns(current: LineEnablement | undefined, armed: ReadonlySet<
 }
 
 /**
+ * The live Runbooks whose Triggers run this Line (a step names it): each
+ * Runbook with its schedule and next fire, the Trigger and step on hover. A
+ * fired Runbook runs the step under this Line's own enablement.
+ */
+function RunbookWakes({ via, now }: { via: RunbookWake[]; now: Date }) {
+  return (
+    <div className="mt-3 space-y-1 text-[12px]">
+      <div className="t-meta">Run by Runbooks</div>
+      <ul aria-label="Run by Runbooks" className="text-zinc-300">
+        {via.map((wake) => (
+          <li key={`${wake.runbook}\n${wake.trigger}`}>
+            <RunbookWakeText wake={wake} now={now} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * The Triggers aimed at the Line, one row each: when it fires, whether the
  * current enablement armed it (the enablement lists the Triggers it armed),
  * and the next scheduled fire; the enablement history under the table.
@@ -414,9 +436,12 @@ function TriggersPanel({ card }: { card: LineCard }) {
   const current = (card.enablements ?? [])[0];
   const armed = new Set((current?.triggers ?? []).map((t) => t.trigger.replace(/^Trigger:/, "")));
   const now = new Date();
+  const via = useRunbookWakes().byLine.get(lineName(card.line)) ?? [];
   return (
       <Panel title="Triggers" meta={<span id="triggers">{card.due ?? 0} due · {card.waiting ?? 0} scheduled</span>}>
-        {(card.triggers ?? []).length === 0 ? (
+        {(card.triggers ?? []).length === 0 && via.length > 0 ? (
+          <div className="text-[13px] text-zinc-600">—</div>
+        ) : (card.triggers ?? []).length === 0 ? (
           <div className="flex items-center gap-1.5 text-[13px] text-zinc-600">
             None
             <span className="t-meta">No Trigger is aimed at this Line: it runs only when started by hand.</span>
@@ -431,6 +456,7 @@ function TriggersPanel({ card }: { card: LineCard }) {
             maxHeight="none"
           />
         )}
+        {via.length > 0 && <RunbookWakes via={via} now={now} />}
         {(card.enablements ?? []).length > 0 && (
           <div className="mt-3 space-y-1 text-[12px]">
             <div className="t-meta">Enablements</div>

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
+import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
 import { AUTHORED } from "@/fixtures/handlers";
 import { defineFixture } from "@/fixtures/fixture";
 import { AT, COORDINATE, NOW } from "@/fixtures/authored/world";
@@ -208,5 +209,22 @@ describe("Runbooks on the Lines page", () => {
     const main = within(await screen.findByRole("main"));
     await main.findByRole("table", { name: "Lines" });
     expect(main.queryByRole("heading", { name: "Runbooks" })).toBeNull();
+  });
+});
+
+describe("Lines run by a Runbook", () => {
+  it("names the Runbook whose Trigger runs a Line on the Automation table and the Line page", async () => {
+    renderApp("/i/inst_fixture/automation", RUNBOOK_WAKES);
+    const main = within(await screen.findByRole("main"));
+    const lines = within(await main.findByRole("table", { name: "Lines" }));
+    const row = within((await lines.findByRole("link", { name: "demo.maintain" })).closest("tr")!);
+    expect(row.getByRole("link", { name: "cve-applicability" })).toBeInTheDocument();
+    expect(row.queryByText("none")).toBeNull();
+    cleanup();
+
+    renderApp("/i/inst_fixture/lines/cve-applicability", RUNBOOK_WAKES);
+    const runBy = within(await screen.findByRole("list", { name: "Run by Runbooks" }));
+    expect(runBy.getByRole("link", { name: "demo.maintain" })).toHaveAttribute("href", "/i/inst_fixture/runbooks/demo.maintain");
+    expect(screen.queryByText(/it runs only when started by hand/)).toBeNull();
   });
 });

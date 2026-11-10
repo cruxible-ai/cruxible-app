@@ -23,6 +23,7 @@ import { isCoreIdentity } from "@/lib/ontology";
 import { wakeOf } from "@/lib/schedule";
 import { sentence } from "@/lib/text";
 import { useDependenciesOf } from "@/lib/useLineDependencies";
+import { useRunbookWakes } from "@/lib/useRunbookWakes";
 
 type RunRow = Schemas["RunRow"];
 
@@ -69,6 +70,8 @@ export function useFlowModel() {
     () => new Set([...(lastRuns ?? [])].filter(([, run]) => run.status === "running").map(([line]) => line)),
     [lastRuns],
   );
+  // The Runbook Triggers that run each Line: a Line with no Trigger of its own still runs on its Runbook's schedule.
+  const runbookWakes = useRunbookWakes();
   const proofs = useGetBatch(
     (claimTypes.data?.rows ?? []).filter((row) => (row.evidence ?? []).length > 0).map((row) => `ClaimType:${row.predicate}`),
     "proof",
@@ -78,7 +81,7 @@ export function useFlowModel() {
   const dependencies = useDependenciesOf(sources.data, subjectKinds.error ? [] : subjectKinds.data?.rows);
 
   const model = useMemo<FlowModel | null>(() => {
-    if (!claimTypes.data || !lines.data || !sources.data || proofs.isPending || dependencies === null || contracts.isPending) return null;
+    if (!claimTypes.data || !lines.data || !sources.data || proofs.isPending || dependencies === null || contracts.isPending || runbookWakes.pending) return null;
     const grades: Grades = new Map((contracts.data?.rows ?? []).map((row) => [contractName(row.contract), row.grade] as const));
     const accepts = new Map<string, AcceptedEvidence[]>();
     for (const result of proofs.results) {
@@ -88,10 +91,11 @@ export function useFlowModel() {
     const { specs, lines: lineDefinitions } = sources.data;
     const flows = new Map(lineFlows(specs, lineDefinitions).map((flow) => [flow.line, flow] as const));
     const procedureOf = new Map(lineDefinitions.map((line) => [line.line, line.procedure] as const));
-    // When a Line runs, in words: its Triggers ("Daily at 1:15 PM EST"), or on demand.
+    // When a Line runs, in words: its Triggers ("Daily at 1:15 PM EST"), then its Runbooks' ("Daily at 9:00 AM EST, security.maintain"), or on demand.
     const whenOf = (line: string) => {
-      const words = triggerWords.get(line);
-      if (!words) return null;
+      const own = triggerWords.get(line);
+      if (!own) return null;
+      const words = [...own, ...(runbookWakes.byLine.get(line) ?? []).map((w) => `${wakeOf(w.fires).words}, ${w.runbook}`)];
       return words.length ? sentence(words.length > 1 ? `${words[0]} (+${words.length - 1} more)` : words[0]!) : "When it is run";
     };
     // A source: where it comes from (the URL its fetch names), how it arrives, and when it is fetched.
@@ -143,7 +147,7 @@ export function useFlowModel() {
       }),
       landings: derivedLandings(specs, lineDefinitions, sources.data.triggers, grades),
     });
-  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords, subjectKinds.data, dependencies, contracts.isPending, contracts.data]);
+  }, [claimTypes.data, lines.data, sources.data, proofs.isPending, proofs.results, triggerWords, subjectKinds.data, dependencies, contracts.isPending, contracts.data, runbookWakes.pending, runbookWakes.byLine]);
 
   const error = claimTypes.error ?? lines.error ?? sources.error;
   const capped = Boolean(sources.data?.truncated || claimTypes.data?.truncated);

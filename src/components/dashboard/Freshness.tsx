@@ -6,6 +6,7 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { useAtLink } from "@/lib/at";
 import { intervalWords, sourceFreshness, type FreshMark, type SourceFreshness } from "@/lib/dashboard";
 import { lineName } from "@/lib/lines";
+import { useRunbookWakes } from "@/lib/useRunbookWakes";
 import { formatDateTime, formatRelative } from "@/lib/text";
 import type { HealthTone } from "@/lib/vocabulary";
 
@@ -16,7 +17,7 @@ const MARK: Record<FreshMark, { word: string; tone: HealthTone; meaning: string 
   late: { word: "Late", tone: "waiting", meaning: "Past one expected interval since it last landed" },
   stale: { word: "Stale", tone: "wrong", meaning: "Past two expected intervals since it last landed, or never landed" },
   by_hand: { word: "By hand", tone: "off", meaning: "No enabled Line's Trigger feeds it: it lands when someone runs it" },
-  unscheduled: { word: "No interval", tone: "off", meaning: "An enabled Line feeds it, on a Trigger with no fixed interval" },
+  unscheduled: { word: "No interval", tone: "off", meaning: "An enabled Line feeds it, on no Trigger with a fixed interval (its own or a Runbook's)" },
 };
 
 const enabled = (row: Schemas["OrientLine"]) => row.lifecycle === "live" && row.enablement != null && row.enablement !== "disabled";
@@ -33,6 +34,7 @@ export function FreshnessPanel({ label }: { label: (line: string) => string }) {
   const lines = useLines();
   const on = (lines.data?.rows ?? []).filter(enabled).map((row) => lineName(row.line));
   const cards = useCards(on.map((name) => `Line:${name}`));
+  const runbookWakes = useRunbookWakes();
   // Sources, Lines and Triggers are ontology-sized: derived on each render, no memo.
   const byLine = new Map(on.map((name, i) => [name, (cards[i]?.card ?? undefined) as LineCard | undefined] as const));
   const rows: SourceFreshness[] | null =
@@ -41,9 +43,11 @@ export function FreshnessPanel({ label }: { label: (line: string) => string }) {
           sources: model.data.sources,
           landings: landings.data.rows,
           lines: lines.data.rows,
+          // its own Triggers and the Runbook Triggers that run it
           triggersOf: (line) => {
             const card = byLine.get(line);
-            return card ? (card.triggers ?? []).map((t) => t.fires) : undefined;
+            if (!card || runbookWakes.pending) return undefined;
+            return [...(card.triggers ?? []).map((t) => t.fires), ...(runbookWakes.byLine.get(line) ?? []).map((w) => w.fires)];
           },
           now: new Date(),
         })
@@ -114,7 +118,7 @@ function SourceCell({ row, label }: { row: SourceFreshness; label: (line: string
         {row.interval !== null && (
           <>
             <span className="text-zinc-600">·</span>
-            <span title="The shortest interval its enabled Lines' Triggers expect">every {intervalWords(row.interval)}</span>
+            <span title="The shortest interval its enabled Lines' Triggers expect, a Runbook's that runs them included">every {intervalWords(row.interval)}</span>
           </>
         )}
         {row.lines.map((line) => (

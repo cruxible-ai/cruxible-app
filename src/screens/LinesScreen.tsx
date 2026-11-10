@@ -14,6 +14,8 @@ import { DataTable, useTableState, type Column } from "@/components/DataTable";
 import { LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
+import { RunbookWakeText } from "@/components/RunbookWake";
+import { useRunbookWakes, type RunbookWake } from "@/lib/useRunbookWakes";
 import { lineName, nextRowsByLine, runId, unreadOf } from "@/lib/lines";
 import { reasonMeta } from "@/lib/next-reasons";
 import { nodeId, shortNames, type FlowModel } from "@/lib/evidence-flow";
@@ -83,6 +85,8 @@ export function LinesScreen() {
   }, [mandates.data]);
   const nextByLine = useMemo(() => nextRowsByLine(next.data?.items ?? []), [next.data]);
   const triggersOf = useMemo(() => (row: LineRow) => flow.triggerWords.get(lineName(row.line)), [flow.triggerWords]);
+  const runbookWakes = useRunbookWakes();
+  const viaOf = useMemo(() => (row: LineRow) => runbookWakes.byLine.get(lineName(row.line)) ?? [], [runbookWakes.byLine]);
   const nextPartial = Boolean(next.data?.next_cursor);
 
   const columns = useMemo<Column<LineRow>[]>(() => {
@@ -122,11 +126,11 @@ export function LinesScreen() {
       {
         id: "starts",
         header: "Starts on",
-        title: "Its Triggers in words: a source landing, a schedule; none means it runs when someone runs it",
-        sortValue: (row) => triggersOf(row)?.[0] ?? row.trigger,
-        filter: { kind: "text", text: (row) => (triggersOf(row) ?? [row.trigger]).join(" ") },
+        title: "Its Triggers in words (a source landing, a schedule), then the Runbooks whose Triggers run it; none means it runs when someone runs it",
+        sortValue: (row) => triggersOf(row)?.[0] ?? viaOf(row)[0]?.runbook ?? row.trigger,
+        filter: { kind: "text", text: (row) => [...(triggersOf(row) ?? [row.trigger]), ...viaOf(row).map((w) => w.runbook)].join(" ") },
         className: "text-[12px] text-zinc-300",
-        cell: (row) => <StartsOn words={triggersOf(row)} fallback={row.trigger.replaceAll("+", " + ")} />,
+        cell: (row) => <StartsOn words={triggersOf(row)} via={viaOf(row)} fallback={row.trigger.replaceAll("+", " + ")} />,
       },
       {
         id: "ends",
@@ -289,7 +293,7 @@ export function LinesScreen() {
       },
     ];
     return columns.filter((column): column is Column<LineRow> => column !== null);
-  }, [cards.isPending, ends, flow.error, instanceId, lastRun, link, mandatesByLine, nextByLine, nextPartial, rows, short, triggersOf]);
+  }, [cards.isPending, ends, flow.error, instanceId, lastRun, link, mandatesByLine, nextByLine, nextPartial, rows, short, triggersOf, viaOf]);
   const [state] = useTableState(columns);
   // a sort or filter on the next-derived columns reads only the first next page
   const byNext = nextPartial && (state.sort?.column === "needs" || Boolean(state.filters["needs"]));
@@ -549,19 +553,34 @@ function EndsIn({ end, authority }: { end: LineEnd | undefined; authority: strin
   );
 }
 
-/** A Line's Triggers in words: the first, and how many more; "none" when nothing starts it but a person. */
-function StartsOn({ words, fallback }: { words: readonly string[] | null | undefined; fallback: string }) {
-  if (words === undefined || words === null) return <span className="text-zinc-500">{fallback}</span>;
+/**
+ * A Line's Triggers in words: the first, and how many more; then the Runbooks
+ * whose Triggers run it (one line each); "none" when nothing starts it but a
+ * person.
+ */
+function StartsOn({ words, via, fallback }: { words: readonly string[] | null | undefined; via: readonly RunbookWake[]; fallback: string }) {
+  const now = new Date();
+  const runbooks = via.map((wake) => (
+    <span key={`${wake.runbook}\n${wake.trigger}`} className="block">
+      <RunbookWakeText wake={wake} now={now} next={false} />
+    </span>
+  ));
+  if (words === undefined || words === null) return via.length ? <>{runbooks}</> : <span className="text-zinc-500">{fallback}</span>;
   if (words.length === 0)
-    return (
+    return via.length ? (
+      <>{runbooks}</>
+    ) : (
       <span className="text-zinc-500" title="No Trigger: it runs when someone runs it">
         none
       </span>
     );
   return (
-    <span title={words.join("; ")}>
-      {words[0]}
-      {words.length > 1 && <span className="text-zinc-500"> +{words.length - 1}</span>}
-    </span>
+    <>
+      <span className="block" title={words.join("; ")}>
+        {words[0]}
+        {words.length > 1 && <span className="text-zinc-500"> +{words.length - 1}</span>}
+      </span>
+      {runbooks}
+    </>
   );
 }
