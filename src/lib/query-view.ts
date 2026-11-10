@@ -21,6 +21,22 @@ export type Part =
   | { field: string; claimType: string | null; title: string }
   | { param: string };
 
+/** A pair hop's key part or fact: the ClaimType's full name and its field name. */
+export interface PairField {
+  claimType: string;
+  field: string;
+}
+
+/**
+ * A pair hop's box (`KIND{part: binding, ...}[!] [with FACT]`): the key parts
+ * bound to earlier boxes other than the one its arrow comes from, and the
+ * fact every pair it binds holds.
+ */
+export interface PairBox {
+  also: (PairField & { binding: string })[];
+  fact: PairField | null;
+}
+
 export interface QueryBox {
   /** The binding name the definition uses (shown on hover only). */
   binding: string;
@@ -30,6 +46,8 @@ export interface QueryBox {
   entryParam: string | null;
   /** Filters on this box, each in words. */
   filters: Part[][];
+  /** Set when the box is bound by a pair hop. */
+  pair?: PairBox;
 }
 
 export interface QueryLink {
@@ -66,12 +84,23 @@ export interface QueryView {
   links: QueryLink[];
   /** Filters that name more than one box, in words. */
   filters: Part[][];
+  /** The same filters as clause trees (one per filter), for reading line by line. */
+  whereTrees: FilterNode[];
   returns: QueryReturn[];
   params: QueryParam[];
   /** The row Contract as `name@N`. */
   row: string | null;
   /** True when rows are paths (the query hops), false when one row per entry Subject. */
   paths: boolean;
+  /** Result budgets as the definition states them; null when it states none. */
+  budgets: QueryBudgets | null;
+}
+
+export interface QueryBudgets {
+  limit: number | null;
+  pathsPerResult: number | null;
+  maxResults: number | null;
+  maxPathsPerResult: number | null;
 }
 
 /** A ClaimType as the ontology lists it, enough to resolve a hop's kinds. */
@@ -95,6 +124,11 @@ export function kindWord(kind: string): string {
   return (kind.split(".").at(-1) ?? kind).replaceAll("_", " ").replaceAll("-", " ");
 }
 
+
+/** A kind's name as written, its last segment ("security.app_exposure" -> "app_exposure"): field references read `app_exposure.verdict`. */
+export function kindName(kind: string): string {
+  return kind.split(".").at(-1) ?? kind;
+}
 
 /** A predicate named on a binding of `kinds`: its full ClaimType name and its field name. */
 export function claimTypeOf(predicate: string, kinds: readonly string[]): { claimType: string; field: string } {
@@ -162,7 +196,7 @@ export function filterBindings(text: string, bindings: ReadonlyMap<string, strin
 /** A binding's field reference, named directly: the box's own field (`status`), or another box's (`assessment.status`). */
 function refWords(binding: string, rest: string, bindings: ReadonlyMap<string, string[]>, own: string | null): Part[] {
   const kinds = bindings.get(binding) ?? [];
-  const kind = kindWord(kinds[0] ?? binding);
+  const kind = kindName(kinds[0] ?? binding);
   const whose = binding === own ? "" : `${kind}.`;
   if (rest === "") return [{ text: binding === own ? "it" : kind }];
   if (rest === "subject_kind" || rest === "subject_id") return [{ field: `${whose}${rest}`, claimType: null, title: `${binding}.${rest}` }];
@@ -172,10 +206,35 @@ function refWords(binding: string, rest: string, bindings: ReadonlyMap<string, s
 
 /** A filter expression in words, `own` being the box it is written on. */
 export function filterWords(text: string, bindings: ReadonlyMap<string, string[]>, own: string | null): Part[] {
+  return tokenWords(tokens(text), bindings, own);
+}
+
+/** The closing parenthesis matching the one at `open`; -1 when unbalanced. */
+function closing(list: readonly string[], open: number): number {
+  let depth = 0;
+  for (let i = open; i < list.length; i += 1) {
+    if (list[i] === "(") depth += 1;
+    else if (list[i] === ")" && --depth === 0) return i;
+  }
+  return -1;
+}
+
+const literalText = (token: string) => (token.startsWith('"') ? token.slice(1, -1) : token);
+
+/** Tokens in words: operators, presence, parameters, fields; an `in` list reads `(a, b)`. */
+function tokenWords(list: readonly string[], bindings: ReadonlyMap<string, string[]>, own: string | null): Part[] {
   const out: Part[] = [];
-  const list = tokens(text);
   for (let i = 0; i < list.length; i += 1) {
     const token = list[i]!;
+    if (token === "in" && list[i + 1] === "(") {
+      const end = closing(list, i + 1);
+      const items = end > 0 ? list.slice(i + 2, end).filter((item) => item !== ",") : [];
+      if (end > 0 && items.every((item) => !item.startsWith("$") && item !== "(" && item !== ")")) {
+        out.push({ text: OPERATOR_WORDS.in! }, { text: `(${items.map(literalText).join(", ")})` });
+        i = end;
+        continue;
+      }
+    }
     if (token === "not" && list[i + 1] === "exists") {
       out.push({ text: "has no" });
       i += 1;
@@ -185,9 +244,102 @@ export function filterWords(text: string, bindings: ReadonlyMap<string, string[]
     else if (/^[a-zA-Z_]/.test(token) && bindings.has(token.split(".")[0]!)) {
       const [binding, ...rest] = token.split(".");
       out.push(...refWords(binding!, rest.join("."), bindings, own));
-    } else out.push({ text: token.startsWith('"') ? token.slice(1, -1) : token });
+    } else out.push({ text: literalText(token) });
   }
   return merged(out);
+}
+
+// -- filters as clause trees --------------------------------------------------
+
+/** A filter as clauses: a comparison or presence in words, or `and` / `or` / `not` over clauses. */
+export type FilterNode =
+  | { op: "clause"; parts: Part[] }
+  | { op: "and" | "or"; children: FilterNode[] }
+  | { op: "not"; child: FilterNode };
+
+/**
+ * A filter expression as a clause tree, by the grammar's precedence (`not`,
+ * then `and`, then `or`; parentheses group): same-operator runs flatten, a
+ * parenthesised single clause is that clause. Text outside the grammar is
+ * one clause read as written.
+ */
+export function filterTree(text: string, bindings: ReadonlyMap<string, string[]>, own: string | null): FilterNode {
+  const list = tokens(text);
+  let index = 0;
+  const peek = () => list[index];
+  const fail = { op: "clause", parts: filterWords(text, bindings, own) } as const;
+  const join = (op: "and" | "or", items: FilterNode[]): FilterNode =>
+    items.length === 1 ? items[0]! : { op, children: items.flatMap((item) => (item.op === op ? item.children : [item])) };
+  function or(): FilterNode | null {
+    const items = [and()];
+    while (peek() === "or") {
+      index += 1;
+      items.push(and());
+    }
+    return items.some((item) => item === null) ? null : join("or", items as FilterNode[]);
+  }
+  function and(): FilterNode | null {
+    const items = [not()];
+    while (peek() === "and") {
+      index += 1;
+      items.push(not());
+    }
+    return items.some((item) => item === null) ? null : join("and", items as FilterNode[]);
+  }
+  function not(): FilterNode | null {
+    if (peek() === "not" && list[index + 1] !== "exists") {
+      index += 1;
+      const child = not();
+      return child && { op: "not", child };
+    }
+    return primary();
+  }
+  function primary(): FilterNode | null {
+    if (peek() === "(") {
+      index += 1;
+      const inner = or();
+      if (peek() !== ")") return null;
+      index += 1;
+      return inner;
+    }
+    const start = index;
+    while (index < list.length && !["and", "or", ")"].includes(list[index]!)) {
+      if (list[index] === "in" && list[index + 1] === "(") {
+        const end = closing(list, index + 1);
+        if (end < 0) return null;
+        index = end + 1;
+      } else if (list[index] === "(") return null;
+      else index += 1;
+    }
+    return index > start ? { op: "clause", parts: tokenWords(list.slice(start, index), bindings, own) } : null;
+  }
+  // a single unparsed token means the text is outside the grammar
+  if (list.length === 1 && list[0] === text) return fail;
+  const tree = or();
+  return tree && index === list.length ? tree : fail;
+}
+
+/** One line of a filter read clause by clause: its depth, the connective words before it, the clause (null: a group follows, indented). */
+export interface FilterLine {
+  depth: number;
+  lead: string[];
+  parts: Part[] | null;
+}
+
+/** A clause tree as lines: one clause per line, a nested group indented under its connective. */
+export function filterLines(node: FilterNode, depth = 0, lead: string[] = []): FilterLine[] {
+  if (node.op === "clause") return [{ depth, lead, parts: node.parts }];
+  if (node.op === "not") {
+    if (node.child.op === "and" || node.child.op === "or") return [{ depth, lead: [...lead, "not"], parts: null }, ...filterLines(node.child, depth + 1)];
+    return filterLines(node.child, depth, [...lead, "not"]);
+  }
+  return node.children.flatMap((child, i) => {
+    const words = i === 0 ? lead : [node.op];
+    if (child.op === "and" || child.op === "or") {
+      return words.length > 0 ? [{ depth, lead: words, parts: null }, ...filterLines(child, depth + 1)] : filterLines(child, depth + 1);
+    }
+    return filterLines(child, depth, words);
+  });
 }
 
 /** Adjacent text pieces as one. */
@@ -207,7 +359,7 @@ export function expressionWords(text: string, bindings: ReadonlyMap<string, stri
   const [binding, ...rest] = text.trim().split(".");
   if (!bindings.has(binding!)) return [{ text }];
   const kinds = bindings.get(binding!) ?? [];
-  const kind = kindWord(kinds[0] ?? binding!);
+  const kind = kindName(kinds[0] ?? binding!);
   const tail = rest.join(".");
   if (tail === "" || tail === "subject_id") return [{ field: `${kind}.subject_id`, claimType: null, title: text }];
   if (tail === "subject_kind") return [{ field: `${kind}.subject_kind`, claimType: null, title: text }];
@@ -238,7 +390,47 @@ function resolver(claimTypes: readonly ClaimTypeShape[]) {
 /** The kind a qualified ClaimType name is declared on (`security.assessment.vulnerability` -> `security.assessment`). */
 const ownerOf = (claimType: string) => (claimType.split(".").length > 2 ? claimType.split(".").slice(0, -1).join(".") : null);
 
-function readAuthored(definition: Record<string, unknown>, claimTypes: readonly ClaimTypeShape[]): Omit<QueryView, "params" | "name" | "description"> | null {
+/** ``KIND{parts}`` with an optional ``!`` (required) and ``with FACT`` (core's authored pair hop). */
+const PAIR_HOP = /^\s*([a-z][a-z0-9_.]*)\s*\{([^{}]*)\}\s*(!?)\s*(?:with\s+([a-z][a-z0-9_.]*))?\s*$/;
+
+/**
+ * A pair hop as a box and the arrow into it: the arrow comes from the part
+ * bound latest (the deepest box it joins), followed backwards (the pair
+ * carries the part and names that box); the other parts are listed on the box.
+ */
+function pairStep(
+  target: string,
+  kind: string,
+  parts: readonly (PairField & { binding: string })[],
+  fact: PairField | null,
+  required: boolean,
+  order: readonly string[],
+): { box: QueryBox; link: QueryLink } | null {
+  if (parts.length === 0) return null;
+  const from = [...parts].sort((a, b) => order.indexOf(b.binding) - order.indexOf(a.binding))[0]!;
+  return {
+    box: { binding: target, kinds: [kind], entryParam: null, filters: [], pair: { also: parts.filter((part) => part !== from), fact } },
+    link: { from: from.binding, to: target, claimType: from.claimType, field: from.field, reverse: true, required },
+  };
+}
+
+/** The result budgets a definition states (what a read gets unless it asks, and the most it may ask); null when none. */
+function readBudgets(definition: Record<string, unknown>): QueryBudgets | null {
+  const num = (value: unknown) => (typeof value === "number" ? value : null);
+  // authored: limit, paths_per_result, max; typed: default_budgets, maximum_budgets
+  const max = rec(definition.max);
+  const given = rec(definition.default_budgets);
+  const most = rec(definition.maximum_budgets);
+  const budgets = {
+    limit: num(definition.limit) ?? num(given?.max_results),
+    pathsPerResult: num(definition.paths_per_result) ?? num(given?.max_paths_per_result),
+    maxResults: num(max?.results) ?? num(most?.max_results),
+    maxPathsPerResult: num(max?.paths_per_result) ?? num(most?.max_paths_per_result),
+  };
+  return Object.values(budgets).some((value) => value !== null) ? budgets : null;
+}
+
+function readAuthored(definition: Record<string, unknown>, claimTypes: readonly ClaimTypeShape[]): Omit<QueryView, "params" | "name" | "description" | "budgets"> | null {
   const entry = one(definition.from);
   if (!entry) return null;
   const resolve = resolver(claimTypes);
@@ -255,6 +447,22 @@ function readAuthored(definition: Record<string, unknown>, claimTypes: readonly 
     if (!pair) continue;
     const [target, expression] = pair;
     const [head, condition] = expression.split(/\s+where(?:\s+|$)/, 2) as [string, string | undefined];
+    if (head.includes("{")) {
+      const matched = PAIR_HOP.exec(head);
+      if (!matched) continue;
+      const [, kind, body, bang, factName] = matched as unknown as [string, string, string, string, string | undefined];
+      const parts = body.split(",").flatMap((item) => {
+        const [part, binding] = item.split(":").map((piece) => piece.trim()) as [string, string | undefined];
+        return part && binding && bindings.has(binding) ? [{ ...claimTypeOf(part, [kind]), binding }] : [];
+      });
+      const step = pairStep(target, kind, parts, factName ? claimTypeOf(factName, [kind]) : null, bang === "!", [...bindings.keys()]);
+      if (!step) continue;
+      bindings.set(target, [kind]);
+      boxes.push(step.box);
+      links.push(step.link);
+      if (condition) hopFilters.push([target, condition]);
+      continue;
+    }
     const [relation, targetText] = head.trim().split(/\s*:\s*/, 2) as [string, string | undefined];
     const reverse = relation.startsWith("<");
     const required = relation.endsWith("!");
@@ -288,11 +496,15 @@ function readAuthored(definition: Record<string, unknown>, claimTypes: readonly 
   const boxOf = new Map(boxes.map((box) => [box.binding, box]));
   for (const [target, condition] of hopFilters) boxOf.get(target)!.filters.push(filterWords(condition, bindings, target));
   const filters: Part[][] = [];
+  const whereTrees: FilterNode[] = [];
   const where = str(definition.where);
   if (where) {
     const named = filterBindings(where, bindings);
     if (named.length === 1) boxOf.get(named[0]!)!.filters.push(filterWords(where, bindings, named[0]!));
-    else filters.push(filterWords(where, bindings, null));
+    else {
+      filters.push(filterWords(where, bindings, null));
+      whereTrees.push(filterTree(where, bindings, null));
+    }
   }
   const fields = Array.isArray(definition.fields) ? definition.fields : [];
   const returns = fields.flatMap((item): QueryReturn[] => {
@@ -304,7 +516,7 @@ function readAuthored(definition: Record<string, unknown>, claimTypes: readonly 
     const pair = one(item);
     return pair ? [{ name: pair[0], from: expressionWords(pair[1], bindings), expression: pair[1] }] : [];
   });
-  return { boxes, links, filters, returns, row: str(definition.row), paths: links.length > 0 };
+  return { boxes, links, filters, whereTrees, returns, row: str(definition.row), paths: links.length > 0 };
 }
 
 /** A typed value ref (`claim_value`, `subject_field`, …) as authored text. */
@@ -318,7 +530,7 @@ function refText(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function readTyped(definition: Record<string, unknown>): Omit<QueryView, "params" | "name" | "description"> | null {
+function readTyped(definition: Record<string, unknown>): Omit<QueryView, "params" | "name" | "description" | "budgets"> | null {
   const entry = rec(definition.entry);
   const entryBinding = str(entry?.binding);
   if (!entry || !entryBinding) return null;
@@ -333,6 +545,23 @@ function readTyped(definition: Record<string, unknown>): Omit<QueryView, "params
   for (const step of Array.isArray(definition.traversal) ? definition.traversal : []) {
     const s = rec(step);
     const binding = str(s?.binding);
+    const kind = str(s?.subject_kind);
+    if (s && binding && kind && Array.isArray(s.parts)) {
+      // a pair step: the pair of `subject_kind` whose key parts name earlier bindings
+      const parts = s.parts.flatMap((item) => {
+        const part = rec(item);
+        const name = str(part?.part);
+        const bound = str(part?.binding);
+        return name && bound && bindings.has(bound) ? [{ ...claimTypeOf(name, [kind]), binding: bound }] : [];
+      });
+      const fact = str(s.fact);
+      const made = pairStep(binding, kind, parts, fact ? claimTypeOf(fact, [kind]) : null, s.required !== false, [...bindings.keys()]);
+      if (!made) continue;
+      bindings.set(binding, [kind]);
+      boxes.push({ ...made.box, filters: s.where ? [typedFilter()] : [] });
+      links.push(made.link);
+      continue;
+    }
     const source = str(s?.from_binding);
     const predicate = str(s?.predicate);
     if (!s || !binding || !source || !predicate) continue;
@@ -355,6 +584,7 @@ function readTyped(definition: Record<string, unknown>): Omit<QueryView, "params
     boxes,
     links,
     filters: definition.where ? [typedFilter()] : [],
+    whereTrees: definition.where ? [{ op: "clause", parts: typedFilter() }] : [],
     returns,
     row: contract ? `${String(contract.name)}@${String(contract.version)}` : null,
     paths: links.length > 0,
@@ -395,6 +625,7 @@ export function readQueryView(card: QueryCard, claimTypes: readonly ClaimTypeSha
     name: card.query.replace(/^(?:query|QueryDefinition):/, ""),
     description: card.description ?? str(definition.description),
     params: readParams(card, definition),
+    budgets: readBudgets(definition),
     ...body,
   };
 }

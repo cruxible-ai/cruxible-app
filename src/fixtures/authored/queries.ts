@@ -68,6 +68,53 @@ export const RELEASE_EXPOSURE_CARD: Schemas["GetQueryCard"] = {
   },
 };
 
+/**
+ * `security.urgent_exposures` as the walkthrough daemon serves it (security kit
+ * 1.3.0, six of its ten fields): pair hops (`KIND{part: binding, ...}`, one `with` a fact) bind the
+ * occurrence, exposure and app_exposure boxes, and its `where` nests
+ * `not`/`and`/`or` over two of them.
+ */
+export const URGENT_EXPOSURES = "security.urgent_exposures";
+export const URGENT_EXPOSURES_CARD: Schemas["GetQueryCard"] = {
+  query: URGENT_EXPOSURES,
+  description:
+    "Every occurrence (an inventory's component) a vulnerability affects that nobody has judged, KEV-listed first, then by EPSS score; a package-level or app-level not_affected judgment or an affected verdict removes it.",
+  params: [],
+  definition: {
+    query: URGENT_EXPOSURES,
+    params: {},
+    params_contract: null,
+    row: "security.exposure-row@1",
+    from: { v: "security.vulnerability" },
+    where:
+      '(not (e.security.exposure.justification in ("vulnerable_code_not_present")) and not ((not exists ae.security.app_exposure.justification and ae.security.app_exposure.verdict == "affected")) and not (((not exists ae.security.app_exposure.verdict or ae.security.app_exposure.verdict == "not_affected") and ae.security.app_exposure.justification in ("component_not_present", "inline_mitigations_already_exist", "vulnerable_code_cannot_be_controlled_by_adversary", "vulnerable_code_not_in_execute_path"))))',
+    hops: [
+      { c: "<v.security.component.affected_by!: security.component" },
+      { o: "security.occurrence{security.occurrence.component: c}! with security.occurrence.scope" },
+      { i: "o.security.occurrence.inventory!: security.inventory" },
+      { e: "security.exposure{security.exposure.component: c, security.exposure.vulnerability: v}" },
+      { ae: "security.app_exposure{security.app_exposure.occurrence: o, security.app_exposure.vulnerability: v}" },
+    ],
+    fields: [
+      { component: "c.security.component.purl" },
+      { cve_id: "v.security.vulnerability.cve_id" },
+      { epss_score: "v.security.vulnerability.epss_score" },
+      { inventory: "i.security.inventory.inventory_id" },
+      { occurrence: "o" },
+      { scope: "o.security.occurrence.scope" },
+    ],
+    order: [
+      { field: "-v.security.vulnerability.kev_date_added", type: "string" },
+      { field: "-v.security.vulnerability.epss_score", type: "decimal" },
+    ],
+    include: {},
+    visible: "current",
+    limit: 200,
+    paths_per_result: 100,
+    max: { results: 2000, paths_per_result: 1000 },
+  },
+};
+
 /** The release the release_exposure fixture answers for. */
 export const RELEASE = "security.release/acme-2.4.0";
 
@@ -84,6 +131,7 @@ const subject = (id: string) => `security.release/${id}`;
 export default [
   cardBatch(`query:${KEV_EXPOSURE}`, "query", KEV_EXPOSURE_CARD),
   cardBatch(`query:${RELEASE_EXPOSURE}`, "query", RELEASE_EXPOSURE_CARD),
+  cardBatch(`query:${URGENT_EXPOSURES}`, "query", URGENT_EXPOSURES_CARD),
   cardBatch(`Contract:${KEV_EXPOSURE_ROW}`, "contract", {
     contract: `Contract:${KEV_EXPOSURE_ROW}`,
     version: 1,

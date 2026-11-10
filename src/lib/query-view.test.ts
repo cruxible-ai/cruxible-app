@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { KEV_EXPOSURE_CARD, RELEASE_EXPOSURE_CARD } from "@/fixtures/authored/queries";
+import { KEV_EXPOSURE_CARD, RELEASE_EXPOSURE_CARD, URGENT_EXPOSURES_CARD } from "@/fixtures/authored/queries";
 import { KEV_TRIAGE_SPEC } from "@/fixtures/authored/definitions";
 import type { Schemas } from "@/api/schemas";
 import {
   columnField,
   expressionWords,
+  filterLines,
+  filterTree,
   filterWords,
   needsOntology,
   partsText,
@@ -118,6 +120,101 @@ describe("readQueryView", () => {
 
   it("is null for a card without a definition", () => {
     expect(readQueryView({ query: "q" })).toBeNull();
+  });
+});
+
+describe("pair hops (the served security.urgent_exposures)", () => {
+  const view = readQueryView(URGENT_EXPOSURES_CARD)!;
+
+  it("names each box by the kind its hop binds: a pair hop binds its pair kind", () => {
+    expect(view.boxes.map((box) => [box.binding, box.kinds])).toEqual([
+      ["v", ["security.vulnerability"]],
+      ["c", ["security.component"]],
+      ["o", ["security.occurrence"]],
+      ["i", ["security.inventory"]],
+      ["e", ["security.exposure"]],
+      ["ae", ["security.app_exposure"]],
+    ]);
+    expect(rowWords(view)).toBe("1 row / path vulnerability → component → occurrence → inventory → exposure → app exposure");
+  });
+
+  it("draws a pair hop's arrow from the part bound latest, backwards along that key part; the other parts and its fact sit on the box", () => {
+    expect(view.links).toEqual([
+      { from: "v", to: "c", claimType: "security.component.affected_by", field: "affected_by", reverse: true, required: true },
+      { from: "c", to: "o", claimType: "security.occurrence.component", field: "component", reverse: true, required: true },
+      { from: "o", to: "i", claimType: "security.occurrence.inventory", field: "inventory", reverse: false, required: true },
+      { from: "c", to: "e", claimType: "security.exposure.component", field: "component", reverse: true, required: false },
+      { from: "o", to: "ae", claimType: "security.app_exposure.occurrence", field: "occurrence", reverse: true, required: false },
+    ]);
+    const box = (binding: string) => view.boxes.find((item) => item.binding === binding)!;
+    expect(box("o").pair).toEqual({ also: [], fact: { claimType: "security.occurrence.scope", field: "scope" } });
+    expect(box("e").pair).toEqual({ also: [{ claimType: "security.exposure.vulnerability", field: "vulnerability", binding: "v" }], fact: null });
+    expect(box("ae").pair?.also.map((part) => part.field)).toEqual(["vulnerability"]);
+  });
+
+  it("names a where clause's fields by their own box's kind, and a bare binding by its Subject id", () => {
+    const text = partsText(view.filters[0]!);
+    expect(text).toContain("exposure.justification is one of (vulnerable_code_not_present)");
+    expect(text).toContain("has no app_exposure.justification and app_exposure.verdict is affected");
+    expect(text).not.toContain("vulnerability.justification");
+    expect(text).not.toContain("vulnerability.verdict");
+    expect(view.returns.find((item) => item.name === "occurrence")!.from).toEqual([{ field: "occurrence.subject_id", claimType: null, title: "o" }]);
+    expect(view.returns.find((item) => item.name === "scope")!.from[0]).toMatchObject({ field: "occurrence.scope", claimType: "security.occurrence.scope" });
+  });
+
+  it("reads the where clause line by line, each nested group indented under its connective", () => {
+    const lines = filterLines(view.whereTrees[0]!).map((line) => `${"  ".repeat(line.depth)}${[...line.lead, line.parts ? partsText(line.parts) : ""].join(" ").trim()}`);
+    expect(lines).toEqual([
+      "not exposure.justification is one of (vulnerable_code_not_present)",
+      "and not",
+      "  has no app_exposure.justification",
+      "  and app_exposure.verdict is affected",
+      "and not",
+      "    has no app_exposure.verdict",
+      "    or app_exposure.verdict is not_affected",
+      "  and app_exposure.justification is one of (component_not_present, inline_mitigations_already_exist, vulnerable_code_cannot_be_controlled_by_adversary, vulnerable_code_not_in_execute_path)",
+    ]);
+  });
+
+  it("states the result budgets the definition declares", () => {
+    expect(view.budgets).toEqual({ limit: 200, pathsPerResult: 100, maxResults: 2000, maxPathsPerResult: 1000 });
+  });
+
+  it("reads a typed pair step the same way", () => {
+    const card: Schemas["GetQueryCard"] = {
+      query: "q",
+      definition: {
+        entry: { binding: "c", subject_kinds: ["security.component"] },
+        traversal: [
+          {
+            tag: "playbill-query-pair-step-v1",
+            binding: "o",
+            subject_kind: "security.occurrence",
+            parts: [{ part: "security.occurrence.component", binding: "c" }],
+            fact: "security.occurrence.scope",
+            required: true,
+          },
+        ],
+        projection: { fields: [{ name: "occurrence", value: { kind: "subject_field", binding: "o", field: "subject_id" } }] },
+        default_budgets: { max_results: 50 },
+      } as unknown as NonNullable<Schemas["GetQueryCard"]["definition"]>,
+    };
+    const typed = readQueryView(card)!;
+    expect(typed.boxes[1]).toMatchObject({ binding: "o", kinds: ["security.occurrence"], pair: { also: [], fact: { field: "scope" } } });
+    expect(typed.links[0]).toMatchObject({ from: "c", to: "o", field: "component", reverse: true, required: true });
+    expect(typed.budgets).toEqual({ limit: 50, pathsPerResult: null, maxResults: null, maxPathsPerResult: null });
+  });
+});
+
+describe("filterTree", () => {
+  const bindings = new Map([["v", ["security.vulnerability"]]]);
+  it("keeps text outside the grammar as one clause read as written", () => {
+    expect(filterTree("v.x ==", bindings, null)).toMatchObject({ op: "clause" });
+    expect(filterTree("(v.cvss > 7", bindings, null)).toMatchObject({ op: "clause" });
+  });
+  it("flattens same-operator runs and drops parentheses around one clause", () => {
+    const tree = filterTree("(v.a == 1) and (v.b == 2 and v.c == 3)", bindings, null);
+    expect(tree.op === "and" && tree.children.map((child) => child.op)).toEqual(["clause", "clause", "clause"]);
   });
 });
 

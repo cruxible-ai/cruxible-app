@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
-import { KEV_EXPOSURE, RELEASE, RELEASE_EXPOSURE } from "@/fixtures/authored/queries";
+import { KEV_EXPOSURE, RELEASE, RELEASE_EXPOSURE, URGENT_EXPOSURES } from "@/fixtures/authored/queries";
 import { AUTHORED } from "@/fixtures/handlers";
 import type { Schemas } from "@/api/schemas";
 
 afterEach(cleanup);
 
 const page = (name: string) => `/i/inst_fixture/ref/${encodeURIComponent(`QueryDefinition:${name}`)}`;
-const section = (title: string) => within(screen.getByRole("heading", { name: title }).closest("section")!);
+// a heading may carry its concept ⓘ, whose label joins its accessible name
+const section = (title: string) => within(screen.getByRole("heading", { name: new RegExp(`^${title}( i)?$`) }).closest("section")!);
 const hrefs = (links: HTMLElement[]) => links.map((link) => decodeURIComponent(link.getAttribute("href") ?? ""));
 
 describe("Query page", () => {
@@ -40,17 +41,51 @@ describe("Query page", () => {
 
   it("lists the row Contract's fields with types in words and what fills each", async () => {
     renderApp(page(KEV_EXPOSURE));
-    await screen.findByRole("heading", { name: "Returns" });
+    await screen.findByRole("heading", { name: /^Returns/ });
     const returns = section("Returns");
     expect(returns.getByText("1 row / path vulnerability → assessment → release")).toBeInTheDocument();
-    expect(returns.getByRole("link", { name: "security.kev-exposure" })).toHaveAttribute("href", expect.stringContaining("Contract%3Asecurity.kev-exposure%401"));
+    expect(returns.getByRole("link", { name: "security.kev-exposure@1" })).toHaveAttribute("href", expect.stringContaining("Contract%3Asecurity.kev-exposure%401"));
+    // the result budgets the definition states, with the most a reader may ask
+    expect(returns.getByText("Budgets")).toBeInTheDocument();
+    expect(returns.getByText("Rows per read").parentElement).toHaveTextContent("Rows per read 200 · up to 2000");
+    expect(returns.getByText("Paths per row").parentElement).toHaveTextContent("Paths per row 100 · up to 1000");
     const release = (await returns.findByText("release", { selector: "span.font-mono" })).closest("tr")!;
     expect(within(release).getByText("a Subject")).toBeInTheDocument();
     // what fills it, named directly
     expect(within(release).getByText("release.subject_id")).toBeInTheDocument();
     const status = returns.getByText("status", { selector: "span.font-mono" }).closest("tr")!;
     expect(within(status).getByText(/optional/)).toBeInTheDocument();
-    expect(section("Parameters").getByText("None")).toBeInTheDocument();
+    // a Query without parameters has no Parameters card
+    expect(screen.queryByRole("heading", { name: /^Parameters/ })).toBeNull();
+  });
+
+  it("names pair-hop boxes by their pair kind and reads a nested where clause line by line (security.urgent_exposures as served)", async () => {
+    renderApp(page(URGENT_EXPOSURES));
+    await screen.findByRole("heading", { name: /^Asks/ });
+    const asks = section("Asks");
+    // every kind the query binds has its own box, linked to its kind page
+    for (const kind of ["vulnerability", "component", "occurrence", "inventory", "exposure", "app_exposure"]) {
+      expect(hrefs(asks.getAllByRole("link")).filter((href) => href.endsWith(`/kinds/security.${kind}`))).toHaveLength(1);
+    }
+    // no box is named by a hop's text ("scope" was the occurrence's `with` fact)
+    expect(hrefs(asks.getAllByRole("link")).some((href) => href.endsWith("/kinds/scope"))).toBe(false);
+    expect(asks.getByText((_, el) => el?.textContent === "with scope")).toBeInTheDocument();
+    expect(asks.getAllByText((_, el) => el?.tagName === "DIV" && el.textContent === "+ vulnerability")).toHaveLength(2);
+    // the where clause: one clause per line, nested groups indented
+    const where = within(asks.getByRole("list", { name: "Where" }));
+    const lines = where.getAllByRole("listitem");
+    expect(lines.map((line) => line.textContent)).toEqual([
+      "notexposure.justification is one of (vulnerable_code_not_present)",
+      "and not",
+      "has no app_exposure.justification",
+      "andapp_exposure.verdict is affected",
+      "and not",
+      "has no app_exposure.verdict",
+      "orapp_exposure.verdict is not_affected",
+      "andapp_exposure.justification is one of (component_not_present, inline_mitigations_already_exist, vulnerable_code_cannot_be_controlled_by_adversary, vulnerable_code_not_in_execute_path)",
+    ]);
+    expect(lines.map((line) => line.style.paddingLeft)).toEqual(["0rem", "0rem", "1.5rem", "1.5rem", "0rem", "3rem", "3rem", "1.5rem"]);
+    expect(asks.getByRole("link", { name: "exposure.justification" })).toHaveAttribute("href", expect.stringContaining("claim-types/security.exposure.justification"));
   });
 
   it("shows its results a daemon page at a time, in the definition's order, and names the Procedures and Lines that read it", async () => {
