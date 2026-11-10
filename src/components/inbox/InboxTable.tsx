@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useGetBatch, useInboxItem, useStateQueries, useSubjectKinds } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
 import type { QueryArgs } from "@/api/requests";
-import { SignalDot } from "@/components/Chip";
+import { SignalDot, toggleChipClass } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { FieldList, type FieldItem } from "@/components/FieldList";
 import { InfoButton } from "@/components/InfoButton";
@@ -24,7 +25,21 @@ import {
   type PayloadColumn,
   type SubjectField,
 } from "@/lib/inbox";
+import { readLineEnvelope } from "@/lib/definitions";
 import { lineName, shortRunId } from "@/lib/lines";
+import {
+  columnDecimals,
+  isDateType,
+  isNumberType,
+  joinRows,
+  orderFields,
+  pageRows,
+  worklistArgs,
+  worklistColumns,
+  worklistPlan,
+  type WorklistColumn,
+  type WorklistPlan,
+} from "@/lib/worklist";
 import { readQueryView, type QueryView } from "@/lib/query-view";
 import { keyPredicates } from "@/lib/subject";
 import { formatDateTime, formatWhen } from "@/lib/text";
@@ -39,6 +54,7 @@ import { term } from "@/lib/vocabulary";
  */
 
 type Entry = Schemas["InboxListEntry"];
+type ProcedureSpec = Schemas["ProcedureSpec"];
 type Envelope = Schemas["InboxItemEnvelope"];
 type Disposition = NonNullable<Envelope["disposition"]>;
 
@@ -61,6 +77,10 @@ interface ItemDefinitions {
   columns: PayloadColumn[];
   contractOf: (envelope: Envelope) => { ref: string; description: string | null } | null;
   subjectFieldsOf: (envelope: Envelope) => ReadonlyMap<string, SubjectField>;
+  /** Each posting Procedure's spec, by ref. */
+  specOf: ReadonlyMap<string, ProcedureSpec | null>;
+  /** Each Query a posting step's fan-out reads, by bare name: its view and its definition as served. */
+  queryOf: ReadonlyMap<string, { view: QueryView; definition: unknown }>;
   error: Error | null;
 }
 
@@ -99,10 +119,14 @@ function useItemDefinitions(entries: readonly Entry[]): ItemDefinitions {
   return useMemo(() => {
     const contractCards = new Map(contractRefs.map((ref, i) => [ref, cardOf(contracts.results[i], "contract")]));
     const views = new Map<string, QueryView>();
+    const queryOf = new Map<string, { view: QueryView; definition: unknown }>();
     queryRefs.forEach((ref, i) => {
       const card = cardOf(queries.results[i], "query");
       const view = card ? readQueryView(card) : null;
-      if (view) views.set(ref.slice("query:".length), view);
+      if (view && card) {
+        views.set(ref.slice("query:".length), view);
+        queryOf.set(ref.slice("query:".length), { view, definition: card.definition });
+      }
     });
     const fieldsOf = new Map<string, Map<string, SubjectField>>();
     for (const [key, step] of steps) {
@@ -128,6 +152,8 @@ function useItemDefinitions(entries: readonly Entry[]): ItemDefinitions {
         return { ref: `Contract:${step.contract}`, description: contractCards.get(`Contract:${step.contract}`)?.description ?? null };
       },
       subjectFieldsOf: (envelope: Envelope) => fieldsOf.get(itemKey(envelope)) ?? NO_FIELDS,
+      specOf,
+      queryOf,
       error: specs.error ?? contracts.error ?? queries.error ?? null,
     };
   }, [contractRefs, contracts.results, contracts.error, queryRefs, queries.results, queries.error, steps, specOf, keys, entries, specs.error]);
@@ -157,6 +183,204 @@ function useKeySubjects(lookups: ReturnType<typeof keyLookups>): ReadonlyMap<str
     });
     return found;
   }, [lookups, read.results]);
+}
+
+// -- the item's current row ----------------------------------------------------
+
+/** One posting step's worklist: its Query read for the page, joined to its items. */
+interface WorklistPart {
+  line: string;
+  query: string;
+  /** Parameters the read cannot resolve from served data; the part then reads nothing. */
+  blocked: string[];
+  /** The read answered only part of the Query (capped, truncated or paged): a missing row says nothing. */
+  partial: boolean;
+  /** The read has answered. */
+  landed: boolean;
+  /** Rows in the Query's order, keyed by its return names. */
+  rows: Record<string, unknown>[];
+}
+
+/** The page's worklists: what each item's row is, the added columns, and what the header says about them. */
+export interface Worklist {
+  columns: WorklistColumn[];
+  /** The item's current row; null when its Query no longer lists it; undefined when nothing can be said. */
+  rowOf: (entry: Entry) => Record<string, unknown> | null | undefined;
+  /** The Query an item's row comes from (for the "No longer in" tag). */
+  queryOf: (entry: Entry) => string | null;
+  /** The item's place in its Query's order; undefined when it has none. */
+  rankOf: (entry: Entry) => number | undefined;
+  parts: WorklistPart[];
+  /** Decimals per numeric column, over the joined rows. */
+  decimals: ReadonlyMap<string, number>;
+}
+
+const NO_WORKLIST: Worklist = { columns: [], rowOf: () => undefined, queryOf: () => null, rankOf: () => undefined, parts: [], decimals: new Map() };
+const stepKey = (envelope: Envelope) => `${lineName(envelope.line)}\u0000${envelope.procedure}\u0000${envelope.node_id}`;
+
+/**
+ * Each item's current row from the Query its Line's posting step reads: the
+ * page's Lines' definitions in one batch (their parameters), then one Query
+ * read per posting step on the page (never per row), at the page's
+ * coordinate, with the parameters the read step passes. Items join their
+ * row by every field the post step copies from it; the row's other fields
+ * become columns (types and descriptions from the row Contract).
+ */
+function useWorklist(entries: readonly Entry[], definitions: ItemDefinitions): Worklist {
+  const steps = useMemo(() => {
+    const out = new Map<string, Envelope>();
+    for (const entry of entries) if (!out.has(stepKey(entry.item))) out.set(stepKey(entry.item), entry.item);
+    return [...out.entries()];
+  }, [entries]);
+  const lineRefs = useMemo(() => [...new Set(steps.map(([, envelope]) => `Line:${lineName(envelope.line)}`))], [steps]);
+  const proofs = useGetBatch(lineRefs, "proof");
+  const parametersOf = useMemo(() => {
+    const out = new Map<string, Record<string, unknown>>();
+    for (const result of proofs.results) {
+      const line = readLineEnvelope(result.proof);
+      if (line) out.set(line.line.replace(/^Line:/, ""), line.parameters);
+    }
+    return out;
+  }, [proofs.results]);
+  const plans = useMemo(
+    () =>
+      steps.flatMap(([key, envelope]) => {
+        const plan = worklistPlan(definitions.specOf.get(envelope.procedure), envelope.node_id, parametersOf.get(lineName(envelope.line)) ?? null);
+        const query = plan ? definitions.queryOf.get(plan.query) : undefined;
+        // the Line's parameters are not in yet: wait rather than call a parameter unresolved
+        if (!plan || !query || (proofs.isPending && plan.unresolved.length > 0)) return [];
+        return [{ key, line: lineName(envelope.line), plan, query, run: worklistArgs(plan, query.view) }];
+      }),
+    [steps, definitions.specOf, definitions.queryOf, parametersOf, proofs.isPending],
+  );
+  const args = useMemo(() => plans.flatMap((part) => ("args" in part.run ? [part.run.args] : [])), [plans]);
+  const reads = useStateQueries(args);
+  const rowContracts = useMemo(() => [...new Set(plans.flatMap((part) => (part.query.view.row ? [`Contract:${part.query.view.row}`] : [])))], [plans]);
+  const contracts = useGetBatch(rowContracts);
+  return useMemo(() => {
+    if (plans.length === 0) return NO_WORKLIST;
+    const contractFields = new Map(rowContracts.map((ref, i) => [ref, cardOf(contracts.results[i], "contract")?.fields ?? null]));
+    const byKey = new Map<string, { part: WorklistPart; join: WorklistPlan["join"] }>();
+    const columns = new Map<string, WorklistColumn>();
+    let read = 0;
+    for (const { key, line, plan, query, run } of plans) {
+      const page = "args" in run ? reads.results[read++] : undefined;
+      const rows = page ? pageRows(page) : [];
+      const part: WorklistPart = {
+        line,
+        query: plan.query,
+        blocked: "blocked" in run ? run.blocked : [],
+        partial: page ? page.truncated || Boolean(page.next_cursor) || (page.capped?.length ?? 0) > 0 : false,
+        landed: page !== undefined,
+        rows,
+      };
+      byKey.set(key, { part, join: plan.join });
+      if (!page) continue;
+      const mine = entries.filter((entry) => stepKey(entry.item) === key);
+      const at = joinRows(mine.map((entry) => payloadObject(entry.payload_preview)), rows, plan.join);
+      const joined = at.flatMap((i) => (typeof i === "number" ? [rows[i]!] : []));
+      const carried = new Set([...plan.join.map((pair) => pair.row), ...mine.flatMap((entry) => Object.keys(payloadObject(entry.payload_preview) ?? {}))]);
+      const fields = query.view.row ? contractFields.get(`Contract:${query.view.row}`) ?? null : null;
+      for (const column of worklistColumns(query.view, orderFields(query.definition, query.view), fields, joined, carried)) {
+        const prior = columns.get(column.name);
+        columns.set(column.name, prior ? { ...prior, shown: prior.shown || column.shown } : column);
+      }
+    }
+    const rowIndex = new Map<string, number | null | undefined>();
+    for (const [key, { part, join }] of byKey) {
+      const mine = entries.filter((entry) => stepKey(entry.item) === key);
+      if (!part.landed) continue;
+      joinRows(mine.map((entry) => payloadObject(entry.payload_preview)), part.rows, join).forEach((i, n) => {
+        // a missing row in a partial answer says nothing: the row may be past the read
+        rowIndex.set(mine[n]!.item.item_id, i === null && part.partial ? undefined : i);
+      });
+    }
+    const list = [...columns.values()];
+    const decimals = new Map<string, number>();
+    for (const column of list) {
+      if (!isNumberType(column.type)) continue;
+      decimals.set(column.name, columnDecimals([...byKey.values()].flatMap(({ part }) => part.rows.map((row) => row[column.name]))));
+    }
+    const partOf = (entry: Entry) => byKey.get(stepKey(entry.item))?.part;
+    return {
+      columns: list,
+      rowOf: (entry) => {
+        const i = rowIndex.get(entry.item.item_id);
+        return typeof i === "number" ? partOf(entry)!.rows[i] : i;
+      },
+      queryOf: (entry) => partOf(entry)?.query ?? null,
+      rankOf: (entry) => {
+        const i = rowIndex.get(entry.item.item_id);
+        return typeof i === "number" ? i : undefined;
+      },
+      parts: [...byKey.values()].map(({ part }) => part),
+      decimals,
+    };
+  }, [plans, reads.results, rowContracts, contracts.results, entries]);
+}
+
+/** A numeric text with `decimals` places (padded, never rounded through a float). */
+function fixed(text: string, decimals: number): string {
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return text;
+  const [whole, part = ""] = text.split(".");
+  return decimals === 0 ? whole! : `${whole}.${part.padEnd(decimals, "0")}`;
+}
+
+/** One row field's value, by its row Contract type: numbers aligned to the column's decimals, dates as dates, the rest as served. */
+function RowValue({ value, column, decimals }: { value: unknown; column: WorklistColumn; decimals: number }) {
+  if (value === null || value === undefined || value === "") return <span className="text-zinc-600">—</span>;
+  if (isNumberType(column.type) && (typeof value === "string" || typeof value === "number")) return <span>{fixed(String(value), decimals)}</span>;
+  if (isDateType(column.type) && typeof value === "string") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? <span>{value}</span> : <span title={value}>{date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" })}</span>;
+  }
+  return <ShownValue value={value} />;
+}
+
+/** The row fields an item does not carry, as columns; an item its Query no longer lists says so in the first shown one. */
+function worklistColumnsFor(worklist: Worklist): Column<Entry>[] {
+  const first = worklist.columns.find((column) => column.shown)?.name ?? worklist.columns[0]?.name;
+  return worklist.columns.map((column) => ({
+    id: `row.${column.name}`,
+    header: <span className="font-mono text-[11.5px] font-normal">{column.name}</span>,
+    label: column.name,
+    title: [column.description, `${column.name}${column.type ? ` · ${column.type}` : ""} · from the Line's Query, as it reads now`].filter(Boolean).join("\n"),
+    numeric: isNumberType(column.type),
+    defaultHidden: !column.shown,
+    className: "whitespace-nowrap text-[12px]",
+    cell: (entry) => {
+      const row = worklist.rowOf(entry);
+      if (row === null)
+        return column.name === first ? (
+          <span className="text-[11px] text-zinc-500" title="The Line's Query no longer lists this item: judged since, or no longer over the Line's threshold">
+            No longer in <span className="font-mono">{worklist.queryOf(entry)}</span>
+          </span>
+        ) : null;
+      if (row === undefined) return null;
+      return <RowValue value={row[column.name]} column={column} decimals={worklist.decimals.get(column.name) ?? 0} />;
+    },
+  }));
+}
+
+/** What the header says about the worklist: parameters it could not resolve, an answer that is partial. */
+function WorklistNotes({ worklist }: { worklist: Worklist }) {
+  const notes = worklist.parts.flatMap((part) => {
+    if (part.blocked.length > 0)
+      return [
+        <span key={`${part.line}-blocked`} title={`The Query's parameters the Line does not serve: ${part.blocked.join(", ")}`}>
+          No current fields for <span className="font-mono">{part.line}</span>: its Query needs <span className="font-mono">{part.blocked.join(", ")}</span>
+        </span>,
+      ];
+    if (part.partial)
+      return [
+        <span key={`${part.line}-partial`} title="The Query answered more rows than one read returns; items past them show no current fields">
+          <span className="font-mono">{part.query}</span> read in part ({part.rows.length} rows)
+        </span>,
+      ];
+    return [];
+  });
+  if (notes.length === 0) return null;
+  return <span className="inline-flex flex-wrap items-baseline gap-x-3 text-zinc-500">{notes}</span>;
 }
 
 // -- cells --------------------------------------------------------------------
@@ -227,6 +451,8 @@ function fieldHeader(column: PayloadColumn): { header: ReactNode; title: string 
 interface PageShape {
   /** Payload fields shown as columns, Subject fields first. */
   lead: PayloadColumn[];
+  /** How many of `lead` name Subjects (the worklist's columns follow them). */
+  subjects: number;
   /** Fields with one value on every row: said once above the table. */
   constant: Map<string, unknown>;
   /** The Line every row shares; null when the page spans Lines. */
@@ -251,6 +477,7 @@ function pageShape(entries: readonly Entry[], columns: readonly PayloadColumn[],
   );
   return {
     lead,
+    subjects: kept.filter((column) => named(column.name)).length,
     constant,
     line: lines.size === 1 ? [...lines][0]! : null,
     decided: entries.some((entry) => entry.item.disposition),
@@ -259,7 +486,28 @@ function pageShape(entries: readonly Entry[], columns: readonly PayloadColumn[],
   };
 }
 
-function inboxColumns(shape: PageShape, linePrefix: string, fieldsOf: (envelope: Envelope) => ReadonlyMap<string, SubjectField>, found: ReadonlyMap<string, string>): Column<Entry>[] {
+function inboxColumns(
+  shape: PageShape,
+  linePrefix: string,
+  fieldsOf: (envelope: Envelope) => ReadonlyMap<string, SubjectField>,
+  found: ReadonlyMap<string, string>,
+  worklist: Worklist,
+): Column<Entry>[] {
+  const payloadColumn = (column: PayloadColumn): Column<Entry> => {
+    const { header, title } = fieldHeader(column);
+    return {
+      id: `payload.${column.name}`,
+      header,
+      label: column.name,
+      title,
+      className: "whitespace-nowrap",
+      cell: (entry) => {
+        const field = fieldsOf(entry.item).get(column.name);
+        const value = payloadObject(entry.payload_preview)?.[column.name];
+        return <FieldValue value={value} subject={field ? subjectRefOf(field, value, found) : null} clip={shape.long.has(column.name)} />;
+      },
+    };
+  };
   const columns: (Column<Entry> | null)[] = [
     {
       id: "status",
@@ -270,21 +518,10 @@ function inboxColumns(shape: PageShape, linePrefix: string, fieldsOf: (envelope:
       className: "w-4 whitespace-nowrap",
       cell: (entry) => <StatusMark status={entry.item.status} />,
     },
-    ...shape.lead.map((column): Column<Entry> => {
-      const { header, title } = fieldHeader(column);
-      return {
-        id: `payload.${column.name}`,
-        header,
-        label: column.name,
-        title,
-        className: "whitespace-nowrap",
-        cell: (entry) => {
-          const field = fieldsOf(entry.item).get(column.name);
-          const value = payloadObject(entry.payload_preview)?.[column.name];
-          return <FieldValue value={value} subject={field ? subjectRefOf(field, value, found) : null} clip={shape.long.has(column.name)} />;
-        },
-      };
-    }),
+    // what the item is about, then its current row from the Line's Query, then the item's other fields
+    ...shape.lead.slice(0, shape.subjects).map(payloadColumn),
+    ...worklistColumnsFor(worklist),
+    ...shape.lead.slice(shape.subjects).map(payloadColumn),
     // a payload that is not an object of fields (text, or one cut to a preview) reads as served
     shape.anyNonObject
       ? {
@@ -511,6 +748,7 @@ export function InboxTable({
   line,
   linePrefix = "",
   count,
+  complete = false,
   urlKey = "inbox",
   label = "Inbox",
 }: {
@@ -518,22 +756,47 @@ export function InboxTable({
   line?: string | undefined;
   linePrefix?: string;
   count?: ReactNode;
+  /** The page holds every item the filter matches (no other daemon page): only then may the worklist order it. */
+  complete?: boolean;
   urlKey?: string;
   label?: string;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
   const definitions = useItemDefinitions(entries);
+  const worklist = useWorklist(entries, definitions);
   const lookups = useMemo(
     () => keyLookups(entries.map((entry) => ({ payload: payloadObject(entry.payload_preview), fields: definitions.subjectFieldsOf(entry.item) }))),
     [entries, definitions],
   );
   const found = useKeySubjects(lookups);
   const shape = useMemo(() => pageShape(entries, definitions.columns, definitions.subjectFieldsOf), [entries, definitions]);
-  const columns = useMemo(() => inboxColumns(shape, linePrefix, definitions.subjectFieldsOf, found), [shape, linePrefix, definitions, found]);
+  const columns = useMemo(() => inboxColumns(shape, linePrefix, definitions.subjectFieldsOf, found, worklist), [shape, linePrefix, definitions, found, worklist]);
+  // The Query's order is offered for one Line whose items are all on this page; across daemon pages the daemon's order stands.
+  const orderable = line !== undefined && complete && worklist.parts.length === 1 && worklist.parts[0]!.landed && worklist.parts[0]!.blocked.length === 0;
+  const orderKey = `${urlKey ? `${urlKey}.` : ""}order`;
+  const byWorklist = orderable && params.get(orderKey) !== "posted";
+  const rows = useMemo(() => {
+    if (!byWorklist) return entries;
+    const rank = (entry: Entry) => worklist.rankOf(entry) ?? Number.POSITIVE_INFINITY;
+    // items the Query no longer lists keep the daemon's order, after the listed ones
+    return [...entries].sort((a, b) => rank(a) - rank(b));
+  }, [byWorklist, entries, worklist]);
+  const setOrder = (worklistOrder: boolean) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (worklistOrder) next.delete(orderKey);
+        else next.set(orderKey, "posted");
+        return next;
+      },
+      { replace: true },
+    );
+  const query = worklist.parts[0]?.query;
   return (
     <>
       <DataTable
-        rows={entries}
+        rows={rows}
         columns={columns}
         rowKey={(entry) => entry.item.item_id}
         rowLabel={(entry) => entry.item.item_id}
@@ -543,7 +806,26 @@ export function InboxTable({
         label={label}
         maxHeight="none"
         count={count}
-        note={<Shared shape={shape} filtered={line !== undefined} />}
+        note={
+          <span className="inline-flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            {orderable ? (
+              <span className="inline-flex items-center gap-1.5" role="group" aria-label="Order">
+                <button className={toggleChipClass(byWorklist)} aria-pressed={byWorklist} onClick={() => setOrder(true)} title={`The order of ${query}, as its author set it`}>
+                  In worklist order
+                </button>
+                <button className={toggleChipClass(!byWorklist)} aria-pressed={!byWorklist} onClick={() => setOrder(false)} title="The daemon's order: by when each item was last posted">
+                  Newest posted first
+                </button>
+              </span>
+            ) : (
+              <span className="text-zinc-500" title={worklist.parts.length > 0 && line !== undefined && !complete ? "Worklist order needs every item on one page; across daemon pages the daemon's order stands" : "The daemon's order: by when each item was last posted"}>
+                Newest posted first
+              </span>
+            )}
+            <Shared shape={shape} filtered={line !== undefined} />
+            <WorklistNotes worklist={worklist} />
+          </span>
+        }
         open={open}
         onToggle={(id) => setOpen(open === id ? null : id)}
         expanded={(entry) => (

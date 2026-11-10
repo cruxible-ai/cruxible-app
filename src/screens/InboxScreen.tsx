@@ -123,7 +123,6 @@ export function InboxScreen() {
               Items <InfoButton label="How items are paged">{INBOX_TERMS.cap}</InfoButton>
             </span>
           }
-          meta={<span title="The daemon's order: by when each item was last posted">Newest posted first</span>}
         >
           {entries.length === 0 ? (
             <EmptyState>{EMPTY[status ?? "all"]}</EmptyState>
@@ -133,6 +132,7 @@ export function InboxScreen() {
               entries={entries}
               line={line}
               linePrefix={linePrefix}
+              complete={index === 0 && !nextCursor}
               count={`Items ${first + 1}–${first + entries.length}${nextCursor ? "" : ` of ${first + entries.length}`}`}
             />
           )}

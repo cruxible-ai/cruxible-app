@@ -989,6 +989,7 @@ function InboxPanel({ line }: { line: string }) {
             key={first}
             entries={entries}
             line={line}
+            complete={cursors.length === 0 && !nextCursor}
             count={`Items ${first + 1}–${first + entries.length}${nextCursor ? "" : ` of ${first + entries.length}`}`}
           />
         ))}
