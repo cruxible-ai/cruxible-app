@@ -45,9 +45,10 @@ export function Panel({
             {!open && summary && <span className="t-meta ml-2 truncate">{summary}</span>}
           </button>
         ) : (
-          <h2 className="t-section">{title}</h2>
+          <h2 className="t-section shrink-0">{title}</h2>
         )}
-        {meta && <div className="t-meta shrink-0">{meta}</div>}
+        {/* a long meta line wraps under its own edge rather than running into the next card */}
+        {meta && <div className="t-meta min-w-0 text-right">{meta}</div>}
       </header>
       {shown && description && <p className="t-meta measure -mt-1.5 mb-2.5">{description}</p>}
       {shown && <div id={bodyId}>{children}</div>}

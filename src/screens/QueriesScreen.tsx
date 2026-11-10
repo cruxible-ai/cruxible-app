@@ -3,6 +3,7 @@ import { QUERIES_PAGE, useGetBatch, useQueryList } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { DataTable, type Column } from "@/components/DataTable";
 import { Page, PageHeader } from "@/components/Page";
+import { InfoButton } from "@/components/InfoButton";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { Pager } from "@/screens/ProposalsScreen";
@@ -41,7 +42,7 @@ const COLUMNS: Column<QueryRow>[] = [
   },
   {
     id: "params",
-    header: "Params",
+    header: "Parameters",
     title: "What the Query takes (? marks an optional one)",
     sortValue: (row) => row.query.params?.length ?? 0,
     filter: { kind: "text", text: (row) => (row.query.params ?? []).join(" ") },
@@ -121,7 +122,14 @@ export function QueriesScreen() {
       {list.error && <LoadState error={list.error} />}
       {list.data && (
         <Panel
-          title="Named Queries"
+          title={
+            <span className="inline-flex items-baseline gap-1.5">
+              Named Queries
+              <InfoButton label="What a named Query is">
+                A saved question anyone can run by name: the kind it starts from, the relations it follows, its filters and the fields each row returns. Parameters are values given when it runs; the row Contract declares every row's fields and types.
+              </InfoButton>
+            </span>
+          }
           meta={list.data.queries_truncated ? <span className="text-amber-300/90">List truncated by the daemon</span> : undefined}
         >
           {queries.length === 0 ? (

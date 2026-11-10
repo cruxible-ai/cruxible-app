@@ -4,6 +4,7 @@ import { useCard, useClaimTypes, useInstanceId, useOrientKinds, useSourceModel, 
 import type { Schemas } from "@/api/schemas";
 import { actionChipClass, SignalDot } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
+import { InfoButton } from "@/components/InfoButton";
 import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShownValue } from "@/components/ShownValue";
@@ -17,6 +18,7 @@ import { term } from "@/lib/vocabulary";
 import {
   columnField,
   defaultWords,
+  filterLines,
   kindWord,
   needsOntology,
   queryReaders,
@@ -24,8 +26,10 @@ import {
   rowWords,
   typeWords,
   wholeKindTable,
+  type FilterNode,
   type Part,
   type QueryBox,
+  type QueryBudgets,
   type QueryParam,
   type QueryReader,
   type QueryView,
@@ -56,16 +60,39 @@ export function QueryPage({ card }: { card: Schemas["GetQueryCard"] }) {
   return (
     <>
       <Results view={view} />
-      <Panel title="Asks">
+      <Panel title={<Titled info={QUERY_TERMS.asks}>Asks</Titled>}>
         <QueryPath view={view} />
       </Panel>
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <Returns view={view} />
-        <Parameters params={view.params} />
-      </div>
+      <Returns view={view} />
+      {/* a Query without parameters has no Parameters card: Results asks for none */}
+      {view.params.length > 0 && <Parameters params={view.params} />}
       <UsedBy query={view.name} />
       {raw}
     </>
+  );
+}
+
+/** Concept definitions behind the page's ⓘ buttons (docs/asking-questions.md's words). */
+export const QUERY_TERMS = {
+  asks:
+    "What the Query reads: the Subject kind each row starts from, then each relation it follows to another kind (a hop), and its filters. An arrow points the way the Claim does; a required hop drops rows that lack it, an optional one keeps them with that box empty. A pair hop binds the pair Subject whose key names boxes already bound.",
+  where:
+    "Rows pass only when this holds. not binds tightest, then and, then or; each indented group is one parenthesised part of the definition.",
+  returns: "The fields every row carries: the row Contract's fields, with their types.",
+  filled: "Where each returned field's value is read: a field of one box (kind.field), or the box's Subject itself (kind.subject_id).",
+  row: "The Contract every row satisfies (its fields and their types). A Procedure that reads this Query relies on it.",
+  budgets:
+    "What one read returns unless the reader asks for more, and the most a reader may ask for. Further rows come a page at a time; a read stopped by a server cap says Capped.",
+  params: "Values given when the Query runs. A parameter without a default must be given before it returns rows.",
+} as const;
+
+/** A heading with its concept ⓘ. */
+function Titled({ info, children }: { info: string; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      {children}
+      <InfoButton label={`What ${typeof children === "string" ? children.toLowerCase() : "this"} means`}>{info}</InfoButton>
+    </span>
   );
 }
 
@@ -134,6 +161,22 @@ function KindBox({ box, counts }: { box: QueryBox; counts: Counts }) {
       {box.entryParam && (
         <div className="mt-0.5 text-[11px] leading-4 text-zinc-400">
           the one named by <span className="font-mono text-zinc-200">{box.entryParam}</span>
+        </div>
+      )}
+      {box.pair?.also.map((part) => (
+        <div key={part.claimType} className="mt-0.5 text-[11px] leading-4 text-zinc-400" title={`${part.claimType}: the ${kindWord(part.claimType.split(".").slice(0, -1).join("."))} Subject's ${part.field} is the box bound as ${part.binding}`}>
+          +{" "}
+          <RefLink value={`ClaimType:${part.claimType}`}>
+            <span>{part.field}</span>
+          </RefLink>
+        </div>
+      ))}
+      {box.pair?.fact && (
+        <div className="mt-0.5 text-[11px] leading-4 text-zinc-400" title={`Only pairs holding a ${box.pair.fact.claimType} Claim`}>
+          with{" "}
+          <RefLink value={`ClaimType:${box.pair.fact.claimType}`}>
+            <span>{box.pair.fact.field}</span>
+          </RefLink>
         </div>
       )}
       {box.filters.map((filter, i) => (
@@ -207,12 +250,29 @@ export function QueryPath({ view }: { view: QueryView }) {
   return (
     <div>
       <div className="overflow-x-auto pb-1">{root && <Subtree view={view} binding={root.binding} counts={counts} />}</div>
-      {view.filters.map((filter, i) => (
-        <div key={i} className="mt-2 text-[13px] text-zinc-300">
-          <span className="t-meta mr-2">Where</span>
-          <Words parts={filter} />
-        </div>
+      {view.whereTrees.map((tree, i) => (
+        <WhereClauses key={i} tree={tree} />
       ))}
+    </div>
+  );
+}
+
+/** A filter across boxes, one clause per line, each nested group indented under its connective. */
+function WhereClauses({ tree }: { tree: FilterNode }) {
+  const lines = filterLines(tree);
+  return (
+    <div className="mt-3 flex items-baseline gap-3 text-[13px] leading-6 text-zinc-300">
+      <span className="t-meta inline-flex shrink-0 items-baseline gap-1.5">
+        Where <InfoButton label="What where means">{QUERY_TERMS.where}</InfoButton>
+      </span>
+      <div className="min-w-0" role="list" aria-label="Where">
+        {lines.map((line, i) => (
+          <div key={i} role="listitem" style={{ paddingLeft: `${line.depth * 1.5}rem` }} className="break-words">
+            {line.lead.length > 0 && <span className="mr-1.5 text-zinc-500">{line.lead.join(" ")}</span>}
+            {line.parts && <Words parts={line.parts} />}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -228,10 +288,11 @@ interface ReturnRow {
 }
 
 const RETURN_COLUMNS: Column<ReturnRow>[] = [
-  { id: "field", header: "Field", cell: (row) => <span className="font-mono text-zinc-100">{row.name}</span> },
+  { id: "field", header: "Field", className: "whitespace-nowrap", cell: (row) => <span className="font-mono text-zinc-100">{row.name}</span> },
   {
     id: "type",
     header: "Type",
+    className: "min-w-[8rem] [overflow-wrap:anywhere]",
     cell: (row) =>
       row.type === null ? (
         <span className="text-zinc-600">not stated</span>
@@ -244,7 +305,14 @@ const RETURN_COLUMNS: Column<ReturnRow>[] = [
   },
   {
     id: "from",
-    header: "Filled from",
+    header: (
+      <span className="inline-flex items-baseline gap-1.5">
+        Filled from <InfoButton label="What filled from means">{QUERY_TERMS.filled}</InfoButton>
+      </span>
+    ),
+    label: "Filled from",
+    // a long kind.field wraps at any character rather than running past the card
+    className: "min-w-[10rem] [overflow-wrap:anywhere]",
     cell: (row) =>
       row.from ? (
         <span className="font-mono text-[12px] text-zinc-300" title={row.expression ?? undefined}>
@@ -277,28 +345,55 @@ function Returns({ view }: { view: QueryView }) {
     return [...declared, ...extra];
   }, [card, view.returns]);
   return (
-    <Panel
-      title="Returns"
-      meta={
-        <span className="flex flex-wrap items-baseline gap-x-2">
-          <span>{rowWords(view)}</span>
-          {view.row && (
-            <span title={[`Contract:${view.row}`, card?.description].filter(Boolean).join("\n")}>
-              row{" "}
+    <Panel title={<Titled info={QUERY_TERMS.returns}>Returns</Titled>}>
+      <dl className="-mt-1 mb-3 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-[12px]">
+        <dt className="text-zinc-500">Rows</dt>
+        <dd className="min-w-0 break-words text-zinc-300">{rowWords(view)}</dd>
+        {view.row && (
+          <>
+            <dt className="inline-flex items-baseline gap-1.5 text-zinc-500">
+              Row Contract <InfoButton label="What the row Contract is">{QUERY_TERMS.row}</InfoButton>
+            </dt>
+            <dd className="min-w-0 break-words" title={[`Contract:${view.row}`, card?.description].filter(Boolean).join("\n")}>
               <RefLink value={`Contract:${view.row}`}>
-                <span className="font-mono text-[12px]">{view.row.split("@")[0]}</span>
+                <span className="font-mono text-[12px]">{view.row}</span>
               </RefLink>
-            </span>
-          )}
-        </span>
-      }
-    >
+            </dd>
+          </>
+        )}
+        {view.budgets && <Budgets budgets={view.budgets} paths={view.paths} />}
+      </dl>
       {view.row && contract.isPending ? (
         <LoadState />
       ) : (
         <DataTable rows={rows} columns={RETURN_COLUMNS} rowKey={(row) => row.name} urlKey="returns" label="Returned fields" toolbar={false} maxHeight="none" empty="No fields" />
       )}
     </Panel>
+  );
+}
+
+/** The definition's result budgets: rows per read and, for a path query, paths per row, each with the most a reader may ask. */
+function Budgets({ budgets, paths }: { budgets: QueryBudgets; paths: boolean }) {
+  const pair = (given: number | null, most: number | null) =>
+    given === null && most === null ? null : (
+      <span className="tabular-nums">
+        {given ?? "—"}
+        {most !== null && <span className="text-zinc-500"> · up to {most}</span>}
+      </span>
+    );
+  const rows = pair(budgets.limit, budgets.maxResults);
+  const perRow = paths ? pair(budgets.pathsPerResult, budgets.maxPathsPerResult) : null;
+  if (!rows && !perRow) return null;
+  return (
+    <>
+      <dt className="inline-flex items-baseline gap-1.5 text-zinc-500">
+        Budgets <InfoButton label="What the budgets are">{QUERY_TERMS.budgets}</InfoButton>
+      </dt>
+      <dd className="flex flex-wrap gap-x-4 text-zinc-300">
+        {rows && <span>Rows per read {rows}</span>}
+        {perRow && <span>Paths per row {perRow}</span>}
+      </dd>
+    </>
   );
 }
 
@@ -323,7 +418,7 @@ const PARAM_COLUMNS: Column<QueryParam>[] = [
 
 function Parameters({ params }: { params: QueryParam[] }) {
   return (
-    <Panel title="Parameters">
+    <Panel title={<Titled info={QUERY_TERMS.params}>Parameters</Titled>}>
       {params.length === 0 ? (
         <EmptyState>None</EmptyState>
       ) : (
@@ -439,8 +534,9 @@ function Results({ view }: { view: QueryView }) {
       ) : (
         <>
           {capped.length > 0 && (
-            <div className="mb-1.5 text-[12px] text-amber-300/90" title="The daemon stopped the answer at a server cap; rows past it are not listed">
+            <div className="mb-1.5 inline-flex items-baseline gap-1.5 text-[12px] text-amber-300/90">
               Capped: <span className="font-mono">{capped.join(", ")}</span>
+              <InfoButton label="What capped means">The daemon stopped the answer at a server cap: rows past it are not listed, and the total reads as at least the count shown.</InfoButton>
             </div>
           )}
           {(page.notes ?? []).map((note) => (
