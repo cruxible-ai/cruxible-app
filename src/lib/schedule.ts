@@ -68,66 +68,121 @@ export function localCronWords(expression: string, now: Date = new Date()): stri
   return `every ${day} at ${time}`;
 }
 
-function field(spec: string, min: number, max: number): Set<number> | null {
-  const out = new Set<number>();
-  for (const part of spec.split(",")) {
-    const m = /^(\*|\d+(?:-\d+)?)(?:\/(\d+))?$/.exec(part);
-    if (!m) return null;
-    const step = m[2] ? Number(m[2]) : 1;
-    if (step < 1) return null;
-    let lo = min;
-    let hi = max;
-    if (m[1] !== "*") {
-      const [a, b] = m[1]!.split("-").map(Number) as [number, number | undefined];
-      lo = a;
-      hi = b ?? (m[2] ? max : a);
+// -- cron: core's grammar and next-instant search, exactly ------------------------------
+//
+// A port of cruxible_client.contracts.cron (parse_cron, CronSpec.next_after): five
+// single-space-separated fields, each `*`, a number, a range `a-b`, a step `*/n` or
+// `a-b/n` (a bare `a/n` runs to the field's top), or a comma list of those;
+// day-of-week 0-7 with 7 folded to Sunday after expansion. When both day fields are
+// restricted (neither starts with `*`) a day matches if either does; otherwise both
+// must. Instants are UTC whole minutes, the first strictly after the given moment.
+// Anything else is not read: no prediction is shown for it.
+
+interface CronSpec {
+  minutes: number[];
+  hours: number[];
+  days: ReadonlySet<number>;
+  months: ReadonlySet<number>;
+  weekdays: ReadonlySet<number>;
+  daysRestricted: boolean;
+  weekdaysRestricted: boolean;
+}
+
+/** Core searches four centuries of days before concluding an expression never fires. */
+const HORIZON_DAYS = 400 * 366;
+const DIGITS = /^[0-9]+$/;
+
+function cronField(text: string, low: number, high: number): Set<number> | null {
+  const values = new Set<number>();
+  for (const item of text.split(",")) {
+    const slashAt = item.indexOf("/");
+    const base = slashAt < 0 ? item : item.slice(0, slashAt);
+    const stepText = slashAt < 0 ? null : item.slice(slashAt + 1);
+    let step = 1;
+    if (stepText !== null) {
+      if (!DIGITS.test(stepText) || Number(stepText) === 0) return null;
+      step = Number(stepText);
     }
-    if (lo < min || hi > max || lo > hi) return null;
-    for (let v = lo; v <= hi; v += step) out.add(v);
+    let first: number;
+    let last: number;
+    if (base === "*") {
+      first = low;
+      last = high;
+    } else {
+      const dashAt = base.indexOf("-");
+      const firstText = dashAt < 0 ? base : base.slice(0, dashAt);
+      const lastText = dashAt < 0 ? null : base.slice(dashAt + 1);
+      if (!DIGITS.test(firstText) || (lastText !== null && !DIGITS.test(lastText))) return null;
+      first = Number(firstText);
+      last = lastText !== null ? Number(lastText) : stepText !== null ? high : first;
+      if (lastText !== null && first > last) return null;
+    }
+    if (first < low || last > high) return null;
+    for (let v = first; v <= last; v += step) values.add(v);
   }
-  return out;
+  return values;
+}
+
+const dayMatches = (spec: CronSpec, day: Date) => {
+  if (!spec.months.has(day.getUTCMonth() + 1)) return false;
+  const byDay = spec.days.has(day.getUTCDate());
+  const byWeekday = spec.weekdays.has(day.getUTCDay());
+  return spec.daysRestricted && spec.weekdaysRestricted ? byDay || byWeekday : byDay && byWeekday;
+};
+
+function nextAfter(spec: CronSpec, moment: Date): Date | null {
+  const y = moment.getUTCFullYear();
+  const m = moment.getUTCMonth();
+  const d = moment.getUTCDate();
+  for (let offset = 0; offset < HORIZON_DAYS; offset += 1) {
+    const day = new Date(Date.UTC(y, m, d + offset));
+    if (!dayMatches(spec, day)) continue;
+    for (const hour of spec.hours) {
+      for (const minute of spec.minutes) {
+        const instant = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hour, minute);
+        if (instant > moment.getTime()) return new Date(instant);
+      }
+    }
+  }
+  return null;
+}
+
+const parsed = new Map<string, CronSpec | null>();
+
+/** Core's parse_cron: the expression's spec, or null where core refuses it (including one that never fires). */
+function parseCron(expression: string): CronSpec | null {
+  if (parsed.has(expression)) return parsed.get(expression)!;
+  const spec = ((): CronSpec | null => {
+    const parts = expression.split(/\s+/).filter(Boolean);
+    if (parts.length !== 5 || parts.join(" ") !== expression) return null;
+    const [mi, ho, dm, mo, dw] = parts as [string, string, string, string, string];
+    const minutes = cronField(mi, 0, 59);
+    const hours = cronField(ho, 0, 23);
+    const days = cronField(dm, 1, 31);
+    const months = cronField(mo, 1, 12);
+    const weekdays = cronField(dw, 0, 7);
+    if (!minutes || !hours || !days || !months || !weekdays) return null;
+    const out: CronSpec = {
+      minutes: [...minutes].sort((a, b) => a - b),
+      hours: [...hours].sort((a, b) => a - b),
+      days,
+      months,
+      weekdays: new Set([...weekdays].map((v) => v % 7)),
+      daysRestricted: !dm.startsWith("*"),
+      weekdaysRestricted: !dw.startsWith("*"),
+    };
+    return nextAfter(out, new Date(Date.UTC(2000, 0, 1))) === null ? null : out;
+  })();
+  parsed.set(expression, spec);
+  return spec;
 }
 
 /**
- * The next minute after `now` that a five-field cron expression matches, in
- * UTC; null for an expression this does not read. Day-of-month and
- * day-of-week combine the cron way: when both are restricted, either matches.
+ * The first instant strictly after `now` that a five-field cron expression
+ * matches, in UTC, exactly as core computes it (parse_cron(...).next_after);
+ * null for an expression core does not accept, so no prediction is shown.
  */
 export function nextCronFire(expression: string, now: Date): Date | null {
-  const parts = expression.trim().split(/\s+/);
-  if (parts.length !== 5) return null;
-  const [mi, ho, dm, mo, dw] = parts as [string, string, string, string, string];
-  const minutes = field(mi, 0, 59);
-  const hours = field(ho, 0, 23);
-  const doms = field(dm, 1, 31);
-  const months = field(mo, 1, 12);
-  const dows = field(dw.replace(/\b7\b/g, "0"), 0, 6);
-  if (!minutes || !hours || !doms || !months || !dows) return null;
-  const domAny = dm === "*";
-  const dowAny = dw === "*";
-  const t = new Date(now.getTime());
-  t.setUTCSeconds(0, 0);
-  t.setUTCMinutes(t.getUTCMinutes() + 1);
-  // A year of minutes at most; every expression this reads fires within it.
-  for (let i = 0; i < 366 * 24 * 60; i += 1) {
-    const dayOk =
-      domAny && dowAny
-        ? true
-        : domAny
-          ? dows.has(t.getUTCDay())
-          : dowAny
-            ? doms.has(t.getUTCDate())
-            : doms.has(t.getUTCDate()) || dows.has(t.getUTCDay());
-    if (!months.has(t.getUTCMonth() + 1) || !dayOk) {
-      t.setUTCHours(24, 0, 0, 0);
-      continue;
-    }
-    if (!hours.has(t.getUTCHours())) {
-      t.setUTCHours(t.getUTCHours() + 1, 0, 0, 0);
-      continue;
-    }
-    if (minutes.has(t.getUTCMinutes())) return t;
-    t.setUTCMinutes(t.getUTCMinutes() + 1);
-  }
-  return null;
+  const spec = parseCron(expression);
+  return spec ? nextAfter(spec, now) : null;
 }
