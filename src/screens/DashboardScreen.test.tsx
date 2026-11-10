@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { AUTHORED } from "@/fixtures/handlers";
 import type { OrientResult } from "@/api/schemas";
+import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
 import { renderApp } from "@/test/render";
 
 /** jsdom here has no working localStorage: an in-memory one per test. */
@@ -117,7 +118,7 @@ describe("Dashboard", () => {
     expect(current.queryByText("Not served by this daemon")).toBeNull();
   });
 
-  it("says so when the daemon does not serve stale or evidence counts", async () => {
+  it("shows no stale or evidence card when the daemon does not serve those counts", async () => {
     const strip = (row: Record<string, unknown>) => {
       const { stale_count, evidence_counts, ...rest } = row;
       void stale_count;
@@ -129,14 +130,17 @@ describe("Dashboard", () => {
       return response.section === "claim_types" ? { ...f, response: { ...response, claim_types: response.claim_types!.map(strip) } } : f;
     });
     renderApp("/i/inst_fixture", fixtures);
-    expect(await (await panel("Stale beliefs")).findByText("Not served by this daemon")).toBeInTheDocument();
-    expect((await panel("Evidence coverage")).getByText("Not served by this daemon")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Freshness" })).toBeInTheDocument();
+    expect(await screen.findByRole("list", { name: "Sources" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Stale beliefs" })).toBeNull());
+    expect(screen.queryByRole("heading", { name: "Evidence coverage" })).toBeNull();
   });
 
   it("records a first visit, then lists beliefs changed since the generation last marked seen", async () => {
     renderApp("/i/inst_fixture");
-    const since = await panel("Since you last looked");
-    expect(await since.findByText("First visit")).toBeInTheDocument();
+    // a first visit has nothing to compare: no card, the head recorded as the mark
+    expect(await screen.findByRole("heading", { name: "Coming up" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Since you last looked" })).toBeNull();
     expect(JSON.parse(localStorage.getItem(SEEN_KEY)!)).toMatchObject({ generation: 42 });
     cleanup();
 
@@ -218,4 +222,15 @@ describe("Dashboard", () => {
     expect(await screen.findByRole("heading", { name: "Coming up" })).toBeInTheDocument();
     expect(screen.queryByRole("table", { name: "Needs attention" })).toBeNull();
   });
+  it("shows a Line run by a Runbook's Trigger on that Runbook's schedule in Coming up", async () => {
+    renderApp("/i/inst_fixture", RUNBOOK_WAKES);
+    const coming = within((await screen.findByRole("heading", { name: "Coming up" })).closest("section")!);
+    const runbook = await coming.findByRole("link", { name: "demo.maintain" });
+    expect(runbook).toHaveAttribute("href", "/i/inst_fixture/runbooks/demo.maintain");
+    // the Trigger and the Line's step are on hover; the schedule reads in words with its next fire
+    expect(runbook.closest("[title]")).toHaveAttribute("title", expect.stringMatching(/^Trigger:demo\.maintain-daily · step 1/));
+    expect(runbook.closest("li")).toHaveTextContent(/next in/);
+    expect(coming.queryByText("Runs when asked")).toBeNull();
+  });
+
 });

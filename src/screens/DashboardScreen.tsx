@@ -14,6 +14,8 @@ import { SinceLastLooked } from "@/components/dashboard/SinceLastLooked";
 import { useAtLink, useAtParam } from "@/lib/at";
 import { sharedPrefix } from "@/lib/evidence-flow";
 import { RefLink } from "@/components/RefLink";
+import { RunbookWakeText, soonestRunbookFire } from "@/components/RunbookWake";
+import { useRunbookWakes, type RunbookWake } from "@/lib/useRunbookWakes";
 import { lineAttention, lineName, nextRowsByLine, unreadOf, type LineAttention } from "@/lib/lines";
 import { wakeOf, type Wake } from "@/lib/schedule";
 import { formatDateTime, formatRelative, humanize, sentence } from "@/lib/text";
@@ -48,11 +50,8 @@ export function DashboardScreen() {
 
   return (
     <Page>
-      <PageHeader
-        title="Dashboard"
-        summary={<StateLine orient={o} />}
-        facts={
-          <>
+      <PageHeader title="Dashboard" facts={<StateFacts orient={o} />}>
+        <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">
             <Fact label="Generation">
               <span className="font-mono">{o.generation}</span>
             </Fact>
@@ -66,14 +65,14 @@ export function DashboardScreen() {
               </Fact>
             )}
             {o.you?.actor && <Fact label="Reading as">{o.you.actor}</Fact>}
-          </>
-        }
-      />
+        </dl>
+      </PageHeader>
 
       <NeedsYou orient={o} next={next.data} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
       <LinesAttention enablements={o.attention?.enablements} />
 
-      <section aria-label="Current" className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 xl:grid-cols-3">
+      {/* Cards a daemon does not serve are absent: the row fills with the ones it does. */}
+      <section aria-label="Current" className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[repeat(auto-fit,minmax(22rem,1fr))]">
         <FreshnessPanel label={lineLabel} />
         <StaleBeliefsPanel />
         <EvidenceCoveragePanel />
@@ -94,26 +93,31 @@ export function DashboardScreen() {
   );
 }
 
-/** The state's size in one line: Claims (conflicts flagged) and what defines it. */
-function StateLine({ orient }: { orient: OrientResult }) {
+/** The state's size as labelled figures: Claims (conflicts flagged) and what defines it. */
+function StateFacts({ orient }: { orient: OrientResult }) {
   const a = orient.artifacts;
   const claims = a?.claims;
   const kinds = orient.kinds ?? [];
-  const n = (value: number | undefined) => <span className="font-mono text-zinc-100">{value ?? 0}</span>;
-  const plural = (value: number | undefined, word: string) => (value === 1 ? word : `${word}s`);
+  const n = (value: number | undefined) => <span className="font-mono">{(value ?? 0).toLocaleString()}</span>;
   return (
-    <span>
-      {n(claims?.accepted)} accepted {plural(claims?.accepted, "Claim")}
-      {(claims?.conflicted ?? 0) > 0 && (
-        <>
-          {" "}
-          (<SignalDot signal="wrong" title={term("claim", "conflicted").meaning} /> {n(claims!.conflicted)} conflicted)
-        </>
-      )}{" "}
-      on {n(kinds.filter((k) => k.subjects > 0).length)} of {kinds.length} Subject kinds · {n(a?.claim_types)} ClaimTypes ·{" "}
-      {n(a?.lines)} {plural(a?.lines, "Line")} · {n(a?.procedures)} {plural(a?.procedures, "Procedure")} · {n(a?.captures)}{" "}
-      {plural(a?.captures, "Capture")}
-    </span>
+    <>
+      <Fact label="Accepted Claims">
+        {n(claims?.accepted)}
+        {(claims?.conflicted ?? 0) > 0 && (
+          <span className="ml-2 inline-flex items-baseline gap-1 text-zinc-400">
+            <SignalDot signal="wrong" title={term("claim", "conflicted").meaning} />
+            {n(claims!.conflicted)} conflicted
+          </span>
+        )}
+      </Fact>
+      <Fact label="Subject kinds" title="Kinds with Subjects, of the kinds declared">
+        {n(kinds.filter((k) => k.subjects > 0).length)} <span className="text-zinc-500">of {kinds.length}</span>
+      </Fact>
+      <Fact label="ClaimTypes">{n(a?.claim_types)}</Fact>
+      <Fact label="Lines">{n(a?.lines)}</Fact>
+      <Fact label="Procedures">{n(a?.procedures)}</Fact>
+      <Fact label="Captures">{n(a?.captures)}</Fact>
+    </>
   );
 }
 
@@ -188,7 +192,7 @@ function NeedsYou({
         count={next ? unread : null}
         signal={unread ? "waiting" : undefined}
         detail={unread ? "Posted by Lines" : "None posted"}
-        to={link(`/i/${instanceId}/lines`)}
+        to={link(`/i/${instanceId}/inbox`)}
       />
       <Tile
         label="Next"
@@ -320,6 +324,10 @@ interface Upcoming {
   row: OrientLine;
   card: LineCard | undefined;
   wakes: Wake[];
+  /** The live Runbook Triggers that run it (a Runbook step names it). */
+  via: RunbookWake[];
+  /** The Runbook reads are still loading. */
+  viaPending: boolean;
   /** Soonest time something is due: a due occurrence (now), a scheduled one, or the next cron fire. */
   soonest: Date | null;
   due: boolean;
@@ -342,6 +350,7 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
   const off = live.filter((row) => !enabled(row));
   const cards = useCards(on.map((row) => `Line:${lineName(row.line)}`));
   const sourceModel = useSourceModel();
+  const runbookWakes = useRunbookWakes();
   const prefix = sharedPrefix(live.map((row) => lineName(row.line)));
   const now = new Date();
 
@@ -356,8 +365,10 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
     });
     const scheduled = (card?.occurrences ?? []).map((o) => new Date(o.eligible_at));
     const due = (row.due ?? 0) > 0 || (card?.occurrences ?? []).some((o) => o.state === "due");
-    const times = [...scheduled, ...wakes.flatMap((w) => (w.next ? [w.next] : []))].sort((a, b) => a.getTime() - b.getTime());
-    return { name: lineName(row.line), row, card, wakes, soonest: due ? now : (times[0] ?? null), due };
+    const via = runbookWakes.byLine.get(lineName(row.line)) ?? [];
+    const viaNext = soonestRunbookFire(via, now);
+    const times = [...scheduled, ...wakes.flatMap((w) => (w.next ? [w.next] : [])), ...(viaNext ? [viaNext] : [])].sort((a, b) => a.getTime() - b.getTime());
+    return { name: lineName(row.line), row, card, wakes, via, viaPending: runbookWakes.pending, soonest: due ? now : (times[0] ?? null), due };
   });
   const chains = chainUpcoming(upcoming, sourceModel.data?.retentions ?? []);
 
@@ -414,7 +425,7 @@ function chainUpcoming(upcoming: Upcoming[], retentions: readonly { source: stri
   }
   const feedersOf = (u: Upcoming) =>
     [...new Set(u.wakes.flatMap((w) => w.sources.flatMap((source) => producers.get(source) ?? [])))].filter((n) => n !== u.name);
-  const onlyLandings = (u: Upcoming) => u.wakes.length > 0 && u.wakes.every((w) => w.landing);
+  const onlyLandings = (u: Upcoming) => u.via.length === 0 && u.wakes.length > 0 && u.wakes.every((w) => w.landing);
 
   const parent = new Map<string, string>();
   for (const u of upcoming) {
@@ -458,9 +469,12 @@ function chainUpcoming(upcoming: Upcoming[], retentions: readonly { source: stri
     if (ad !== bd) return ad ? -1 : 1;
     const at = a.u.soonest?.getTime() ?? Infinity;
     const bt = b.u.soonest?.getTime() ?? Infinity;
-    return at !== bt ? at - bt : a.u.name.localeCompare(b.u.name);
+    // Lines one Runbook fire runs together read in its step order.
+    return at !== bt ? at - bt : firstStep(a.u) - firstStep(b.u) || a.u.name.localeCompare(b.u.name);
   });
 }
+
+const firstStep = (u: Upcoming) => Math.min(Infinity, ...u.via.map((w) => w.step));
 
 const bySoonest = (byName: Map<string, Upcoming>) => (a: string, b: string) => {
   const at = byName.get(a)?.soonest?.getTime() ?? Infinity;
@@ -547,12 +561,17 @@ function UpcomingRow({
         </span>
       </div>
       <div className="min-w-0 text-[12px] text-zinc-400">
-        {u.card === undefined ? (
+        {u.card === undefined || (u.viaPending && u.wakes.length === 0) ? (
           <span className="text-zinc-600">…</span>
-        ) : u.wakes.length === 0 ? (
+        ) : u.wakes.length === 0 && u.via.length === 0 ? (
           <span className="text-zinc-500">Runs when asked</span>
         ) : (
           <ul>
+            {u.via.map((w) => (
+              <li key={`${w.runbook}\n${w.trigger}`} className="truncate">
+                <RunbookWakeText wake={w} now={now} />
+              </li>
+            ))}
             {u.wakes.map((w) => (
               <li key={w.words} className="truncate" title={w.definedWords !== w.words ? `${w.words} (as defined: ${w.definedWords})` : w.words}>
                 {sentence(w.words)}

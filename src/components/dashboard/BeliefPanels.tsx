@@ -16,8 +16,6 @@ import { isCoreIdentity } from "@/lib/ontology";
 
 const keep = (kind: string) => !isCoreIdentity(kind);
 
-const NOT_SERVED = "Not served by this daemon";
-
 export function StaleBeliefsPanel() {
   const claimTypes = useClaimTypes();
   const instanceId = useInstanceId();
@@ -74,6 +72,8 @@ export function StaleBeliefsPanel() {
     ],
     [instanceId, link],
   );
+  // A daemon that does not serve stale counts gets no card.
+  if (rows === null) return null;
   return (
     <Panel
       title="Stale beliefs"
@@ -82,7 +82,6 @@ export function StaleBeliefsPanel() {
     >
       {claimTypes.isPending && <LoadState />}
       {claimTypes.error && <LoadState error={claimTypes.error} />}
-      {rows === null && <EmptyState>{NOT_SERVED}</EmptyState>}
       {rows && rows.length === 0 && <EmptyState>No ClaimType sets stale_after</EmptyState>}
       {rows && rows.length > 0 && (
         <DataTable rows={rows} columns={columns} rowKey={(row) => row.kind} label="Stale beliefs" urlKey="stale" toolbar={false} maxHeight="none" />
@@ -101,6 +100,7 @@ export function EvidenceCoveragePanel() {
   const claimTypes = useClaimTypes();
   const rows = useMemo(() => (claimTypes.data ? evidenceByKind(claimTypes.data.rows, keep) : undefined), [claimTypes.data]);
   const unmet = rows?.reduce((sum, row) => sum + row.unmet, 0) ?? 0;
+  if (rows === null) return null;
   return (
     <Panel
       title="Evidence coverage"
@@ -109,7 +109,6 @@ export function EvidenceCoveragePanel() {
     >
       {claimTypes.isPending && <LoadState />}
       {claimTypes.error && <LoadState error={claimTypes.error} />}
-      {rows === null && <EmptyState>{NOT_SERVED}</EmptyState>}
       {rows && rows.length === 0 && <EmptyState>No live Claims</EmptyState>}
       {rows && rows.length > 0 && (
         <>

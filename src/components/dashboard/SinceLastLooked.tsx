@@ -44,6 +44,8 @@ export function SinceLastLooked({ head, pinned }: { head: number; pinned: boolea
     setSeen(next);
   };
 
+  // A first visit has nothing to compare: no card until there is a mark.
+  if (mark === null) return null;
   return (
     <Panel
       title="Since you last looked"
@@ -63,8 +65,7 @@ export function SinceLastLooked({ head, pinned }: { head: number; pinned: boolea
         ) : undefined
       }
     >
-      {mark === null && <EmptyState>First visit</EmptyState>}
-      {mark !== null && !behind && <EmptyState>Nothing new since g{mark.generation}</EmptyState>}
+      {!behind && <EmptyState>Nothing new since g{mark.generation}</EmptyState>}
       {behind && (generations.isPending || since.isPending) && !(generations.error ?? since.error) && <LoadState />}
       {behind && (generations.error ?? since.error) && <LoadState error={generations.error ?? since.error} />}
       {behind && summary && lower !== null && (
