@@ -21,6 +21,28 @@ export function lineName(line: string): string {
   return line.replace(/^Line:/, "");
 }
 
+/** One of orient's needs-attention entries: the ref it names, the state, and the reason when it gives one. */
+export interface LineAttention {
+  /** The `get` reference the entry leads with (`Line:<name>`). */
+  ref: string;
+  /** stalled or stopped; null when the entry reads another way (shown as served). */
+  state: string | null;
+  reason: string | null;
+  /** The entry as served. */
+  raw: string;
+}
+
+/**
+ * Read one `needs_attention` entry (`Line:<name> stopped (<reason>)`). An
+ * entry in another form keeps its leading ref and the rest as served.
+ */
+export function lineAttention(entry: string): LineAttention {
+  const match = /^(\S+) (stalled|stopped)(?: \((.*)\))?$/.exec(entry);
+  if (match) return { ref: match[1]!, state: match[2]!, reason: match[3] ?? null, raw: entry };
+  const space = entry.indexOf(" ");
+  return { ref: space < 0 ? entry : entry.slice(0, space), state: null, reason: space < 0 ? null : entry.slice(space + 1), raw: entry };
+}
+
 /** `next` rows about each Line, keyed by bare Line name. */
 export function nextRowsByLine(items: readonly NextItem[]): Map<string, NextItem[]> {
   const out = new Map<string, NextItem[]>();

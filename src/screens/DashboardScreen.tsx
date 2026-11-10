@@ -4,6 +4,7 @@ import { useCards, useInstanceId, useKits, useLines, useNext, useOrient, useSour
 import { NEXT_PAGE } from "@/api/requests";
 import type { NextHealth, NextResult, NextSeverity, OrientResult, Schemas } from "@/api/schemas";
 import { Chip, HealthChip, SignalDot } from "@/components/Chip";
+import { DataTable, type Column } from "@/components/DataTable";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { Disclosure, EmptyState, LoadState, Panel } from "@/components/Panel";
 import { EvidenceCoveragePanel, StaleBeliefsPanel } from "@/components/dashboard/BeliefPanels";
@@ -12,7 +13,8 @@ import { FreshnessPanel } from "@/components/dashboard/Freshness";
 import { SinceLastLooked } from "@/components/dashboard/SinceLastLooked";
 import { useAtLink, useAtParam } from "@/lib/at";
 import { sharedPrefix } from "@/lib/evidence-flow";
-import { lineName, nextRowsByLine, unreadOf } from "@/lib/lines";
+import { RefLink } from "@/components/RefLink";
+import { lineAttention, lineName, nextRowsByLine, unreadOf, type LineAttention } from "@/lib/lines";
 import { wakeOf, type Wake } from "@/lib/schedule";
 import { formatDateTime, formatRelative, humanize, sentence } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -69,6 +71,7 @@ export function DashboardScreen() {
       />
 
       <NeedsYou orient={o} next={next.data} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
+      <LinesAttention enablements={o.attention?.enablements} />
 
       <section aria-label="Current" className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 xl:grid-cols-3">
         <FreshnessPanel label={lineLabel} />
@@ -214,6 +217,41 @@ function NeedsYou({
         onClick={onHealth}
       />
     </section>
+  );
+}
+
+const ATTENTION_COLUMNS: Column<LineAttention>[] = [
+  {
+    id: "line",
+    header: "Line",
+    className: "break-all",
+    cell: (a) => (
+      <RefLink value={a.ref}>
+        <span className="font-mono text-[12px]">{lineName(a.ref)}</span>
+      </RefLink>
+    ),
+  },
+  { id: "state", header: "State", className: "whitespace-nowrap", cell: (a) => (a.state ? <Chip concept="line" value={a.state} /> : <span className="text-zinc-600">—</span>) },
+  {
+    id: "reason",
+    header: "Reason",
+    className: "text-[12px] text-zinc-300",
+    cell: (a) => (a.reason ? <span className={a.state ? "font-mono" : undefined}>{a.reason}</span> : <span className="text-zinc-600">—</span>),
+  },
+];
+
+/**
+ * The enabled Lines orient names as stalled or stopped (`needs_attention`, at
+ * most three), each linked to its Line. Absent when it names none.
+ */
+function LinesAttention({ enablements }: { enablements: Schemas["OrientEnablements"] | null | undefined }) {
+  const rows = (enablements?.needs_attention ?? []).map(lineAttention);
+  if (rows.length === 0) return null;
+  const flagged = (enablements?.stalled ?? 0) + (enablements?.stopped ?? 0);
+  return (
+    <Panel title="Needs attention" meta={<span>{flagged > rows.length ? `first ${rows.length} of ${flagged}` : rows.length}</span>}>
+      <DataTable rows={rows} columns={ATTENTION_COLUMNS} rowKey={(a) => a.raw} urlKey="attention" label="Needs attention" toolbar={false} maxHeight="none" />
+    </Panel>
   );
 }
 

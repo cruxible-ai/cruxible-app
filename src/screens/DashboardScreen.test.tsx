@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { AUTHORED } from "@/fixtures/handlers";
+import type { OrientResult } from "@/api/schemas";
 import { renderApp } from "@/test/render";
 
 /** jsdom here has no working localStorage: an in-memory one per test. */
@@ -189,5 +190,32 @@ describe("Dashboard", () => {
   it("shows a refused pin instead of reading the head", async () => {
     renderApp("/i/inst_fixture?at=7");
     expect(await screen.findByText("At 7 refused")).toBeInTheDocument();
+  });
+  it("lists the Lines orient says need attention, each linked to its Line", async () => {
+    // the authored orient page, now naming its stopped Line (and one stalled beyond the three it lists)
+    const flagged = AUTHORED.map((fixture) => {
+      const orient = fixture.response as OrientResult;
+      if (!fixture.path.endsWith("/orient") || !orient.attention?.enablements) return fixture;
+      const enablements = { running: 1, stalled: 3, stopped: 1, needs_attention: ["Line:cve-applicability stopped (credential_revoked)", "Line:kev-triage stalled", "Line:epss-daily stalled"] };
+      return { ...fixture, response: { ...orient, attention: { ...orient.attention, enablements } } };
+    });
+    renderApp("/i/inst_fixture", flagged);
+    const table = within(await screen.findByRole("table", { name: "Needs attention" }));
+    const section = within(table.getByRole("row", { name: /cve-applicability/ }));
+    expect(section.getByRole("link", { name: "cve-applicability" })).toHaveAttribute("href", "/i/inst_fixture/lines/cve-applicability");
+    expect(section.getByText("Stopped")).toBeInTheDocument();
+    expect(section.getByText("credential_revoked")).toBeInTheDocument();
+    const stalled = within(table.getByRole("row", { name: /kev-triage/ }));
+    expect(stalled.getByText("Stalled")).toBeInTheDocument();
+    expect(stalled.getByText("—")).toBeInTheDocument();
+    // orient lists at most three: the panel says how many it names of the flagged total
+    expect(screen.getByText("first 3 of 4")).toBeInTheDocument();
+  });
+
+  it("shows no needs-attention table when orient names none", async () => {
+    renderApp("/i/inst_fixture");
+    expect(await screen.findByRole("region", { name: "Needs you" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Coming up" })).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Needs attention" })).toBeNull();
   });
 });
