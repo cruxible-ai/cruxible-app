@@ -210,11 +210,12 @@ function Snapshot({ o }: { o: OrientResult }) {
   const earlier = useMemo(() => sequences.filter((s) => s !== head), [sequences, head]);
   const growth = useGrowthPoints(earlier);
   const points = useMemo<GrowthPoint[] | null>(() => {
-    if (growth.pending || details.isPending) return null;
+    // the chart draws as earlier generations land (newest first): each reading holds until the next
+    if (details.isPending) return null;
     const byKind = new Map<string, number>();
     for (const [kind, detail] of detailOf) if (detail.subjects > 0) byKind.set(kind, liveClaims(detail.predicates));
     return [...growth.points.filter((p): p is GrowthPoint => p !== null), { sequence: head, acceptedAt: o.accepted_at, byKind }];
-  }, [growth.pending, growth.points, details.isPending, detailOf, head, o.accepted_at]);
+  }, [growth.points, details.isPending, detailOf, head, o.accepted_at]);
   const markers = useMemo(() => growthMarkers(generations.data?.generations ?? [], lo, head), [generations.data, lo, head]);
 
   return (
@@ -259,7 +260,7 @@ function Snapshot({ o }: { o: OrientResult }) {
             <EvidenceSankey flow={flow} sources={sourceFacts} authority={authority} colorOf={colorOf} label={short.label} />
           ))}
       </Panel>
-      <Panel title="How it grew" description={ABOUT.grew} meta={<span title="The generations this chart covers">{`g${lo}–g${head}`}</span>}>
+      <Panel title="How it grew" description={ABOUT.grew} meta={<span title="The generations this chart covers">{`g${lo}–g${head}`}{growth.pending && <span className="animate-pulse"> · …</span>}</span>}>
         {!points && <LoadState />}
         {growth.failed > 0 && <EmptyState>{`${growth.failed} of ${earlier.length} generations could not be read; the chart skips them.`}</EmptyState>}
         {points && <GrowthChart points={points} lo={lo} head={head} markers={markers} colorOf={colorOf} label={short.label} />}

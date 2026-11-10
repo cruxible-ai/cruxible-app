@@ -82,10 +82,12 @@ describe("Overview", () => {
   it("shows how it grew: live Claims at sampled generations, each opening the Overview as it stood then", async () => {
     renderApp(`${I}/overview`);
     const grew = await section("How it grew");
-    expect(grew.getByText("g0–g42")).toBeInTheDocument();
+    expect(grew.getByText(/^g0–g42/)).toBeInTheDocument();
     const head = await grew.findByRole("link", { name: "Generation 42: 725 live Claims" });
     expect(head).toHaveAttribute("href", `${I}/overview?at=42`);
-    expect(grew.getByRole("link", { name: "Generation 0: 0 live Claims" })).toBeInTheDocument();
+    // earlier generations land newest first, a few at a time; the oldest arrives last
+    expect(await grew.findByRole("link", { name: "Generation 0: 0 live Claims" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(grew.getByText("g0–g42")).toBeInTheDocument();
   });
 
   it("scales to a larger instance: ten kinds, nine sources, eight Lines, run and kit marks", async () => {
