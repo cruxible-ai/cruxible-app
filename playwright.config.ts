@@ -23,6 +23,12 @@ export default defineConfig({
       name: "chromium",
       use: { browserName: "chromium" },
     },
+    {
+      // WebGL dot checks only; the spec skips itself where Playwright's Firefox is not installed.
+      name: "firefox",
+      use: { browserName: "firefox" },
+      testMatch: /state-graph-dots\.spec\.ts$/,
+    },
   ],
   webServer: {
     command: `pnpm exec vite --host 127.0.0.1 --port ${port} --strictPort`,

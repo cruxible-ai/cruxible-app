@@ -459,6 +459,15 @@ export function CosmosDots({
     graph.setLinks(data.linkIndices);
     graph.setLinkColors(data.linkColors);
     graph.render();
+    // Cosmos 2.0.0-beta.20 builds its screen<->space map (spaceToScreenPosition,
+    // every camera fit) in the constructor BEFORE it clamps spaceSize to the
+    // GPU, so the map keeps the unclamped default (8192) while the shaders use
+    // the clamped size. Where MAX_TEXTURE_SIZE <= 8192 the clamp is 4096 and
+    // the dots drew zoom*2048 px up and right of the camera and labels, until
+    // a canvas resize rebuilt the map (fixed upstream in beta.21). Changing
+    // spaceSize through setConfig re-clamps and rebuilds the map with the size
+    // the shaders use; after render(), since it rebuilds GPU state from data.
+    graph.setConfig({ spaceSize: SPACE_SIZE });
     fitTo(graph, data.seedPositions, 0);
     graphRef.current = graph;
     positionsRef.current = data.seedPositions;
@@ -790,6 +799,8 @@ export function CosmosDots({
             ) : (
               <div
                 key={l.key}
+                // Where this label's dot is on screen, from the positions held here (read by the dot-alignment smoke check).
+                data-dot-anchor={`${l.x.toFixed(1)} ${l.y.toFixed(1)}`}
                 style={{
                   transform: `translate(${l.x + 8}px, ${l.y}px) translateY(-50%)`,
                 }}
