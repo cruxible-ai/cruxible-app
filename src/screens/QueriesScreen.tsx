@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { QUERIES_PAGE, useGetBatch, useQueryList } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { DataTable, type Column } from "@/components/DataTable";
@@ -8,6 +8,7 @@ import { RefLink } from "@/components/RefLink";
 import { Pager } from "@/screens/ProposalsScreen";
 import { readQueryView } from "@/lib/query-view";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { useCursorStack } from "@/lib/usePaging";
 
 type OrientQuery = Schemas["OrientQuery"];
 
@@ -86,7 +87,7 @@ const COLUMNS: Column<QueryRow>[] = [
  */
 export function QueriesScreen() {
   usePageTitle("Queries");
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, setCursors] = useCursorStack("queries");
   const list = useQueryList(cursors[cursors.length - 1]);
   const queries = useMemo(() => list.data?.queries ?? [], [list.data]);
   const cards = useGetBatch(queries.map((query) => `query:${query.name}`));

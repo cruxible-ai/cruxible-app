@@ -29,6 +29,7 @@ import {
 import { decimalPlaces, fixedText } from "@/lib/numbers";
 import { isActive } from "@/lib/table-state";
 import { term } from "@/lib/vocabulary";
+import { usePagingScope } from "@/lib/usePaging";
 
 type Row = Record<string, unknown>;
 
@@ -89,7 +90,8 @@ export function KindTable({
   const [state] = useTableState(probe);
   const pushed = mode === "server" ? pushDown(state, served) : null;
   const narrowed = pushed !== null && (pushed.where.length > 0 || pushed.orderBy.length > 0);
-  const narrowKey = JSON.stringify(pushed);
+  // the read a cursor continues: this kind, its pushed filters and order, and the page coordinate
+  const narrowKey = usePagingScope("kind", kind, pushed);
   const [paging, setPaging] = useState<{ key: string; cursors: string[] }>({ key: narrowKey, cursors: [] });
   const cursors = paging.key === narrowKey ? paging.cursors : [];
   useEffect(() => {

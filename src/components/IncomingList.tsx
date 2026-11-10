@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useGetBatch, useIncoming, useOntologyKinds, useSubjectKinds } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
 import { RefLink } from "@/components/RefLink";
 import { parseRef } from "@/lib/cruxible-ref";
 import { predicateIndex } from "@/lib/neighborhood";
 import { keyPredicates, literalSummary } from "@/lib/subject";
+import { useCursorStack } from "@/lib/usePaging";
 
 type IncomingClaim = Schemas["GetIncomingClaim"];
 
@@ -24,7 +25,7 @@ export function IncomingList({
   total: number | null;
   summaries?: boolean;
 }) {
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, setCursors] = useCursorStack("incoming", subject);
   const read = useIncoming(subject, cursors[cursors.length - 1]);
   const claims = read.data?.incoming?.claims ?? [];
   return (

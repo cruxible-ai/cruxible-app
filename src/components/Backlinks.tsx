@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useGet } from "@/api/hooks";
 import type { Schemas } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
@@ -8,6 +8,7 @@ import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { publicName } from "@/lib/evidence";
 import type { DocumentLink } from "@/lib/document-links";
+import { useCursorStack } from "@/lib/usePaging";
 
 type Backlink = Schemas["Backlink"];
 
@@ -37,7 +38,7 @@ function sectionText(link: Pick<Backlink, "file" | "section">): string | null {
  * a page at a time with the served cursor.
  */
 export function BacklinksPanel({ subject }: { subject: string }) {
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, setCursors] = useCursorStack("backlinks", subject);
   const read = useBacklinks(subject, cursors[cursors.length - 1]);
   const links = read.data?.backlinks?.links ?? [];
   const next = read.data?.next_cursor ?? null;

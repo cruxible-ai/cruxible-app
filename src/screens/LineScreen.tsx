@@ -42,6 +42,7 @@ import { localCronWords, wakeOf } from "@/lib/schedule";
 import { term } from "@/lib/vocabulary";
 import { RunbookWakeText } from "@/components/RunbookWake";
 import { useRunbookWakes, type RunbookWake } from "@/lib/useRunbookWakes";
+import { useCursorStack } from "@/lib/usePaging";
 
 const READINGS_PAGE = 50;
 const INBOX_PAGE = 50;
@@ -514,7 +515,7 @@ function TriggersPanel({ card }: { card: LineCard }) {
 function RunsPanel({ line, total }: { line: string; total: number }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, setCursors] = useCursorStack("line-runs", line);
   const read = useLineRuns(line, cursors[cursors.length - 1]);
   const runs = read.data?.runs?.runs ?? [];
   // Each run's card, for what it changed (its nodes' summaries).
@@ -899,7 +900,7 @@ function readingColumns(instanceId: string, link: (path: string) => string): Col
 }
 
 function Readings({ procedure }: { procedure: string }) {
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, setCursors] = useCursorStack("readings", procedure);
   const read = useReadings(procedure, READINGS_PAGE, cursors[cursors.length - 1]);
   const instanceId = useInstanceId();
   const link = useAtLink();

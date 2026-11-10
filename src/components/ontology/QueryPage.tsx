@@ -12,6 +12,7 @@ import { useAtLink } from "@/lib/at";
 import { decimalPlaces, fixedText, isNumericType } from "@/lib/numbers";
 import { defaultText, paramInput, paramKey, paramRun, QUERY_PAGE } from "@/lib/query-params";
 import { keyPredicates } from "@/lib/subject";
+import { usePagingScope } from "@/lib/usePaging";
 import { term } from "@/lib/vocabulary";
 import {
   columnField,
@@ -375,7 +376,8 @@ function Results({ view }: { view: QueryView }) {
   const link = useAtLink();
   const [given, setGiven] = useGivenParams(view.params);
   const run = paramRun(view.params, given);
-  const runKey = JSON.stringify(run.params ?? null);
+  // the read a cursor continues: this Query, its typed parameters and the page coordinate
+  const runKey = usePagingScope("query", view.name, run.params ?? null);
   // each page read so far: its cursor and the rows before it
   const [paging, setPaging] = useState<{ key: string; pages: { cursor: string; offset: number }[] }>({ key: runKey, pages: [] });
   const pages = paging.key === runKey ? paging.pages : [];

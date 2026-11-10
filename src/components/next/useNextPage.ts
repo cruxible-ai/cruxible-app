@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { useNext } from "@/api/hooks";
 import { NEXT_PAGE } from "@/api/requests";
+import { useCursorStack } from "@/lib/usePaging";
 
 /**
  * One `next` page at a time with a cursor stack (Newer/Older). `next` has no
@@ -8,7 +8,7 @@ import { NEXT_PAGE } from "@/api/requests";
  * one page of at most NEXT_PAGE items, never the whole queue.
  */
 export function useNextPage() {
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, setCursors] = useCursorStack("next");
   const cursor = cursors[cursors.length - 1];
   const page = useNext({ limit: NEXT_PAGE, ...(cursor !== undefined ? { cursor } : {}) });
   return {

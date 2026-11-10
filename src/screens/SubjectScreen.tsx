@@ -79,6 +79,7 @@ import { usePageTitle } from "@/lib/usePageTitle";
 import { NEXT_PAGE } from "@/api/requests";
 import { driftedClaims, type DriftRead } from "@/lib/next-reasons";
 import { term, type Term } from "@/lib/vocabulary";
+import { useCursorStack } from "@/lib/usePaging";
 
 type SubjectClaim = GetSubjectCard["claims"][number];
 
@@ -907,7 +908,7 @@ function FieldProvenance({ event, siblings, isKey }: { event: SubjectHistoryEven
 
 /** The Subject's field history, newest first, a page at a time (O(page)). */
 function HistoryPanel({ subjectRef, keys }: { subjectRef: string; keys: ReadonlySet<string> | undefined }) {
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, setCursors] = useCursorStack("history", subjectRef);
   const cursor = cursors[cursors.length - 1];
   const read = useSubjectHistory(subjectRef, cursor);
   const history = read.data?.history;

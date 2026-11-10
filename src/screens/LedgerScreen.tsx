@@ -14,6 +14,7 @@ import { proposalRun, proposalWords } from "@/lib/change-sets";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Pager } from "./ProposalsScreen";
+import { useCursorStack } from "@/lib/usePaging";
 
 type Generation = Schemas["OrientGeneration"];
 
@@ -28,7 +29,7 @@ type Generation = Schemas["OrientGeneration"];
  * (kept once read), one revision read per Line.
  */
 export function LedgerScreen() {
-  const [cursors, setCursors] = useState<string[]>([]);
+  const [cursors, setCursors] = useCursorStack("generations");
   const page = useGenerations(cursors[cursors.length - 1]);
   usePageTitle("Ledger");
   const rows = page.data?.generations ?? [];
