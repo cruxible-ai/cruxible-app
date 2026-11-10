@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { UNREAD_ITEM } from "@/fixtures/authored/worklists";
+import { AUTHORED } from "@/fixtures/handlers";
+import type { Schemas } from "@/api/schemas";
 
 afterEach(cleanup);
 
@@ -24,6 +26,9 @@ describe("Inbox", () => {
     // a Subject-typed field links; text that reads like kind/id stays text
     expect(await t.findByRole("link", { name: "security.release/acme-2.4.0" })).toHaveAttribute("href", `${I}/s/security.release%2Facme-2.4.0`);
     expect(t.getByText("sboms/app.cdx.json").closest("a")).toBeNull();
+    // the item's status is headed Status (a payload field may be named state); a long text value is cut, whole on hover
+    expect(t.getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+    expect(t.getByText("sboms/app.cdx.json")).not.toHaveClass("truncate");
     // the Line column links to the Line
     expect(t.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/kev-triage`);
     expect(screen.getByText("Newest posted first")).toBeInTheDocument();
@@ -79,5 +84,22 @@ describe("Inbox", () => {
     const link = await nav.findByRole("link", { name: /^Inbox Unread inbox items/ });
     expect(link).toHaveAttribute("href", `${I}/inbox`);
     expect(link).toHaveTextContent(/Inbox\s*3$/);
+  });
+  it("cuts a long payload text in its column (whole on hover) so the short fields beside it read whole", async () => {
+    const LONG = "sboms-app.cdx.json--pkg-pypi-django-4.2";
+    const fixtures = AUTHORED.map((fixture) => {
+      const list = fixture.response as Partial<Schemas["InboxList"]>;
+      if (!Array.isArray(list.entries)) return fixture;
+      const entries = list.entries.map((entry) =>
+        entry.item?.item_id === UNREAD_ITEM ? { ...entry, payload_preview: { object: { ...(entry.payload_preview as { object: object }).object, note: LONG } } } : entry,
+      );
+      return { ...fixture, response: { ...list, entries } };
+    });
+    renderApp(`${I}/inbox`, fixtures);
+    const t = await table();
+    const cell = await t.findByText(LONG);
+    expect(cell).toHaveClass("truncate");
+    expect(cell).toHaveAttribute("title", LONG);
+    expect(t.getByText("CVE-2024-6387")).not.toHaveClass("truncate");
   });
 });

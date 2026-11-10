@@ -19,6 +19,7 @@ import {
   type InboxFilterStatus,
   type PayloadColumn,
 } from "@/lib/inbox";
+import { sharedPrefix } from "@/lib/evidence-flow";
 import { lineName, shortRunId } from "@/lib/lines";
 import { formatDateTime } from "@/lib/text";
 import { term } from "@/lib/vocabulary";
@@ -28,10 +29,18 @@ type Entry = Schemas["InboxListEntry"];
 type Disposition = NonNullable<Schemas["InboxItemEnvelope"]["disposition"]>;
 
 /** One payload value: a Subject-typed field links to the Subject; other text stays text. */
-function PayloadValue({ value, column }: { value: unknown; column: PayloadColumn }) {
+function PayloadValue({ value, column, clip }: { value: unknown; column: PayloadColumn; clip: boolean }) {
   if (value === null || value === undefined) return <span className="text-zinc-600">—</span>;
   if (typeof value === "string") {
-    return isSubjectType(column.type) ? <RefLink value={value} /> : <span>{value}</span>;
+    if (isSubjectType(column.type)) return <RefLink value={value} />;
+    // a long value gives way first (cut, whole on hover), so the short fields beside it read whole
+    return clip ? (
+      <span className="block max-w-[14rem] truncate" title={value}>
+        {value}
+      </span>
+    ) : (
+      <span>{value}</span>
+    );
   }
   return <ShownValue value={value} />;
 }
@@ -55,11 +64,24 @@ function DecisionCell({ disposition }: { disposition: Disposition | null | undef
   );
 }
 
-function inboxColumns(payload: readonly PayloadColumn[], showLine: boolean): Column<Entry>[] {
+/** Payload text longer than this, on any row of the page, is cut in its column (whole on hover). */
+const LONG_VALUE = 28;
+
+function inboxColumns(payload: readonly PayloadColumn[], showLine: boolean, entries: readonly Entry[], linePrefix: string): Column<Entry>[] {
+  const long = new Set(
+    payload
+      .filter((column) => entries.some((entry) => {
+        const value = payloadObject(entry.payload_preview)?.[column.name];
+        return typeof value === "string" && value.length > LONG_VALUE && !isSubjectType(column.type);
+      }))
+      .map((column) => column.name),
+  );
   const columns: (Column<Entry> | null)[] = [
     {
       id: "status",
-      header: "State",
+      // "Status", not "State": a payload field is often named state
+      header: "Status",
+      title: "The item's inbox status",
       className: "whitespace-nowrap",
       cell: (entry) => <Chip concept="inbox" value={entry.item.status} />,
     },
@@ -70,7 +92,10 @@ function inboxColumns(payload: readonly PayloadColumn[], showLine: boolean): Col
           className: "whitespace-nowrap",
           cell: (entry) => (
             <RefLink value={entry.item.line.startsWith("Line:") ? entry.item.line : `Line:${entry.item.line}`}>
-              <span className="font-mono text-[12px]">{lineName(entry.item.line)}</span>
+              {/* the namespace every Line shares is said once, by the filter's names; the full name on hover */}
+              <span className="font-mono text-[12px]" title={lineName(entry.item.line)}>
+                {lineName(entry.item.line).startsWith(linePrefix) ? lineName(entry.item.line).slice(linePrefix.length) : lineName(entry.item.line)}
+              </span>
             </RefLink>
           ),
         }
@@ -82,7 +107,7 @@ function inboxColumns(payload: readonly PayloadColumn[], showLine: boolean): Col
         label: column.name,
         title: column.type ? `${column.name} · ${column.type}` : `${column.name} · not in the item Contract`,
         className: "whitespace-nowrap text-[12px]",
-        cell: (entry) => <PayloadValue value={payloadObject(entry.payload_preview)?.[column.name]} column={column} />,
+        cell: (entry) => <PayloadValue value={payloadObject(entry.payload_preview)?.[column.name]} column={column} clip={long.has(column.name)} />,
       }),
     ),
     // a payload that is not an object (or was cut to a preview) reads whole here
@@ -172,6 +197,8 @@ export function InboxScreen() {
   const inbox = useInbox(line, status, INBOX_LIST_PAGE, pages[pages.length - 1]?.cursor);
   const lines = useLines();
   const [open, setOpen] = useState<string | null>(null);
+  const lineNames = useMemo(() => (lines.data?.rows ?? []).map((row) => lineName(row.line)).sort(), [lines.data]);
+  const linePrefix = sharedPrefix(lineNames);
 
   const entries = useMemo(() => inbox.data?.entries ?? [], [inbox.data]);
   // the posting Procedures' specs name each node's item Contract; their cards name its fields
@@ -194,8 +221,8 @@ export function InboxScreen() {
       const card = cardOf(result, "contract");
       return card ? [card.fields] : [];
     });
-    return inboxColumns(payloadColumns(fields, entries.map((entry) => payloadObject(entry.payload_preview))), line === undefined);
-  }, [contracts.results, entries, line]);
+    return inboxColumns(payloadColumns(fields, entries.map((entry) => payloadObject(entry.payload_preview))), line === undefined, entries, linePrefix);
+  }, [contracts.results, entries, line, linePrefix]);
 
   const setFilter = (key: "line" | "status", value: string | undefined) => {
     setOpen(null);
@@ -209,7 +236,6 @@ export function InboxScreen() {
   const index = pages.length;
   const first = pages[pages.length - 1]?.offset ?? 0;
   const nextCursor = inbox.data?.next_cursor ?? null;
-  const lineNames = (lines.data?.rows ?? []).map((row) => lineName(row.line)).sort();
 
   return (
     <Page>
