@@ -94,40 +94,15 @@ export function runGroups(runs: readonly Run[]): RunGroupData[] {
   return [...byDigest.values()];
 }
 
-/** Count keys a step outcome may serve, in reading order, with their words. */
-const STEP_COUNT_WORDS: [string, string][] = [
-  ["written", "written"],
-  ["settled", "settled"],
-  ["proposed", "proposed"],
-  ["inbox", "to inbox"],
-  ["inbox_items", "to inbox"],
-  ["refused", "refused"],
-];
+type RunbookRun = Schemas["RunbookRunResult"];
+type RunbookStepOutcome = RunbookRun["steps"][number];
 
-export interface StepTally {
-  /** false: the step's run did not see everything it expected (a short read, a count mismatch). */
-  complete: boolean | null;
-  counts: { key: string; word: string; n: number }[];
+/** Whether a step of a run needs attention: the run names it, or its Line run's counts flag it. */
+export function stepNeedsAttention(run: RunbookRun, outcome: RunbookStepOutcome): boolean {
+  return (run.attention_steps ?? []).includes(outcome.step) || outcome.counts?.needs_attention === true;
 }
 
-/**
- * What a step's run wrote and whether it was complete, when the daemon serves
- * it: `complete` and counts either flat on the outcome or under `counts`.
- * Older daemons serve neither; the tally is then empty and the page shows the
- * status alone. Fields are read with runtime checks, never assumed.
- */
-export function stepTally(outcome: object): StepTally {
-  const record = outcome as Record<string, unknown>;
-  const nested = typeof record.counts === "object" && record.counts !== null ? (record.counts as Record<string, unknown>) : {};
-  const counts: StepTally["counts"] = [];
-  const seen = new Set<string>();
-  for (const [key, word] of STEP_COUNT_WORDS) {
-    const value = typeof nested[key] === "number" ? nested[key] : record[key];
-    if (typeof value === "number" && Number.isFinite(value) && !seen.has(word)) {
-      seen.add(word);
-      counts.push({ key, word, n: value });
-    }
-  }
-  const complete = typeof record.complete === "boolean" ? record.complete : typeof nested.complete === "boolean" ? nested.complete : null;
-  return { complete, counts };
+/** The steps of a run that need attention, in step order. */
+export function attentionSteps(run: RunbookRun): number[] {
+  return [...new Set(run.steps.filter((o) => stepNeedsAttention(run, o)).map((o) => o.step).concat(run.attention_steps ?? []))].sort((a, b) => a - b);
 }

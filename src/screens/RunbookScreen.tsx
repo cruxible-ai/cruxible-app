@@ -2,15 +2,17 @@ import { useMemo, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCard, useHead, useInstanceId, usePin, useRunbookPreview } from "@/api/hooks";
 import { cardOf, type Schemas } from "@/api/schemas";
-import { Chip, SignalDot } from "@/components/Chip";
+import { Chip } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel, SubSection } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
+import { AttentionDot, AttentionMark, RunCountsTable } from "@/components/RunCountsTable";
 import { ShortId } from "@/components/ShortId";
 import { useAtLink } from "@/lib/at";
 import { lineName } from "@/lib/lines";
-import { authorityRows, runbookName, runGroups, stepTally, targetKey, targetOf, type AuthorityRow, type RunbookTarget, type RunGroupData } from "@/lib/runbooks";
+import { countTally } from "@/lib/run-counts";
+import { attentionSteps, authorityRows, runbookName, runGroups, stepNeedsAttention, targetKey, targetOf, type AuthorityRow, type RunbookTarget, type RunGroupData } from "@/lib/runbooks";
 import { formatWhen } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { term } from "@/lib/vocabulary";
@@ -61,11 +63,7 @@ export function RunbookScreen() {
                 {last ? (
                   <span className="inline-flex items-baseline gap-2">
                     <Chip concept="runbookRun" value={last.status} />
-                    {incompleteSteps(last) > 0 && (
-                      <span className="text-[12px] text-zinc-300">
-                        {incompleteSteps(last)} {incompleteSteps(last) === 1 ? "step" : "steps"} incomplete
-                      </span>
-                    )}
+                    {attentionSteps(last).length > 0 && <AttentionMark title={stepsTitle(attentionSteps(last))} />}
                     <span>{formatWhen(last.finished_at)}</span>
                   </span>
                 ) : (
@@ -147,7 +145,8 @@ function TargetLink({ target }: { target: RunbookTarget | string }) {
  * its own outcomes name, so a later revision's steps never relabel an older
  * run. One row per run (when, how it started, how it ended and why it
  * stopped), one column per step with its outcome, linked to the Line run it
- * made.
+ * made. A run or step that needs attention carries the amber flag; a run whose
+ * steps serve counts opens to a table of them.
  */
 function RecentRuns({ card }: { card: Card }) {
   const runs = card.recent_runs ?? [];
@@ -199,6 +198,7 @@ function RunGroup({ group, labelled }: { group: RunGroupData; labelled: boolean 
                 {r.stopped_at_step != null && ` at step ${r.stopped_at_step}`}
               </span>
             )}
+            {attentionSteps(r).length > 0 && <AttentionMark title={stepsTitle(attentionSteps(r))} />}
           </span>
         ),
       },
@@ -213,9 +213,7 @@ function RunGroup({ group, labelled }: { group: RunGroupData; labelled: boolean 
           label: `Step ${step.step} ${step.target}`,
           className: "whitespace-nowrap",
           cell: (r) => (
-            <StepOutcome
-              outcome={r.steps.find((o) => o.step === step.step && targetKey(o.target) === step.target)}
-            />
+            <StepOutcome run={r} outcome={r.steps.find((o) => o.step === step.step && targetKey(o.target) === step.target)} />
           ),
         }),
       ),
@@ -235,6 +233,8 @@ function RunGroup({ group, labelled }: { group: RunGroupData; labelled: boolean 
         columns={columns}
         rowKey={(r) => r.run_id}
         label={labelled ? `Runs of ${group.digest}` : "Recent runs"}
+        expanded={(r) => <StepCounts run={r} />}
+        canExpand={(r) => r.steps.some((o) => o.counts)}
         toolbar={false}
         maxHeight="none"
       />
@@ -247,36 +247,66 @@ const shortTarget = (target: string) => {
   return name.slice(name.lastIndexOf(".") + 1);
 };
 
-/** Steps of a run whose daemon says they did not see everything (0 when it does not say). */
-const incompleteSteps = (run: Run) => run.steps.filter((o) => stepTally(o).complete === false).length;
+/** Which steps the flag names, on its hover. */
+const stepsTitle = (steps: number[]) => `Needs attention: ${steps.length === 1 ? "step" : "steps"} ${steps.join(", ")}`;
+
+type Outcome = Run["steps"][number];
 
 /** One step's outcome in a run: its word, linked to the Line run; a failure's code and message on hover. */
-function StepOutcome({ outcome }: { outcome: Run["steps"][number] | undefined }) {
+function StepOutcome({ run, outcome }: { run: Run; outcome: Outcome | undefined }) {
   if (!outcome) return <span className="text-zinc-600">—</span>;
   const chip = (
     <span title={[outcome.run_status && `run ${outcome.run_status}`, outcome.code, outcome.message].filter(Boolean).join("\n") || undefined}>
       <Chip concept="runbookRun" value={outcome.status} />
     </span>
   );
-  const tally = stepTally(outcome);
+  const tally = countTally(outcome.counts);
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
       {outcome.run_id ? <RefLink value={outcome.run_id}>{chip}</RefLink> : chip}
-      {tally.complete === false && (
-        <span className="inline-flex items-baseline gap-1 text-[12px] text-zinc-300" title="The run did not see everything it expected to read">
-          <SignalDot signal="waiting" title="Incomplete" />
-          incomplete
-        </span>
-      )}
-      {tally.counts.length > 0 && (
-        <span className="text-[12px] text-zinc-500">{tally.counts.map((c) => `${c.n} ${c.word}`).join(" · ")}</span>
-      )}
+      {stepNeedsAttention(run, outcome) && <AttentionDot />}
+      {tally && <span className="text-[12px] text-zinc-500">{tally}</span>}
       {(outcome.proposal_ids ?? []).map((id) => (
         <RefLink key={id} value={id} short />
       ))}
     </span>
   );
 }
+
+/**
+ * One run's steps with their counts as columns (a row's expansion): step,
+ * target, outcome linked to the Line run, then what each Line run did. Steps
+ * that need attention carry the amber dot; an action step has no counts.
+ */
+function StepCounts({ run }: { run: Run }) {
+  const lead = useMemo<Column<Outcome>[]>(
+    () => [
+      {
+        id: "step",
+        header: "#",
+        numeric: true,
+        className: "whitespace-nowrap font-mono text-zinc-500",
+        cell: (o) => (
+          <span className="inline-flex items-baseline gap-1.5">
+            {stepNeedsAttention(run, o) && <AttentionDot />}
+            {o.step}
+          </span>
+        ),
+      },
+      { id: "target", header: "Target", className: "break-all", cell: (o) => <TargetLink target={o.target} /> },
+      {
+        id: "status",
+        header: "Outcome",
+        className: "whitespace-nowrap",
+        cell: (o) => (o.run_id ? <RefLink value={o.run_id}><Chip concept="runbookRun" value={o.status} /></RefLink> : <Chip concept="runbookRun" value={o.status} />),
+      },
+    ],
+    [run],
+  );
+  return <RunCountsTable rows={run.steps} counts={outcomeCounts} lead={lead} rowKey={(o) => `${o.step}\n${targetKey(o.target)}`} label={`Step counts of ${run.run_id}`} />;
+}
+
+const outcomeCounts = (o: Outcome) => o.counts;
 
 /** The static preview: what each step can do, from accepted definitions at the head. */
 function PreviewPanel({ preview, isPending, error }: { preview: Preview | undefined; isPending: boolean; error: Error | null }) {

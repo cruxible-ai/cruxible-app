@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { AUTHORED } from "@/fixtures/handlers";
 import { defineFixture } from "@/fixtures/fixture";
@@ -85,23 +85,85 @@ describe("Runbook page", () => {
     expect(links).toEqual(["/i/inst_fixture/runs/RUN-A", "/i/inst_fixture/runs/RUN-C"]);
     // the current definition's one step, as the card lists it
     expect(within(main.getByRole("table", { name: "Steps" })).getByRole("link", { name: "demo.b" })).toBeInTheDocument();
-    // no counts served (an older daemon): the status stands alone
-    expect(main.queryByText(/incomplete/)).toBeNull();
   });
 
-  it("shows a step's counts and an incomplete step when the run serves them", async () => {
-    const counted = REVISED.map((fixture) => {
+  it("flags a run and its steps that need attention, and opens to the steps' counts", async () => {
+    const counts = (over: Partial<Schemas["RunCounts"]>): Schemas["RunCounts"] => ({
+      tag: "cruxible-run-counts-v1",
+      complete: true,
+      incomplete_reasons: [],
+      written: 0,
+      settled: 0,
+      proposed: 0,
+      unchanged: 0,
+      retired: 0,
+      refused: 0,
+      top_refusals: [],
+      inbox: 0,
+      needs_attention: false,
+      ...over,
+    });
+    const flagged = REVISED.map((fixture) => {
       if (fixture !== REVISED[AUTHORED.length]) return fixture;
       const response = structuredClone(fixture.response) as { results: { card: { recent_runs: Schemas["RunbookRunResult"][] } }[] };
-      const steps = response.results[0]!.card.recent_runs[0]!.steps as (Schemas["RunbookStepOutcome"] & Record<string, unknown>)[];
-      Object.assign(steps[0]!, { complete: false, counts: { written: 0, settled: 0, inbox: 9 } });
+      const [newer, older] = response.results[0]!.card.recent_runs;
+      // the newer run: its one step posted to the inbox with an unknown count, refused one item and was incomplete
+      newer!.steps[0]!.counts = counts({
+        complete: false,
+        incomplete_reasons: [{ node: "catalog", kind: "incomplete_input" } as Schemas["CompletenessReason"]],
+        written: 3,
+        settled: 3,
+        refused: 1,
+        top_refusals: [{ code: "extract_refused.value_invalid", count: 1 }],
+        inbox: null,
+        needs_attention: true,
+      });
+      newer!.attention_steps = [1];
+      // the older run: step 1 wrote quietly, step 2 (an action) has no counts
+      older!.steps[0]!.counts = counts({ written: 2, settled: 2 });
+      older!.attention_steps = [];
       return { ...fixture, response };
     });
-    renderApp("/i/inst_fixture/runbooks/demo", counted);
+    renderApp("/i/inst_fixture/runbooks/demo", flagged);
     const main = within(await screen.findByRole("main"));
     const current = within(await main.findByRole("table", { name: `Runs of ${D("2")}` }));
-    expect(current.getByText("incomplete")).toBeInTheDocument();
-    expect(current.getByText("0 written · 0 settled · 9 to inbox")).toBeInTheDocument();
-    expect(main.getByText("1 step incomplete")).toBeInTheDocument();
+    // the run and its step carry the flag; the inline tally names the non-zero counts
+    expect(current.getByTitle("Needs attention: step 1")).toHaveTextContent("needs attention");
+    expect(current.getAllByRole("img", { name: /^Needs attention/ })).toHaveLength(1); // the step's dot
+    expect(current.getByText("3 written · 3 settled · 1 refused · ? to inbox")).toBeInTheDocument();
+    // the header's last run says the same
+    expect(main.getAllByTitle("Needs attention: step 1")).toHaveLength(2);
+    // the older run: counts, no flag
+    const old = within(main.getByRole("table", { name: `Runs of ${D("1")}` }));
+    expect(old.queryByText("needs attention")).toBeNull();
+    expect(old.getByText("2 written · 2 settled")).toBeInTheDocument();
+
+    // a run opens to its steps with the counts as columns
+    fireEvent.click(current.getByRole("button", { name: "Expand RBR-new" }));
+    const steps = within(await main.findByRole("table", { name: "Step counts of RBR-new" }));
+    for (const header of ["#", "Target", "Outcome", "Written", "Settled", "Proposed", "Unchanged", "Retired", "Refused", "To inbox", "Complete", "Top refusals"]) {
+      expect(steps.getByRole("columnheader", { name: header })).toBeInTheDocument();
+    }
+    const row = within(steps.getAllByRole("row")[1]!);
+    expect(row.getByRole("img", { name: /^Needs attention/ })).toBeInTheDocument();
+    expect(row.getByTitle(/the inbox could not be read/)).toHaveTextContent("?");
+    expect(row.getByText("No")).toHaveAttribute("title", "catalog · incomplete_input");
+    expect(row.getByText("extract_refused.value_invalid")).toBeInTheDocument();
+
+    // the older run: an unflagged step with counts and an action step without (dashes)
+    fireEvent.click(old.getByRole("button", { name: "Expand RBR-old" }));
+    const oldSteps = within(await main.findByRole("table", { name: "Step counts of RBR-old" }));
+    const [, first, second] = oldSteps.getAllByRole("row");
+    expect(within(first!).queryByRole("img", { name: /^Needs attention/ })).toBeNull();
+    expect(within(first!).getAllByText("2")).toHaveLength(2);
+    expect(within(second!).getAllByText("—").length).toBeGreaterThan(5);
+  });
+
+  it("serves no counts: no flag, no tally, no expansion", async () => {
+    renderApp("/i/inst_fixture/runbooks/demo", REVISED);
+    const main = within(await screen.findByRole("main"));
+    const current = within(await main.findByRole("table", { name: `Runs of ${D("2")}` }));
+    expect(current.queryByText("needs attention")).toBeNull();
+    expect(current.queryByRole("button", { name: /^Expand/ })).toBeNull();
   });
 });

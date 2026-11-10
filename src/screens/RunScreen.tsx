@@ -7,6 +7,7 @@ import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
 import { Fact, Page, PageHeader } from "@/components/Page";
 import { CopyButton, ShortId, shortId } from "@/components/ShortId";
 import { RefLink } from "@/components/RefLink";
+import { AttentionDot, AttentionMark, RunCountsTable } from "@/components/RunCountsTable";
 import { ChangeMark } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { ShownValue } from "@/components/ShownValue";
@@ -49,7 +50,10 @@ export function RunScreen() {
           runCard && (
             <>
               <Fact label="Status">
-                <Chip concept="run" value={runCard.status} />
+                <span className="inline-flex items-baseline gap-2">
+                  <Chip concept="run" value={runCard.status} />
+                  {state.data?.counts?.needs_attention && <AttentionMark />}
+                </span>
               </Fact>
               <Fact label="Procedure">
                 <RefLink value={runCard.procedure.startsWith("Procedure:") ? runCard.procedure : `Procedure:${runCard.procedure}`} />
@@ -140,6 +144,7 @@ export function RunScreen() {
           <Panel title="Outcome">
             {runCard.terminal ? <TerminalView terminal={runCard.terminal} /> : <div className="text-[13px] text-zinc-500">No refusal or failure</div>}
             {runCard.completeness && <CompletenessView completeness={runCard.completeness} />}
+            {state.data?.counts && <CountsView state={state.data} />}
             {(runCard.terminal_egress ?? []).length > 0 && (
               <div className="mt-2 space-y-1.5">
                 {runCard.terminal_egress!.map((egress, i) => (
@@ -246,6 +251,32 @@ function CompletenessView({ completeness }: { completeness: Schemas["RunComplete
       {completeness.reasons.length > 0 && (
         <DataTable rows={completeness.reasons} columns={COMPLETENESS_COLUMNS} rowKey={(r) => `${r.node}\n${r.kind}\n${completeness.reasons.indexOf(r)}`} label="Completeness reasons" toolbar={false} maxHeight="none" />
       )}
+    </SubSection>
+  );
+}
+
+type RunState = Schemas["ProcedureRunState"];
+
+const COUNTS_LEAD: Column<RunState>[] = [
+  {
+    id: "status",
+    header: "Outcome",
+    className: "whitespace-nowrap",
+    cell: (s) => (
+      <span className="inline-flex items-baseline gap-1.5">
+        {s.counts?.needs_attention && <AttentionDot />}
+        <Chip concept="run" value={s.status} />
+      </span>
+    ),
+  },
+];
+const stateCounts = (s: RunState) => s.counts;
+
+/** What the run did, in counts (its state's `counts`), one row with the counts as columns. */
+function CountsView({ state }: { state: RunState }) {
+  return (
+    <SubSection title="Counts">
+      <RunCountsTable rows={[state]} counts={stateCounts} lead={COUNTS_LEAD} rowKey={(s) => s.run_id ?? ""} label="Run counts" />
     </SubSection>
   );
 }
