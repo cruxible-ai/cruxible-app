@@ -2,11 +2,13 @@
  * Hand-authored Query pages: `security.kev_exposure` walks from a KEV-listed
  * vulnerability back to the assessments that judge it affected and on to
  * their releases (the query kev-triage reads), with its row Contract and a
- * live page of its rows; `security.release_exposure` starts at the one
- * release its parameter names, so it has no preview without one.
+ * live answer in two pages; `security.release_exposure` starts at the one
+ * release its parameter names, so it has no rows without one, and with one
+ * its answer hits a server cap.
  */
 import { defineFixture } from "../fixture";
 import { getBatchBody, queryBody } from "@/api/requests";
+import { QUERY_PAGE } from "@/lib/query-params";
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./world";
 
@@ -62,9 +64,12 @@ export const RELEASE_EXPOSURE_CARD: Schemas["GetQueryCard"] = {
     row: null,
     from: { r: "security.release = $release" },
     hops: [{ a: "<r.security.assessment.release: security.assessment" }],
-    fields: [{ status: "a.security.assessment.status" }],
+    fields: [{ status: "a.security.assessment.status" }, { score: "a.security.assessment.score" }],
   },
 };
+
+/** The release the release_exposure fixture answers for. */
+export const RELEASE = "security.release/acme-2.4.0";
 
 const cardBatch = (ref: string, kind: GetResult["kind"], card: NonNullable<GetResult["card"]>) =>
   defineFixture({
@@ -93,7 +98,7 @@ export default [
   defineFixture({
     method: "post",
     path: "/api/v1/{instance_id}/query",
-    body: queryBody({ name: KEV_EXPOSURE, limit: 10 }, COORDINATE),
+    body: queryBody({ name: KEV_EXPOSURE, limit: QUERY_PAGE }, COORDINATE),
     response: {
       tag: "playbill-query-page-v1",
       kind: "security.vulnerability",
@@ -112,6 +117,56 @@ export default [
       capped: [],
       notes: [],
       receipt: { mode: "named", spec_digest: "sha256:" + "e".repeat(64), coordinate: COORDINATE, evaluation_time: NOW },
+    },
+  }),
+  // the answer's second page, from the first page's cursor
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/query",
+    body: queryBody({ name: KEV_EXPOSURE, limit: QUERY_PAGE, cursor: "q2.next" }, COORDINATE),
+    response: {
+      tag: "playbill-query-page-v1",
+      kind: "security.vulnerability",
+      columns: [
+        { name: "cve_id", predicate: "security.vulnerability.cve_id", type: "string", cardinality: "one" },
+        { name: "release", predicate: null, type: "subject:security.release", cardinality: "one" },
+        { name: "status", predicate: "security.assessment.status", type: "string", cardinality: "one" },
+      ],
+      rows: [
+        { cve_id: "CVE-2023-4863", release: subject("acme-2.3.0"), status: "affected", flags: [] },
+        { cve_id: "CVE-2023-44487", release: subject("acme-2.2.0"), status: null, flags: [] },
+        { cve_id: "CVE-2022-22965", release: subject("acme-2.1.0"), status: "affected", flags: [] },
+      ],
+      truncated: false,
+      next_cursor: null,
+      remaining: 0,
+      capped: [],
+      notes: [],
+      receipt: { mode: "named", spec_digest: "sha256:" + "e".repeat(64), coordinate: COORDINATE, evaluation_time: NOW },
+    },
+  }),
+  // given its release, the answer stops at a server cap: the daemon says so
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/query",
+    body: queryBody({ name: RELEASE_EXPOSURE, limit: QUERY_PAGE, params: { release: RELEASE } }, COORDINATE),
+    response: {
+      tag: "playbill-query-page-v1",
+      kind: "security.release",
+      columns: [
+        { name: "score", predicate: "security.assessment.score", type: "decimal", cardinality: "one" },
+        { name: "status", predicate: "security.assessment.status", type: "string", cardinality: "one" },
+      ],
+      rows: [
+        { subject: RELEASE, subject_id: "acme-2.4.0", score: "0.5", status: "affected", flags: ["contested"] },
+        { subject: RELEASE, subject_id: "acme-2.4.0", score: "0.125", status: "fixed", flags: [] },
+      ],
+      truncated: true,
+      next_cursor: null,
+      remaining: 0,
+      capped: ["max_results=2"],
+      notes: ["the answer hit the server cap max_results=2; rows past it are not listed"],
+      receipt: { mode: "named", spec_digest: "sha256:" + "f".repeat(64), coordinate: COORDINATE, evaluation_time: NOW },
     },
   }),
 ];
