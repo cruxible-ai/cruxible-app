@@ -26,7 +26,14 @@ export function useRunbookWakes(): { byLine: Map<string, RunbookWake[]>; pending
   const triggered = (runbooks.data?.rows ?? []).filter((r) => r.lifecycle === "live" && (r.triggers_total ?? 0) > 0);
   const cards = useGetBatch(triggered.map((r) => `Runbook:${runbookName(r.runbook)}`));
   const results = cards.results;
-  const key = JSON.stringify(results.map((r) => r.ref));
+  // keyed by what the cards serve (each Runbook's steps and Triggers) at their coordinate, never by refs
+  // alone: two generations can serve the same Runbook with other steps or another schedule
+  const key = JSON.stringify(
+    results.map((r) => {
+      const card = cardOf(r, "runbook");
+      return [r.ref, r.accepted_coordinate?.git_oid ?? null, card?.steps ?? null, card?.triggers ?? null];
+    }),
+  );
   const byLine = useMemo(() => {
     const out = new Map<string, RunbookWake[]>();
     for (const result of results) {
