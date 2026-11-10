@@ -5,6 +5,7 @@ import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
 import { AUTHORED } from "@/fixtures/handlers";
 import { defineFixture } from "@/fixtures/fixture";
 import { AT, COORDINATE, NOW } from "@/fixtures/authored/world";
+import { LINE_INBOX_ITEM } from "@/fixtures/authored/lines";
 import { orientQuery } from "@/api/requests";
 import { ORIENT_PAGE } from "@/api/hooks";
 
@@ -91,23 +92,31 @@ describe("Line page", () => {
     expect(main.getByRole("button", { name: "What settles means" })).toBeInTheDocument();
     expect(main.getAllByRole("link", { name: "kev_exposure" })[0]).toHaveAttribute("href", `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`);
     expect(await main.findByText("Contradicted")).toBeInTheDocument();
-    const item = await main.findByRole("button", { name: /^INB-7777/ });
-    fireEvent.click(item);
-    expect(await main.findByText(/"release": "rel-1"/)).toBeInTheDocument();
+    // the inbox reads as on the Inbox page: an opened item is its payload's fields and its facts
+    const inbox = within(await main.findByRole("table", { name: "Inbox" }));
+    fireEvent.click(await inbox.findByRole("button", { name: `Expand ${LINE_INBOX_ITEM}` }));
+    const fields = within(await main.findByRole("list", { name: "Payload fields" }));
+    expect(await fields.findByText("rel-1")).toBeInTheDocument();
+    expect(within(main.getByRole("list", { name: "Item" })).getByText("3 times")).toBeInTheDocument();
     expect(main.queryByRole("button", { name: /^(run|dispatch|enable|disable|ack|dismiss|link|evaluate)/i })).toBeNull();
   });
 });
 
 describe("Line page tables", () => {
-  it("sorts the runs page and says the sort covers only that page; filters the inbox by state", async () => {
-    renderApp("/i/inst_fixture/lines/kev-triage?runs.sort=-nodes&inbox.f.status=acknowledged");
+  it("sorts the runs page and says the sort covers only that page; the inbox in the Inbox page's rows", async () => {
+    renderApp("/i/inst_fixture/lines/kev-triage?runs.sort=-nodes");
     const main = within(await screen.findByRole("main"));
     expect(await main.findByText(/^Sorted within the newest \d+ of 12 runs\.$/)).toBeInTheDocument();
     const runs = within(main.getByRole("table", { name: "Runs" }));
     expect(runs.getByRole("columnheader", { name: /Nodes done/ })).toHaveAttribute("aria-sort", "descending");
     const inbox = within(await main.findByRole("table", { name: "Inbox" }));
-    expect(inbox.queryByRole("button", { name: /^INB-7777/ })).toBeNull(); // unread: filtered out
-    expect(inbox.getByRole("button", { name: "Filter State: Acknowledged" })).toBeInTheDocument();
+    // the Inbox page's status marker, a payload that is text read as served, no raw preview column, no id column
+    expect(await inbox.findByRole("img", { name: /Unread/ })).toBeInTheDocument();
+    expect(inbox.getByText("CVE-2024-6387 is KEV-listed; no assessment exists for rel-1.")).toBeInTheDocument();
+    expect(inbox.queryByRole("columnheader", { name: /Node|Item/ })).toBeNull();
+    // the Line filter already names the Line: no Line column; statuses filter on the Inbox page
+    expect(inbox.queryByRole("columnheader", { name: "Line" })).toBeNull();
+    expect(main.getAllByRole("link", { name: "Open in Inbox" }).map((a) => a.getAttribute("href"))).toContain("/i/inst_fixture/inbox?line=kev-triage");
   });
 });
 

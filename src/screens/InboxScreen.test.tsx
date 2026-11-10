@@ -29,9 +29,11 @@ describe("Inbox", () => {
     const t = await table();
     // Contract fields as columns, Subject fields first (cve_id by its lineage, release by its type), the rest after
     expect(await t.findByRole("link", { name: "CVE-2024-6387" })).toHaveAttribute("href", `${I}/s/security.vulnerability%2Fcve-2024-6387`);
+    // the item's current row from its Line's Query follows the Subject fields (here its status); the item's other fields after
+    await t.findByText("under_investigation");
     const headers = t.getAllByRole("columnheader").map((th) => th.textContent);
     // (the first header is the open-row column's)
-    expect(headers.slice(1, 5)).toEqual(["Status", "cve_id", "release", "note"]);
+    expect(headers.slice(1, 6)).toEqual(["Status", "cve_id", "release", "status", "note"]);
     // a field's header names it as written; its Contract description is on hover
     expect(t.getByRole("columnheader", { name: "release" })).toHaveAttribute("title", expect.stringContaining("The release the CVE is unassessed for."));
     // a ref-valued Subject field links as served; other text stays text, even text that reads like a path

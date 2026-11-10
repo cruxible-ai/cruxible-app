@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Columns3, ListFilter, X } from "lucide-react";
+import { InfoButton } from "@/components/InfoButton";
 import {
   applyTable,
   cycleSort,
@@ -28,6 +29,8 @@ export interface Column<T> extends ColumnSpec<T> {
   label?: string | undefined;
   /** What the column means (header hover). */
   title?: string | undefined;
+  /** A concept definition for the header's ⓘ, beside the header (never inside its sort button). */
+  info?: ReactNode;
   cell: (row: T) => ReactNode;
   numeric?: boolean | undefined;
   className?: string | undefined;
@@ -307,11 +310,17 @@ export function DataTable<T>({
 function HeaderCell<T>({ column, sort, onSort }: { column: Column<T>; sort: "asc" | "desc" | null; onSort: () => void }) {
   const base = `sticky top-0 z-10 whitespace-nowrap border-b border-zinc-800 bg-zinc-950 py-1.5 pr-4 align-bottom text-[12px] font-medium text-zinc-500 last:pr-0 ${column.numeric ? "text-right" : ""} ${column.headerClassName ?? ""}`;
   const ariaSort = sort === "asc" ? "ascending" : sort === "desc" ? "descending" : "none";
+  const info = column.info ? (
+    <span className="ml-1.5 inline-flex align-middle">
+      <InfoButton label={`What ${columnLabel(column).toLowerCase()} means`}>{column.info}</InfoButton>
+    </span>
+  ) : null;
   if (!column.sortValue) {
     const title = [column.title, column.noSort].filter(Boolean).join("\n") || undefined;
     return (
       <th className={base} title={title}>
         {column.header}
+        {info}
       </th>
     );
   }
@@ -326,6 +335,7 @@ function HeaderCell<T>({ column, sort, onSort }: { column: Column<T>; sort: "asc
         {sort === "asc" && <ArrowUp className="h-3 w-3" aria-hidden />}
         {sort === "desc" && <ArrowDown className="h-3 w-3" aria-hidden />}
       </button>
+      {info}
     </th>
   );
 }

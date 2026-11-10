@@ -475,6 +475,7 @@ export default [
             operation: "cruxible.inbox.list",
             target: "Line:kev-triage",
             required_change: "read_inbox",
+            arguments: { line: "kev-triage", status: "unread" },
             command: "cruxible inbox list --line kev-triage",
           },
         },

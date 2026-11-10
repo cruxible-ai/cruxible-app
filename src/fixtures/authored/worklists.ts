@@ -13,6 +13,7 @@ import { getBatchBody, inboxQuery, orientQuery, queryBody } from "@/api/requests
 import type { GetResult, Schemas } from "@/api/schemas";
 import { QUERIES_PAGE } from "@/api/hooks";
 import { INBOX_LIST_PAGE } from "@/lib/inbox";
+import { WORKLIST_LIMIT } from "@/lib/worklist";
 import { AT, COORDINATE, NOW } from "./world";
 import { KEV_EXPOSURE, KEV_EXPOSURE_CARD, RELEASE_EXPOSURE, RELEASE_EXPOSURE_CARD } from "./queries";
 
@@ -141,10 +142,45 @@ const vulnerabilities = (cves: string[]) =>
     },
   });
 
+/**
+ * The notify Line's Query as it reads now, for the inbox's current-row join
+ * (one read per posting step on the page): CVE-2024-6387 on acme-2.4.0 still
+ * qualifies; CVE-2021-44228 on acme-2.3.1 no longer does.
+ */
+export const worklistRead = (rows: Record<string, unknown>[], extra: Partial<Schemas["QueryResultRecord"]> = {}) =>
+  defineFixture({
+    method: "post",
+    path: "/api/v1/{instance_id}/query",
+    body: queryBody({ name: KEV_EXPOSURE, limit: WORKLIST_LIMIT }, COORDINATE),
+    response: {
+      tag: "playbill-query-page-v1",
+      kind: "security.vulnerability",
+      columns: [
+        { name: "cve_id", predicate: "security.vulnerability.cve_id", type: "string", cardinality: "one" },
+        { name: "release", predicate: null, type: "subject:security.release", cardinality: "one" },
+        { name: "status", predicate: "security.assessment.status", type: "string", cardinality: "one" },
+      ],
+      rows: rows as Schemas["QueryResultRecord"]["rows"],
+      truncated: false,
+      next_cursor: null,
+      remaining: 0,
+      capped: [],
+      notes: [],
+      receipt: { mode: "named", spec_digest: "sha256:" + "e".repeat(64), coordinate: COORDINATE, evaluation_time: NOW },
+      ...extra,
+    },
+  });
+
+export const WORKLIST_ROWS = [
+  { subject: "security.vulnerability/cve-2023-4863", cve_id: "CVE-2023-4863", release: "security.release/acme-2.3.0", status: "affected", flags: [] },
+  { subject: "security.vulnerability/cve-2024-6387", cve_id: "CVE-2024-6387", release: "security.release/acme-2.4.0", status: "under_investigation", flags: [] },
+];
+
 const inbox = (line: string | undefined, status: Schemas["InboxItemEnvelope"]["status"] | undefined, response: Schemas["InboxList"], cursor?: string) =>
   defineFixture({ method: "get", path: "/api/v1/{instance_id}/inbox", query: inboxQuery(line, status, INBOX_LIST_PAGE, cursor), response });
 
 export default [
+  worklistRead(WORKLIST_ROWS),
   defineFixture({
     method: "get",
     path: "/api/v1/{instance_id}/orient",

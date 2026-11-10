@@ -1,7 +1,7 @@
 // Dev utility: render app routes headlessly and dump screenshots + console
 // errors. Usage: node scripts/screenshot.mjs <url-path> <outfile> [height]
 //
-// UI_HOST/UI_PORT select the dev server; UI_SETTLE_MS extends the post-load
+// UI_HOST/UI_PORT select the dev server; UI_WIDTH the viewport width (1440); UI_SETTLE_MS extends the post-load
 // pause for views that keep polling (the head poll never reaches networkidle,
 // so waiting on load + a settle window is the only reliable capture point).
 import { chromium } from "@playwright/test";
@@ -19,7 +19,7 @@ const headed = process.env.UI_HEADED === "1";
 const browser = await chromium.launch(
   headed ? { headless: false, args: ["--window-position=-3000,-3000", "--window-size=1460,960"] } : {},
 );
-const page = await browser.newPage({ viewport: { width: 1440, height: Number(height) } });
+const page = await browser.newPage({ viewport: { width: Number(process.env.UI_WIDTH ?? "1440"), height: Number(height) } });
 const errors = [];
 page.on("console", (msg) => {
   if (msg.type() === "error") errors.push(msg.text());

@@ -36,3 +36,58 @@ export const REPAIR_DOORS: Record<NextRepair["operation"], { cli: string; mcp: s
 
 /** A served command that is SDK code (`cx.…`), not a CLI line: an older daemon or another surface's rendering. */
 export const isSdkCode = (command: string) => /^cx[.(]/.test(command.trim());
+
+type Repairish = { operation: NextRepair["operation"]; target?: string; arguments?: unknown };
+
+/**
+ * Where the console itself shows what a repair reads. Only reads qualify (the
+ * console never writes): `inbox.list` opens the Inbox page filtered by the
+ * repair's own `line` (else its Line target) and `status` arguments; `get` opens the ref it names.
+ * Everything comes from the served operation and arguments; null for every
+ * other operation.
+ */
+export type ConsoleStep = { kind: "inbox"; line: string | null; status: string | null } | { kind: "ref"; ref: string };
+
+export function consoleStep(repair: Repairish | null | undefined): ConsoleStep | null {
+  if (!repair) return null;
+  const args = typeof repair.arguments === "object" && repair.arguments !== null && !Array.isArray(repair.arguments) ? (repair.arguments as Record<string, unknown>) : {};
+  const text = (value: unknown) => (typeof value === "string" && value !== "" ? value : null);
+  if (repair.operation === "cruxible.inbox.list") {
+    // the Line from the repair's arguments, else its target when that names a Line
+    const target = text(repair.target);
+    return { kind: "inbox", line: text(args.line) ?? (target?.startsWith("Line:") ? target : null), status: text(args.status) };
+  }
+  if (repair.operation === "cruxible.get") {
+    const ref = text(args.ref) ?? text(repair.target);
+    return ref ? { kind: "ref", ref } : null;
+  }
+  return null;
+}
+
+/** The Inbox page's search for an inbox step. */
+export function inboxSearch(step: Extract<ConsoleStep, { kind: "inbox" }>): string {
+  const params = new URLSearchParams();
+  if (step.line) params.set("line", step.line.replace(/^Line:/, ""));
+  if (step.status) params.set("status", step.status);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+/**
+ * A repair's CLI and MCP forms. `cli` is the served command when the queue
+ * rendered one (never SDK code), else the command path with the row's Line
+ * when the operation acts on one (`served` false: the arguments are the
+ * row's); `mcp` the tool. A hand edit has neither.
+ */
+export function repairForms(
+  repair: (Repairish & { command?: string | null }) | null | undefined,
+  requirement: { operation: NextRepair["operation"]; tool: string } | null | undefined,
+  subject: string,
+): { cli: string | null; served: boolean; mcp: string | null } {
+  const operation = repair?.operation ?? requirement?.operation;
+  if (!operation) return { cli: null, served: false, mcp: null };
+  const door = REPAIR_DOORS[operation];
+  const served = repair?.command && !isSdkCode(repair.command) ? repair.command : null;
+  const line = operation.startsWith("cruxible.line.") && subject.startsWith("Line:") ? ` ${subject.slice(5)}` : "";
+  return { cli: served ?? (door ? `cruxible ${door.cli}${line}` : null), served: served !== null, mcp: requirement?.tool ?? door?.mcp ?? null };
+}
