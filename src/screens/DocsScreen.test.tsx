@@ -33,7 +33,32 @@ describe("Docs", () => {
     expect(main.getByText("1 match")).toBeInTheDocument();
   });
 
-  it("opens the first Document and renders markdown as prose, with cruxible refs as chips and a Raw toggle", async () => {
+  it("opens the first authored Document, past the kit receipt listed before it", async () => {
+    renderApp(docs());
+    const main = within(await screen.findByRole("main"));
+    const list = within(await main.findByRole("list", { name: "Documents" }));
+    expect(list.getAllByRole("button")[0]).toHaveTextContent("Kit security 1.3.0");
+    expect(list.getByRole("button", { name: /Triage architecture/ })).toHaveAttribute("aria-current", "true");
+  });
+
+  it("reads a kit receipt as tables of the paths it owns and carries, digests shortened with copy, the JSON behind a disclosure", async () => {
+    renderApp(docs("kit-security"));
+    const main = within(await screen.findByRole("main"));
+    const owned = within(await main.findByRole("table", { name: "Owned artifacts" }));
+    const row = within(owned.getByText("queries/security.kev_exposure.json").closest("tr")!);
+    // installed and release differ here; each digest shortened, whole on hover, with copy
+    expect(row.getByTitle("sha256:" + "b2".repeat(32))).toHaveTextContent(/^sha256:b2b2b2b2…$/);
+    expect(row.getByRole("button", { name: `Copy sha256:${"a2".repeat(32)}` })).toBeInTheDocument();
+    // no content digest: a dash
+    expect(row.getByText("—")).toBeInTheDocument();
+    expect(within(main.getByRole("table", { name: "Carried artifacts" })).getByText("capture-contracts/playbill.self-source-v1.json")).toBeInTheDocument();
+    // the raw receipt only on request
+    expect(main.queryByText(/"playbill-kit-receipt-v1"/)).toBeNull();
+    fireEvent.click(main.getByRole("button", { name: /Receipt \(raw JSON\)/ }));
+    expect(await main.findByText(/"tag": "playbill-kit-receipt-v1"/)).toBeInTheDocument();
+  });
+
+  it("renders markdown as prose, with cruxible refs as chips and a Raw toggle", async () => {
     renderApp(docs());
     const main = within(await screen.findByRole("main"));
     // the cards (revision, size) and the body arrive apart; read once both have
@@ -86,7 +111,7 @@ describe("Docs", () => {
 
   it("hides the list for a wider reader, and steps between Documents while hidden", async () => {
     // jsdom here has no working localStorage: the toggle must work without it.
-    renderApp(docs());
+    renderApp(docs(DOCS[0]!.name));
     const main = within(await screen.findByRole("main"));
     await main.findByRole("list", { name: "Documents" });
     fireEvent.click(main.getByRole("button", { name: "Hide the Document list" }));

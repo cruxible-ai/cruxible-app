@@ -45,7 +45,24 @@ export const RELEASE_LOG = "a".repeat(DOCUMENT_RANGE_BYTES - 1) + "é" + "tail\n
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0x00]);
 
+/** A kit install's receipt (core KitReceipt), listed first as a kit's is: the Docs page opens past it. */
+export const KIT_RECEIPT = {
+  tag: "playbill-kit-receipt-v1",
+  kit_id: "security",
+  version: "1.3.0",
+  content_digest: "sha256:" + "f1".repeat(32),
+  owns: ["security."],
+  artifacts: [
+    { path: "claim-types/security.vulnerability/cve_id.json", release_digest: "sha256:" + "a1".repeat(32), installed_digest: "sha256:" + "a1".repeat(32), content_digest: "sha256:" + "c1".repeat(32) },
+    { path: "queries/security.kev_exposure.json", release_digest: "sha256:" + "a2".repeat(32), installed_digest: "sha256:" + "b2".repeat(32) },
+  ],
+  carried: [{ path: "capture-contracts/playbill.self-source-v1.json", release_digest: "sha256:" + "a3".repeat(32), installed_digest: "sha256:" + "a3".repeat(32) }],
+  kept: [],
+  source: "security",
+};
+
 export const DOCS: Doc[] = [
+  { name: "kit-security", title: "Kit security 1.3.0", kind: "kit_receipt", media: "application/json", revision: 1, bytes: utf8(JSON.stringify(KIT_RECEIPT)) },
   { name: "architecture", title: "Triage architecture", kind: "design", media: "text/markdown", revision: 3, bytes: utf8(ARCHITECTURE_MD) },
   { name: "kev-thresholds", title: "KEV thresholds", kind: "reference", media: "application/json", revision: 1, bytes: utf8('{"max_age_days":30,"severity":["high","critical"]}') },
   { name: "network-diagram", title: "Network diagram", kind: "reference", media: "image/png", revision: 1, bytes: PNG },
