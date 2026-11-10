@@ -391,11 +391,7 @@ function Results({ view }: { view: QueryView }) {
   const capped = page?.capped ?? [];
   const total = page ? first + rows.length + (page.remaining ?? 0) : null;
   const kind = wholeKindTable(view);
-  const count = page
-    ? rows.length === 0
-      ? "No rows"
-      : `Rows ${first + 1}–${first + rows.length}${total !== null ? ` of ${total}${capped.length > 0 ? "+" : ""}` : ""}`
-    : null;
+  const count = page && rows.length > 0 ? `Rows ${first + 1}–${first + rows.length}${total !== null ? ` of ${total}${capped.length > 0 ? "+" : ""}` : ""}` : "No rows";
   return (
     <Panel
       title="Results"
@@ -433,6 +429,8 @@ function Results({ view }: { view: QueryView }) {
         <LoadState error={result.error} />
       ) : !page ? (
         <LoadState />
+      ) : rows.length === 0 && pages.length === 0 ? (
+        <EmptyState>No rows</EmptyState>
       ) : (
         <>
           {capped.length > 0 && (
