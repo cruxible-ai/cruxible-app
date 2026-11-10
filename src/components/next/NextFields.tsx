@@ -126,7 +126,7 @@ export function RepairCell({ item }: { item: NextItem }) {
     </>
   );
   return (
-    <div className="flex w-full max-w-[20rem] min-w-[11rem] flex-col gap-1 text-[12px] xl:min-w-[15rem]">
+    <div className="flex w-full max-w-[20rem] min-w-[9rem] flex-col gap-1 text-[12px] xl:min-w-[15rem]">
       {cli && !leads ? (
         <>
           {/* the CLI leads: its line ends in the ⓘ; the MCP line keeps its copy button in the same column */}

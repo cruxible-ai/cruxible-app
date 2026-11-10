@@ -187,7 +187,8 @@ export function About({ identity }: { identity: string }) {
   return (
     <span className="flex max-w-[16rem] min-w-[8rem] items-baseline gap-1.5 whitespace-nowrap" title={identity}>
       {kind && <span className="shrink-0 text-[11px] text-zinc-500">{kind}</span>}
-      <span className="w-0 min-w-0 flex-1 truncate">
+      {/* cut at a width that keeps the table inside the panel at 1100px; wider screens show more of the name */}
+      <span className="min-w-0 max-w-[10rem] truncate xl:max-w-[16rem]">
         <RefLink value={identity} short className="hover:underline">
           {name !== null ? <span className="font-mono text-[12.5px]">{shortId(name)}</span> : undefined}
         </RefLink>
