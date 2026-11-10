@@ -21,6 +21,8 @@ import { ClaimTypeRedirect, KindScreen } from "@/screens/KindScreen";
 import { ContractScreen, ContractsScreen } from "@/screens/ContractScreen";
 import { FlowScreen } from "@/screens/FlowScreen";
 import { DocsScreen } from "@/screens/DocsScreen";
+import { QueriesScreen } from "@/screens/QueriesScreen";
+import { InboxScreen } from "@/screens/InboxScreen";
 import { loadConfig } from "@/config";
 
 // The WebGL renderer (cosmos) loads with the State graph screen, not the app.
@@ -77,6 +79,8 @@ export const routes = [
       { path: "ref/:ref", element: <RefScreen /> },
       { path: "s/:ref", element: <SubjectScreen /> },
       { path: "next", element: <NextScreen /> },
+      { path: "queries", element: <QueriesScreen /> },
+      { path: "inbox", element: <InboxScreen /> },
       { path: "beliefs", element: <ListRedirect page="next" preset="beliefs" /> },
       { path: "docs", element: <DocsScreen /> },
       { path: "ledger", element: <LedgerScreen /> },

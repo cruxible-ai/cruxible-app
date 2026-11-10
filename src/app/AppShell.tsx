@@ -5,7 +5,9 @@ import {
   FileText,
   GitPullRequest,
   History,
+  Inbox,
   LayoutDashboard,
+  ListOrdered,
   Library,
   Network,
   PanelLeftClose,
@@ -15,13 +17,15 @@ import {
   Waypoints,
   Workflow,
 } from "lucide-react";
-import { useHead, useInstanceId, useOrient, usePin } from "@/api/hooks";
+import { useHead, useInstanceId, useNext, useOrient, usePin } from "@/api/hooks";
+import { NEXT_PAGE } from "@/api/requests";
 import { JumpPalette } from "@/components/JumpPalette";
 import { SettingsMenu } from "@/components/SettingsMenu";
 import { useAtLink, useRawAtParam } from "@/lib/at";
 import { SignalDot } from "@/components/Chip";
 import { term } from "@/lib/vocabulary";
 import { nextCount } from "@/lib/next-reasons";
+import { totalUnread } from "@/lib/inbox";
 import { AtPicker } from "./AtPicker";
 
 const COLLAPSED_KEY = "cruxible.sidebar.collapsed";
@@ -89,6 +93,9 @@ export function AppShell() {
   const pin = usePin();
   const pinned = useRawAtParam() !== null;
   const generation = pin.head.data?.generation;
+  // the unread count is next's line_inbox_unread rows (the first page, shared with Next and the Dashboard)
+  const unread = totalUnread(useNext({ limit: NEXT_PAGE }).data?.items) ?? 0;
+  const path = decodeURIComponent(pathname);
 
   const tabs: Tab[] = [
     { path: "", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -103,6 +110,19 @@ export function AppShell() {
       icon: CircleAlert,
       // orient counts problems (next_items) and setup choices apart; the Next page lists both
       waiting: nextCount(attention) > 0 ? { count: nextCount(attention), title: "Items on Next, setup choices included: open Next for the repairs" } : null,
+    },
+    {
+      path: "/inbox",
+      label: "Inbox",
+      icon: Inbox,
+      waiting: unread > 0 ? { count: unread, title: "Unread inbox items, posted by Lines" } : null,
+    },
+    {
+      path: "/queries",
+      label: "Queries",
+      icon: ListOrdered,
+      // a Query's page is its reference page
+      active: path.startsWith(`/i/${instanceId}/ref/query:`) || path.startsWith(`/i/${instanceId}/ref/QueryDefinition:`),
     },
     {
       path: "/proposals",

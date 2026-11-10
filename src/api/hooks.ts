@@ -1343,3 +1343,18 @@ export function useWholeGraph(
     enabled && first !== undefined,
   );
 }
+
+/** Named Queries per Queries-page read (orient section=queries). */
+export const QUERIES_PAGE = 100;
+
+/**
+ * One page of the instance's named Queries (name, authored description,
+ * params as `name: type`) at the page coordinate: orient section=queries,
+ * paged by the daemon's cursor.
+ */
+export function useQueryList(cursor?: string) {
+  const orient = useOrientFetch();
+  return usePinnedQuery("orient-section-queries", [cursor ?? null], (coordinate) =>
+    orient(coordinate, { section: "queries", limit: QUERIES_PAGE, ...(cursor !== undefined ? { cursor } : {}) }),
+  );
+}

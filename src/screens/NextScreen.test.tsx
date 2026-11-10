@@ -30,6 +30,8 @@ describe("Next", () => {
     );
     // a repair is text, with its CLI command; the console offers no action
     expect(main.getByText("cruxible inbox list --line kev-triage")).toBeInTheDocument();
+    // a Line's unread inbox row opens that Line's unread items on the Inbox page
+    expect(main.getByRole("link", { name: "Open in Inbox" })).toHaveAttribute("href", "/i/inst_fixture/inbox?line=kev-triage&status=unread");
     expect(main.queryByRole("button", { name: /approve|reject|activate|run/i })).toBeNull();
     // unnamed detail keys fall back to JSON on demand
     expect(main.getByRole("button", { name: "More detail" })).toBeInTheDocument();
