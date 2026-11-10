@@ -7,6 +7,13 @@ afterEach(cleanup);
 const I = "/i/inst_fixture";
 
 describe("Evidence flow", () => {
+  it("shows its title and description while the model loads", async () => {
+    renderApp(`${I}/flow`);
+    expect(await screen.findByText("Loading…")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Evidence flow" })).toBeInTheDocument();
+    expect(screen.getByText(/Where evidence comes from and what it turns into/)).toBeInTheDocument();
+  });
+
   it("columns sources, the Lines that fetch them, and the ClaimTypes they write, each a link", async () => {
     renderApp(`${I}/flow`);
     const flow = within(await screen.findByTestId("flow", {}, { timeout: 8000 }));

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { bubbleRadius, layoutKnowledgeMap, mapHeight, type KindClaimType, type MapPlacement } from "@/lib/overview";
+import { bubbleRadius, layoutKnowledgeMap, mapHeight, placeEdgeLabels, textBox, type Box, type KindClaimType, type MapPlacement } from "@/lib/overview";
 import { counted, SvgLink, Tip, useInstancePath, useTip, useWidth, type TipRow } from "./ChartBits";
 
 export interface MapKind {
@@ -56,6 +56,30 @@ export function KnowledgeMap({
   const path = useInstancePath();
   const { shown, bind } = useTip();
   const byKind = new Map(kinds.map((k) => [k.kind, k]));
+  // Edge labels go where they overlap no bubble, kind name or other label; one with no clear spot is left to the arrow's tooltip.
+  const labelAt = useMemo(() => {
+    const obstacles: Box[] = [];
+    for (const k of kinds) {
+      const at = placed.get(k.kind);
+      if (!at) continue;
+      obstacles.push({ x0: at.x - at.r, y0: at.y - at.r, x1: at.x + at.r, y1: at.y + at.r });
+      obstacles.push(textBox(at.x, at.y + at.r + 16, label(k.kind), 12.5));
+      const named = namedLine(k);
+      if (named) obstacles.push(textBox(at.x, at.y + at.r + 31, named, 10.5));
+    }
+    const edges = links.flatMap((link) => {
+      const a = placed.get(link.source);
+      const b = placed.get(link.target);
+      if (!a || !b || !link.label) return [];
+      const { point } = edgeGeometry(a, b, link.source === link.target);
+      const candidates = LABEL_TS.flatMap((t) => {
+        const p = point(t);
+        return [{ x: p.x, y: p.y - 5 }, { x: p.x, y: p.y + 14 }];
+      });
+      return [{ id: link.id, text: link.label, candidates }];
+    });
+    return placeEdgeLabels(edges, obstacles, LABEL_FONT);
+  }, [kinds, links, placed, label]);
 
   return (
     <div ref={ref} className="relative">
@@ -95,10 +119,10 @@ export function KnowledgeMap({
               {/* A wide invisible stroke makes the arrow easy to hover. */}
               <path d={geometry.d} fill="none" stroke="transparent" strokeWidth={14} />
               <path d={geometry.d} fill="none" className="mark stroke-zinc-500 group-hover:stroke-zinc-200" strokeWidth={1.4} markerEnd="url(#km-arrow)" />
-              {link.label && (
+              {link.label && labelAt.has(link.id) && (
                 <text
-                  x={geometry.mid.x}
-                  y={geometry.mid.y - 5}
+                  x={labelAt.get(link.id)!.x}
+                  y={labelAt.get(link.id)!.y}
                   textAnchor="middle"
                   className="fill-zinc-400 font-mono text-[11px] group-hover:fill-zinc-100"
                   style={{ paintOrder: "stroke", stroke: "#09090b", strokeWidth: 4, strokeLinejoin: "round" }}
@@ -113,8 +137,7 @@ export function KnowledgeMap({
           const at = placed.get(k.kind);
           if (!at) return null;
           const color = colorOf(k.kind);
-          const named = k.claimTypes.slice(0, NAMED).map((c) => c.name);
-          const more = k.claimTypes.length - named.length;
+          const named = namedLine(k);
           const rows: TipRow[] = [
             ["Subjects", k.subjects.toLocaleString()],
             ["Claims", k.claims === null ? "…" : k.claims.toLocaleString()],
@@ -145,10 +168,9 @@ export function KnowledgeMap({
               <text x={at.x} y={at.y + at.r + 16} textAnchor="middle" className="fill-zinc-100 font-mono text-[12.5px] group-hover:underline">
                 {label(k.kind)}
               </text>
-              {named.length > 0 && (
+              {named && (
                 <text x={at.x} y={at.y + at.r + 31} textAnchor="middle" className="fill-zinc-500 font-mono text-[10.5px]">
-                  {named.join(" · ")}
-                  {more > 0 ? ` +${more}` : ""}
+                  {named}
                 </text>
               )}
             </SvgLink>
@@ -160,15 +182,32 @@ export function KnowledgeMap({
   );
 }
 
+/** Where along an arrow its label may sit, tried in order: the middle first. */
+const LABEL_TS = [0.5, 0.4, 0.6, 0.3, 0.7, 0.22, 0.78];
+const LABEL_FONT = 11;
+
+/** The main ClaimTypes under a bubble ("affected_by · purl +3"), or null. */
+function namedLine(k: MapKind): string | null {
+  const named = k.claimTypes.slice(0, NAMED).map((c) => c.name);
+  if (named.length === 0) return null;
+  const more = k.claimTypes.length - named.length;
+  return `${named.join(" · ")}${more > 0 ? ` +${more}` : ""}`;
+}
+
 const gradientId = (kind: string) => `km-${kind.replace(/[^A-Za-z0-9_-]/g, "_")}`;
 
 /** An arrow from bubble edge to bubble edge, bowed slightly so two-way links stay apart; a loop for a kind pointing at itself. */
-function edgeGeometry(a: MapPlacement, b: MapPlacement, loop: boolean): { d: string; mid: { x: number; y: number } } {
+function edgeGeometry(
+  a: MapPlacement,
+  b: MapPlacement,
+  loop: boolean,
+): { d: string; mid: { x: number; y: number }; point: (t: number) => { x: number; y: number } } {
   if (loop) {
     const x = a.x;
     const y = a.y - a.r;
     const w = Math.max(18, a.r * 0.6);
-    return { d: `M${x - w * 0.5},${y + 3} C${x - w},${y - 46} ${x + w},${y - 46} ${x + w * 0.5},${y + 3}`, mid: { x, y: y - 34 } };
+    const top = { x, y: y - 34 };
+    return { d: `M${x - w * 0.5},${y + 3} C${x - w},${y - 46} ${x + w},${y - 46} ${x + w * 0.5},${y + 3}`, mid: top, point: () => top };
   }
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -179,6 +218,9 @@ function edgeGeometry(a: MapPlacement, b: MapPlacement, loop: boolean): { d: str
   const end = { x: b.x - ux * (b.r + 5), y: b.y - uy * (b.r + 5) };
   const bow = Math.min(24, length * 0.08);
   const control = { x: (start.x + end.x) / 2 - uy * bow, y: (start.y + end.y) / 2 + ux * bow };
-  const mid = { x: (start.x + 2 * control.x + end.x) / 4, y: (start.y + 2 * control.y + end.y) / 4 };
-  return { d: `M${start.x},${start.y} Q${control.x},${control.y} ${end.x},${end.y}`, mid };
+  const point = (t: number) => ({
+    x: (1 - t) ** 2 * start.x + 2 * (1 - t) * t * control.x + t ** 2 * end.x,
+    y: (1 - t) ** 2 * start.y + 2 * (1 - t) * t * control.y + t ** 2 * end.y,
+  });
+  return { d: `M${start.x},${start.y} Q${control.x},${control.y} ${end.x},${end.y}`, mid: point(0.5), point };
 }

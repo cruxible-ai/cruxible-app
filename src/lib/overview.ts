@@ -140,6 +140,48 @@ export function layoutKnowledgeMap(
 }
 
 /** The map's height for `n` kinds: room to breathe for a few, more rows for many. */
+/** An axis-aligned box on the map (labels, bubbles), in SVG units. */
+export interface Box {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+/** A mono text box: centered on x, baseline at y (glyphs 0.6em wide, cap height above the baseline). */
+export function textBox(x: number, y: number, text: string, fontSize: number): Box {
+  const half = (text.length * fontSize * 0.6) / 2;
+  return { x0: x - half, y0: y - fontSize * 0.8, x1: x + half, y1: y + fontSize * 0.25 };
+}
+
+/**
+ * Edge labels placed where they collide with nothing: each label takes the
+ * first of its candidate positions (along its arrow, above then below) whose
+ * box clears every obstacle (bubbles, kind names) and every label placed
+ * before it; a label with no clear spot is dropped (the arrow's tooltip still
+ * names it). Labels are tried in the order given.
+ */
+export function placeEdgeLabels(
+  labels: readonly { id: string; text: string; candidates: readonly { x: number; y: number }[] }[],
+  obstacles: readonly Box[],
+  fontSize: number,
+): Map<string, { x: number; y: number }> {
+  const placed = new Map<string, { x: number; y: number }>();
+  const taken: Box[] = [...obstacles];
+  for (const label of labels) {
+    for (const at of label.candidates) {
+      const box = textBox(at.x, at.y, label.text, fontSize);
+      if (taken.some((other) => overlaps(box, other))) continue;
+      placed.set(label.id, at);
+      taken.push(box);
+      break;
+    }
+  }
+  return placed;
+}
+
 export const mapHeight = (n: number) => Math.round(Math.min(620, Math.max(340, 200 + 44 * n)));
 
 // -- where it comes from: the evidence flow -------------------------------------------

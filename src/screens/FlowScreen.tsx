@@ -49,6 +49,9 @@ import type { Schemas } from "@/api/schemas";
  * one get-batch of ClaimType proofs for what each ClaimType's evidence rules
  * accept.
  */
+const DESCRIPTION =
+  "Where evidence comes from and what it turns into. A Line fetches each source on its schedule, reads what arrives and writes facts (or posts items for review); people and agents add their own statements. Hover a card to trace its path.";
+
 export function FlowScreen() {
   const instanceId = useInstanceId();
   const link = useAtLink();
@@ -95,8 +98,18 @@ export function FlowScreen() {
   );
 
   // ClaimType proofs only sharpen the Line → ClaimType edges: without them, fall back to contracts (and say so).
-  if (error) return <LoadState error={error} />;
-  if (!model || !layout || !shown) return <LoadState />;
+  // The page's title and description stand while the model loads, as on every other screen.
+  if (error || !model || !layout || !shown) {
+    return (
+      <div className="space-y-3">
+        <header>
+          <h1 className="t-title">Evidence flow</h1>
+          <PageDescription>{DESCRIPTION}</PageDescription>
+        </header>
+        <LoadState error={error ?? undefined} />
+      </div>
+    );
+  }
 
   const setFocus = (id: string | null) => {
     const next = new URLSearchParams(params);
@@ -112,10 +125,7 @@ export function FlowScreen() {
     <div className="space-y-3">
       <header>
         <h1 className="t-title">Evidence flow</h1>
-        <PageDescription>
-            Where evidence comes from and what it turns into. A Line fetches each source on its schedule, reads what arrives and
-            writes facts (or posts items for review); people and agents add their own statements. Hover a card to trace its path.
-        </PageDescription>
+        <PageDescription>{DESCRIPTION}</PageDescription>
         <StatsRow
           search={
             <SearchBox

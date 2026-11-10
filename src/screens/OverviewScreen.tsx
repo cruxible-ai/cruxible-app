@@ -109,7 +109,9 @@ function Snapshot({ o }: { o: OrientResult }) {
     }
     return out;
   }, [source.data, landings.data, now]);
-  const sourcesKnown = !source.isPending && !landings.isPending;
+  // The count stands with its dots: the sources that landed (read fast), then any the definitions name that never landed
+  // (the source model reads every Procedure and Line, so it can trail by seconds).
+  const sourcesKnown = !landings.isPending || !source.isPending;
   const authority = useMemo(() => new Map((lines.data?.rows ?? []).map((row) => [lineName(row.line), row.authority as string])), [lines.data]);
 
   // -- hero ---------------------------------------------------------------------------

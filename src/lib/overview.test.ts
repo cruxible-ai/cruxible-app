@@ -15,6 +15,8 @@ import {
   layoutKnowledgeMap,
   liveClaims,
   stackGrowth,
+  placeEdgeLabels,
+  textBox,
 } from "./overview";
 
 const V = "security.vulnerability";
@@ -241,3 +243,30 @@ describe("growth", () => {
     expect(firstAccepted(rows.slice(0, 3))).toBeNull();
   });
 });
+
+describe("knowledge map edge labels", () => {
+  it("takes the first candidate clear of obstacles and earlier labels, and drops a label with none", () => {
+    const bubble = { x0: 90, y0: 90, x1: 110, y1: 110 };
+    const placed = placeEdgeLabels(
+      [
+        // its middle sits on the bubble: the next candidate is taken
+        { id: "a", text: "rests_on", candidates: [{ x: 100, y: 100 }, { x: 100, y: 140 }] },
+        // its only spot is where "a" went: dropped
+        { id: "b", text: "found_in", candidates: [{ x: 100, y: 140 }] },
+        { id: "c", text: "holds", candidates: [{ x: 300, y: 300 }] },
+      ],
+      [bubble],
+      11,
+    );
+    expect(placed.get("a")).toEqual({ x: 100, y: 140 });
+    expect(placed.has("b")).toBe(false);
+    expect(placed.get("c")).toEqual({ x: 300, y: 300 });
+  });
+
+  it("sizes a mono label by its characters, centered on x", () => {
+    const box = textBox(100, 50, "abcd", 10);
+    expect(box.x1 - box.x0).toBeCloseTo(24);
+    expect((box.x0 + box.x1) / 2).toBe(100);
+  });
+});
+
