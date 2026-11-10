@@ -7599,6 +7599,15 @@ export interface components {
             max_frontier_bytes?: 1048576;
         };
         /**
+         * DocConfirmationOutcome
+         * @description One landed edit's history confirmation; no refusal means it was recorded.
+         */
+        DocConfirmationOutcome: {
+            /** Confirmation */
+            confirmation: string;
+            refusal?: components["schemas"]["WriteRefusal"] | null;
+        };
+        /**
          * DocEditObservation
          * @description Bounded wire observation of an edit; carries no workspace path or locator.
          *
@@ -7624,6 +7633,10 @@ export interface components {
             section: string[];
             /** Before Digest */
             before_digest?: string | null;
+            /** Before Content Base64 */
+            before_content_base64?: string | null;
+            /** Before Section */
+            before_section?: string[] | null;
             /** After Digest */
             after_digest: string;
             /** Content Base64 */
@@ -7663,6 +7676,11 @@ export interface components {
              * @default false
              */
             written?: boolean;
+            /**
+             * Confirmation
+             * @description Pending edit to confirm only after the local file write succeeds.
+             */
+            confirmation?: string | null;
             refusal?: components["schemas"]["WriteRefusal"] | null;
             /** Next */
             next?: string | null;
@@ -10330,7 +10348,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "claim" | "subject" | "claim_type" | "document" | "procedure" | "query" | "capture_contract" | "trigger" | "subject_kind" | "proposal" | "line" | "capture" | "resolution_contract" | "mandate" | "procedure_run" | "principal" | "approval_policy" | "procedure_runtime_policy" | "provider" | "contract" | "runbook";
+            kind: "file" | "claim" | "subject" | "claim_type" | "document" | "procedure" | "query" | "capture_contract" | "trigger" | "subject_kind" | "proposal" | "line" | "capture" | "resolution_contract" | "mandate" | "procedure_run" | "principal" | "approval_policy" | "procedure_runtime_policy" | "provider" | "contract" | "runbook";
             /**
              * Detail
              * @enum {string}
@@ -14962,6 +14980,11 @@ export interface components {
             contracts?: components["schemas"]["OrientContract"][] | null;
             /** Queries */
             queries?: components["schemas"]["OrientQuery"][] | null;
+            /**
+             * Queries Truncated
+             * @default false
+             */
+            queries_truncated?: boolean;
             /** Operations */
             operations?: components["schemas"]["OrientOperation"][] | null;
             /** Runs */
@@ -17287,6 +17310,7 @@ export interface components {
             completeness?: components["schemas"]["RunCompleteness"] | null;
             /** Nodes */
             nodes?: components["schemas"]["GetRunNode"][];
+            counts?: components["schemas"]["RunCounts"] | null;
             withheld?: components["schemas"]["BodyRestricted"] | null;
         };
         /** ProcedureRuntimePolicy */
@@ -21513,6 +21537,96 @@ export interface components {
             expect_outside_within?: number;
         };
         /**
+         * RunCounts
+         * @description What one Line run did, in counts: the line a reader checks before "succeeded".
+         *
+         *     ``status`` says the run finished; this says what it achieved. ``written``
+         *     counts new, revising and inverse Claims across the run's claims terminals;
+         *     ``settled`` and ``proposed`` split them by how each terminal delivered
+         *     (``proposed`` includes a change still waiting on the Line's open proposal).
+         *     ``unchanged`` counts re-observed and no-op restatements, ``retired`` the
+         *     retirements. ``refused`` counts the items not written (every finding but
+         *     an incomplete source), with ``top_refusals`` naming the most frequent codes
+         *     among the findings the run kept. ``inbox`` counts the items this run posted
+         *     to its Line's inbox; when the inbox could not be read it is the count the
+         *     run's journaled ``post_inbox`` summaries prove, or ``None`` when they prove
+         *     none (findings routed to the inbox are not journaled). ``complete`` is
+         *     false when the run recorded incompleteness, with ``incomplete_reasons``
+         *     naming each node and kind. ``needs_attention`` is true when the run was
+         *     incomplete, refused an item, posted to the inbox, or its inbox count is
+         *     unknown (``None``): an unreadable count never reads as nothing posted.
+         */
+        RunCounts: {
+            /**
+             * Tag
+             * @default cruxible-run-counts-v1
+             * @constant
+             */
+            tag?: "cruxible-run-counts-v1";
+            /** Complete */
+            complete: boolean;
+            /**
+             * Incomplete Reasons
+             * @default []
+             */
+            incomplete_reasons?: components["schemas"]["CompletenessReason"][];
+            /**
+             * Written
+             * @default 0
+             */
+            written?: number;
+            /**
+             * Settled
+             * @default 0
+             */
+            settled?: number;
+            /**
+             * Proposed
+             * @default 0
+             */
+            proposed?: number;
+            /**
+             * Unchanged
+             * @default 0
+             */
+            unchanged?: number;
+            /**
+             * Retired
+             * @default 0
+             */
+            retired?: number;
+            /**
+             * Refused
+             * @default 0
+             */
+            refused?: number;
+            /**
+             * Top Refusals
+             * @default []
+             */
+            top_refusals?: components["schemas"]["RunRefusalCount"][];
+            /**
+             * Inbox
+             * @default 0
+             */
+            inbox?: number | null;
+            /** Needs Attention */
+            needs_attention: boolean;
+        };
+        /**
+         * RunRefusalCount
+         * @description One refusal code and how many of the run's findings carried it.
+         *
+         *     ``code`` is the finding kind, with its problem when it names one
+         *     (``extract_refused.value_invalid``).
+         */
+        RunRefusalCount: {
+            /** Code */
+            code: string;
+            /** Count */
+            count: number;
+        };
+        /**
          * RunRow
          * @description One Procedure run as a list row, newest admission first; ``status`` never orders.
          */
@@ -21907,6 +22021,11 @@ export interface components {
             stopped_at_step?: number | null;
             /** Steps */
             steps: components["schemas"]["RunbookStepOutcome"][];
+            /**
+             * Attention Steps
+             * @default []
+             */
+            attention_steps?: number[];
         };
         /**
          * RunbookSettleChange
@@ -21986,6 +22105,7 @@ export interface components {
             code?: string | null;
             /** Message */
             message?: string | null;
+            counts?: components["schemas"]["RunCounts"] | null;
         };
         /** RuntimeCredentialBootstrapResult */
         RuntimeCredentialBootstrapResult: {
@@ -23867,6 +23987,11 @@ export interface components {
              * @default []
              */
             docs?: components["schemas"]["DocOutcome"][];
+            /**
+             * Doc Confirmations
+             * @default []
+             */
+            doc_confirmations?: components["schemas"]["DocConfirmationOutcome"][];
             /** Hint */
             hint?: string | null;
             /**
@@ -23977,6 +24102,12 @@ export interface components {
              * @default []
              */
             docs?: ((components["schemas"]["AppendSection"] | components["schemas"]["ReplaceSection"]) | components["schemas"]["DocEditObservation"])[];
+            /**
+             * Doc Confirmations
+             * @description Writer-side acknowledgement of edits whose local file CAS succeeded.
+             * @default []
+             */
+            doc_confirmations?: string[];
         };
     };
     responses: never;

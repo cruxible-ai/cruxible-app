@@ -64,6 +64,8 @@ export type CardByKind = AssertEveryKind<{
   provider: Schemas["GetProviderCard"];
   contract: Schemas["GetContractCard"];
   runbook: Schemas["GetRunbookCard"];
+  /** A workspace file read (`file:<name>`) carries history or body, never a card. */
+  file: null;
 }>;
 
 /** The typed card of a get result when it is of `kind`; null otherwise. */

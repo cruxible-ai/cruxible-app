@@ -27238,6 +27238,31 @@
         "type": "object",
         "title": "DiagnosticFrontierLimits"
       },
+      "DocConfirmationOutcome": {
+        "properties": {
+          "confirmation": {
+            "type": "string",
+            "title": "Confirmation"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WriteRefusal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirmation"
+        ],
+        "title": "DocConfirmationOutcome",
+        "description": "One landed edit's history confirmation; no refusal means it was recorded."
+      },
       "DocEditObservation": {
         "properties": {
           "tag": {
@@ -27277,6 +27302,32 @@
               }
             ],
             "title": "Before Digest"
+          },
+          "before_content_base64": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1398104
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Content Base64"
+          },
+          "before_section": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Section"
           },
           "after_digest": {
             "type": "string",
@@ -27391,6 +27442,19 @@
             "type": "boolean",
             "title": "Written",
             "default": false
+          },
+          "confirmation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^DCE-[0-9a-f]{32}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmation",
+            "description": "Pending edit to confirm only after the local file write succeeds."
           },
           "refusal": {
             "anyOf": [
@@ -33545,6 +33609,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "file",
               "claim",
               "subject",
               "claim_type",
@@ -44362,6 +44427,11 @@
             ],
             "title": "Queries"
           },
+          "queries_truncated": {
+            "type": "boolean",
+            "title": "Queries Truncated",
+            "default": false
+          },
           "operations": {
             "anyOf": [
               {
@@ -50079,6 +50149,16 @@
             },
             "type": "array",
             "title": "Nodes"
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "withheld": {
             "anyOf": [
@@ -60365,6 +60445,128 @@
         "title": "RunCompleteness",
         "description": "A run's completeness summary: present when incomplete or when expect met ``within``.\n\n``complete`` is derived: false exactly when a reason, downgrade or skipped\nwrite was recorded. ``expect_outside_within`` counts expected Subjects\noutside the step's ``within`` (never retired or inverted)."
       },
+      "RunCounts": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-run-counts-v1",
+            "title": "Tag",
+            "default": "cruxible-run-counts-v1"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete"
+          },
+          "incomplete_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/CompletenessReason"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Incomplete Reasons",
+            "default": []
+          },
+          "written": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Written",
+            "default": 0
+          },
+          "settled": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Settled",
+            "default": 0
+          },
+          "proposed": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Proposed",
+            "default": 0
+          },
+          "unchanged": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Unchanged",
+            "default": 0
+          },
+          "retired": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Retired",
+            "default": 0
+          },
+          "refused": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Refused",
+            "default": 0
+          },
+          "top_refusals": {
+            "items": {
+              "$ref": "#/components/schemas/RunRefusalCount"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Top Refusals",
+            "default": []
+          },
+          "inbox": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inbox",
+            "default": 0
+          },
+          "needs_attention": {
+            "type": "boolean",
+            "title": "Needs Attention"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "complete",
+          "needs_attention"
+        ],
+        "title": "RunCounts",
+        "description": "What one Line run did, in counts: the line a reader checks before \"succeeded\".\n\n``status`` says the run finished; this says what it achieved. ``written``\ncounts new, revising and inverse Claims across the run's claims terminals;\n``settled`` and ``proposed`` split them by how each terminal delivered\n(``proposed`` includes a change still waiting on the Line's open proposal).\n``unchanged`` counts re-observed and no-op restatements, ``retired`` the\nretirements. ``refused`` counts the items not written (every finding but\nan incomplete source), with ``top_refusals`` naming the most frequent codes\namong the findings the run kept. ``inbox`` counts the items this run posted\nto its Line's inbox; when the inbox could not be read it is the count the\nrun's journaled ``post_inbox`` summaries prove, or ``None`` when they prove\nnone (findings routed to the inbox are not journaled). ``complete`` is\nfalse when the run recorded incompleteness, with ``incomplete_reasons``\nnaming each node and kind. ``needs_attention`` is true when the run was\nincomplete, refused an item, posted to the inbox, or its inbox count is\nunknown (``None``): an unreadable count never reads as nothing posted."
+      },
+      "RunRefusalCount": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "count"
+        ],
+        "title": "RunRefusalCount",
+        "description": "One refusal code and how many of the run's findings carried it.\n\n``code`` is the finding kind, with its problem when it names one\n(``extract_refused.value_invalid``)."
+      },
       "RunRow": {
         "properties": {
           "run": {
@@ -61198,6 +61400,14 @@
             },
             "type": "array",
             "title": "Steps"
+          },
+          "attention_steps": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Attention Steps",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -61468,6 +61678,16 @@
               }
             ],
             "title": "Message"
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -66079,6 +66299,14 @@
             "title": "Docs",
             "default": []
           },
+          "doc_confirmations": {
+            "items": {
+              "$ref": "#/components/schemas/DocConfirmationOutcome"
+            },
+            "type": "array",
+            "title": "Doc Confirmations",
+            "default": []
+          },
           "hint": {
             "anyOf": [
               {
@@ -66418,6 +66646,17 @@
             "type": "array",
             "maxItems": 500,
             "title": "Docs",
+            "default": []
+          },
+          "doc_confirmations": {
+            "items": {
+              "type": "string",
+              "pattern": "^DCE-[0-9a-f]{32}$"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Doc Confirmations",
+            "description": "Writer-side acknowledgement of edits whose local file CAS succeeded.",
             "default": []
           }
         },

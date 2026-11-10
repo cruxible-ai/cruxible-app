@@ -20,8 +20,12 @@ import type { GetRefKind } from "../api/schemas.ts";
  */
 
 type IdRefKind = "claim" | "capture" | "procedure_run" | "proposal";
-/** Every get kind addressed by a typed `Prefix:name` ref. */
-export type NamedRefKind = Exclude<GetRefKind, IdRefKind | "subject">;
+/**
+ * Every get kind addressed by a typed `Prefix:name` ref. `file` is not one:
+ * `file:<name>` reads a workspace file's edit history (core answers it before
+ * the typed prefixes), and the console does not parse it.
+ */
+export type NamedRefKind = Exclude<GetRefKind, IdRefKind | "subject" | "file">;
 
 export type ParsedRef =
   | { kind: "subject"; subjectKind: string; subjectId: string }
@@ -100,6 +104,8 @@ function typedRef(kind: GetRefKind, rest: string): ParsedRef | null {
     case "procedure_run":
     case "proposal":
       return { kind, id: rest };
+    case "file":
+      return null;
     default:
       return { kind, name: rest };
   }
