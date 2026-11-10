@@ -56,10 +56,13 @@ function storedToken(storage: Storage): string | null {
   }
 }
 
-/** Forget this browser's session (a new run of the command issues a new one). */
-export function forgetSession(storage: Storage = window.localStorage): void {
+/**
+ * Forget the rejected session. Only the token that was refused is removed: another
+ * tab may already hold a newer one from a later run of the command.
+ */
+export function forgetSession(rejected: string | null, storage: Storage = window.localStorage): void {
   try {
-    storage.removeItem(SESSION_STORAGE_KEY);
+    if (storage.getItem(SESSION_STORAGE_KEY) === rejected) storage.removeItem(SESSION_STORAGE_KEY);
   } catch {
     // storage blocked: nothing stored either
   }
@@ -84,7 +87,7 @@ export async function resolveServedConsole(
   if (response.status === 401) {
     const body: unknown = await response.json().catch(() => null);
     if ((body as { error_code?: unknown } | null)?.error_code === SESSION_REQUIRED_CODE) {
-      forgetSession(storage);
+      forgetSession(token, storage);
       return { kind: "signed-out" };
     }
     return { kind: "dev" };

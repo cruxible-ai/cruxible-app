@@ -56,7 +56,7 @@ async function start() {
   const root = createRoot(document.getElementById("root")!);
 
   function showSignedOut() {
-    forgetSession();
+    forgetSession(config.sessionToken ?? null);
     queryClient.clear();
     root.render(
       <StrictMode>

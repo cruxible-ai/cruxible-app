@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   CONSOLE_CONFIG_PATH,
+  forgetSession,
   resolveServedConsole,
   SESSION_HEADER,
   SESSION_STORAGE_KEY,
@@ -66,5 +67,19 @@ describe("resolveServedConsole", () => {
     const stored = storage("tok");
     expect(await resolveServedConsole(other as typeof fetch, stored)).toEqual({ kind: "dev" });
     expect(stored.items.get(SESSION_STORAGE_KEY)).toBe("tok");
+  });
+});
+
+describe("forgetSession", () => {
+  it("removes the token that was refused", () => {
+    const stored = storage("old");
+    forgetSession("old", stored as unknown as Storage);
+    expect(stored.items.has(SESSION_STORAGE_KEY)).toBe(false);
+  });
+
+  it("keeps a newer token another tab stored after a restart", () => {
+    const stored = storage("new");
+    forgetSession("old", stored as unknown as Storage);
+    expect(stored.items.get(SESSION_STORAGE_KEY)).toBe("new");
   });
 });
