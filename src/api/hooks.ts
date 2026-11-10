@@ -665,6 +665,35 @@ export function useStateQuery(args: QueryArgs | null) {
 }
 
 /**
+ * Several compact/spec/name query pages at the page coordinate, one request
+ * each, in parallel (a page's per-kind lookups); results keep the order of
+ * `list`. Each result is undefined until it lands.
+ */
+export function useStateQueries(list: readonly QueryArgs[]) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  const { coordinate } = usePin();
+  return useQueries({
+    queries: list.map((args) => ({
+      queryKey: ["query", instanceId, coordinate?.git_oid ?? null, args],
+      enabled: coordinate !== undefined,
+      staleTime: 60_000,
+      queryFn: async () =>
+        unwrap(
+          await client.POST("/api/v1/{instance_id}/query", {
+            params: { path: { instance_id: instanceId } },
+            body: queryBody(args, coordinate!),
+          }),
+        ),
+    })),
+    combine: (results) => ({
+      error: results.find((r) => r.error)?.error ?? null,
+      results: results.map((r) => r.data),
+    }),
+  });
+}
+
+/**
  * One page of the `next` queue and its health status, at the page coordinate
  * and evaluated now. `next` has no server-side filter; screens group and
  * filter the page client-side.
