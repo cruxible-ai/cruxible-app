@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import { cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { GROWTH_CONCURRENCY, KIND_READS_IN_FLIGHT, pooled, Semaphore, useGrowthPoints } from "./useOverviewGrowth";
+import { GROWTH_CONCURRENCY, KIND_READS_IN_FLIGHT, pooled, useGrowthPoints } from "./useOverviewGrowth";
 import { growthSequences } from "./overview";
 
 /**
@@ -211,23 +211,127 @@ describe("Overview growth: an immediate remount (React's development double moun
   }, 20000);
 });
 
-describe("Semaphore", () => {
-  it("holds a free slot at once, grants waiters in arrival order, and lets a waiter leave the line", async () => {
-    const gate = new Semaphore(1);
-    const first = gate.enter();
-    // a slot held at entry cannot be left: the holder releases it
-    expect(first.cancel()).toBe(false);
-    const leaving = gate.enter();
-    const next = gate.enter();
-    const order: string[] = [];
-    void leaving.granted.then(() => order.push("leaving"), () => order.push("left"));
-    void next.granted.then(() => order.push("next"));
-    expect(leaving.cancel()).toBe(true);
-    gate.release();
-    await next.granted;
-    await Promise.resolve();
-    expect(order).toEqual(["left", "next"]);
-    expect(next.cancel()).toBe(false);
+/**
+ * A daemon whose kind reads wait until released (review round 3): six
+ * populated kinds a generation, optionally the first kind read failing at
+ * once or one generation's head failing. Tracks kind reads in flight (peak
+ * too), head reads and every request per generation.
+ */
+function heldDaemon({ failFirstKind = false, failHead = null as number | null } = {}) {
+  const track = { heads: new Map<number, number>(), calls: new Map<number, number>(), completed: new Map<number, number>(), activeKinds: 0, peakKinds: 0, held: true, release: () => {} };
+  const waiting: (() => void)[] = [];
+  track.release = () => {
+    track.held = false;
+    waiting.splice(0).forEach((resolve) => resolve());
+  };
+  state.get.mockImplementation(async (path: string, { params: { query } }: { params: { query: Query } }) => {
+    if (path.endsWith("/head")) {
+      const seq = Number(query.at);
+      track.heads.set(seq, (track.heads.get(seq) ?? 0) + 1);
+      track.calls.set(seq, (track.calls.get(seq) ?? 0) + 1);
+      if (seq === failHead) throw new Error("injected head failure");
+      return ok({ coordinate: { ...coordinate(seq), git_oid: seq.toString(16).padStart(40, "0") } });
+    }
+    const seq = parseInt(query.git_oid ?? "0", 16);
+    track.calls.set(seq, (track.calls.get(seq) ?? 0) + 1);
+    if (query.kind) {
+      try {
+        if (failFirstKind && query.kind === "kind0") throw new Error("injected first kind failure");
+        track.activeKinds += 1;
+        track.peakKinds = Math.max(track.peakKinds, track.activeKinds);
+        try {
+          if (track.held) await new Promise<void>((resolve) => waiting.push(resolve));
+        } finally {
+          track.activeKinds -= 1;
+        }
+        return ok({ kind_detail: { predicates: [{ predicate: "demo.score", live_claims: 1 }] } });
+      } finally {
+        track.completed.set(seq, (track.completed.get(seq) ?? 0) + 1);
+      }
+    }
+    return ok({ accepted_at: "2026-11-10T00:00:00Z", kinds: Array.from({ length: 6 }, (_, i) => ({ kind: `kind${i}`, subjects: 1 })), next_cursor: null });
+  });
+  return track;
+}
+
+function sharedCache() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const Wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return { client, Wrapper };
+}
+
+describe("Overview growth: reads always settle before their slot is free (review round 3)", () => {
+  it("holds a generation's slot until its other kind reads settle after one fails: never more than six in flight", async () => {
+    const track = heldDaemon({ failFirstKind: true });
+    const { Wrapper } = sharedCache();
+    const { result } = renderHook(() => useGrowthPoints([1, 2, 3, 4]), { wrapper: Wrapper });
+    // two generations open, each with its two sibling kind reads still held after kind0 failed
+    await waitFor(() => expect(track.activeKinds).toBe(4));
+    expect(track.heads.size).toBe(2);
+    expect(result.current.failed).toBe(0);
+    expect(track.peakKinds).toBeLessThanOrEqual(GROWTH_CONCURRENCY * KIND_READS_IN_FLIGHT);
+    await act(async () => track.release());
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect(result.current.failed).toBe(4);
+    expect(track.peakKinds).toBeLessThanOrEqual(GROWTH_CONCURRENCY * KIND_READS_IN_FLIGHT);
+    expect(track.activeKinds).toBe(0);
+  });
+
+  it("keeps a read that ends after the page is left, so a return reads nothing again", async () => {
+    const track = heldDaemon();
+    const { client, Wrapper } = sharedCache();
+    const first = renderHook(() => useGrowthPoints([1]), { wrapper: Wrapper });
+    await waitFor(() => expect(track.activeKinds).toBe(3));
+    first.unmount();
+    await act(async () => track.release());
+    await waitFor(() => expect(track.completed.get(1)).toBe(6));
+    await waitFor(() => expect(client.getQueryData(["overview-growth", "inst_review", 1])).toBeDefined());
+    const second = renderHook(() => useGrowthPoints([1]), { wrapper: Wrapper });
+    await waitFor(() => expect(second.result.current.pending).toBe(false));
+    expect(second.result.current.points[0]).not.toBeNull();
+    expect(track.heads.get(1)).toBe(1);
+    expect(track.calls.get(1)).toBe(8);
+  });
+
+  it("shares the budget across two mounts and reads overlapping generations once", async () => {
+    const track = heldDaemon();
+    const { Wrapper } = sharedCache();
+    const first = renderHook(() => useGrowthPoints([1, 2, 3, 4]), { wrapper: Wrapper });
+    const second = renderHook(() => useGrowthPoints([3, 4, 5, 6]), { wrapper: Wrapper });
+    await waitFor(() => expect(track.activeKinds).toBe(6));
+    expect(track.heads.size).toBe(2);
+    await act(async () => track.release());
+    await waitFor(() => expect(first.result.current.pending || second.result.current.pending).toBe(false));
+    expect(track.peakKinds).toBeLessThanOrEqual(6);
+    expect([...track.heads.values()]).toEqual([1, 1, 1, 1, 1, 1]);
+    expect([...track.calls.values()].every((count) => count === 8)).toBe(true);
+  });
+
+  it("never starts superseded windows and finishes the reads already started", async () => {
+    const track = heldDaemon();
+    const { Wrapper } = sharedCache();
+    const { result, rerender } = renderHook(({ sequences }) => useGrowthPoints(sequences), { initialProps: { sequences: [1, 2, 3, 4] }, wrapper: Wrapper });
+    await waitFor(() => expect(track.activeKinds).toBe(6));
+    rerender({ sequences: [5, 6, 7, 8] });
+    rerender({ sequences: [9, 10, 11, 12] });
+    expect([...track.heads.keys()]).toEqual([4, 3]);
+    await act(async () => track.release());
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect([...track.heads.keys()].sort((a, b) => a - b)).toEqual([3, 4, 9, 10, 11, 12]);
+    expect(track.peakKinds).toBeLessThanOrEqual(6);
+    expect([...track.calls.values()].every((count) => count === 8)).toBe(true);
+  });
+
+  it("frees a failed head read's slot so the following generations finish", async () => {
+    const track = heldDaemon({ failHead: 4 });
+    const { Wrapper } = sharedCache();
+    const { result } = renderHook(() => useGrowthPoints([1, 2, 3, 4]), { wrapper: Wrapper });
+    await waitFor(() => expect(track.activeKinds).toBe(6));
+    await act(async () => track.release());
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect(result.current.failed).toBe(1);
+    expect(result.current.points.filter(Boolean)).toHaveLength(3);
+    expect(track.peakKinds).toBeLessThanOrEqual(6);
   });
 });
 
@@ -244,5 +348,26 @@ describe("pooled", () => {
     });
     expect(out).toEqual([50, 10, 40, 20, 30]);
     expect(peak).toBe(2);
+  });
+
+  it("drains on a failure: no new item starts, started ones finish, then it throws", async () => {
+    const started: number[] = [];
+    let open = 0;
+    let openWhenThrown = -1;
+    const run = pooled([1, 2, 3, 4, 5], 3, async (n) => {
+      started.push(n);
+      open += 1;
+      try {
+        if (n === 1) throw new Error("first fails");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return n;
+      } finally {
+        open -= 1;
+      }
+    });
+    await run.catch(() => (openWhenThrown = open));
+    await expect(run).rejects.toThrow("first fails");
+    expect(started).toEqual([1, 2, 3]);
+    expect(openWhenThrown).toBe(0);
   });
 });
