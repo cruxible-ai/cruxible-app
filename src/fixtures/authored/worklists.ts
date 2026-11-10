@@ -164,10 +164,7 @@ export default [
     [NOTIFY_PROCEDURE],
     [result(NOTIFY_PROCEDURE, "procedure", { authored: NOTIFY_SPEC, procedure: "security.kev-notify", description: NOTIFY_SPEC.description ?? null, lifecycle: "live", inputs: {}, runnable: "line" })],
   ),
-  batch(
-    ["Procedure:security.cve-applicability"],
-    [result("Procedure:security.cve-applicability", "procedure", { authored: null, procedure: "security.cve-applicability", description: null, lifecycle: "live", inputs: {}, runnable: "line" })],
-  ),
+  // cve-applicability's card alone is definitions.ts's (its page reads it too): one fixture per key.
   batch(
     [`Contract:${NOTIFY_CONTRACT}`],
     [

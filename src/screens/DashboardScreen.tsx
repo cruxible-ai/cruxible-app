@@ -192,7 +192,7 @@ function NeedsYou({
         count={next ? unread : null}
         signal={unread ? "waiting" : undefined}
         detail={unread ? "Posted by Lines" : "None posted"}
-        to={link(`/i/${instanceId}/inbox`)}
+        to={link(`/i/${instanceId}/inbox?status=unread`)}
       />
       <Tile
         label="Next"
