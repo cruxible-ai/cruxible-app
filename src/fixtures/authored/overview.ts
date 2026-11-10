@@ -2,7 +2,7 @@
  * Hand-authored reads the Overview makes beyond the rest of the world: the
  * product and release kind details, each logical source's landings, and the
  * earlier generations its growth chart samples (each resolved by number, then
- * its claim_types section there).
+ * orient's first page and one orient(kind=K) per kind holding Subjects there).
  */
 import { defineFixture, type RecordedFixture } from "../fixture";
 import { headQuery, orientQuery } from "@/api/requests";
@@ -44,23 +44,26 @@ function growthSample(sequence: number): RecordedFixture[] {
       query: headQuery(String(sequence)),
       response: { tag: "playbill-head-v1", instance: "inst_fixture", coordinate, generation: sequence },
     }),
-    // its claim_types section: each ClaimType's live Claims (evidence counts) and the kind it is about
     defineFixture({
       method: "get",
       path: "/api/v1/{instance_id}/orient",
-      query: orientQuery({ coordinate, section: "claim_types", limit: 500 }),
-      response: {
-        ...base,
-        section: "claim_types",
-        claim_types: held.flatMap(({ row, share }) =>
-          kindDescriptors(row.kind).map((p) => ({
-            ...p,
-            subject_kinds: [row.kind],
-            evidence_counts: { admitted: Math.round((p.live_claims ?? 0) * share), own_word: 0, unmet: 0 },
-          })),
-        ),
-      },
+      query: orientQuery({ coordinate, limit: 500 }),
+      response: { ...base, kinds: held.map(({ row: { kind, subjects, identity } }) => ({ kind, subjects, identity })) },
     }),
+    ...held.map(({ row, share }) =>
+      defineFixture({
+        method: "get",
+        path: "/api/v1/{instance_id}/orient",
+        query: orientQuery({ coordinate, kind: row.kind }),
+        response: {
+          ...base,
+          kind_detail: {
+            ...row,
+            predicates: kindDescriptors(row.kind).map((p) => ({ ...p, live_claims: Math.round((p.live_claims ?? 0) * share) })),
+          },
+        },
+      }),
+    ),
   ];
 }
 

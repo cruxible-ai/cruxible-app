@@ -331,23 +331,7 @@ const fixtures: RecordedFixture[] = [
         query: headQuery(String(sequence)),
         response: { tag: "playbill-head-v1", instance: INSTANCE, coordinate: coordinateAt(sequence), generation: sequence },
       }),
-      // its claim_types section: each ClaimType's live Claims (evidence counts) and the kinds it is about
-      defineFixture({
-        method: "get",
-        path: "/api/v1/{instance_id}/orient",
-        query: orientQuery({ coordinate: coordinateAt(sequence), section: "claim_types", limit: ORIENT_PAGE }),
-        response: {
-          ...BASE(sequence),
-          section: "claim_types",
-          claim_types: KINDS.flatMap((k) =>
-            predicates(k.kind, Math.round(k.subjects * grown(k.kind, sequence)), true).map((p) => ({
-              ...p,
-              subject_kinds: p.subject_kinds ?? [k.kind],
-              evidence_counts: { admitted: p.live_claims ?? 0, own_word: 0, unmet: 0 },
-            })),
-          ),
-        },
-      }),
+      ...orientAt(sequence),
     ]),
   defineFixture({
     method: "get",
