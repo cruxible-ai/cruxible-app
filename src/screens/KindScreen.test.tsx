@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
-import { renderApp } from "@/test/render";
+import { http, HttpResponse } from "msw";
+import { renderApp, TEST_BASE } from "@/test/render";
 
 afterEach(cleanup);
 
@@ -105,9 +106,14 @@ describe("Kind as a table", () => {
   it("shows a many-valued field as a count that expands, and a contradicted value with the red dot", async () => {
     renderApp(`${I}/kinds/security.vulnerability`);
     const table = within(await screen.findByRole("table", { name: "security.vulnerability Subjects" }));
-    const log4j = rowOf(await table.findByRole("link", { name: "cve-2021-44228" }));
+    // keyed by one field: its value stands for the Subject and links to it, with no Subject column repeating it
+    expect(table.getAllByRole("columnheader").map((th) => th.textContent)).toEqual(["cve_id", "kev_listed", "related"]);
+    const key = await table.findByRole("link", { name: "CVE-2021-44228" });
+    expect(key).toHaveAttribute("href", subjectHref("security.vulnerability/cve-2021-44228"));
+    expect(rowOf(key).getByRole("link", { name: "Claim for CVE-2021-44228" })).toHaveAttribute("href", subjectHref("security.vulnerability/cve-2021-44228", clm(0xf1)));
+    const log4j = rowOf(key);
     expect(log4j.getByRole("img", { name: /^Contradicted:/ })).toHaveClass("bg-red-500");
-    expect(rowOf(table.getByRole("link", { name: "cve-2024-3094" })).getByRole("img", { name: /^Stale:/ })).toHaveClass("bg-amber-400");
+    expect(rowOf(table.getByRole("link", { name: "CVE-2024-3094" })).getByRole("img", { name: /^Stale:/ })).toHaveClass("bg-amber-400");
     const count = log4j.getByRole("button", { name: "2 values" });
     expect(log4j.queryByRole("link", { name: "cve-2024-3094" })).toBeNull();
     fireEvent.click(count);
@@ -115,14 +121,67 @@ describe("Kind as a table", () => {
     expect(log4j.getByRole("link", { name: "cve-2024-6387" })).toBeInTheDocument();
   });
 
+  it("reads a stated none as a dash, right-aligns numbers with one count of decimals, and starts empty fields hidden", async () => {
+    const V = "security.vulnerability";
+    const claim = (n: number, value: unknown) => [{ claim: clm(n), value, verdict: "supported", status: "accepted", role: "observation" }];
+    const vuln = (id: string, cve: string, epss: string, n: number) => ({
+      subject: `${V}/${id}`,
+      subject_id: id,
+      cve_id: cve,
+      kev_listed: null,
+      related: [],
+      epss_score: epss,
+      kev_date_added: null,
+      flags: [],
+      claims: { cve_id: claim(n, cve), epss_score: claim(n + 1, epss) },
+      // the kev_listed slot holds a stated none: a Claim says it has no value
+      nones: { kev_listed: [{ claim: clm(n + 2), verdict: "supported", status: "accepted" }] },
+    });
+    const col = (name: string, type: string, extra: Record<string, unknown> = {}) => ({ name, predicate: `${V}.${name}`, type, members: null, cardinality: "one", ...extra });
+    renderApp(`${I}/kinds/${V}`, undefined, {
+      handlers: [
+        http.post(`${TEST_BASE}/api/v1/:instance/query`, async ({ request }) => {
+          const body = (await request.clone().json()) as { kind?: string };
+          if (body.kind !== V) return undefined;
+          return HttpResponse.json({
+            tag: "playbill-query-page-v1",
+            kind: V,
+            columns: [col("cve_id", "string"), col("kev_listed", "boolean"), col("related", `subject:${V}`, { cardinality: "many" }), col("epss_score", "decimal"), col("kev_date_added", "date")],
+            rows: [vuln("cve-2024-3094", "CVE-2024-3094", "0.0624", 0x100), vuln("cve-2024-6387", "CVE-2024-6387", "0.53447", 0x110)],
+            truncated: false,
+            next_cursor: null,
+            remaining: 0,
+            capped: [],
+            notes: [],
+            receipt: { mode: "inline", spec_digest: "sha256:" + "4".repeat(64), coordinate: { tag: "playbill-accepted-coordinate-v1", git_oid: "0".repeat(40), semantic_root: "", generation_root: "", compiler_digest: "" }, evaluation_time: "2026-10-19T12:00:00Z" },
+          });
+        }),
+      ],
+    });
+    const table = within(await screen.findByRole("table", { name: `${V} Subjects` }));
+    const row = rowOf(await table.findByRole("link", { name: "CVE-2024-3094" }));
+    // a stated none: a dash that opens its Claim, never the word None
+    expect(row.queryByText("None")).toBeNull();
+    expect(row.getByTitle(/A Claim states this field has no value/)).toHaveTextContent("—");
+    expect(row.getByTitle(/A Claim states this field has no value/)).toHaveAttribute("href", subjectHref(`${V}/cve-2024-3094`, clm(0x102)));
+    // decimals padded to the column's most places, at the cell's right edge
+    const epss = row.getByRole("link", { name: /^0\.06240/ });
+    expect(epss.closest("span.flex")).toHaveClass("justify-end");
+    expect(table.getByRole("link", { name: /^0\.53447/ })).toBeInTheDocument();
+    // a field no Subject holds starts hidden; the Columns picker still has it
+    expect(table.queryByRole("columnheader", { name: "kev_date_added" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Columns/ }));
+    expect(screen.getByRole("group", { name: "Columns shown" })).toHaveTextContent("kev_date_added");
+  });
+
   it("sorts and filters a kind that fits one page in the browser, completely", async () => {
     renderApp(`${I}/kinds/security.vulnerability`);
     const table = within(await screen.findByRole("table", { name: "security.vulnerability Subjects" }));
-    await table.findByRole("link", { name: "cve-2021-44228" });
+    await table.findByRole("link", { name: "CVE-2021-44228" });
     fireEvent.click(table.getByRole("button", { name: "Sort by cve_id" }));
     fireEvent.click(table.getByRole("button", { name: "Sort by cve_id" }));
-    const ids = () => table.getAllByRole("link", { name: /^cve-\d{4}-\d+$/ }).filter((a) => a.closest("td") === a.closest("tr")!.firstElementChild).map((a) => a.textContent);
-    expect(ids()).toEqual(["cve-2024-6387", "cve-2024-3094", "cve-2021-44228"]);
+    const ids = () => table.getAllByRole("link", { name: /^CVE-\d{4}-\d+$/ }).filter((a) => a.closest("td") === a.closest("tr")!.firstElementChild).map((a) => a.textContent);
+    expect(ids()).toEqual(["CVE-2024-6387", "CVE-2024-3094", "CVE-2021-44228"]);
     // no "within the first N": the page is the whole kind
     expect(screen.queryByText(/within/)).toBeNull();
   });

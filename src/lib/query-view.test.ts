@@ -6,16 +6,15 @@ import {
   columnField,
   expressionWords,
   filterWords,
-  missingParams,
   needsOntology,
   partsText,
-  previewParams,
   queryReaders,
   readQueryView,
   rowWords,
   typeWords,
   wholeKindTable,
 } from "./query-view";
+import { paramRun } from "./query-params";
 
 const WATCHED: Schemas["GetQueryCard"] = {
   query: "security.watched_vulnerabilities",
@@ -75,8 +74,9 @@ describe("readQueryView", () => {
   it("names an entry parameter on its box and asks for it before a preview", () => {
     const view = readQueryView(RELEASE_EXPOSURE_CARD)!;
     expect(view.boxes[0]).toMatchObject({ kinds: ["security.release"], entryParam: "release" });
-    expect(missingParams(view).map((param) => param.name)).toEqual(["release"]);
-    expect(previewParams(view)).toBeUndefined();
+    const run = paramRun(view.params, {});
+    expect(run.missing.map((param) => param.name)).toEqual(["release"]);
+    expect(run.params).toBeUndefined();
     expect(wholeKindTable(view)).toBeNull();
   });
 
@@ -96,8 +96,9 @@ describe("readQueryView", () => {
     const view = readQueryView(card)!;
     expect(view.boxes[0]!.kinds).toEqual(["security.assessment"]);
     expect(view.returns.map((item) => partsText(item.from))).toEqual(["assessment.status"]);
-    expect(missingParams(view)).toEqual([]);
-    expect(previewParams(view)).toEqual({ status: "affected" });
+    expect(paramRun(view.params, {})).toEqual({ params: { status: "affected" }, missing: [], invalid: [] });
+    // a given value replaces the default
+    expect(paramRun(view.params, { status: "fixed" }).params).toEqual({ status: "fixed" });
   });
 
   it("resolves a hop's target kind from the ontology when the hop does not state it", () => {

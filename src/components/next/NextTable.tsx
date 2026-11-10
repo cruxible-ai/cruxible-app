@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import type { NextItem, NextSeverity } from "@/api/schemas";
-import { useGet } from "@/api/hooks";
+import { useGet, useInstanceId } from "@/api/hooks";
 import { AttestationEvidence } from "@/components/AttestationEvidence";
-import { Chip } from "@/components/Chip";
+import { actionChipClass, Chip } from "@/components/Chip";
 import { CountsMark } from "@/components/CountsMark";
 import { DataTable, useTableState, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
@@ -10,6 +11,8 @@ import { LoadState } from "@/components/Panel";
 import { nextAttestationAccounts, nextAttestationClaim } from "@/lib/attestation-evidence";
 import { FAMILY_LABEL, captureHandle, detailRecord, familyOf, reasonMeta, splitDetail, type FieldSpec } from "@/lib/next-reasons";
 import { formatDateTime, formatRelative } from "@/lib/text";
+import { useAtLink } from "@/lib/at";
+import { lineName } from "@/lib/lines";
 import { term } from "@/lib/vocabulary";
 import { FieldValue, RepairText, repairKey } from "./NextFields";
 
@@ -315,6 +318,7 @@ function DetailCell({ item, shared }: { item: NextItem; shared: ReasonShare | un
           </span>
         ))}
         {counts && <CountsMark counts={counts.counts} reason={counts.reason} />}
+        {item.reason === "line_inbox_unread" && item.subject_identity.startsWith("Line:") && <InboxLink line={lineName(item.subject_identity)} />}
         {claim && (
           <button onClick={() => setEvidence((v) => !v)} className="text-zinc-400 hover:text-zinc-200" aria-expanded={evidence}>
             {evidence ? "Hide evidence" : "Evidence"}
@@ -333,6 +337,17 @@ function DetailCell({ item, shared }: { item: NextItem; shared: ReasonShare | un
         </pre>
       )}
     </div>
+  );
+}
+
+/** A Line's unread items on the Inbox page. */
+function InboxLink({ line }: { line: string }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  return (
+    <Link to={link(`/i/${instanceId}/inbox?line=${encodeURIComponent(line)}&status=unread`)} className={actionChipClass}>
+      Open in Inbox
+    </Link>
   );
 }
 

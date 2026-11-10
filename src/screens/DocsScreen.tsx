@@ -18,8 +18,13 @@ import { bodyFormat, extensionFor } from "@/lib/body-format";
 import { decodeText, formatSize } from "@/lib/capture-body";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { useClearOnEscape } from "@/components/graph/FocusChip";
+import { KitReceiptView } from "@/components/KitReceipt";
+import { readKitReceipt } from "@/lib/kit-receipt";
 
 type DocumentRow = Schemas["OrientDocument"];
+
+/** The Document kind a kit install records its receipt under. */
+const KIT_RECEIPT = "kit_receipt";
 type DocumentCard = Schemas["GetDocumentCard"];
 
 /**
@@ -67,7 +72,8 @@ export function DocsScreen() {
   }, [rows, query]);
   const kinds = useMemo(() => new Set(rows.map((row) => row.document_kind)).size, [rows]);
   const asked = params.get("doc");
-  const open = rows.find((row) => row.name === asked) ?? (asked === null ? rows[0] : undefined) ?? null;
+  // with none asked, the first authored Document opens: a kit receipt is the install's record, not guidance
+  const open = rows.find((row) => row.name === asked) ?? (asked === null ? (rows.find((row) => row.document_kind !== KIT_RECEIPT) ?? rows[0]) : undefined) ?? null;
   const select = (name: string) => {
     const next = new URLSearchParams(params);
     next.set("doc", name);
@@ -325,6 +331,7 @@ function DocumentReader({
   const body = readOf(read.data);
   const decoded = useMemo(() => (body ? decodeText(body.bytes) : null), [body]);
   const format = decoded ? bodyFormat(decoded, { contentType: row.media_type, name: row.name }) : null;
+  const receipt = useMemo(() => (row.document_kind === KIT_RECEIPT && decoded ? readKitReceipt(decoded.json) : null), [row.document_kind, decoded]);
   const meta = (
     <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-zinc-500">
       <span>{row.document_kind}</span>
@@ -354,15 +361,22 @@ function DocumentReader({
       {formatSize(read.data.size)}: over the {formatSize(DOCUMENT_READ_MAX_BYTES)} page limit
     </Note>
   ) : body && decoded && format ? (
-    <BodyView
-      format={format}
-      text={decoded.text}
-      json={decoded.json}
-      size={body.bytes.length}
-      title={`Body of ${row.title}`}
-      centered={wide || reading}
-      fill={reading}
-    />
+    receipt ? (
+      <KitReceiptView
+        receipt={receipt}
+        raw={<BodyView format={format} text={decoded.text} json={decoded.json} size={body.bytes.length} title={`Body of ${row.title}`} />}
+      />
+    ) : (
+      <BodyView
+        format={format}
+        text={decoded.text}
+        json={decoded.json}
+        size={body.bytes.length}
+        title={`Body of ${row.title}`}
+        centered={wide || reading}
+        fill={reading}
+      />
+    )
   ) : null;
   if (reading) {
     return (

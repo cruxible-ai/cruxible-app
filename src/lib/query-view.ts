@@ -120,21 +120,6 @@ export function defaultWords(param: QueryParam): string {
   return typeof param.default === "string" ? param.default : JSON.stringify(param.default);
 }
 
-/** The parameters with no default that the query cannot run without. */
-export function missingParams(view: QueryView): QueryParam[] {
-  return view.params.filter((param) => param.required && (param.default === undefined || param.default === null));
-}
-
-/** The defaults to run the preview with (undefined when none are declared). */
-export function previewParams(view: QueryView): Record<string, string | number | boolean | null> | undefined {
-  const entries = view.params.flatMap((param) =>
-    param.default !== undefined && param.default !== null && ["string", "number", "boolean"].includes(typeof param.default)
-      ? [[param.name, param.default as string | number | boolean] as const]
-      : [],
-  );
-  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-}
-
 // -- filters in words ---------------------------------------------------------
 
 const TOKEN = /\s*(?:("(?:[^"\\]|\\.)*")|(-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?)|(\$?[a-zA-Z_][a-zA-Z0-9_.]*)|(==|!=|<=|>=|[=<>~(),]))/y;
