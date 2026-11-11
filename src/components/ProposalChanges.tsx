@@ -6,11 +6,14 @@ import { ChangeMark } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
 import { shortId } from "@/components/ShortId";
 import { captureHandle } from "@/lib/next-reasons";
-import { readDefinition, type DefinitionChange } from "@/lib/proposal-diff";
+import { definitionIdentity, readDefinition, type DefinitionChange } from "@/lib/proposal-diff";
 import { changeMark, roleWord } from "@/lib/vocabulary";
 
 type Review = Schemas["ProposalReview"];
 type Member = Review["members"][number];
+type Summary = Schemas["ProposalReviewSummary"];
+type SummaryGroup = Summary["groups"][number];
+type SummaryRow = SummaryGroup["rows"][number];
 
 /**
  * A proposal's changes read as facts: Claims grouped under their Subject, one
@@ -180,7 +183,7 @@ function Value({ value }: { value: { text: string; ref: string | null } }) {
 }
 
 /** A definition's name (a digest tail shortened, whole on hover), linked where the console opens its kind. */
-function DefinitionName({ definition }: { definition: DefinitionChange & { name: string } }) {
+function DefinitionName({ definition }: { definition: { name: string; ref: string | null } }) {
   const text = shortId(definition.name);
   const title = text === definition.name ? undefined : definition.name;
   const name = (
@@ -203,8 +206,6 @@ function runsOf(claims: ClaimLine[]) {
 }
 
 export function ProposalChanges({ review, limit }: { review: Review; limit?: number }) {
-  const instanceId = useInstanceId();
-  const link = useAtLink();
   const groups = groupChanges(review.members);
   const definitions = definitionGroups(review.members);
   const unreadable = unreadableChanges(review.members);
@@ -307,14 +308,123 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
           </span>
         </div>
       ))}
-      {hidden > 0 && (
-        <Link
-          to={link(`/i/${instanceId}/p/${encodeURIComponent(review.proposal_id)}`)}
-          className="block text-[12px] text-zinc-400 hover:text-zinc-200 hover:underline"
-        >
-          +{hidden} more on the proposal page →
-        </Link>
+      {hidden > 0 && <MoreLink proposal={review.proposal_id} hidden={hidden} />}
+    </div>
+  );
+}
+
+/** The changes past a peek's cap, counted, linking the proposal page. */
+function MoreLink({ proposal, hidden }: { proposal: string; hidden: number }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  return (
+    <Link
+      to={link(`/i/${instanceId}/p/${encodeURIComponent(proposal)}`)}
+      className="block text-[12px] text-zinc-400 hover:text-zinc-200 hover:underline"
+    >
+      +{hidden} more on the proposal page →
+    </Link>
+  );
+}
+
+/** A summary group of Subject or Claim changes: the summary form cannot render those as Claim lines. */
+export function summaryHasBeliefs(summary: Summary): boolean {
+  return summary.groups.some((g) => g.artifact_kind === "claim" || g.artifact_kind === "subject");
+}
+
+const SUMMARY_CHANGE = { create: "create", replace: "revise", retire: "retire", delete: "retire" } as const;
+
+/**
+ * A summary row's stored fields on one side: the group's shared fields
+ * (`after.<field>`, said once for the group) under the row's own.
+ */
+function summaryFields(group: SummaryGroup, row: SummaryRow): Record<string, unknown> | null {
+  const side = row.after !== null || Object.keys(group.shared_fields).some((k) => k.startsWith("after.")) ? "after" : "before";
+  const out: Record<string, unknown> = {};
+  for (const [key, field] of Object.entries(group.shared_fields)) {
+    if (key.startsWith(`${side}.`)) out[key.slice(side.length + 1)] = field.value;
+  }
+  for (const [key, field] of Object.entries(row[side] ?? {})) out[key] = field.value;
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+export interface SummaryKind {
+  type: string;
+  /** Members of this kind in the proposal (every row, shown or not). */
+  total: number;
+  rows: { path: string; change: string; name: string | null; ref: string | null }[];
+}
+
+/**
+ * The summary's definition groups by kind (a kind's create and revise groups
+ * read together), each row named from its stored fields as the detailed read
+ * names them (`definitionIdentity`). Subject and Claim groups are left out.
+ */
+export function summaryKinds(summary: Summary): SummaryKind[] {
+  const kinds = new Map<string, SummaryKind>();
+  for (const group of summary.groups) {
+    if (group.artifact_kind === "claim" || group.artifact_kind === "subject") continue;
+    const rows = group.rows.map((row) => ({
+      path: row.path,
+      change: SUMMARY_CHANGE[group.disposition],
+      ...definitionIdentity(summaryFields(group, row), group.artifact_kind),
+    }));
+    const type = rows.find((r) => r.name !== null)?.type ?? definitionIdentity(null, group.artifact_kind).type;
+    let k = kinds.get(type);
+    if (!k) {
+      k = { type, total: 0, rows: [] };
+      kinds.set(type, k);
+    }
+    k.total += (group.counts.created ?? 0) + (group.counts.revised ?? 0) + (group.counts.retired ?? 0);
+    k.rows.push(...rows.map(({ path, change, name, ref }) => ({ path, change, name, ref })));
+  }
+  const out = [...kinds.values()].sort((a, b) => a.type.localeCompare(b.type));
+  for (const k of out) k.rows.sort((a, b) => (a.name ?? a.path).localeCompare(b.name ?? b.path, undefined, { numeric: true }));
+  return out;
+}
+
+/**
+ * A definition-only change set from the review's summary form: each kind with
+ * its count, its first rows named and marked, the rest counted into "more".
+ * A row no stored field names reads by its path.
+ */
+export function SummaryChanges({ summary, limit = 12 }: { summary: Summary; limit?: number }) {
+  const kinds = summaryKinds(summary);
+  const total = (summary.counts.created ?? 0) + (summary.counts.revised ?? 0) + (summary.counts.retired ?? 0);
+  let shown = 0;
+  const blocks = kinds.map((k) => {
+    const rows = k.rows.slice(0, Math.max(0, limit - shown));
+    shown += rows.length;
+    return { ...k, rows };
+  });
+  const hidden = total - shown;
+  return (
+    <div className="space-y-3 text-[13px]">
+      {blocks.map(
+        (k) =>
+          k.rows.length > 0 && (
+            <div key={`kind:${k.type}`} role="group" aria-label={k.type}>
+              <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
+                <span />
+                <span className="text-zinc-400">
+                  {k.type}
+                  {k.total > 1 && <span className="ml-1 text-[11px] text-zinc-500">({k.total})</span>}
+                </span>
+              </div>
+              <div className="ml-4 mt-0.5 space-y-0.5">
+                {k.rows.map((row) => (
+                  <div key={row.path} className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
+                    <ChangeMark change={row.change} />
+                    <span className="min-w-0 break-all">
+                      {row.name !== null ? <DefinitionName definition={{ name: row.name, ref: row.ref }} /> : <RefLink value={refFromPath(row.path)} />}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ),
       )}
+      {hidden > 0 && <MoreLink proposal={summary.proposal_id} hidden={hidden} />}
     </div>
   );
 }

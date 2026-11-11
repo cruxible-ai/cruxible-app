@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
-import { renderApp } from "@/test/render";
+import { http } from "msw";
+import { server } from "@/test/msw-server";
+import { renderApp, TEST_BASE } from "@/test/render";
 import { LEDGER_PAGE, orientQuery } from "@/api/requests";
 import type { Schemas } from "@/api/schemas";
 import { defineFixture } from "@/fixtures/fixture";
@@ -59,13 +61,37 @@ describe("Ledger", () => {
     expect(main.getAllByText("Vendor advisory says rel-1 never shipped the build.")).toHaveLength(1);
   });
 
-  it("expands a definition-only generation to its definitions, by kind", async () => {
+  /** The review reads the page makes, by form: `detail: true` is the detailed one. */
+  function reviewReads() {
+    const reads: ("summary" | "detail")[] = [];
+    server.use(
+      http.post(`${TEST_BASE}/api/v1/:instance/proposals/:proposal/review`, async ({ request }) => {
+        const body = (await request.clone().json()) as { detail?: boolean };
+        reads.push(body.detail ? "detail" : "summary");
+        return undefined;
+      }),
+    );
+    return reads;
+  }
+
+  it("expands a definition-only generation to its definitions, by kind, from the summary review alone", async () => {
     renderApp("/i/inst_fixture/ledger", [...AUTHORED, ledger([{ sequence: 5, git_oid: "5".repeat(40), accepted_at: "2026-10-19T09:00:00Z", proposal: DEFINITIONS, proposer: "kit-author", members: 1 }])]);
+    const reads = reviewReads(); // after renderApp: its handlers go first
     const main = within(await screen.findByRole("main"));
     fireEvent.click(await main.findByRole("button", { name: "Expand generation 5" }));
     const procedures = within(await main.findByRole("group", { name: "Procedure" }));
     expect(procedures.getByRole("link", { name: "security.kev-triage" })).toBeInTheDocument();
     expect(procedures.getByRole("img", { name: "Revised" })).toBeInTheDocument();
+    expect(reads).toEqual(["summary"]);
+  });
+
+  it("reads the detailed review only for a change set with Claims", async () => {
+    renderApp("/i/inst_fixture/ledger");
+    const reads = reviewReads(); // after renderApp: its handlers go first
+    const main = within(await screen.findByRole("main"));
+    fireEvent.click(await main.findByRole("button", { name: "Expand generation 42" }));
+    expect(await main.findByRole("link", { name: /CLM-0+a3/ })).toBeInTheDocument();
+    expect(reads).toEqual(["summary", "detail"]);
   });
 
   it("reads in the daemon's order, newest first: a log has no sort, so none is claimed", async () => {

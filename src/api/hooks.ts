@@ -28,6 +28,7 @@ import {
   queryBody,
   readingsBody,
   reviewBody,
+  reviewSummaryBody,
   sinceBody,
   type QueryArgs,
 } from "./requests";
@@ -747,6 +748,31 @@ export function useReview(proposalId: string | null, itemReasonsAfter?: string) 
       );
       // reviewBody asks for the detailed review; the summary form has no members.
       if (review.tag !== "playbill-proposal-review-v1") throw new Error(`review of ${proposalId} came back as a summary`);
+      return review;
+    },
+  });
+}
+
+/**
+ * One proposal's review in its summary form (counts, members grouped by kind
+ * and disposition, the first rows of each): small whatever the proposal's
+ * size, for a peek. The proposal page reads the detailed form (useReview).
+ */
+export function useReviewSummary(proposalId: string | null) {
+  const client = useApiClient();
+  const instanceId = useInstanceId();
+  return useQuery({
+    queryKey: ["review-summary", instanceId, proposalId],
+    enabled: proposalId !== null,
+    staleTime: 15_000,
+    queryFn: async () => {
+      const review = unwrap(
+        await client.POST("/api/v1/{instance_id}/proposals/{proposal_id}/review", {
+          params: { path: { instance_id: instanceId, proposal_id: proposalId! } },
+          body: reviewSummaryBody(),
+        }),
+      );
+      if (review.tag !== "playbill-proposal-review-summary-v1") throw new Error(`summary review of ${proposalId} came back detailed`);
       return review;
     },
   });
