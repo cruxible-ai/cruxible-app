@@ -15,11 +15,10 @@ type Review = Schemas["ProposalReview"];
 
 const DIGEST = "8f36b52a81e87cf0ec571a7a611651f1eda035fb29c55dd50f28c7fe0a9cfcec";
 
-/** A definition member as core serves it: the artifact's typed identity, no Statement. */
-function definition(kind: string, name: string, artifactKind: string, disposition = "create"): Member {
-  const artifact = { artifact_format: `playbill-${artifactKind}-v1`, identity: { kind, name } };
+/** A definition member as core serves it: the stored artifact, no Statement. */
+function member(artifactKind: string, path: string, artifact: Record<string, unknown>, disposition = "create"): Member {
   return {
-    path: `${artifactKind}s/${name}.json`,
+    path,
     artifact_kind: artifactKind,
     disposition,
     closure_role: "authored",
@@ -35,9 +34,18 @@ function definition(kind: string, name: string, artifactKind: string, dispositio
   };
 }
 
-const CONTRACT = definition("Contract", "osv.match.request/v1", "contract");
+/** Most definitions: `identity: {kind, name}`. */
+const definition = (kind: string, name: string, artifactKind: string, disposition = "create") =>
+  member(artifactKind, `${artifactKind}s/${name}.json`, { artifact_format: `playbill-${artifactKind}-v1`, identity: { kind, name } }, disposition);
+/** A Contract as core stores it: no identity, a name and a version. */
+const contract = (name: string, version: number) =>
+  member("contract", `contracts/${name}/v${version}.json`, { artifact_format: "cruxible-contract-v1", description: "A request.", fields: [], name, version });
+
+const CONTRACT = contract("osv.match.request", 1);
 const PROVIDER = definition("Provider", `web-provider/${DIGEST}`, "provider");
-const CLAIM_TYPE = definition("ClaimType", "security.finding/verdict", "claim_type");
+const CLAIM_TYPE = definition("ClaimType", "security.finding/verdict", "claim-type");
+/** A Document as core stores it: its identity a typed ref string. */
+const DOCUMENT = member("document", "documents/kit-security.json", { artifact_format: "cruxible-document-v1", identity: "document:kit-security", kind: "document", title: "Kit security 1.3.0" });
 
 const review = (members: Member[]): Review => ({ proposal_id: "sha256:" + "d1".repeat(32), members }) as unknown as Review;
 
@@ -71,6 +79,16 @@ describe("ProposalChanges definitions", () => {
     expect(screen.queryByText(/more on the proposal page/)).toBeNull();
   });
 
+  it("names Contracts by name and version and Documents by their identity ref, as core stores them", () => {
+    renderChanges([CONTRACT, DOCUMENT]);
+    expect(within(screen.getByRole("group", { name: "Contract" })).getByRole("link", { name: "osv.match.request/v1" })).toHaveAttribute(
+      "href",
+      `/i/inst_fixture/ref/${encodeURIComponent("Contract:osv.match.request/v1")}`,
+    );
+    expect(within(screen.getByRole("group", { name: "Document" })).getByRole("link", { name: "kit-security" })).toHaveAttribute("href");
+    expect(unreadableChanges([CONTRACT, DOCUMENT])).toEqual([]);
+  });
+
   it("shows Claims and definitions together", () => {
     renderChanges([PROCEDURE_MEMBER, ...BELIEF_MEMBERS]);
     expect(screen.getByRole("group", { name: "Procedure" })).toBeInTheDocument();
@@ -79,7 +97,7 @@ describe("ProposalChanges definitions", () => {
   });
 
   it("caps definitions apart from Claims and counts the rest", () => {
-    const many = Array.from({ length: 5 }, (_, i) => definition("Contract", `c${i}/v1`, "contract"));
+    const many = Array.from({ length: 5 }, (_, i) => contract(`c${i}`, 1));
     renderChanges([...many, CLAIM_TYPE, ...BELIEF_MEMBERS], 3);
     // three definitions shown (by kind, then name), Claims still shown under the same cap
     expect(screen.getByRole("group", { name: "ClaimType" })).toBeInTheDocument();
