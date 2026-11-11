@@ -8,6 +8,7 @@ import { AT, COORDINATE, NOW } from "@/fixtures/authored/world";
 import { LINE_INBOX_ITEM } from "@/fixtures/authored/lines";
 import { orientQuery } from "@/api/requests";
 import { ORIENT_PAGE } from "@/api/hooks";
+import { withOrient } from "@/test/fresh";
 
 afterEach(cleanup);
 
@@ -213,11 +214,27 @@ describe("Runbooks on the Lines page", () => {
     expect(within(panel.getByRole("table", { name: "Runbooks" })).getAllByRole("link")).toHaveLength(20);
   });
 
-  it("shows no Runbooks panel when the instance has none, and the whole list without a slice mark", async () => {
+  it("says None under Runbooks when the instance has none", async () => {
     renderApp("/i/inst_fixture/lines");
     const main = within(await screen.findByRole("main"));
     await main.findByRole("table", { name: "Lines" });
-    expect(main.queryByRole("heading", { name: "Runbooks" })).toBeNull();
+    const panel = within((await main.findByRole("heading", { name: "Runbooks" })).closest("section")!);
+    expect(panel.getByText("None")).toBeInTheDocument();
+    expect(panel.queryByRole("table")).toBeNull();
+  });
+
+  it("says None under a Line's Next when nothing in the queue is about it", async () => {
+    renderApp("/i/inst_fixture/lines/cve-applicability");
+    const main = within(await screen.findByRole("main"));
+    const panel = within((await main.findByRole("heading", { name: "Next" })).closest("section")!);
+    expect(panel.getByText("None")).toBeInTheDocument();
+  });
+
+  it("says None under Lines on a fresh instance", async () => {
+    renderApp("/i/inst_fixture/lines", withOrient("lines", { lines: [] }));
+    const main = within(await screen.findByRole("main"));
+    const panel = within((await main.findByRole("heading", { name: "Lines" })).closest("section")!);
+    expect(await panel.findByText("None")).toBeInTheDocument();
   });
 });
 

@@ -11,7 +11,7 @@ import { DueCount } from "@/screens/LineScreen";
 import { LineStateDot } from "@/components/LineStateDot";
 import { Page, PageHeader } from "@/components/Page";
 import { DataTable, useTableState, type Column } from "@/components/DataTable";
-import { LoadState, Panel } from "@/components/Panel";
+import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { RunbookWakeText } from "@/components/RunbookWake";
@@ -354,7 +354,7 @@ type RunbookRow = Schemas["OrientRunbook"];
  * Every Runbook at the pinned generation (orient section=runbooks): an
  * ordered list of Line runs and actions started by hand or by a Trigger; its
  * description as written, steps, Triggers aimed at it and its latest run
- * (read live). Shown only when the instance has one.
+ * (read live); "None" when the instance has none.
  */
 function RunbooksPanel() {
   const instanceId = useInstanceId();
@@ -400,7 +400,14 @@ function RunbooksPanel() {
     [instanceId, link],
   );
   if (runbooks.error) return <LoadState error={runbooks.error} />;
-  if (!runbooks.data || rows.length === 0) return null;
+  if (!runbooks.data) return null;
+  if (rows.length === 0) {
+    return (
+      <Panel title="Runbooks">
+        <EmptyState>None</EmptyState>
+      </Panel>
+    );
+  }
   // The section is read to a fixed bound of pages (useOrientSectionAll); past it the list is a slice, and says so.
   const truncated = runbooks.data.truncated;
   return (

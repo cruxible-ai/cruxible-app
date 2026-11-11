@@ -7,7 +7,7 @@ import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } fr
 import { useInstanceId, useOntologyKinds, useSourceModel, useSubjectKinds } from "@/api/hooks";
 import type { OrientPredicate, OrientSubjectKind } from "@/api/schemas";
 import { actionChipClass } from "@/components/Chip";
-import { LoadState } from "@/components/Panel";
+import { EmptyState, LoadState } from "@/components/Panel";
 import { FieldList } from "@/components/FieldList";
 import { GraphCanvas, type GraphPanelApi, type GraphSelection } from "@/components/graph/GraphCanvas";
 import { PanelActions, PanelHeading, PanelSection } from "@/components/graph/PanelBits";
@@ -129,11 +129,12 @@ export function TypeMapScreen() {
   const allKinds = useMemo(() => buildTypeGraph(modelKinds), [modelKinds]);
   // ?populated=1 keeps only kinds that hold Subjects (and the links between them);
   // ?populated=0 shows every kind. Unset, it starts on when most declared kinds are
-  // empty (a fresh or partly loaded instance), unless the URL opens on a kind or field.
+  // empty (a partly loaded instance), unless the URL opens on a kind or field; with
+  // no Subjects at all (a fresh instance) it starts off, so the declared kinds show.
   const populatedParam = params.get("populated");
   const mostlyEmpty = useMemo(() => {
     const all = modelKinds;
-    return all.length > 0 && all.filter((k) => k.subjects === 0).length * 2 > all.length;
+    return all.some((k) => k.subjects > 0) && all.filter((k) => k.subjects === 0).length * 2 > all.length;
   }, [kinds.data]);
   // The toggle only means something when some declared kind holds no Subjects.
   const someEmpty = useMemo(() => modelKinds.some((k) => k.subjects === 0), [modelKinds]);
@@ -362,9 +363,13 @@ export function TypeMapScreen() {
           <FocusChip label={focus} onClear={clearFocus} />
         </div>
       )}
-      {!laidOut ? (
+      {allKinds.nodes.length === 0 ? (
+        <EmptyState>No kinds</EmptyState>
+      ) : !laidOut ? (
         <LoadState />
       ) : (
+      <>
+      {graph.nodes.length === 0 && <EmptyState>No kinds with Subjects</EmptyState>}
       <GraphCanvas
         nodes={nodes}
         edges={edges}
@@ -399,6 +404,7 @@ export function TypeMapScreen() {
         }
         overlay={coloring.enabled ? <LayerLegend layers={coloring.layers} /> : undefined}
       />
+      </>
       )}
     </div>
   );

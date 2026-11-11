@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { DOCS, PRIVATE_DOC } from "@/fixtures/authored/documents";
+import { withOrient } from "@/test/fresh";
 
 afterEach(cleanup);
 beforeAll(() => {
@@ -140,5 +141,12 @@ describe("Docs", () => {
   it("says when the named Document is not at this generation", async () => {
     renderApp(docs("gone"));
     expect(await screen.findByText(/Not found:/)).toHaveTextContent("Not found: gone");
+  });
+
+  it("says there are no Documents on a fresh instance", async () => {
+    renderApp(docs(), withOrient("documents", { documents: [] }));
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("No Documents")).toBeInTheDocument();
+    expect(main.queryByRole("list", { name: "Documents" })).toBeNull();
   });
 });

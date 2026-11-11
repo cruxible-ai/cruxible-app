@@ -133,6 +133,15 @@ describe("Beliefs", () => {
     expect(main.getAllByText("Doesn't count")).toHaveLength(1);
   });
 
+  it("reads an empty queue as good news, not as a blank page", async () => {
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/next"))!;
+    const response = fixture.response as NextResult;
+    renderApp("/i/inst_fixture/next", [...AUTHORED, { ...fixture, response: { ...response, items: [], total_items: 0, next_cursor: null } }]);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("Nothing needs attention")).toBeInTheDocument();
+    expect(main.queryByRole("table", { name: "Next" })).toBeNull();
+  });
+
   it("reports an empty filtered page and explains workspace drift on request", async () => {
     renderApp("/i/inst_fixture/next?preset=beliefs&f.family=drifted");
     expect(await screen.findByText("No match")).toBeInTheDocument();

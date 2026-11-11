@@ -46,10 +46,11 @@ export function NextScreen() {
         summary={
           page.data ? (
             page.data.total_items === 0 ? (
-              <StatsRow>
-                <span>None</span>
-                {driftUnobserved && <DriftUnobserved domains={page.data.unobserved_domains} />}
-              </StatsRow>
+              driftUnobserved ? (
+                <StatsRow>
+                  <DriftUnobserved domains={page.data.unobserved_domains} />
+                </StatsRow>
+              ) : undefined
             ) : (
               <>
                 <StatsRow>
@@ -108,6 +109,12 @@ export function NextScreen() {
         </Panel>
       )}
       {page.data && items.length === 0 && page.data.total_items > 0 && <EmptyState>None on this page</EmptyState>}
+      {/* an empty queue is the good case: nothing to repair or decide */}
+      {page.data && page.data.total_items === 0 && (
+        <Panel title="Items">
+          <EmptyState>Nothing needs attention</EmptyState>
+        </Panel>
+      )}
     </Page>
   );
 }

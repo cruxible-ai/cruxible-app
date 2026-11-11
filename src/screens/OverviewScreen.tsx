@@ -263,7 +263,12 @@ function Snapshot({ o }: { o: OrientResult }) {
       <Panel title="How it grew" description={ABOUT.grew} meta={<span title="The generations this chart covers">{`g${lo}–g${head}`}{growth.pending && <span className="animate-pulse"> · …</span>}</span>}>
         {!points && <LoadState />}
         {growth.failed > 0 && <EmptyState>{`${growth.failed} of ${earlier.length} generations could not be read; the chart skips them.`}</EmptyState>}
-        {points && <GrowthChart points={points} lo={lo} head={head} markers={markers} colorOf={colorOf} label={short.label} />}
+        {points &&
+          (points.some((p) => [...p.byKind.values()].some((n) => n > 0)) ? (
+            <GrowthChart points={points} lo={lo} head={head} markers={markers} colorOf={colorOf} label={short.label} />
+          ) : (
+            <EmptyState>No live Claims yet</EmptyState>
+          ))}
       </Panel>
     </>
   );

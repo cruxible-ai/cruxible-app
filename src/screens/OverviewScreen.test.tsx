@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
 import { LARGE_HEAD, OVERVIEW_LARGE } from "@/fixtures/overview-large";
+import { withOrient } from "@/test/fresh";
 
 afterEach(cleanup);
 
@@ -107,5 +108,14 @@ describe("Overview", () => {
     expect(run.getAttribute("href")).toMatch(new RegExp(`^${I}/runs/RUN-`));
     expect(grew.getByRole("link", { name: `Generation ${LARGE_HEAD - 12}: Upgrade kit platform from 1.2.0 to 1.3.0` })).toBeInTheDocument();
     expect(screen.queryAllByRole("table")).toHaveLength(0);
+  });
+
+  it("says what is absent on a fresh instance: no kinds, Subjects or live Claims, and no growth chart", async () => {
+    renderApp(`${I}/overview`, withOrient("claim_types", { claim_types: [] }, withOrient(null, { kinds: [], generation: 0 })));
+    expect(await (await section("What it knows")).findByText("No kinds declared yet")).toBeInTheDocument();
+    expect(await (await section("How it stands")).findByText("No Subjects yet")).toBeInTheDocument();
+    const grew = await section("How it grew");
+    expect(await grew.findByText("No live Claims yet")).toBeInTheDocument();
+    expect(grew.queryByRole("link", { name: /^Generation \d+:/ })).toBeNull();
   });
 });
