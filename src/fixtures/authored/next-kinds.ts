@@ -474,6 +474,30 @@ export const NEXT_KIND_ITEMS: NextItem[] = [
     repair_requires: { operation: "cruxible.line.enable", tool: "cruxible_line_enable", tier: "governed_write", because: ["tier"] },
   },
   {
+    item_id: "k-line_input_missing",
+    severity: "setup",
+    reason: "line_input_missing",
+    subject_identity: "Line:ingest.inventory",
+    related_identities: [],
+    detail: {
+      node_id: "read_inventory",
+      relative_path: "inventory.json",
+      parameter: "inventory_path",
+      description: "The inventory export, relative to the workspace root",
+      detail: "the file this Line reads is not in the workspace yet",
+    },
+    repair: {
+      operation: "hand_edit",
+      target: "workspace file inventory.json",
+      required_change:
+        "Place the file this Line reads at inventory.json in the attached workspace (parameter inventory_path: The inventory export, relative to the workspace root), then run it again.",
+      arguments: {},
+      command: null,
+      alternatives: [],
+      operands_to_add: [],
+    },
+  },
+  {
     item_id: "k-line_run_failed",
     severity: "repair",
     reason: "line_run_failed",

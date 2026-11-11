@@ -6,7 +6,8 @@ throwaway HOME and state root; no daemon ran).
 `pin.json` records the core commit it came from,
 and that build's version and SDK contract digest (what `GET /version` answers; the About
 page marks a daemon that answers otherwise):
-currently **cruxible-core `0e30638a3`**. The version remains **0.5.1**; the SDK digest moved.
+currently **cruxible-core `e762307a5`** (claude/integ-05b with claude/needed-inputs merged,
+built for a walkthrough). The version remains **0.5.1**; the SDK digest moved.
 The fixtures under `src/fixtures/recorded/` are still the `43155c135` recording (their
 `/version` answers the old digest, so the recorded About page reads Differs until they are
 re-recorded at this pin).

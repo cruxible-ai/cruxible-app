@@ -35774,7 +35774,7 @@
           "initialized"
         ],
         "title": "HostWorkspaceAttachResult",
-        "description": "One daemon host attached to a Git worktree, before or after its init.\n\nAn initialized host attaches when the worktree is in the ledger's own Git\nobject format and holds no part of the host's managed root; nothing is\nrebuilt. ``would_attach`` answers a preview, which registered nothing."
+        "description": "One daemon host attached to a folder (Git or not), before or after its init.\n\nAn initialized host attaches a plain folder, or a Git worktree in the\nledger's own Git object format, that holds no part of the host's managed\nroot; nothing is rebuilt. ``already_attached`` answers the folder the host\nalready has (its ledger mirror is rebound). ``would_attach`` answers a\npreview, which registered nothing."
       },
       "HostWorkspaceRegistration": {
         "properties": {
@@ -37710,6 +37710,18 @@
               }
             ],
             "title": "Automation Template"
+          },
+          "automation_template_content": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1048576
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation Template Content"
           }
         },
         "additionalProperties": false,
@@ -41070,6 +41082,7 @@
               "line_run_failed",
               "line_settled_prior_refusals",
               "line_inbox_unread",
+              "line_input_missing",
               "evidence_unavailable",
               "claim_evidence_erased",
               "prediction_settleable",
@@ -41229,6 +41242,7 @@
               "line_run_failed",
               "line_settled_prior_refusals",
               "line_inbox_unread",
+              "line_input_missing",
               "evidence_unavailable",
               "claim_evidence_erased",
               "prediction_settleable",
@@ -60531,6 +60545,39 @@
             "title": "Inbox",
             "default": 0
           },
+          "inbox_new": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inbox New"
+          },
+          "inbox_seen_again": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inbox Seen Again"
+          },
+          "inbox_unposted": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Inbox Unposted",
+            "default": 0
+          },
           "needs_attention": {
             "type": "boolean",
             "title": "Needs Attention"
@@ -60543,7 +60590,7 @@
           "needs_attention"
         ],
         "title": "RunCounts",
-        "description": "What one Line run did, in counts: the line a reader checks before \"succeeded\".\n\n``status`` says the run finished; this says what it achieved. ``written``\ncounts new, revising and inverse Claims across the run's claims terminals;\n``settled`` and ``proposed`` split them by how each terminal delivered\n(``proposed`` includes a change still waiting on the Line's open proposal).\n``unchanged`` counts re-observed and no-op restatements, ``retired`` the\nretirements. ``refused`` counts the items not written (every finding but\nan incomplete source), with ``top_refusals`` naming the most frequent codes\namong the findings the run kept. ``inbox`` counts the items this run posted\nto its Line's inbox; when the inbox could not be read it is the count the\nrun's journaled ``post_inbox`` summaries prove, or ``None`` when they prove\nnone (findings routed to the inbox are not journaled). ``complete`` is\nfalse when the run recorded incompleteness, with ``incomplete_reasons``\nnaming each node and kind. ``needs_attention`` is true when the run was\nincomplete, refused an item, posted to the inbox, or its inbox count is\nunknown (``None``): an unreadable count never reads as nothing posted."
+        "description": "What one Line run did, in counts: the line a reader checks before \"succeeded\".\n\n``status`` says the run finished; this says what it achieved. ``written``\ncounts new, revising and inverse Claims across the run's claims terminals;\n``settled`` and ``proposed`` split them by how each terminal delivered\n(``proposed`` includes a change still waiting on the Line's open proposal).\n``unchanged`` counts re-observed and no-op restatements, ``retired`` the\nretirements. ``refused`` counts the items not written (every finding but\nan incomplete source), with ``top_refusals`` naming the most frequent codes\namong the findings the run kept. ``inbox`` counts the items this run posted\nto its Line's inbox; when the inbox could not be read it is the count the\nrun's journaled ``post_inbox`` summaries prove, or ``None`` when they prove\nnone (findings routed to the inbox are not journaled). It splits into\n``inbox_new``, the postings that made a new item, and ``inbox_seen_again``,\nthe re-sightings of an item already there (which keep its status and\ndecision); both are ``None`` when the split is unknown (the inbox could\nnot be read, or the counts were recorded before the split existed).\n``inbox_unposted`` counts the items an inbox cap left out of this run's\nposts. ``complete`` is false when the run recorded incompleteness, with\n``incomplete_reasons`` naming each node and kind. ``needs_attention`` is\ntrue when the run was incomplete, refused an item, posted a new inbox item,\nleft items out under an inbox cap (they may be new: nothing posted them),\nor posted to the inbox without a known split: an unreadable count never\nreads as nothing new. A run whose posts were all re-sightings does not\nneed attention for them."
       },
       "RunRefusalCount": {
         "properties": {
@@ -60820,7 +60867,7 @@
           "steps"
         ],
         "title": "RunbookPreview",
-        "description": "A static composed graph of one Runbook, from accepted definitions only.\n\nIt never executes a step, reads no Claims, Captures or journals, and\npredicts no outcome: no record counts, no value changes, no whether a\nproposal happens. It says what each step can do."
+        "description": "A static composed graph of one Runbook, from accepted definitions only.\n\nIt never executes a step, reads no Claims, Captures or journals, and\npredicts no outcome: no record counts, no value changes, no whether a\nproposal happens. It says what each step can do, and what each step's run\nneeds from outside: the one thing it checks beyond definitions is whether\neach workspace file a step reads is there (a stat; no byte is read)."
       },
       "RunbookPreviewAuthority": {
         "properties": {
@@ -61105,6 +61152,236 @@
         "title": "RunbookPreviewCascade",
         "description": "A Trigger the step's writes can set off, during or after the run."
       },
+      "RunbookPreviewInput": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "workspace_file",
+              "workspace_glob",
+              "fetch",
+              "trigger_capture"
+            ],
+            "title": "Kind"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "parameter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameter"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "workspace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace"
+          },
+          "capture_contract": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Contract"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "json",
+                  "csv",
+                  "text",
+                  "bytes"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/RunbookPreviewInputLimits",
+            "default": {}
+          },
+          "origins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origins"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "present",
+                  "absent",
+                  "refused",
+                  "no_workspace"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cloud_no_mounts",
+                  "binding",
+                  "path_grammar",
+                  "git_metadata",
+                  "playbill_control",
+                  "client_custody",
+                  "managed_root",
+                  "symlink",
+                  "hardlink",
+                  "non_regular",
+                  "unreadable",
+                  "changed_during_read",
+                  "missing",
+                  "size_budget",
+                  "workspace_unnamed",
+                  "workspace_unknown",
+                  "glob_over_cap"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node_id",
+          "kind",
+          "location",
+          "parameter",
+          "description",
+          "capture_contract"
+        ],
+        "title": "RunbookPreviewInput",
+        "description": "One input the step's run takes from outside accepted state, as declared.\n\n``location`` is the path, glob or URL, resolved from the Line's parameters\n(null when the run computes it). ``description`` is the params Contract\nfield's description for ``parameter``, as the author wrote it (null when\nnone is written). ``state`` is reported for a workspace file only."
+      },
+      "RunbookPreviewInputLimits": {
+        "properties": {
+          "max_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Bytes"
+          },
+          "decoded_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decoded Bytes"
+          },
+          "depth": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth"
+          },
+          "records": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Records"
+          },
+          "max_files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Files"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunbookPreviewInputLimits",
+        "description": "The limits the input's CaptureContract declares (and a glob's file cap)."
+      },
       "RunbookPreviewRead": {
         "properties": {
           "node_id": {
@@ -61223,6 +61500,14 @@
             },
             "type": "array",
             "title": "Calls",
+            "default": []
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/RunbookPreviewInput"
+            },
+            "type": "array",
+            "title": "Inputs",
             "default": []
           },
           "authority": {
@@ -66092,6 +66377,7 @@
               "updated",
               "scheduled",
               "not_attached",
+              "not_git",
               "failed"
             ],
             "title": "Status"

@@ -11052,11 +11052,13 @@ export interface components {
         };
         /**
          * HostWorkspaceAttachResult
-         * @description One daemon host attached to a Git worktree, before or after its init.
+         * @description One daemon host attached to a folder (Git or not), before or after its init.
          *
-         *     An initialized host attaches when the worktree is in the ledger's own Git
-         *     object format and holds no part of the host's managed root; nothing is
-         *     rebuilt. ``would_attach`` answers a preview, which registered nothing.
+         *     An initialized host attaches a plain folder, or a Git worktree in the
+         *     ledger's own Git object format, that holds no part of the host's managed
+         *     root; nothing is rebuilt. ``already_attached`` answers the folder the host
+         *     already has (its ledger mirror is rebound). ``would_attach`` answers a
+         *     preview, which registered nothing.
          */
         HostWorkspaceAttachResult: {
             /**
@@ -11999,6 +12001,8 @@ export interface components {
             coordinate?: components["schemas"]["GetCoordinate"] | null;
             /** Automation Template */
             automation_template?: string | null;
+            /** Automation Template Content */
+            automation_template_content?: string | null;
         };
         /**
          * KitDocumentBody
@@ -13465,7 +13469,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "claim_conflicted" | "claim_uncovered" | "claim_stale_evidence" | "citation_drifted" | "citation_source_unobserved" | "evidence_expiring" | "floor_invalid" | "projection_dirty" | "projection_backing_stale" | "claim_dependency_stale" | "claim_attestation_threshold_met" | "claim_contradicting_evidence_available" | "claim_new_evidence_supporting" | "claim_new_evidence_unreviewed" | "document_modified" | "workspace_binding_missing" | "unregistered_projection_block" | "projection_marker_invalid" | "proposal_stale" | "proposal_awaiting_approval" | "proposal_awaiting_activation" | "mandate_expiring" | "consumer_stalled" | "line_coverage_gap" | "line_work_pending" | "line_disabled_by_upgrade" | "line_not_enabled" | "line_run_failed" | "line_settled_prior_refusals" | "line_inbox_unread" | "evidence_unavailable" | "claim_evidence_erased" | "prediction_settleable" | "prediction_window_unbindable" | "subject_kind_undeclared" | "kit_resume_blocked";
+            reason: "claim_conflicted" | "claim_uncovered" | "claim_stale_evidence" | "citation_drifted" | "citation_source_unobserved" | "evidence_expiring" | "floor_invalid" | "projection_dirty" | "projection_backing_stale" | "claim_dependency_stale" | "claim_attestation_threshold_met" | "claim_contradicting_evidence_available" | "claim_new_evidence_supporting" | "claim_new_evidence_unreviewed" | "document_modified" | "workspace_binding_missing" | "unregistered_projection_block" | "projection_marker_invalid" | "proposal_stale" | "proposal_awaiting_approval" | "proposal_awaiting_activation" | "mandate_expiring" | "consumer_stalled" | "line_coverage_gap" | "line_work_pending" | "line_disabled_by_upgrade" | "line_not_enabled" | "line_run_failed" | "line_settled_prior_refusals" | "line_inbox_unread" | "line_input_missing" | "evidence_unavailable" | "claim_evidence_erased" | "prediction_settleable" | "prediction_window_unbindable" | "subject_kind_undeclared" | "kit_resume_blocked";
             /** Subject Identity */
             subject_identity: string;
             /** Related Identities */
@@ -13517,7 +13521,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "claim_conflicted" | "claim_uncovered" | "claim_stale_evidence" | "citation_drifted" | "citation_source_unobserved" | "evidence_expiring" | "floor_invalid" | "projection_dirty" | "projection_backing_stale" | "claim_dependency_stale" | "claim_attestation_threshold_met" | "claim_contradicting_evidence_available" | "claim_new_evidence_supporting" | "claim_new_evidence_unreviewed" | "document_modified" | "workspace_binding_missing" | "unregistered_projection_block" | "projection_marker_invalid" | "proposal_stale" | "proposal_awaiting_approval" | "proposal_awaiting_activation" | "mandate_expiring" | "consumer_stalled" | "line_coverage_gap" | "line_work_pending" | "line_disabled_by_upgrade" | "line_not_enabled" | "line_run_failed" | "line_settled_prior_refusals" | "line_inbox_unread" | "evidence_unavailable" | "claim_evidence_erased" | "prediction_settleable" | "prediction_window_unbindable" | "subject_kind_undeclared" | "kit_resume_blocked";
+            reason: "claim_conflicted" | "claim_uncovered" | "claim_stale_evidence" | "citation_drifted" | "citation_source_unobserved" | "evidence_expiring" | "floor_invalid" | "projection_dirty" | "projection_backing_stale" | "claim_dependency_stale" | "claim_attestation_threshold_met" | "claim_contradicting_evidence_available" | "claim_new_evidence_supporting" | "claim_new_evidence_unreviewed" | "document_modified" | "workspace_binding_missing" | "unregistered_projection_block" | "projection_marker_invalid" | "proposal_stale" | "proposal_awaiting_approval" | "proposal_awaiting_activation" | "mandate_expiring" | "consumer_stalled" | "line_coverage_gap" | "line_work_pending" | "line_disabled_by_upgrade" | "line_not_enabled" | "line_run_failed" | "line_settled_prior_refusals" | "line_inbox_unread" | "line_input_missing" | "evidence_unavailable" | "claim_evidence_erased" | "prediction_settleable" | "prediction_window_unbindable" | "subject_kind_undeclared" | "kit_resume_blocked";
             /** Subject Identity */
             subject_identity: string;
             /** Related Identities */
@@ -21550,11 +21554,19 @@ export interface components {
          *     among the findings the run kept. ``inbox`` counts the items this run posted
          *     to its Line's inbox; when the inbox could not be read it is the count the
          *     run's journaled ``post_inbox`` summaries prove, or ``None`` when they prove
-         *     none (findings routed to the inbox are not journaled). ``complete`` is
-         *     false when the run recorded incompleteness, with ``incomplete_reasons``
-         *     naming each node and kind. ``needs_attention`` is true when the run was
-         *     incomplete, refused an item, posted to the inbox, or its inbox count is
-         *     unknown (``None``): an unreadable count never reads as nothing posted.
+         *     none (findings routed to the inbox are not journaled). It splits into
+         *     ``inbox_new``, the postings that made a new item, and ``inbox_seen_again``,
+         *     the re-sightings of an item already there (which keep its status and
+         *     decision); both are ``None`` when the split is unknown (the inbox could
+         *     not be read, or the counts were recorded before the split existed).
+         *     ``inbox_unposted`` counts the items an inbox cap left out of this run's
+         *     posts. ``complete`` is false when the run recorded incompleteness, with
+         *     ``incomplete_reasons`` naming each node and kind. ``needs_attention`` is
+         *     true when the run was incomplete, refused an item, posted a new inbox item,
+         *     left items out under an inbox cap (they may be new: nothing posted them),
+         *     or posted to the inbox without a known split: an unreadable count never
+         *     reads as nothing new. A run whose posts were all re-sightings does not
+         *     need attention for them.
          */
         RunCounts: {
             /**
@@ -21610,6 +21622,15 @@ export interface components {
              * @default 0
              */
             inbox?: number | null;
+            /** Inbox New */
+            inbox_new?: number | null;
+            /** Inbox Seen Again */
+            inbox_seen_again?: number | null;
+            /**
+             * Inbox Unposted
+             * @default 0
+             */
+            inbox_unposted?: number;
             /** Needs Attention */
             needs_attention: boolean;
         };
@@ -21745,7 +21766,9 @@ export interface components {
          *
          *     It never executes a step, reads no Claims, Captures or journals, and
          *     predicts no outcome: no record counts, no value changes, no whether a
-         *     proposal happens. It says what each step can do.
+         *     proposal happens. It says what each step can do, and what each step's run
+         *     needs from outside: the one thing it checks beyond definitions is whether
+         *     each workspace file a step reads is there (a stat; no byte is read).
          */
         RunbookPreview: {
             /**
@@ -21886,6 +21909,60 @@ export interface components {
             in_runbook?: boolean;
         };
         /**
+         * RunbookPreviewInput
+         * @description One input the step's run takes from outside accepted state, as declared.
+         *
+         *     ``location`` is the path, glob or URL, resolved from the Line's parameters
+         *     (null when the run computes it). ``description`` is the params Contract
+         *     field's description for ``parameter``, as the author wrote it (null when
+         *     none is written). ``state`` is reported for a workspace file only.
+         */
+        RunbookPreviewInput: {
+            /** Node Id */
+            node_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "workspace_file" | "workspace_glob" | "fetch" | "trigger_capture";
+            /** Location */
+            location: string | null;
+            /** Parameter */
+            parameter: string | null;
+            /** Description */
+            description: string | null;
+            /** Workspace */
+            workspace?: string | null;
+            /** Capture Contract */
+            capture_contract: string | null;
+            /** Format */
+            format?: ("json" | "csv" | "text" | "bytes") | null;
+            /** @default {} */
+            limits?: components["schemas"]["RunbookPreviewInputLimits"];
+            /** Origins */
+            origins?: string[] | null;
+            /** State */
+            state?: ("present" | "absent" | "refused" | "no_workspace") | null;
+            /** Refused */
+            refused?: ("cloud_no_mounts" | "binding" | "path_grammar" | "git_metadata" | "playbill_control" | "client_custody" | "managed_root" | "symlink" | "hardlink" | "non_regular" | "unreadable" | "changed_during_read" | "missing" | "size_budget" | "workspace_unnamed" | "workspace_unknown" | "glob_over_cap") | null;
+        };
+        /**
+         * RunbookPreviewInputLimits
+         * @description The limits the input's CaptureContract declares (and a glob's file cap).
+         */
+        RunbookPreviewInputLimits: {
+            /** Max Bytes */
+            max_bytes?: number | null;
+            /** Decoded Bytes */
+            decoded_bytes?: number | null;
+            /** Depth */
+            depth?: number | null;
+            /** Records */
+            records?: number | null;
+            /** Max Files */
+            max_files?: number | null;
+        };
+        /**
          * RunbookPreviewRead
          * @description One read a step's Procedure declares, and the vocabulary behind it.
          */
@@ -21940,6 +22017,11 @@ export interface components {
              * @default []
              */
             calls?: components["schemas"]["RunbookPreviewCall"][];
+            /**
+             * Inputs
+             * @default []
+             */
+            inputs?: components["schemas"]["RunbookPreviewInput"][];
             authority?: components["schemas"]["RunbookPreviewAuthority"] | null;
             /** Action Effect */
             action_effect?: string | null;
@@ -23888,7 +23970,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "updated" | "scheduled" | "not_attached" | "failed";
+            status: "updated" | "scheduled" | "not_attached" | "not_git" | "failed";
             /** Workspace Path */
             workspace_path: string | null;
             /**

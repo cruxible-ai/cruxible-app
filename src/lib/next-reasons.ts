@@ -207,6 +207,12 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
     family: "lines",
     fields: [prose("detail", [])],
   },
+  line_input_missing: {
+    label: "Line input missing",
+    family: "lines",
+    // "the file this Line reads is not in the workspace yet" / "... is gone since it last ran": the severity says which
+    fields: [f("relative_path", "File"), f("parameter", "Parameter"), f("node_id", "Step"), f("description", "About"), prose("detail", [])],
+  },
   line_run_failed: {
     label: "Line run failed",
     family: "lines",
