@@ -4,7 +4,9 @@ import type { Schemas } from "@/api/schemas";
 import { useAtLink } from "@/lib/at";
 import { ChangeMark } from "@/components/Chip";
 import { RefLink } from "@/components/RefLink";
+import { shortId } from "@/components/ShortId";
 import { captureHandle } from "@/lib/next-reasons";
+import { readDefinition, type DefinitionChange } from "@/lib/proposal-diff";
 import { changeMark, roleWord } from "@/lib/vocabulary";
 
 type Review = Schemas["ProposalReview"];
@@ -13,8 +15,9 @@ type Member = Review["members"][number];
 /**
  * A proposal's changes read as facts: Claims grouped under their Subject, one
  * line each ("component → pkg:pypi/rich@14.3.2"), the Captures they cite once
- * per group. Reads only the review's candidate (or base) artifacts; ids stay
- * behind links.
+ * per group; definitions (Contracts, providers, ClaimTypes, Procedures, …)
+ * one line each under their kind. Reads only the review's candidate (or base)
+ * artifacts; ids stay behind links.
  */
 
 interface ClaimLine {
@@ -77,12 +80,50 @@ export function claimCaptures(artifact: unknown): string[] {
   return Array.isArray(digests) ? digests.filter((d): d is string => typeof d === "string") : [];
 }
 
-/** Members whose artifact this read doesn't carry (withheld or not served): listed by path. */
+/**
+ * Members this read can't name, listed by path: their artifact isn't carried
+ * (withheld or not served), or a definition's artifact has no identity name.
+ */
 export function unreadableChanges(members: Member[]): { path: string; disposition: string }[] {
   return members
-    .filter((m) => !obj(m.candidate_semantic_artifact) && !obj(m.base_semantic_artifact))
+    .filter((m) => {
+      if (!obj(m.candidate_semantic_artifact) && !obj(m.base_semantic_artifact)) return true;
+      return m.artifact_kind !== "subject" && m.artifact_kind !== "claim" && readDefinition(m).name === null;
+    })
     .map((m) => ({ path: m.path, disposition: m.disposition }));
 }
+
+export interface DefinitionGroup {
+  /** The definitions' kind (`identity.kind`: "Contract", "Provider", …). */
+  type: string;
+  definitions: (DefinitionChange & { name: string })[];
+}
+
+/**
+ * The members that are not Subjects or Claims (Contracts, providers,
+ * ClaimTypes, Procedures, …) grouped by kind, read from each artifact's typed
+ * identity; by kind, then name. Members without a served, named artifact are
+ * left to `unreadableChanges`.
+ */
+export function definitionGroups(members: Member[]): DefinitionGroup[] {
+  const groups = new Map<string, DefinitionGroup>();
+  for (const member of members) {
+    if (member.artifact_kind === "subject" || member.artifact_kind === "claim") continue;
+    const definition = readDefinition(member);
+    if (definition.name === null) continue;
+    let g = groups.get(definition.type);
+    if (!g) {
+      g = { type: definition.type, definitions: [] };
+      groups.set(definition.type, g);
+    }
+    g.definitions.push({ ...definition, name: definition.name });
+  }
+  const out = [...groups.values()].sort((a, b) => a.type.localeCompare(b.type));
+  for (const g of out) g.definitions.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  return out;
+}
+
+const KIND_DISPOSITION = { new: "create", revised: "revise", retired: "retire" } as const;
 
 export function groupChanges(members: Member[]): SubjectGroup[] {
   const groups = new Map<string, SubjectGroup>();
@@ -138,6 +179,18 @@ function Value({ value }: { value: { text: string; ref: string | null } }) {
   return value.ref ? <RefLink value={value.ref} /> : <span className="font-mono text-[12.5px] text-zinc-100">{value.text}</span>;
 }
 
+/** A definition's name (a digest tail shortened, whole on hover), linked where the console opens its kind. */
+function DefinitionName({ definition }: { definition: DefinitionChange & { name: string } }) {
+  const text = shortId(definition.name);
+  const title = text === definition.name ? undefined : definition.name;
+  const name = (
+    <span className="font-mono text-[12.5px]" title={title}>
+      {text}
+    </span>
+  );
+  return definition.ref ? <RefLink value={definition.ref}>{name}</RefLink> : <span className="text-zinc-300">{name}</span>;
+}
+
 /** Consecutive Claims of one field, role and disposition read as one line with many values. */
 function runsOf(claims: ClaimLine[]) {
   const runs: { field: string; role: string | null; disposition: string; values: ClaimLine["value"][] }[] = [];
@@ -153,9 +206,21 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
   const instanceId = useInstanceId();
   const link = useAtLink();
   const groups = groupChanges(review.members);
+  const definitions = definitionGroups(review.members);
   const unreadable = unreadableChanges(review.members);
   let shown = 0;
   let hidden = 0;
+  // Definitions are capped apart from Claims, so a proposal with both shows both.
+  let shownDefinitions = 0;
+  const definitionRows = definitions.map((g) => {
+    const room = limit === undefined ? g.definitions.length : Math.max(0, limit - shownDefinitions);
+    const rows = g.definitions.slice(0, room);
+    shownDefinitions += rows.length;
+    hidden += g.definitions.length - rows.length;
+    return { type: g.type, total: g.definitions.length, rows };
+  });
+  const unreadableShown = unreadable.slice(0, limit ?? unreadable.length);
+  hidden += unreadable.length - unreadableShown.length;
   return (
     <div className="space-y-3 text-[13px]">
       {groups.map((g) => {
@@ -210,7 +275,31 @@ export function ProposalChanges({ review, limit }: { review: Review; limit?: num
           </div>
         );
       })}
-      {unreadable.slice(0, limit ?? unreadable.length).map((u) => (
+      {definitionRows.map(
+        (g) =>
+          g.rows.length > 0 && (
+            <div key={`kind:${g.type}`} role="group" aria-label={g.type}>
+              <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
+                <span />
+                <span className="text-zinc-400">
+                  {g.type}
+                  {g.total > 1 && <span className="ml-1 text-[11px] text-zinc-500">({g.total})</span>}
+                </span>
+              </div>
+              <div className="ml-4 mt-0.5 space-y-0.5">
+                {g.rows.map((d) => (
+                  <div key={d.member.path} className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
+                    <ChangeMark change={KIND_DISPOSITION[d.kind]} />
+                    <span className="min-w-0 break-all">
+                      <DefinitionName definition={d} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ),
+      )}
+      {unreadableShown.map((u) => (
         <div key={u.path} className="grid grid-cols-[1rem_minmax(0,1fr)] items-baseline">
           <ChangeMark change={u.disposition} />
           <span className="min-w-0 break-all">

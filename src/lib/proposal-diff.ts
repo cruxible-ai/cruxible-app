@@ -94,6 +94,21 @@ export interface ClaimRead {
   baseObject: unknown;
 }
 
+/**
+ * A definition member (anything not a Subject or Claim) by its artifact's
+ * typed identity: kind (`identity.kind`, else the artifact kind) and name,
+ * linked when the ref grammar knows the kind. `name` is null when neither
+ * side's artifact is served.
+ */
+export function readDefinition(member: Member): DefinitionChange {
+  const artifact = rec(member.candidate_semantic_artifact) ?? rec(member.base_semantic_artifact);
+  const identity = rec(artifact?.identity);
+  const type = str(identity?.kind) ?? member.artifact_kind;
+  const name = str(identity?.name);
+  const ref = name && parseRef(`${type}:${name}`) ? `${type}:${name}` : null;
+  return { member, kind: changeKindOf(member.disposition), type, name, ref };
+}
+
 /** A Claim member's Subject, ClaimType and value (new, and before), from its stored artifacts; null for anything else. */
 export function memberClaim(member: Member): ClaimRead | null {
   return readClaim(member);
@@ -190,11 +205,7 @@ export function beliefDiff(members: readonly Member[], cardinality?: ReadonlyMap
       unreadable.push(member);
       continue;
     }
-    const identity = rec(artifact?.identity);
-    const type = str(identity?.kind) ?? member.artifact_kind;
-    const name = str(identity?.name);
-    const ref = name && parseRef(`${type}:${name}`) ? `${type}:${name}` : null;
-    definitions.push({ member, kind: changeKindOf(member.disposition), type, name, ref });
+    definitions.push(readDefinition(member));
   }
   const counts: Record<ChangeKind, number> = { new: 0, revised: 0, retired: 0 };
   const claimTypes = new Set<string>();
