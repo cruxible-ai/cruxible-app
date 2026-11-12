@@ -161,14 +161,22 @@ function Canvas({
 
   // A graph held at fitMinZoom can be wider than the canvas; centering it would cut off both ends,
   // so start it at the left edge (where a left-to-right graph begins) and let the reader pan right.
+  // Likewise a graph taller than the canvas at the smallest readable zoom: start at its top, fitted to the canvas
+  // width (at most 1:1), and let the reader pan down.
   const startAtLeft = useCallback(() => {
     if (fitMinZoom === undefined) return;
     const box = boxRef.current?.querySelector(".react-flow")?.getBoundingClientRect();
     const bounds = rf.getNodesBounds(rf.getNodes());
-    const { zoom, y } = rf.getViewport();
-    if (!box || bounds.width * zoom <= box.width) return;
-    const pad = fitPaddingPx ? fitPaddingPx.x : box.width * fitPadding * 0.5;
-    void rf.setViewport({ x: pad - bounds.x * zoom, y, zoom });
+    const viewport = rf.getViewport();
+    if (!box) return;
+    const padX = fitPaddingPx ? fitPaddingPx.x : box.width * fitPadding * 0.5;
+    const padY = fitPaddingPx ? fitPaddingPx.y : box.height * fitPadding * 0.5;
+    const tall = bounds.height * viewport.zoom > box.height - 2 * padY + 1;
+    const zoom = tall ? Math.max(fitMinZoom, Math.min(1, (box.width - 2 * padX) / Math.max(1, bounds.width))) : viewport.zoom;
+    const wide = bounds.width * zoom > box.width;
+    if (!tall && !wide) return;
+    const x = wide ? padX - bounds.x * zoom : (box.width - bounds.width * zoom) / 2 - bounds.x * zoom;
+    void rf.setViewport({ x, y: tall ? padY - bounds.y * zoom : viewport.y, zoom });
   }, [rf, fitMinZoom, fitPadding, fitPaddingPx]);
 
   // After the canvas resizes, fit the graph to it again (and bring a taller canvas into view).

@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw";
 import { renderApp, TEST_BASE } from "@/test/render";
 import { NODE_WIDTH } from "@/components/graph/ProcedureGraph";
 import { TEMPLATE_LINE, TEMPLATE_WORLD } from "@/fixtures/template";
+import { KEV_TRIAGE_SPEC } from "@/fixtures/authored/definitions";
 import { LANDING_TRIGGER, READERS_WORLD } from "@/fixtures/readers";
 
 afterEach(cleanup);
@@ -236,4 +237,32 @@ describe("Procedure graph", () => {
     expect(within(node("view")).getByText("In").nextElementSibling).toHaveTextContent("CAP-747474747474");
     expect(within(node("fixes")).getByText("In").nextElementSibling).toHaveTextContent("CAP-787878787878");
   });
+
+  it("holds a long Procedure's canvas to most of the window in either orientation; the graph pans inside it", async () => {
+    const saved = { steps: KEV_TRIAGE_SPEC.steps, returns: KEV_TRIAGE_SPEC.returns ?? null };
+    KEV_TRIAGE_SPEC.steps = Array.from({ length: 48 }, (_, i) => ({
+      read: `read_${i}`,
+      query: "security.kev_exposure",
+      params: i ? { prior: { $ref: "step" as const, step: `read_${i - 1}`, path: ["rows"] } } : {},
+    }));
+    KEV_TRIAGE_SPEC.returns = null;
+    try {
+      renderApp("/i/inst_fixture/ref/Procedure%3Asecurity.kev-triage");
+      await graph();
+      await waitFor(() => expect(node("read_47")).not.toBeNull(), SLOW);
+      const height = () => parseFloat(document.querySelector<HTMLElement>('[data-testid="procedure-graph"] .react-flow')!.parentElement!.parentElement!.style.height);
+      const most = Math.round(window.innerHeight * 0.8);
+      // top to bottom (the default): 48 steps would be thousands of pixels tall at a readable zoom
+      expect(height()).toBeGreaterThan(0);
+      expect(height()).toBeLessThanOrEqual(most);
+      const top = node("read_0").style.transform;
+      fireEvent.click(screen.getByRole("button", { name: "Lay the steps out left to right" }));
+      await waitFor(() => expect(node("read_0").style.transform).not.toBe(top), SLOW);
+      expect(height()).toBeGreaterThan(0);
+      expect(height()).toBeLessThanOrEqual(most);
+    } finally {
+      KEV_TRIAGE_SPEC.steps = saved.steps;
+      KEV_TRIAGE_SPEC.returns = saved.returns;
+    }
+  }, 30000);
 });

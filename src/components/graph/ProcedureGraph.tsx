@@ -766,13 +766,13 @@ export function ProcedureGraph({
 
   if (!laidOut) return <LoadState />;
   // As tall as the graph is at the zoom it will be shown at, plus the padding above and below: the canvas width's fit,
-  // held to most of the window, but never below a readable zoom (a larger graph grows the canvas instead).
-  // Expanding it pushes the page down.
+  // held to most of the window, never below a readable zoom. Expanding it pushes the page down.
   const most = typeof window !== "undefined" ? Math.round(window.innerHeight * 0.8) : 800;
   const widthFit = canvasWidth > 0 && width > 0 ? (canvasWidth - 2 * PAD.x) / width : FIT_MAX_ZOOM;
   const heightFit = height > 0 ? (most - 2 * PAD.y) / height : FIT_MAX_ZOOM;
   const zoom = Math.max(FIT_MIN_ZOOM, Math.min(FIT_MAX_ZOOM, widthFit, heightFit));
-  const canvasHeight = Math.max(160, Math.ceil(height * zoom) + 2 * PAD.y);
+  // Never taller than most of the window: a graph that does not fit at a readable zoom starts at its top inside it and pans.
+  const canvasHeight = Math.min(Math.max(most, 160), Math.max(160, Math.ceil(height * zoom) + 2 * PAD.y));
   const triggers = line?.triggers ?? [];
   const lineRoute = (name: string) => link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`);
   const chipOf = (id: string) => chips.up.find((c) => c.id === id) ?? chips.down.find((c) => c.id === id);
