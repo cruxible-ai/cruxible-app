@@ -68,7 +68,7 @@ export function DashboardScreen() {
         </dl>
       </PageHeader>
 
-      <NeedsYou orient={o} next={next.data} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
+      <NeedsYou orient={o} next={next.data} nextError={next.error} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
       <LinesAttention enablements={o.attention?.enablements} />
 
       {/* Two columns that flow on their own, so a short card leaves no hole beside a tall one: whether the
@@ -181,10 +181,13 @@ const quietRows = (rows: HealthRow[]) => rows.filter((row) => row.health && (ton
 function NeedsYou({
   orient,
   next,
+  nextError,
   onHealth,
 }: {
   orient: OrientResult;
   next: NextResult | undefined;
+  /** The latest next read failed (rows read before it may still be in `next`). */
+  nextError: Error | null;
   onHealth: () => void;
 }) {
   const instanceId = useInstanceId();
@@ -242,17 +245,22 @@ function NeedsYou({
         detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : enablements?.running ? "None stalled or stopped" : undefined}
         to={link(`/i/${instanceId}/lines`)}
       />
-      {/* The worst state present: checks that need a look, else checks not observed or not set up (never "Healthy"), else Healthy. */}
-      <Tile
-        label="Health"
-        count={next ? (sick.length || quiet.length) : null}
-        countWord={sick.length ? "need a look" : quiet.length ? quietWords : undefined}
-        headline={next && sick.length === 0 && quiet.length === 0 ? "Healthy" : undefined}
-        signal={sick.some((row) => toneOf(row) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
-        healthy={next !== undefined && sick.length === 0 && quiet.length === 0}
-        detail={sick.length ? sick.map((row) => row.label).join(", ") : quiet.length ? quiet.map((row) => row.label).join(", ") : `${health.filter((row) => row.health).length} checks`}
-        onClick={onHealth}
-      />
+      {/* The worst state present: a failed read (the panel shows its error; nothing read before it is asserted here), checks that need
+          a look, checks not observed or not set up (never "Healthy"), else Healthy. */}
+      {nextError ? (
+        <Tile label="Health" count={null} headline="Read failed" signal="wrong" detail={nextError.message} onClick={onHealth} />
+      ) : (
+        <Tile
+          label="Health"
+          count={next ? (sick.length || quiet.length) : null}
+          countWord={sick.length ? "need a look" : quiet.length ? quietWords : undefined}
+          headline={next && sick.length === 0 && quiet.length === 0 ? "Healthy" : undefined}
+          signal={sick.some((row) => toneOf(row) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
+          healthy={next !== undefined && sick.length === 0 && quiet.length === 0}
+          detail={sick.length ? sick.map((row) => row.label).join(", ") : quiet.length ? quiet.map((row) => row.label).join(", ") : `${health.filter((row) => row.health).length} checks`}
+          onClick={onHealth}
+        />
+      )}
     </section>
   );
 }

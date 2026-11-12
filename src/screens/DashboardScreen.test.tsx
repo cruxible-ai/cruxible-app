@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
+import { errorEnvelope } from "@/fixtures/envelopes";
+import { server } from "@/test/msw-server";
 import { AUTHORED } from "@/fixtures/handlers";
 import type { OrientResult } from "@/api/schemas";
 import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
 import { freshDashboard, populatedDashboard, unhealthyDashboard, withHealth } from "@/test/dashboard-worlds";
-import { renderApp } from "@/test/render";
+import { renderApp, TEST_BASE } from "@/test/render";
 
 /** jsdom here has no working localStorage: an in-memory one per test. */
 function memoryStorage(): Storage {
@@ -344,5 +348,27 @@ describe("Dashboard", () => {
     // with every row healthy, the tile says so
     renderApp("/i/inst_fixture", withHealth(status, []));
     expect(await within(await screen.findByRole("region", { name: "Needs you" })).findByText("Healthy")).toBeInTheDocument();
+  });
+
+  it("does not say Healthy once a refresh of the health read fails; the panel keeps the rows read before beside the error", async () => {
+    const ok = { state: "current" };
+    let client: QueryClient | null = null;
+    renderApp("/i/inst_fixture", withHealth({ floor: ok, ledger_mirror: ok, procedure_catalog: ok }, []), {
+      seed: (c) => {
+        client = c;
+      },
+    });
+    const strip = within(await screen.findByRole("region", { name: "Needs you" }));
+    expect(await strip.findByText("Healthy")).toBeInTheDocument();
+    server.use(http.post(`${TEST_BASE}/api/v1/:instance/next`, () => HttpResponse.json(errorEnvelope("Unavailable", "next is unavailable"), { status: 500 })));
+    await act(async () => {
+      await client!.refetchQueries();
+    });
+    const tile = await strip.findByRole("button", { name: /Health Read failed/ });
+    expect(tile).toHaveTextContent("next is unavailable");
+    expect(strip.queryByText("Healthy")).toBeNull();
+    const health = await panel("Health");
+    expect(health.getByText("next is unavailable")).toBeInTheDocument();
+    expect(health.getByRole("table", { name: "Health" })).toBeInTheDocument();
   });
 });
