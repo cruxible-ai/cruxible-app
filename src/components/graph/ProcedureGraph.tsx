@@ -10,7 +10,7 @@ import { CONTROL_CLASS, GraphCanvas, type GraphSelection } from "@/components/gr
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { parseRef, refRoute } from "@/lib/cruxible-ref";
-import { stepAlias, templateRef, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
+import { stepAlias, stepView, templateRef, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
 import { bytesWords, flowWords, partsText, queryShape, shortName, stepBrief, stepSections, summaryWords, type DetailSection, type Part, type QueryShape } from "@/lib/step-words";
@@ -350,6 +350,42 @@ function queryRows(shape: QueryShape | undefined, params: Readonly<Record<string
   return rows;
 }
 
+/** Whether the run marks a step as having run (not "Not run"). */
+const ran = (mark: StepMark) => mark.term.word !== term("step", "not_run").word;
+
+/**
+ * The Capture a step read in a run, inferred when the run recorded none: the
+ * step must have run, its Capture references (an extract's `capture`, a call's Capture inputs) must
+ * name exactly one output field of exactly one call, that call must declare
+ * only that output, and the run must report exactly one Capture from it. Null
+ * in every other case: an omitted row is right, a wrong link is not.
+ */
+export function inferredInput(spec: ProcedureSpec, index: number, marks: ReadonlyMap<string, StepMark>): string | null {
+  const step = spec.steps[index];
+  const mark = step ? marks.get(stepView(step, index).id) : undefined;
+  if (!step || !mark || !ran(mark)) return null;
+  const refs: { step: string; field: string }[] =
+    "extract" in step
+      ? (() => {
+          const ref = templateRef(step.capture);
+          const field = ref?.$ref === "step" && ref.step ? ref.path?.[0] : undefined;
+          return ref?.step && field ? [{ step: ref.step, field }] : [];
+        })()
+      : "call" in step
+        ? captureInputs(spec, index).map((c) => ({ step: c.step, field: c.field }))
+        : [];
+  const distinct = [...new Map(refs.map((r) => [`${r.step}\n${r.field}`, r])).values()];
+  if (distinct.length !== 1) return null;
+  const { step: name, field } = distinct[0]!;
+  const at = spec.steps.findIndex((s, i) => stepAlias(s, i) === name);
+  const source = spec.steps[at];
+  if (!source || !("call" in source)) return null;
+  const outputs = Object.keys(source.captures ?? {});
+  if (outputs.length !== 1 || outputs[0] !== field) return null;
+  const produced = marks.get(stepView(source, at).id)?.capturesOut ?? [];
+  return produced.length === 1 ? produced[0]! : null;
+}
+
 /** A node's height: the header, then one row per line (the brief, parameters, lines) and the mark. */
 function heightOf(d: NodeDisplay): number {
   const rows = (d.brief ? 1 : 0) + d.lines.reduce((n, line) => n + (line.span ?? 1), 0);
@@ -615,8 +651,9 @@ export function ProcedureGraph({
       }
       // With a run picked: the Captures the step read and produced, linked, so the before and after can be opened.
       if (mark) {
-        const upstream = model.edges.filter((e) => e.target === node.id && e.kind === "data").flatMap((e) => run?.marks.get(e.source)?.capturesOut ?? []);
-        const read = mark.capturesIn?.length ? mark.capturesIn : node.kind === "extract" || (v?.kind === "call" && node.index !== null && isDerive(spec, node.index, grades)) ? upstream : [];
+        // What the run recorded it read; else, only for a step that ran, the one Capture its reference names for sure.
+        const inferred = !mark.capturesIn?.length && node.index !== null && run ? inferredInput(spec, node.index, run.marks) : null;
+        const read = mark.capturesIn?.length ? mark.capturesIn : inferred ? [inferred] : [];
         const capture = (digest: string): RowPart => ({ text: captureHandle(digest), to: routeOf(captureHandle(digest)), title: digest });
         const shown = (digests: readonly string[]): RowPart[] =>
           digests.length > 2 ? [...digests.slice(0, 2).map(capture), { text: `+${digests.length - 2}`, to: null, title: digests.slice(2).join("\n") }] : digests.map(capture);

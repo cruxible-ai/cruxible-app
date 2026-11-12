@@ -2,7 +2,10 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { renderApp, TEST_BASE } from "@/test/render";
-import { NODE_WIDTH } from "@/components/graph/ProcedureGraph";
+import { inferredInput, NODE_WIDTH } from "@/components/graph/ProcedureGraph";
+import type { StepMark } from "@/lib/run-marks";
+import type { ProcedureSpec } from "@/lib/definitions";
+import { term } from "@/lib/vocabulary";
 import { TEMPLATE_LINE, TEMPLATE_WORLD } from "@/fixtures/template";
 import { KEV_TRIAGE_SPEC } from "@/fixtures/authored/definitions";
 import { AUTHORED } from "@/fixtures/handlers";
@@ -235,9 +238,11 @@ describe("Procedure graph", () => {
     await waitFor(() => expect(within(node("view")).getByText("Out")).toBeInTheDocument(), SLOW);
     const out = within(node("view")).getByText("Out").nextElementSibling as HTMLElement;
     expect(within(out).getByRole("link", { hidden: true })).toHaveAttribute("href", `/i/inst_fixture/ref/${encodeURIComponent("CAP-787878787878")}`);
-    // a derive's input is what the step it reads produced; the next derive reads this one's output
-    expect(within(node("view")).getByText("In").nextElementSibling).toHaveTextContent("CAP-747474747474");
+    // unrecorded inputs are named only when the reference names one Capture for sure: view reads a list of pages (no In
+    // row), fixes reads view's one Capture, entries reads fixes' one Capture
+    expect(within(node("view")).queryByText("In")).toBeNull();
     expect(within(node("fixes")).getByText("In").nextElementSibling).toHaveTextContent("CAP-787878787878");
+    expect(within(node("entries")).getByText("In").nextElementSibling).toHaveTextContent("CAP-797979797979");
   });
 
   it("holds a long Procedure's canvas to most of the window in either orientation; the graph pans inside it", async () => {
@@ -301,4 +306,49 @@ describe("Procedure graph", () => {
       proof.forEach((e, i) => (e.parameters = before[i]!));
     }
   }, 30000);
+});
+
+describe("the Capture a step read, inferred", () => {
+  const ran = (capturesOut?: string[]): StepMark => ({ term: term("step", "fired"), notes: [], hints: [], provider: null, ...(capturesOut ? { capturesOut } : {}) });
+  const notRun: StepMark = { term: term("step", "not_run"), notes: [], hints: [], provider: null };
+  const slot = { in: { name: "req", version: 1 }, out: { name: "res", version: 1 }, effect: "external_read" as const };
+  const ref = (step: string, ...path: string[]) => ({ $ref: "step" as const, step, path });
+  const spec = (captures: Record<string, string>, extract: unknown): ProcedureSpec =>
+    ({
+      procedure: "p",
+      slots: { fetch: slot },
+      steps: [
+        { call: "pages", slot: "fetch", input: {}, captures },
+        { extract: "rows", capture: extract, records: "/*", row: "r@1", key: { id: { at: "id" } }, fields: {} },
+      ],
+    }) as unknown as ProcedureSpec;
+
+  it("names the one Capture of a call's only output that the step's reference reads", () => {
+    const marks = new Map([["pages", ran(["sha256:b"])], ["rows", ran()]]);
+    expect(inferredInput(spec({ body: "k.body" }, ref("pages", "body")), 1, marks)).toBe("sha256:b");
+  });
+
+  it("names nothing when the call has several outputs (body and headers): which digest is the body is not known", () => {
+    const marks = new Map([["pages", ran(["sha256:b", "sha256:h"])], ["rows", ran()]]);
+    expect(inferredInput(spec({ body: "k.body", headers: "k.headers" }, ref("pages", "body")), 1, marks)).toBeNull();
+  });
+
+  it("names nothing for a step the run did not run", () => {
+    const marks = new Map([["pages", ran(["sha256:b"])], ["rows", notRun]]);
+    expect(inferredInput(spec({ body: "k.body" }, ref("pages", "body")), 1, marks)).toBeNull();
+  });
+
+  it("names nothing for a call reading Captures from two predecessors", () => {
+    const two = {
+      procedure: "p",
+      slots: { fetch: slot, merge: { ...slot, effect: "pure" as const } },
+      steps: [
+        { call: "a", slot: "fetch", input: {}, captures: { capture: "k.a" } },
+        { call: "b", slot: "fetch", input: {}, captures: { capture: "k.b" } },
+        { call: "both", slot: "merge", input: { left: ref("a", "capture"), right: ref("b", "capture") }, captures: { capture: "k.both" } },
+      ],
+    } as unknown as ProcedureSpec;
+    const marks = new Map([["a", ran(["sha256:a"])], ["b", ran(["sha256:b"])], ["both", ran()]]);
+    expect(inferredInput(two, 2, marks)).toBeNull();
+  });
 });
