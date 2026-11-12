@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Handle, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { ArrowRightLeft, ArrowUpDown, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ArrowRightLeft, ArrowUpDown, SlidersHorizontal } from "lucide-react";
 import { useCaptureContracts, useGetBatch, useInstanceId } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
@@ -369,33 +369,42 @@ function dependencyChips(line: string, dependencies: readonly LineDependency[], 
 }
 
 /** A band of Lines beside the graph, under its heading: above for what feeds the reads, below for who reads the writes. */
-function DependencyBand({ heading, place, children }: { heading: string; place: "above" | "below"; children: ReactNode }) {
+function Band({ heading, place, children }: { heading: string; place: "above" | "below"; children: ReactNode }) {
   return (
     <div
       role="group"
       aria-label={heading}
-      className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 border-x border-zinc-800 bg-zinc-950/60 px-3 py-2 ${place === "above" ? "border-t" : "border-b"}`}
+      className={`flex flex-wrap items-center gap-x-5 gap-y-1.5 border-x border-zinc-800 bg-zinc-950/60 px-3 py-2 ${place === "above" ? "border-t" : "border-b"}`}
     >
-      <span className="mr-1 text-[11px] font-medium text-zinc-500">{heading}</span>
+      <span className="w-[4.5rem] shrink-0 text-[11px] font-medium text-zinc-500">{heading}</span>
       {children}
     </div>
   );
 }
 
-/** One Line in a band: its name links to it (shortened from the start, all of it on hover); the toggle opens what the link carries. */
+/** A band entry's link: a plain chip, shortened from the start, all of it on hover. */
+const BAND_LINK = "inline-flex min-w-0 max-w-[20rem] items-center bg-zinc-800/70 px-1.5 py-0.5 font-mono text-[12px] text-zinc-200 hover:bg-zinc-700 hover:text-white";
+
+/** What a dependency connects, counted: its ClaimTypes, else the kinds whose Subjects it creates, else its Queries. */
+function connectsWords(dependencies: readonly LineDependency[]): string {
+  const claimTypes = new Set(dependencies.flatMap((d) => d.claimTypes));
+  const kinds = new Set(dependencies.flatMap((d) => d.kinds));
+  const queries = new Set(dependencies.map((d) => d.query));
+  const n = (size: number, one: string, many: string) => `${size} ${size === 1 ? one : many}`;
+  return claimTypes.size ? n(claimTypes.size, "ClaimType", "ClaimTypes") : kinds.size ? n(kinds.size, "kind", "kinds") : n(queries.size, "Query", "Queries");
+}
+
+/** One Line in a band: its name links to it; the count beside it opens what the link carries. */
 function DependencyChip({ chip, to, dim, onOpen }: { chip: Chip; to: string | null; dim: boolean; onOpen: (chip: string, event: ReactMouseEvent) => void }) {
   const label = `${producerName(chip.from)} → ${chip.to}`;
   return (
-    <span
-      data-chip={chip.id}
-      className={`inline-flex h-6 max-w-[20rem] items-stretch border border-zinc-700 bg-zinc-900 text-[12px] transition-opacity ${dim ? "opacity-30" : ""}`}
-    >
+    <span data-chip={chip.id} className={`inline-flex min-w-0 items-baseline gap-1.5 transition-opacity ${dim ? "opacity-30" : ""}`}>
       {chip.line !== null && to ? (
-        <Link to={to} className="flex min-w-0 items-center px-2 font-mono text-zinc-200 hover:text-white hover:underline">
+        <Link to={to} className={BAND_LINK}>
           <EndFirst text={chip.line} title={`Line ${chip.line}`} />
         </Link>
       ) : (
-        <span className="flex items-center px-2 text-zinc-400" title="Entered directly by people or agents">
+        <span className="px-0.5 text-[12px] text-zinc-400" title="Entered directly by people or agents">
           {producerName(chip.line)}
         </span>
       )}
@@ -405,9 +414,9 @@ function DependencyChip({ chip, to, dim, onOpen }: { chip: Chip; to: string | nu
         aria-label={label}
         aria-haspopup="dialog"
         title={label}
-        className="flex items-center border-l border-zinc-700 px-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+        className="shrink-0 text-[11px] text-zinc-500 underline decoration-zinc-700 underline-offset-2 hover:text-zinc-200 hover:decoration-zinc-400"
       >
-        <ChevronDown className="h-3 w-3" aria-hidden />
+        {connectsWords(chip.dependencies)}
       </button>
     </span>
   );
@@ -691,9 +700,9 @@ export function ProcedureGraph({
   return (
     <div ref={measure} data-testid="procedure-graph">
       {chips.up.length > 0 && (
-        <DependencyBand heading="Reads from" place="above">
+        <Band heading="Reads from" place="above">
           {chips.up.map(band)}
-        </DependencyBand>
+        </Band>
       )}
       <GraphCanvas
         nodes={nodes}
@@ -730,9 +739,9 @@ export function ProcedureGraph({
         }
       />
       {chips.down.length > 0 && (
-        <DependencyBand heading="Read by" place="below">
+        <Band heading="Read by" place="below">
           {chips.down.map(band)}
-        </DependencyBand>
+        </Band>
       )}
       {opened &&
         (() => {

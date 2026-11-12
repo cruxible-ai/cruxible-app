@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
+import { READERS, READERS_WORLD } from "@/fixtures/readers";
 
 afterEach(cleanup);
 
@@ -86,5 +87,23 @@ describe("Line dependencies around the step graph", () => {
     expect(popover.getByRole("link", { name: "kev_exposure" })).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("lists every reading Line in the Read by band, long names that differ only at the end in full on hover, each with what it reads", async () => {
+    renderApp("/i/inst_fixture/lines/cve-applicability", READERS_WORLD);
+    const g = await graph();
+    const band = within(await g.findByRole("group", { name: "Read by" }, SLOW));
+    await waitFor(() => expect(band.getAllByRole("link")).toHaveLength(3), SLOW);
+    for (const name of ["kev-triage", ...READERS]) {
+      const reader = band.getByRole("link", { name });
+      expect(reader).toHaveAttribute("href", `/i/inst_fixture/lines/${encodeURIComponent(name)}`);
+      // the whole name on hover; it shortens from the start when the band is narrow, so the end that tells them apart stays
+      const text = within(reader).getByTitle(`Line ${name}`);
+      expect(text).toHaveStyle({ direction: "rtl" });
+      expect(band.getByRole("button", { name: `cve-applicability → ${name}` })).toHaveTextContent("1 ClaimType");
+    }
+    fireEvent.click(band.getByRole("button", { name: `cve-applicability → ${READERS[1]}` }));
+    const popover = within(await screen.findByRole("dialog", { name: `cve-applicability → ${READERS[1]}` }, SLOW));
+    expect(popover.getByRole("link", { name: "kev_exposure" })).toBeInTheDocument();
   });
 });
