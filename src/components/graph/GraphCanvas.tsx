@@ -79,6 +79,8 @@ export function GraphCanvas(props: {
   revealAll?: boolean;
   /** Told of an edge click first; returning true handles it (no edge selection). */
   onEdgeClick?: (edgeId: string, event: ReactMouseEvent) => boolean;
+  /** Nodes can be dragged off their laid-out spots (default true). */
+  draggable?: boolean;
 }) {
   return (
     <ReactFlowProvider>
@@ -107,6 +109,7 @@ function Canvas({
   height,
   controls,
   onEdgeClick,
+  draggable = true,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
   const [selection, setSelection] = useState<GraphSelection | null>(null);
@@ -340,7 +343,7 @@ function Canvas({
           fitView
           fitViewOptions={{ maxZoom: 1.15, padding: fitPadding, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) }}
           colorMode="dark"
-          nodesDraggable
+          nodesDraggable={draggable}
           nodesConnectable={false}
           proOptions={{ hideAttribution: true }}
           onNodeClick={(_, node) => select(node.id)}

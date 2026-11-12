@@ -19,6 +19,8 @@ export interface RoutedEdgeData {
   lit?: boolean;
   /** Show the label whether or not the edge is in a selection (small graphs). */
   always?: boolean;
+  /** The label's type (default 11px mono, for labels that are names). */
+  labelClass?: string;
   [key: string]: unknown;
 }
 
@@ -83,7 +85,7 @@ export function RoutedEdge(props: EdgeProps) {
               transform: `translate(-50%, -50%) translate(${label.x}px, ${label.y}px)`,
               opacity: typeof style?.opacity === "number" ? Math.max(style.opacity, 0.3) : 1,
             }}
-            className="nodrag nopan pointer-events-none absolute bg-zinc-950/90 px-1 font-mono text-[11px] leading-[14px] text-zinc-200"
+            className={`nodrag nopan pointer-events-none absolute ${data.labelClass ?? "bg-zinc-950/90 px-1 font-mono text-[11px] leading-[14px] text-zinc-200"}`}
           >
             {data.text}
           </div>
