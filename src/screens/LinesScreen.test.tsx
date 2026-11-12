@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { renderApp } from "@/test/render";
+import { http, HttpResponse } from "msw";
+import type { QueryClient } from "@tanstack/react-query";
+import { act } from "@testing-library/react";
+import { server } from "@/test/msw-server";
+import { errorEnvelope } from "@/fixtures/envelopes";
+import type { NextItem, NextResult } from "@/api/schemas";
+import { renderApp, TEST_BASE } from "@/test/render";
 import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
 import { AUTHORED } from "@/fixtures/handlers";
 import { defineFixture } from "@/fixtures/fixture";
@@ -228,6 +234,37 @@ describe("Runbooks on the Lines page", () => {
     const main = within(await screen.findByRole("main"));
     const panel = within((await main.findByRole("heading", { name: "Next" })).closest("section")!);
     expect(panel.getByText("None")).toBeInTheDocument();
+  });
+
+  it("keeps a Line's Next rows beside the error when a refresh fails", async () => {
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/next"))!;
+    const response = fixture.response as NextResult;
+    const pending: NextItem = {
+      item_id: "line-work-cve",
+      severity: "repair",
+      reason: "line_work_pending",
+      subject_identity: "Line:cve-applicability",
+      related_identities: [],
+      detail: { due: 2, oldest_eligible_at: "2026-10-19T05:00:00Z" },
+      since: "2026-10-19T05:00:00Z",
+      repair: null,
+    };
+    let client: QueryClient | null = null;
+    renderApp("/i/inst_fixture/lines/cve-applicability", [...AUTHORED, { ...fixture, response: { ...response, items: [...response.items, pending], total_items: response.total_items + 1 } }], {
+      seed: (c) => {
+        client = c;
+      },
+    });
+    const main = within(await screen.findByRole("main"));
+    const panel = within((await main.findByRole("heading", { name: "Next" })).closest("section")!);
+    expect(await panel.findByRole("table", { name: "Next for cve-applicability" })).toBeInTheDocument();
+    server.use(http.post(`${TEST_BASE}/api/v1/:instance/next`, () => HttpResponse.json(errorEnvelope("Unavailable", "next is unavailable"), { status: 500 })));
+    await act(async () => {
+      await client!.refetchQueries();
+    });
+    expect(await panel.findByText("next is unavailable")).toBeInTheDocument();
+    expect(panel.getByRole("table", { name: "Next for cve-applicability" })).toBeInTheDocument();
+    expect(panel.queryByText("None")).toBeNull();
   });
 
   it("says None under Lines on a fresh instance", async () => {

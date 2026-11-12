@@ -619,23 +619,24 @@ function LineNextPanel({ line }: { line: string }) {
   const next = useNext({ limit: NEXT_PAGE });
   // "Not enabled" is the banner under the header; the panel is for anything else.
   const rows = (nextRowsByLine(next.data?.items ?? []).get(line) ?? []).filter((item) => item.reason !== "line_not_enabled");
-  if (next.error) {
-    return (
+  // A failed refresh shows its error over the rows already read, and never says "None".
+  if (!next.data) {
+    return next.error ? (
       <Panel title="Next">
         <LoadState error={next.error} />
       </Panel>
-    );
+    ) : null;
   }
-  if (!next.data) return null;
   if (rows.length === 0) {
     return (
       <Panel title="Next">
-        <EmptyState>{next.data.next_cursor ? "None on the first page" : "None"}</EmptyState>
+        {next.error ? <LoadState error={next.error} /> : <EmptyState>{next.data.next_cursor ? "None on the first page" : "None"}</EmptyState>}
       </Panel>
     );
   }
   return (
     <Panel title="Next" meta={<span>{rows.length} on the first page</span>}>
+      {next.error && <LoadState error={next.error} />}
       <NextTable
         items={rows}
         urlKey="next"
