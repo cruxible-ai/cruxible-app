@@ -5,7 +5,7 @@ import { useGetBatch, useInboxItem, useStateQueries, useSubjectKinds } from "@/a
 import { cardOf, type Schemas } from "@/api/schemas";
 import type { QueryArgs } from "@/api/requests";
 import { SignalDot, toggleChipClass } from "@/components/Chip";
-import { DataTable, type Column } from "@/components/DataTable";
+import { DataTable, type Column, type RowGroup } from "@/components/DataTable";
 import { FieldList, type FieldItem } from "@/components/FieldList";
 import { InfoButton } from "@/components/InfoButton";
 import { Disclosure, LoadState } from "@/components/Panel";
@@ -82,6 +82,8 @@ interface ItemDefinitions {
   specOf: ReadonlyMap<string, ProcedureSpec | null>;
   /** Each Query a posting step's fan-out reads, by bare name: its view and its definition as served. */
   queryOf: ReadonlyMap<string, { view: QueryView; definition: unknown }>;
+  /** The specs or the item Contracts are still being read: which Contract an item is under is not known yet. */
+  pending: boolean;
   error: Error | null;
 }
 
@@ -155,9 +157,10 @@ function useItemDefinitions(entries: readonly Entry[]): ItemDefinitions {
       subjectFieldsOf: (envelope: Envelope) => fieldsOf.get(itemKey(envelope)) ?? NO_FIELDS,
       specOf,
       queryOf,
+      pending: specs.isPending || contracts.isPending,
       error: specs.error ?? contracts.error ?? queries.error ?? null,
     };
-  }, [contractRefs, contracts.results, contracts.error, queryRefs, queries.results, queries.error, steps, specOf, keys, entries, specs.error]);
+  }, [contractRefs, contracts.results, contracts.isPending, contracts.error, queryRefs, queries.results, queries.error, steps, specOf, keys, entries, specs.isPending, specs.error]);
 }
 
 /**
@@ -746,12 +749,32 @@ function Shared({ shape, filtered, rows, complete }: { shape: PageShape; filtere
   );
 }
 
+/** A group's header line: the item Contract's name, linked to its page, and its description as written. */
+function ContractHeading({ contract }: { contract: { ref: string; description: string | null } | null }) {
+  if (!contract)
+    return (
+      <span className="text-[12px] text-zinc-500" data-contract="">
+        No item Contract
+      </span>
+    );
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[12px]" data-contract={contract.ref}>
+      <RefLink value={contract.ref}>
+        <span className="font-mono text-[12px]">{contract.ref.replace(/^Contract:/, "")}</span>
+      </RefLink>
+      {contract.description && <span className="text-zinc-400">{contract.description}</span>}
+    </div>
+  );
+}
+
 /**
  * One page of inbox items in the shared table. `line` is the Line the page is
  * filtered to (the Line column and the shared Line then hide); `linePrefix`
  * is the namespace every Line shares, said once by the caller. The caller
  * pages and filters on the daemon and says which items these are in its
- * panel's meta.
+ * panel's meta. `groupByContract` groups the rows under their item Contract
+ * (its name and description on a header line), once the page's Contracts are
+ * read; a group a later page continues heads it again there.
  */
 export function InboxTable({
   entries,
@@ -760,6 +783,7 @@ export function InboxTable({
   complete = false,
   urlKey = "inbox",
   label = "Inbox",
+  groupByContract = false,
 }: {
   entries: readonly Entry[];
   line?: string | undefined;
@@ -768,6 +792,8 @@ export function InboxTable({
   complete?: boolean;
   urlKey?: string;
   label?: string;
+  /** Rows under a header line per item Contract (the Inbox page). */
+  groupByContract?: boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
@@ -800,6 +826,14 @@ export function InboxTable({
       },
       { replace: true },
     );
+  // The Contract each item is under comes from the specs and Contract cards the page already reads: no read per row.
+  const group = useMemo<RowGroup<Entry> | undefined>(
+    () =>
+      groupByContract && !definitions.pending
+        ? { key: (entry) => definitions.contractOf(entry.item)?.ref ?? "", header: (members) => <ContractHeading contract={definitions.contractOf(members[0]!.item)} /> }
+        : undefined,
+    [groupByContract, definitions],
+  );
   const query = worklist.parts[0]?.query;
   // In the daemon's order the Last posted column carries the order, as a sorted column does.
   const orderedColumns = useMemo(
@@ -855,6 +889,7 @@ export function InboxTable({
             <WorklistNotes worklist={worklist} />
           </span>
         }
+        {...(group ? { group } : {})}
         open={open}
         onToggle={(id) => setOpen(open === id ? null : id)}
         expanded={(entry) => (

@@ -15,7 +15,8 @@ afterEach(cleanup);
 
 const I = "/i/inst_fixture";
 const table = async () => within(await screen.findByRole("table", { name: "Inbox" }));
-const bodyRows = (t: ReturnType<typeof within>) => t.getAllByRole("row").filter((row: HTMLElement) => row.closest("tbody"));
+/** The item rows: on the Inbox page a group's header line (its item Contract) is not one. */
+const bodyRows = (t: ReturnType<typeof within>) => t.getAllByRole("row").filter((row: HTMLElement) => row.closest("tbody") && !row.querySelector("[data-contract]"));
 const isWorklistRead = (body: unknown) => typeof body === "object" && body !== null && (body as { name?: unknown }).name === KEV_EXPOSURE && (body as { limit?: unknown }).limit === WORKLIST_LIMIT;
 
 /** The world with the worklist read (and any other fixture of the same request) replaced. */

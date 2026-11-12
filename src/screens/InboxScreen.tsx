@@ -29,8 +29,10 @@ const EMPTY: Record<InboxFilterStatus | "all", string> = {
  * status on the daemon. A row leads with the payload fields that name
  * Subjects (linked, their current fields on hover), then the other fields
  * that tell items apart; a field with one value on every row, or one built
- * from other fields, is said once or left to the opened item. Items are in
- * the order the daemon serves them (most recently posted first).
+ * from other fields, is said once or left to the opened item. Rows are
+ * grouped under their item Contract (its name, linked, and its description as
+ * written); items are in the order the daemon serves them (most recently
+ * posted first), a group where its first item falls.
  */
 export function InboxScreen() {
   usePageTitle("Inbox");
@@ -135,6 +137,7 @@ export function InboxScreen() {
               line={line}
               linePrefix={linePrefix}
               complete={index === 0 && !nextCursor}
+              groupByContract
             />
           )}
         </Panel>

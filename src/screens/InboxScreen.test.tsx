@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { QueryClient } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { errorEnvelope } from "@/fixtures/envelopes";
@@ -10,12 +10,17 @@ import { AUTHORED } from "@/fixtures/handlers";
 import type { RecordedFixture } from "@/fixtures/fixture";
 import type { Schemas } from "@/api/schemas";
 import { inboxPage } from "@/test/inbox-pages";
+import { defineFixture } from "@/fixtures/fixture";
+import { getBatchBody } from "@/api/requests";
+import { COORDINATE } from "@/fixtures/authored/world";
+import type { GetResult } from "@/api/schemas";
 
 afterEach(cleanup);
 
 const I = "/i/inst_fixture";
 const table = async () => within(await screen.findByRole("table", { name: "Inbox" }));
-const bodyRows = (t: ReturnType<typeof within>) => t.getAllByRole("row").filter((row: HTMLElement) => row.closest("tbody"));
+/** The item rows: a group's header line (its item Contract) is not one. */
+const bodyRows = (t: ReturnType<typeof within>) => t.getAllByRole("row").filter((row: HTMLElement) => row.closest("tbody") && !row.querySelector("[data-contract]"));
 
 /** The fixture world with each listed entry's payload preview rewritten. */
 function withPayloads(edit: (entry: Schemas["InboxListEntry"]) => unknown): RecordedFixture[] {
@@ -25,6 +30,39 @@ function withPayloads(edit: (entry: Schemas["InboxListEntry"]) => unknown): Reco
     const entries = list.entries.map((entry) => ({ ...entry, payload_preview: edit(entry) as Schemas["InboxListEntry"]["payload_preview"] }));
     return { ...fixture, response: { ...list, entries } };
   });
+}
+
+const KEV_ATTENTION = "Contract:security.kev-attention@1";
+const REVIEW = "Contract:security.applicability-review@1";
+const REVIEW_TEXT = "One OSV answer an owner checks against what the release ships.";
+
+/**
+ * The authored world with the cve-applicability posting step under an item
+ * Contract of its own: the first page (kev-triage's unread item, then the
+ * dismissed cve-applicability one) spans two item Contracts; the second page
+ * holds one more kev-triage item.
+ */
+function twoContracts(): RecordedFixture[] {
+  const results = (fixture: RecordedFixture) => (fixture.response as { results?: GetResult[] }).results ?? [];
+  const refs = (fixture: RecordedFixture) => results(fixture).map((r) => r.ref).join(",");
+  const kevAttention = AUTHORED.flatMap(results).find((r) => r.ref === KEV_ATTENTION)!;
+  const patched = AUTHORED.map((fixture) => {
+    if (refs(fixture) !== "Procedure:security.kev-notify,Procedure:security.cve-applicability") return fixture;
+    const response = structuredClone(fixture.response) as { results: GetResult[] };
+    const card = response.results[1]!.card as { authored: unknown };
+    card.authored = { procedure: "security.cve-applicability", steps: [{ id: "post", inbox: REVIEW.slice("Contract:".length), fields: {} }] };
+    return { ...fixture, response };
+  });
+  const review: GetResult = { ...kevAttention, ref: REVIEW, card: { contract: REVIEW, version: 1, description: REVIEW_TEXT, fields: [], pins: [] } as NonNullable<GetResult["card"]> };
+  return [
+    ...patched,
+    defineFixture({
+      method: "post",
+      path: "/api/v1/{instance_id}/get-batch",
+      body: getBatchBody([KEV_ATTENTION, REVIEW], COORDINATE),
+      response: { tag: "playbill-get-batch-result-v1", coordinate: COORDINATE, results: [kevAttention, review] },
+    }),
+  ];
 }
 
 describe("Inbox", () => {
@@ -147,13 +185,13 @@ describe("Inbox", () => {
     const status = within(screen.getByRole("group", { name: "Status" }));
     expect(await status.findByRole("button", { name: "Unread 3" })).toBeInTheDocument();
     fireEvent.click(status.getByRole("button", { name: "Dismissed" }));
-    expect(await (await table()).findByText("Not shipped in any supported release.")).toBeInTheDocument();
+    // (the rows regroup under their item Contract once its posting step's spec is read: query the table afresh)
+    await waitFor(() => expect(screen.getByRole("table", { name: "Inbox" })).toHaveTextContent("Not shipped in any supported release."));
     expect((await table()).queryByText("CVE-2024-6387")).toBeNull();
     fireEvent.click(status.getByRole("button", { name: "All" }));
     fireEvent.change(await screen.findByRole("combobox", { name: "Line" }), { target: { value: "kev-triage" } });
-    const t = await table();
-    expect(await t.findByText("CVE-2021-44228")).toBeInTheDocument();
-    expect(t.queryByText("cve-applicability")).toBeNull();
+    await waitFor(() => expect(screen.getByRole("table", { name: "Inbox" })).toHaveTextContent("CVE-2021-44228"));
+    expect((await table()).queryByText("cve-applicability")).toBeNull();
   });
 
   it("names the empty state by the status filtered", async () => {
@@ -184,6 +222,55 @@ describe("Inbox", () => {
     expect(cell).toHaveClass("truncate");
     expect(cell).toHaveAttribute("title", LONG);
     expect(t.getByText("CVE-2024-6387")).not.toHaveClass("truncate");
+  });
+
+  describe("rows grouped by item Contract", () => {
+    const headings = () => [...document.querySelectorAll<HTMLElement>('table[aria-label="Inbox"] [data-contract]')];
+
+    it("heads each group with the item Contract's name, linked, and its description as written; rows under it as before", async () => {
+      renderApp(`${I}/inbox`, twoContracts());
+      const t = await table();
+      await waitFor(() => expect(headings()).toHaveLength(2));
+      const [kev, review] = headings();
+      expect(within(kev!).getByRole("link", { name: "security.kev-attention@1" })).toHaveAttribute("href", expect.stringContaining("security.kev-attention"));
+      expect(kev).toHaveTextContent("One KEV-listed CVE a release has no assessment for.");
+      expect(within(review!).getByRole("link", { name: "security.applicability-review@1" })).toBeInTheDocument();
+      expect(review).toHaveTextContent(REVIEW_TEXT);
+      // each group's rows follow its header line, in the daemon's order
+      const rows = t.getAllByRole("row").filter((row) => row.closest("tbody"));
+      const at = (text: string) => rows.findIndex((row) => row.textContent?.includes(text));
+      expect(at("security.kev-attention@1")).toBeLessThan(at("CVE-2024-6387"));
+      expect(at("CVE-2024-6387")).toBeLessThan(at("security.applicability-review@1"));
+      expect(at("security.applicability-review@1")).toBeLessThan(at("Not shipped in any supported release."));
+      // expanding a row still opens the item, its Contract's description in its facts too
+      fireEvent.click(t.getByRole("button", { name: `Expand ${UNREAD_ITEM}` }));
+      const facts = within(await screen.findByRole("list", { name: "Item" }));
+      expect(facts.getByText("One KEV-listed CVE a release has no assessment for.")).toBeInTheDocument();
+    });
+
+    it("heads a group again on the next page it continues on", async () => {
+      renderApp(`${I}/inbox`, twoContracts());
+      await table();
+      await waitFor(() => expect(headings()).toHaveLength(2));
+      fireEvent.click(screen.getByRole("button", { name: /Next page/ }));
+      expect(await screen.findByText("3–3 of 3")).toBeInTheDocument();
+      await waitFor(() => expect(headings()).toHaveLength(1));
+      expect(headings()[0]).toHaveTextContent("security.kev-attention@1");
+      expect(headings()[0]).toHaveTextContent("One KEV-listed CVE a release has no assessment for.");
+      expect((await table()).getByText("CVE-2021-44228")).toBeInTheDocument();
+    });
+
+    it("one Contract: one header line, the Line filter and the shared row as before", async () => {
+      const fixtures = withPayloads((entry) => {
+        const object = (entry.payload_preview as { object?: Record<string, unknown> }).object;
+        return object ? { object: { ...object, state: "unjudged" } } : entry.payload_preview;
+      });
+      renderApp(`${I}/inbox?line=kev-triage`, fixtures);
+      await (await table()).findByText("CVE-2021-44228");
+      await waitFor(() => expect(headings()).toHaveLength(1));
+      expect(headings()[0]).toHaveTextContent("security.kev-attention@1");
+      expect(screen.getByLabelText("Same in all 2")).toHaveTextContent("stateunjudged");
+    });
   });
 
   describe("the Items header", () => {
