@@ -99,3 +99,15 @@ export function unhealthyDashboard(fixtures: RecordedFixture[] = AUTHORED): Reco
     };
   });
 }
+
+/**
+ * The unhealthy world with kev-triage's Trigger phrased as the daemon serves
+ * a schedule ("on cron …"), so Freshness can measure cisa.kev.catalog against
+ * it: a populated world with a stale source.
+ */
+export function populatedDashboard(fixtures: RecordedFixture[] = AUTHORED): RecordedFixture[] {
+  return unhealthyDashboard(fixtures).map((fixture) => {
+    const text = JSON.stringify(fixture.response);
+    return text.includes('"daily at 06:00 UTC"') ? { ...fixture, response: JSON.parse(text.replaceAll('"daily at 06:00 UTC"', '"on cron 0 6 * * * (UTC)"')) } : fixture;
+  });
+}

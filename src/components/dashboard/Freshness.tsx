@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCards, useInstanceId, useLines, useSourceLandings, useSourceModel } from "@/api/hooks";
 import type { Schemas } from "@/api/schemas";
 import { HealthDot } from "@/components/Chip";
+import { DataTable, type Column } from "@/components/DataTable";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { useAtLink } from "@/lib/at";
 import { intervalWords, sourceFreshness, type FreshMark, type SourceFreshness } from "@/lib/dashboard";
@@ -24,7 +26,8 @@ const enabled = (row: Schemas["OrientLine"]) => row.lifecycle === "live" && row.
 
 /**
  * When each source last landed against how often its Lines' Triggers expect
- * it: one cell per source, a dot for fresh / late / stale / by hand. Reads the
+ * it: one row per source (its Lines, schedule, last landing with a fresh /
+ * late / stale dot). Reads the
  * sources section, the source model and one card per enabled Line (the same
  * reads Coming up makes); never a Capture or a Claim.
  */
@@ -53,6 +56,7 @@ export function FreshnessPanel({ label }: { label: (line: string) => string }) {
         })
       : null;
 
+  const columns = useFreshnessColumns(label);
   const late = rows?.filter((r) => r.mark === "late").length ?? 0;
   const stale = rows?.filter((r) => r.mark === "stale").length ?? 0;
   const pending = landings.isPending || model.isPending || lines.isPending;
@@ -65,71 +69,103 @@ export function FreshnessPanel({ label }: { label: (line: string) => string }) {
     >
       {pending && !error && <LoadState />}
       {error && <LoadState error={error} />}
-      {rows && rows.length === 0 && <EmptyState>No sources</EmptyState>}
+      {rows && rows.length === 0 && !error && <EmptyState>No sources</EmptyState>}
       {rows && rows.length > 0 && (
-        <ul aria-label="Sources" className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-5 gap-y-2">
-          {rows.map((row) => (
-            <SourceCell key={row.source} row={row} label={label} />
-          ))}
-        </ul>
+        <DataTable rows={rows} columns={columns} rowKey={(row) => row.source} label="Sources" urlKey="freshness" toolbar={false} maxHeight="none" />
       )}
     </Panel>
   );
 }
 
-function SourceCell({ row, label }: { row: SourceFreshness; label: (line: string) => string }) {
+function useFreshnessColumns(label: (line: string) => string): Column<SourceFreshness>[] {
   const instanceId = useInstanceId();
   const link = useAtLink();
-  const mark = row.mark ? MARK[row.mark] : null;
+  return useMemo<Column<SourceFreshness>[]>(
+    () => [
+      {
+        id: "source",
+        header: "Source",
+        className: "break-all",
+        cell: (row) => (
+          <Link
+            to={link(`/i/${instanceId}/flow?focus=${encodeURIComponent(`source:${row.source}`)}`)}
+            className="font-mono text-[12px] text-zinc-100 hover:underline"
+            title={`${row.source}: open in Evidence flow`}
+          >
+            {row.source}
+          </Link>
+        ),
+      },
+      {
+        id: "line",
+        header: "Line",
+        title: "The Lines that land it, enabled first",
+        cell: (row) =>
+          row.lines.length ? (
+            <span className="flex flex-col">
+              {row.lines.map((line) => (
+                <Link key={line} to={link(`/i/${instanceId}/lines/${encodeURIComponent(line)}`)} className="font-mono text-[12px] text-zinc-300 hover:underline" title={line}>
+                  {label(line)}
+                </Link>
+              ))}
+            </span>
+          ) : (
+            <span className="text-zinc-600">—</span>
+          ),
+      },
+      {
+        id: "schedule",
+        header: "Schedule",
+        title: "The shortest interval its enabled Lines' Triggers expect, a Runbook's that runs them included",
+        className: "whitespace-nowrap text-[12px] text-zinc-400",
+        cell: (row) =>
+          row.interval !== null ? (
+            <span>Every {intervalWords(row.interval)}</span>
+          ) : row.mark === "by_hand" || row.mark === "unscheduled" ? (
+            <span title={MARK[row.mark].meaning}>{MARK[row.mark].word}</span>
+          ) : (
+            <span className="text-zinc-600">…</span>
+          ),
+      },
+      {
+        id: "landed",
+        header: "Last landed",
+        title: "When it last landed, against its schedule: late past one interval, stale past two",
+        className: "whitespace-nowrap text-[12px]",
+        cell: (row) => <Landed row={row} />,
+      },
+    ],
+    [instanceId, link, label],
+  );
+}
+
+/** When the source last landed (linked to the Capture), with its fresh / late / stale mark against the schedule. */
+function Landed({ row }: { row: SourceFreshness }) {
+  const instanceId = useInstanceId();
+  const link = useAtLink();
+  const mark = row.mark === "fresh" || row.mark === "late" || row.mark === "stale" ? MARK[row.mark] : null;
   const landing = row.landing;
   return (
-    <li className="min-w-0 text-[13px]">
-      <div className="flex items-baseline gap-1.5">
-        {mark ? <HealthDot tone={mark.tone} title={`${mark.word}: ${mark.meaning}`} /> : <span className="h-1.5 w-1.5 shrink-0" />}
-        <Link
-          to={link(`/i/${instanceId}/flow?focus=${encodeURIComponent(`source:${row.source}`)}`)}
-          className="min-w-0 truncate font-mono text-[12px] text-zinc-100 hover:underline"
-          title={`${row.source}: open in Evidence flow`}
-        >
-          {row.source}
-        </Link>
-        <span className="ml-auto shrink-0 text-[12px] text-zinc-400" title={mark?.meaning}>
-          {mark?.word ?? "…"}
-        </span>
-      </div>
-      <div className="flex flex-wrap items-baseline gap-x-1.5 pl-3 text-[12px] text-zinc-500">
-        {landing ? (
-          landing.ref ? (
-            <Link
-              to={link(`/i/${instanceId}/ref/${encodeURIComponent(landing.ref)}`)}
-              className="text-zinc-300 hover:underline"
-              title={`${landing.capture ?? landing.ref} · landed ${formatDateTime(landing.landed_at)}`}
-            >
-              {formatRelative(landing.landed_at)}
-            </Link>
-          ) : (
-            <span className="text-zinc-300" title={formatDateTime(landing.landed_at)}>
-              {formatRelative(landing.landed_at)}
-            </span>
-          )
+    <span className="inline-flex items-baseline gap-1.5">
+      {mark && <HealthDot tone={mark.tone} title={`${mark.word}: ${mark.meaning}`} />}
+      {landing ? (
+        landing.ref ? (
+          <Link
+            to={link(`/i/${instanceId}/ref/${encodeURIComponent(landing.ref)}`)}
+            className="text-zinc-300 hover:underline"
+            title={`${landing.capture ?? landing.ref} · landed ${formatDateTime(landing.landed_at)}`}
+          >
+            {formatRelative(landing.landed_at)}
+          </Link>
         ) : (
-          <span>never landed</span>
-        )}
-        {row.interval !== null && (
-          <>
-            <span className="text-zinc-600">·</span>
-            <span title="The shortest interval its enabled Lines' Triggers expect, a Runbook's that runs them included">every {intervalWords(row.interval)}</span>
-          </>
-        )}
-        {row.lines.map((line) => (
-          <span key={line} className="inline-flex items-baseline gap-x-1.5">
-            <span className="text-zinc-600">·</span>
-            <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(line)}`)} className="font-mono text-zinc-400 hover:text-zinc-200 hover:underline" title={line}>
-              {label(line)}
-            </Link>
+          <span className="text-zinc-300" title={formatDateTime(landing.landed_at)}>
+            {formatRelative(landing.landed_at)}
           </span>
-        ))}
-      </div>
-    </li>
+        )
+      ) : (
+        <span className="text-zinc-500">Never</span>
+      )}
+      {mark && mark !== MARK.fresh && <span className="text-zinc-400" title={mark.meaning}>{mark.word}</span>}
+    </span>
   );
 }

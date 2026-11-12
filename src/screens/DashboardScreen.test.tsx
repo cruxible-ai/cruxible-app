@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import { AUTHORED } from "@/fixtures/handlers";
 import type { OrientResult } from "@/api/schemas";
 import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
-import { freshDashboard, unhealthyDashboard } from "@/test/dashboard-worlds";
+import { freshDashboard, populatedDashboard, unhealthyDashboard } from "@/test/dashboard-worlds";
 import { renderApp } from "@/test/render";
 
 /** jsdom here has no working localStorage: an in-memory one per test. */
@@ -92,12 +92,17 @@ describe("Dashboard", () => {
   it("shows whether the knowledge is current: freshness per source, stale beliefs and evidence per kind", async () => {
     renderApp("/i/inst_fixture");
     const freshness = await panel("Freshness");
-    const sources = within(await freshness.findByRole("list", { name: "Sources" }));
+    // a table: Source, Line, Schedule, Last landed, one row per source
+    const sources = within(await freshness.findByRole("table", { name: "Sources" }));
+    expect(sources.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Source", "Line", "Schedule", "Last landed"]);
     const kev = await sources.findByRole("link", { name: "cisa.kev.catalog" });
     expect(kev).toHaveAttribute("href", `/i/inst_fixture/flow?focus=${encodeURIComponent("source:cisa.kev.catalog")}`);
-    const cell = within(kev.closest("li")!);
-    expect(cell.getByRole("link", { name: /ago$/ }).getAttribute("href")).toMatch(/^\/i\/inst_fixture\/ref\/Capture/);
-    expect(cell.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+    const row = within(kev.closest("tr")!);
+    expect(row.getByRole("link", { name: /ago$/ }).getAttribute("href")).toMatch(/^\/i\/inst_fixture\/ref\/Capture/);
+    expect(row.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+    const osv = within(sources.getByRole("link", { name: "osv.query" }).closest("tr")!);
+    expect(osv.getByText("By hand")).toBeInTheDocument();
+    expect(osv.getByText("Never")).toBeInTheDocument();
 
     const stale = await panel("Stale beliefs");
     expect(await stale.findByText("3 stale")).toBeInTheDocument();
@@ -130,7 +135,7 @@ describe("Dashboard", () => {
     });
     renderApp("/i/inst_fixture", fixtures);
     expect(await screen.findByRole("heading", { name: "Freshness" })).toBeInTheDocument();
-    expect(await screen.findByRole("list", { name: "Sources" })).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Sources" })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Stale beliefs" })).toBeNull());
     expect(screen.queryByRole("heading", { name: "Evidence coverage" })).toBeNull();
   });
@@ -285,5 +290,23 @@ describe("Dashboard", () => {
     expect(await since.findByText("No Claim changes")).toBeInTheDocument();
     expect(since.getByRole("link", { name: "Ledger" })).toBeInTheDocument();
     expect(since.queryByRole("link", { name: /New|Revised|Retired/ })).toBeNull();
+  });
+
+  it("measures a source against its Line's schedule: stale past two intervals", async () => {
+    renderApp("/i/inst_fixture", populatedDashboard());
+    const freshness = await panel("Freshness");
+    const kev = within((await freshness.findByRole("link", { name: "cisa.kev.catalog" })).closest("tr")!);
+    expect(await kev.findByText("Every 1d")).toBeInTheDocument();
+    expect(kev.getByText("Stale")).toBeInTheDocument();
+  });
+
+  it("lists each kit's providers one row each: name, version, status", async () => {
+    renderApp("/i/inst_fixture");
+    const kits = await panel("Kits");
+    const providers = within(await kits.findByRole("table", { name: "security providers" }));
+    expect(providers.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Provider", "Version", "Status"]);
+    const row = within(providers.getByRole("row", { name: /security\.kev-catalog/ }));
+    expect(row.getByText("0.3.0")).toBeInTheDocument();
+    expect(row.getByText("Installed")).toBeInTheDocument();
   });
 });

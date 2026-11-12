@@ -685,6 +685,24 @@ function HealthPanel({ next, pending, error }: { next: NextResult | undefined; p
   );
 }
 
+type KitProvider = Schemas["KitProviderStatus"];
+
+const PROVIDER_COLUMNS: Column<KitProvider>[] = [
+  { id: "provider", header: "Provider", className: "break-all", cell: (p) => <span className="font-mono text-[12px] text-zinc-300">{p.provider_id}</span> },
+  {
+    id: "version",
+    header: "Version",
+    className: "whitespace-nowrap",
+    cell: (p) => (
+      <span className="font-mono text-[12px] text-zinc-400" title={p.installed_version && p.installed_version !== p.version ? `Installed ${p.installed_version}` : undefined}>
+        {p.version}
+      </span>
+    ),
+  },
+  { id: "state", header: "Status", className: "whitespace-nowrap", cell: (p) => <Chip concept="provider" value={p.state} /> },
+];
+
+/** Each installed kit, its providers one row each under it. */
 function KitsPanel() {
   const kits = useKits();
   const rows = kits.data?.kits ?? [];
@@ -692,7 +710,7 @@ function KitsPanel() {
     <Panel title="Kits" meta={kits.data ? <span>{rows.length} installed</span> : undefined}>
       {kits.isPending && <LoadState />}
       {kits.error && <LoadState error={kits.error} />}
-      {kits.data && rows.length === 0 && <EmptyState>None</EmptyState>}
+      {kits.data && rows.length === 0 && !kits.error && <EmptyState>None</EmptyState>}
       <div className="divide-y divide-zinc-800/60">
         {rows.map((kit) => (
           <div key={kit.kit_id} className="py-1 text-[13px]">
@@ -705,12 +723,8 @@ function KitsPanel() {
               )}
             </div>
             {(kit.providers?.length ?? 0) > 0 && (
-              <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-zinc-500">
-                {kit.providers!.map((provider) => (
-                  <span key={provider.provider_id}>
-                    {provider.provider_id} <Chip concept="provider" value={provider.state} />
-                  </span>
-                ))}
+              <div className="mt-1">
+                <DataTable rows={kit.providers!} columns={PROVIDER_COLUMNS} rowKey={(p) => p.provider_id} label={`${kit.kit_id} providers`} urlKey={`kit-${kit.kit_id}`} toolbar={false} maxHeight="none" />
               </div>
             )}
           </div>
