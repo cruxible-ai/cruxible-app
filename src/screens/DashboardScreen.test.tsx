@@ -100,6 +100,7 @@ describe("Dashboard", () => {
     expect(await table.findByText("Install kit security 0.3.0.")).toBeInTheDocument();
     expect(table.getAllByRole("row")).toHaveLength(6);
     expect(screen.queryByText("Accepted into state")).toBeNull();
+    expect(table.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Generation", "When", "Author", "Description", "Changes"]);
   });
 
   it("shows whether the knowledge is current: freshness per source, stale beliefs and evidence per kind", async () => {

@@ -90,10 +90,10 @@ export function CompactActivity({ label }: { label: (line: string) => string }) 
       {cursors.map((cursor) => (
         <PageLoader key={cursor ?? "first"} cursor={cursor} onLoaded={onLoaded} onFailed={cursor === undefined ? setFailed : undefined} first={cursor === undefined} />
       ))}
-      {/* the colors say what kind of thing happened; with one kind on screen there is nothing to tell apart */}
+      {/* the colors say what kind of thing happened; with one kind on screen there is nothing to tell apart: no legend, no squares */}
       {families.length > 1 && <FamilyLegend seen={families} />}
       {pages[""] && rows.length === 0 && !failed && <EmptyState>None</EmptyState>}
-      {visible.length > 0 && <DataTable rows={visible} columns={columns} rowKey={(row) => row.key} label="Activity" urlKey="activity" toolbar={false} maxHeight="none" />}
+      {visible.length > 0 && <DataTable rows={visible} columns={families.length > 1 ? columns : columns.slice(1)} rowKey={(row) => row.key} label="Activity" urlKey="activity" toolbar={false} maxHeight="none" />}
       {loading && cursors.length > 1 && <LoadState />}
       {more && !loading && (
         <button type="button" onClick={older} className="mt-2 text-[12px] text-zinc-400 hover:text-zinc-200">
