@@ -4,11 +4,14 @@ import { useActivity, useInstanceId } from "@/api/hooks";
 import { ApiError } from "@/api/data-source";
 import type { OrientActivity } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
+import { HeaderLabel } from "@/components/ChangeLog";
+import { DataTable, type Column } from "@/components/DataTable";
+import { GenerationAuthorFromRow, GenerationCell, GenerationDescription } from "@/components/GenerationCells";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { FAMILY, formatDuration, shortRun, type ActivityFamily, type ActivityLink, type ActivityRow } from "@/lib/activity";
 import { useAtLink, withAt } from "@/lib/at";
-import { compactRows, shortCapture, type RunRow } from "@/lib/dashboard-activity";
+import { compactRows, shortCapture, type CompactRow, type RunRow } from "@/lib/dashboard-activity";
 import { formatDateTime, formatRelative, sentence } from "@/lib/text";
 import { term } from "@/lib/vocabulary";
 
@@ -20,15 +23,24 @@ interface Loaded {
   next: string | null;
 }
 
+const familyOf = (row: CompactRow): ActivityFamily => (row.kind === "run" ? "run" : row.kind === "generation" ? "generation" : row.row.family);
+const atOf = (row: CompactRow) => (row.kind === "event" ? row.row.at : row.at);
+const sequenceOf = (row: CompactRow) => (row.kind === "generation" ? row.generation.sequence : row.kind === "run" ? (row.generation?.sequence ?? null) : null);
+const membersOf = (row: CompactRow) => (row.kind === "generation" ? (row.generation.members ?? 0) : row.kind === "run" ? (row.generation?.members ?? null) : null);
+const dash = <span className="text-zinc-600">—</span>;
+
 /**
- * What happened, newest first, one row per Line run (its start, the Captures
- * it landed and the generation it was accepted as, folded) and one per other
- * event. Shows ACTIVITY_ROWS at a time; older rows come from the pages
- * already read, then from the next activity page.
+ * What happened, newest first, in the Ledger's columns (generation, when,
+ * author, description as written, changes): one row per Line run (its start,
+ * the Captures it landed and the generation it was accepted as, folded), one
+ * per generation no loaded run produced, one per other event. Shows
+ * ACTIVITY_ROWS at a time; older rows come from the pages already read, then
+ * from the next activity page.
  */
 export function CompactActivity({ label }: { label: (line: string) => string }) {
   const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
   const [pages, setPages] = useState<Record<string, Loaded>>({});
+  const [failed, setFailed] = useState(false);
   const [shown, setShown] = useState(ACTIVITY_ROWS);
   const onLoaded = useCallback((key: string, loaded: Loaded) => setPages((prev) => (prev[key] === loaded ? prev : { ...prev, [key]: loaded })), []);
 
@@ -47,47 +59,71 @@ export function CompactActivity({ label }: { label: (line: string) => string }) 
   };
 
   const visible = rows.slice(0, shown);
-  const families = [...new Set(visible.map((row) => (row.kind === "run" ? "run" : row.row.family)))];
-  const now = new Date();
+  const families = [...new Set(visible.map(familyOf))];
+  const columns = useMemo<Column<CompactRow>[]>(
+    () => [
+      { id: "family", header: "", label: "Kind", className: "w-2 pr-0", cell: (row) => <Square family={familyOf(row)} /> },
+      {
+        id: "generation",
+        header: "Generation",
+        className: "whitespace-nowrap",
+        cell: (row) => {
+          const sequence = sequenceOf(row);
+          return sequence === null ? dash : <GenerationCell sequence={sequence} />;
+        },
+      },
+      { id: "when", header: "When", className: "whitespace-nowrap", cell: (row) => <Time at={atOf(row)} /> },
+      { id: "author", header: "Author", title: "A run's Line, a direct run's Procedure, or the proposer; then the approvers", cell: (row) => <Author row={row} label={label} /> },
+      { id: "description", header: "Description", title: "The proposal's own words, or what happened", cell: (row) => <Description row={row} /> },
+      {
+        id: "changes",
+        header: "Changes",
+        numeric: true,
+        className: "text-zinc-300",
+        cell: (row) => membersOf(row) ?? dash,
+      },
+    ],
+    [label],
+  );
   return (
-    <Panel title="Activity" description="Each Line run on one row: how it ended, what it changed, the generation and the Capture it landed.">
+    <Panel title="Activity" description="Newest first. A Line run's landings and accepted generation share its row.">
       {cursors.map((cursor) => (
-        <PageLoader key={cursor ?? "first"} cursor={cursor} onLoaded={onLoaded} first={cursor === undefined} />
+        <PageLoader key={cursor ?? "first"} cursor={cursor} onLoaded={onLoaded} onFailed={cursor === undefined ? setFailed : undefined} first={cursor === undefined} />
       ))}
-      <FamilyLegend seen={families} />
-      <div aria-label="Activity" role="feed">
-        {pages[""] && rows.length === 0 && <EmptyState>None</EmptyState>}
-        <ol className="divide-y divide-zinc-800/60">
-          {visible.map((row, i) => {
-            const at = row.kind === "run" ? row.at : row.row.at;
-            const before = i > 0 ? visible[i - 1]! : null;
-            const beforeAt = before ? (before.kind === "run" ? before.at : before.row.at) : null;
-            return (
-              <li key={row.key}>
-                {(beforeAt === null || dayOf(at) !== dayOf(beforeAt)) && <DayMark at={at} now={now} />}
-                {row.kind === "run" ? <RunLine row={row} label={label} now={now} /> : <EventLine row={row.row} now={now} />}
-              </li>
-            );
-          })}
-        </ol>
-        {loading && cursors.length > 1 && <LoadState />}
-        {more && !loading && (
-          <button type="button" onClick={older} className="mt-2 text-[12px] text-zinc-400 hover:text-zinc-200">
-            Show older activity
-          </button>
-        )}
-      </div>
+      {/* the colors say what kind of thing happened; with one kind on screen there is nothing to tell apart: no legend, no squares */}
+      {families.length > 1 && <FamilyLegend seen={families} />}
+      {pages[""] && rows.length === 0 && !failed && <EmptyState>None</EmptyState>}
+      {visible.length > 0 && <DataTable rows={visible} columns={families.length > 1 ? columns : columns.slice(1)} rowKey={(row) => row.key} label="Activity" urlKey="activity" toolbar={false} maxHeight="none" />}
+      {loading && cursors.length > 1 && <LoadState />}
+      {more && !loading && (
+        <button type="button" onClick={older} className="mt-2 text-[12px] text-zinc-400 hover:text-zinc-200">
+          Show older activity
+        </button>
+      )}
     </Panel>
   );
 }
 
 /** Reads one activity page and hands it up; renders only its loading or refusal state. */
-function PageLoader({ cursor, first, onLoaded }: { cursor: string | undefined; first: boolean; onLoaded: (key: string, loaded: Loaded) => void }) {
+function PageLoader({
+  cursor,
+  first,
+  onLoaded,
+  onFailed,
+}: {
+  cursor: string | undefined;
+  first: boolean;
+  onLoaded: (key: string, loaded: Loaded) => void;
+  /** Told whether the read's latest attempt failed, so a failed refresh never shows the empty state. */
+  onFailed?: ((failed: boolean) => void) | undefined;
+}) {
   const page = useActivity(cursor);
   const data = page.data;
   useEffect(() => {
     if (data) onLoaded(cursor ?? "", { events: data.activity ?? [], next: data.next_cursor ?? null });
   }, [data, cursor, onLoaded]);
+  const failed = page.error !== null;
+  useEffect(() => onFailed?.(failed), [failed, onFailed]);
   if (first && page.isPending) return <LoadState />;
   if (page.error) {
     // A daemon older than the feed refuses the section as an invalid request: say so plainly.
@@ -98,125 +134,125 @@ function PageLoader({ cursor, first, onLoaded }: { cursor: string | undefined; f
   return null;
 }
 
-const dayOf = (iso: string) => new Date(iso).toDateString();
+const hover = "hover:text-white hover:underline underline-offset-2";
 
-function DayMark({ at, now }: { at: string; now: Date }) {
-  const day = new Date(at);
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const text =
-    day.toDateString() === now.toDateString()
-      ? "Today"
-      : day.toDateString() === yesterday.toDateString()
-        ? "Yesterday"
-        : day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  return <div className="t-meta pb-0.5 pt-2">{text}</div>;
+function Time({ at }: { at: string }) {
+  return (
+    <time dateTime={at} title={formatDateTime(at)} className="text-[12px] text-zinc-500">
+      {formatRelative(at)}
+    </time>
+  );
 }
 
-const hover = "hover:text-white hover:underline underline-offset-2";
-const Sep = () => <span className="text-zinc-600">·</span>;
+/**
+ * A run's Line (or a direct run's Procedure), as the Ledger's Author column
+ * names it (the run itself opens from its outcome); an event's Line; a
+ * generation's author.
+ */
+function Author({ row, label }: { row: CompactRow; label: (line: string) => string }) {
+  const instanceId = useInstanceId();
+  const at = useAtLink();
+  // from the event's own fields: the Dashboard makes no read per row
+  if (row.kind === "generation") return <GenerationAuthorFromRow row={row.generation} />;
+  if (row.kind === "event") {
+    const who = row.row.who;
+    if (!who) return dash;
+    return (
+      <span className="inline-flex flex-wrap items-baseline gap-x-3 text-zinc-400">
+        {who.link.kind === "line" && <HeaderLabel>Line</HeaderLabel>}
+        <Target link={who.link} className="whitespace-nowrap font-mono text-[12px] text-zinc-200">
+          {who.text}
+        </Target>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-x-3 text-zinc-400">
+      {row.line ? (
+        <>
+          <HeaderLabel>Line</HeaderLabel>
+          <Link to={at(`/i/${instanceId}/lines/${encodeURIComponent(row.line)}`)} className={`whitespace-nowrap font-mono text-[12px] text-zinc-200 ${hover}`} title={row.line}>
+            {label(row.line)}
+          </Link>
+        </>
+      ) : row.procedure ? (
+        <>
+          <HeaderLabel>Procedure</HeaderLabel>
+          <RefLink value={row.procedure} className="whitespace-nowrap font-mono text-[12px] text-zinc-200">
+            {row.procedure.replace(/^Procedure:/, "")}
+          </RefLink>
+        </>
+      ) : null}
+    </span>
+  );
+}
 
-/** `epss-triage · succeeded · 30 changes · g10 · CAP-9bdf…`, each part linked. */
-function RunLine({ row, label, now }: { row: RunRow; label: (line: string) => string; now: Date }) {
+/** A generation's own words; a run's outcome and the Capture it landed; an event's phrase and detail. */
+function Description({ row }: { row: CompactRow }) {
+  if (row.kind === "generation") return <GenerationDescription text={row.generation.because} truncated={row.generation.because_truncated ?? false} />;
+  if (row.kind === "run") return <RunOutcome row={row} />;
+  return <EventWords row={row.row} />;
+}
+
+function RunOutcome({ row }: { row: RunRow }) {
   const instanceId = useInstanceId();
   const at = useAtLink();
   const status = row.status === "running" ? null : term("run", row.status);
   const capture = row.captures[0];
   return (
-    <div className="flex items-baseline gap-2.5 py-1.5 text-[13px]">
-      <Square family="run" />
-      <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5">
-        {status?.signal && <SignalDot signal={status.signal} title={status.meaning} />}
-        {row.line ? (
-          <Link to={at(`/i/${instanceId}/lines/${encodeURIComponent(row.line)}`)} className={`font-mono text-[12px] text-zinc-100 ${hover}`} title={row.line}>
-            {label(row.line)}
-          </Link>
-        ) : row.procedure ? (
-          <RefLink value={row.procedure} className="font-mono text-[12px] text-zinc-100">
-            {row.procedure.replace(/^Procedure:/, "")}
-          </RefLink>
-        ) : null}
-        <Sep />
-        <Link
-          to={at(`/i/${instanceId}/runs/${encodeURIComponent(row.run)}`)}
-          className={`text-zinc-300 ${hover}`}
-          title={`${shortRun(row.run)}${status ? ` · ${status.meaning}` : ""}${row.elapsedUs != null ? ` · ${formatDuration(row.elapsedUs)}` : ""}`}
-        >
-          {status ? status.word.toLowerCase() : "running"}
-        </Link>
-        {row.generation && (
-          <>
-            <Sep />
-            <span className="text-zinc-400">
-              {row.generation.members} {row.generation.members === 1 ? "change" : "changes"}
+    <span className="inline-flex flex-wrap items-baseline gap-x-1.5 text-[13px]">
+      {status?.signal && <SignalDot signal={status.signal} title={status.meaning} />}
+      <Link
+        to={at(`/i/${instanceId}/runs/${encodeURIComponent(row.run)}`)}
+        className={`text-zinc-200 ${hover}`}
+        title={`${shortRun(row.run)}${status ? ` · ${status.meaning}` : ""}${row.elapsedUs != null ? ` · ${formatDuration(row.elapsedUs)}` : ""}`}
+      >
+        {status ? status.word : "Running"}
+      </Link>
+      {capture && (
+        <>
+          <span className="text-zinc-600">·</span>
+          {capture.ref ? (
+            <RefLink value={capture.ref} className="font-mono text-[12px] text-zinc-400">
+              <span title={`${capture.capture ?? capture.ref}${capture.source ? ` from ${capture.source}` : ""}`}>{shortCapture(capture.capture ?? "Capture")}</span>
+            </RefLink>
+          ) : (
+            <span className="font-mono text-[12px] text-zinc-400">{shortCapture(capture.capture ?? "Capture")}</span>
+          )}
+          {row.captures.length > 1 && <span className="text-[12px] text-zinc-500">+{row.captures.length - 1}</span>}
+        </>
+      )}
+      {row.unavailable && <span className="text-[12px] text-zinc-500">(record unavailable)</span>}
+    </span>
+  );
+}
+
+function EventWords({ row }: { row: ActivityRow }) {
+  return (
+    <div className="min-w-0 text-[13px]">
+      <div className="flex flex-wrap items-baseline gap-x-1.5">
+        {row.signal && <SignalDot signal={row.signal} title={row.signal === "wrong" ? "Wrong or blocked" : "Waiting on you"} />}
+        <span className="text-zinc-300">{sentence(row.what)}</span>
+        {row.object && (
+          <Target link={row.object.link} className="font-mono text-[12px] text-zinc-400">
+            <span className="inline-block max-w-[8rem] truncate align-bottom" title={row.object.text}>
+              {row.object.text}
             </span>
-            <Sep />
-            <Link to={withAt(`/i/${instanceId}`, String(row.generation.sequence))} className={`font-mono text-[12px] text-zinc-300 ${hover}`} title="Open the instance at this generation">
-              g{row.generation.sequence}
-            </Link>
-          </>
-        )}
-        {capture && (
-          <>
-            <Sep />
-            {capture.ref ? (
-              <RefLink value={capture.ref} className="font-mono text-[12px] text-zinc-400">
-                <span title={`${capture.capture ?? capture.ref}${capture.source ? ` from ${capture.source}` : ""}`}>{shortCapture(capture.capture ?? "Capture")}</span>
-              </RefLink>
-            ) : (
-              <span className="font-mono text-[12px] text-zinc-400">{shortCapture(capture.capture ?? "Capture")}</span>
-            )}
-            {row.captures.length > 1 && <span className="text-[12px] text-zinc-500">+{row.captures.length - 1}</span>}
-          </>
+          </Target>
         )}
         {row.unavailable && <span className="text-[12px] text-zinc-500">(record unavailable)</span>}
       </div>
-      <Time at={row.at} now={now} />
-    </div>
-  );
-}
-
-function EventLine({ row, now }: { row: ActivityRow; now: Date }) {
-  return (
-    <div className="flex items-baseline gap-2.5 py-1.5 text-[13px]">
-      <Square family={row.family} />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-1.5">
-          {row.signal && <SignalDot signal={row.signal} title={row.signal === "wrong" ? "Wrong or blocked" : "Waiting on you"} />}
-          {row.who && (
-            <Target link={row.who.link} className="font-mono text-[12px] text-zinc-100">
-              {row.who.text}
-            </Target>
-          )}
-          <span className="text-zinc-300">{row.who ? row.what : sentence(row.what)}</span>
-          {row.object && (
-            <Target link={row.object.link} className="font-mono text-[12px] text-zinc-400">
-              {row.object.text}
-            </Target>
-          )}
-          {row.unavailable && <span className="text-[12px] text-zinc-500">(record unavailable)</span>}
+      {row.detail && (
+        <div className="truncate text-[12px] text-zinc-500" title={row.detail}>
+          {row.detail}
         </div>
-        {row.detail && (
-          <div className="truncate text-[12px] text-zinc-500" title={row.detail}>
-            {row.detail}
-          </div>
-        )}
-      </div>
-      <Time at={row.at} now={now} />
+      )}
     </div>
-  );
-}
-
-function Time({ at, now }: { at: string; now: Date }) {
-  return (
-    <time dateTime={at} title={formatDateTime(at)} className="shrink-0 text-[12px] text-zinc-500">
-      {formatRelative(at, now)}
-    </time>
   );
 }
 
 function Square({ family }: { family: ActivityFamily }) {
-  return <span className="relative top-[1px] h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: FAMILY[family].color }} title={FAMILY[family].legend} aria-hidden />;
+  return <span className="relative top-[1px] inline-block h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: FAMILY[family].color }} title={FAMILY[family].legend} aria-hidden />;
 }
 
 function Target({ link, className, children }: { link: ActivityLink; className: string; children: ReactNode }) {

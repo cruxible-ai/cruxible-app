@@ -68,7 +68,7 @@ export function DashboardScreen() {
         </dl>
       </PageHeader>
 
-      <NeedsYou orient={o} next={next.data} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
+      <NeedsYou orient={o} next={next.data} nextError={next.error} onHealth={() => document.getElementById("health")?.scrollIntoView?.({ behavior: "smooth" })} />
       <LinesAttention enablements={o.attention?.enablements} />
 
       {/* Two columns that flow on their own, so a short card leaves no hole beside a tall one: whether the
@@ -137,26 +137,57 @@ const HEALTH_ROWS = [
   "triggers",
 ] as const;
 
-function unhealthy(next: NextResult | undefined) {
-  const status = next?.status;
-  if (!status) return [];
-  return HEALTH_ROWS.filter((row) => {
-    const tone = healthTone(status[row].state);
-    return tone === "waiting" || tone === "wrong";
-  });
+interface HealthRow {
+  key: string;
+  label: string;
+  /** A check's state, or null for a count (Held). */
+  health: NextHealth | null;
+  count?: number;
 }
 
 /**
+ * Every check the Health panel lists, and the tile summarizes: next's health
+ * rows, then each domain next did not observe from here (a workspace domain
+ * whose check already reads Not observed, workspace_floor beside floor, is
+ * that row), then what it holds. The tile and the panel read this one list.
+ */
+function healthRows(next: NextResult | undefined): HealthRow[] {
+  const status = next?.status;
+  if (!status) return [];
+  const facets: readonly string[] = HEALTH_ROWS;
+  return [
+    ...HEALTH_ROWS.map((row) => ({ key: row, label: humanize(row), health: status[row] })),
+    ...next!.unobserved_domains
+      .filter((domain) => {
+        const facet = domain.replace(/^workspace_/, "");
+        return !(facets.includes(facet) && status[facet as (typeof HEALTH_ROWS)[number]].state === "not_observed");
+      })
+      .map((domain) => ({ key: `domain:${domain}`, label: humanize(domain), health: { state: "not_observed" } })),
+    ...((status.held ?? 0) > 0 ? [{ key: "held", label: "Held", health: null, count: status.held! }] : []),
+  ];
+}
+
+const toneOf = (row: HealthRow) => (row.health ? healthTone(row.health.state) : "ok");
+/** Rows that need a look (waiting or wrong). */
+const sickRows = (rows: HealthRow[]) => rows.filter((row) => toneOf(row) === "waiting" || toneOf(row) === "wrong");
+/** Rows neither healthy nor needing a look: not observed from here, not set up, or a state the glossary does not know. */
+const quietRows = (rows: HealthRow[]) => rows.filter((row) => row.health && (toneOf(row) === "off" || toneOf(row) === undefined));
+
+/**
  * One strip of tiles, each a count and where to act on it. A tile is amber or
- * red only while its count says something needs doing; at zero it is quiet.
+ * red only while its count says something needs doing; at zero it is quiet,
+ * and a zero stands alone: a sub-line only where it adds a fact.
  */
 function NeedsYou({
   orient,
   next,
+  nextError,
   onHealth,
 }: {
   orient: OrientResult;
   next: NextResult | undefined;
+  /** The latest next read failed (rows read before it may still be in `next`). */
+  nextError: Error | null;
   onHealth: () => void;
 }) {
   const instanceId = useInstanceId();
@@ -169,7 +200,11 @@ function NeedsYou({
   const enablements = attention?.enablements;
   const stalled = enablements?.stalled ?? 0;
   const stopped = enablements?.stopped ?? 0;
-  const sick = unhealthy(next);
+  const health = healthRows(next);
+  const sick = sickRows(health);
+  const quiet = quietRows(health);
+  // "not observed", or "not observed / not configured" when they differ
+  const quietWords = [...new Set(quiet.map((row) => term("health", row.health!.state).word.toLowerCase()))].join(" / ");
   const nextSignal: Signal | undefined = bySeverity.get("blocking") ? "wrong" : bySeverity.get("repair") ? "waiting" : undefined;
   const severityWords = SEVERITIES.flatMap((s) => {
     const n = bySeverity.get(s) ?? 0;
@@ -183,21 +218,21 @@ function NeedsYou({
         label="Waiting for review"
         count={proposals}
         signal={proposals ? "waiting" : undefined}
-        detail={proposals ? "Review on CLI or MCP" : "None open"}
+        detail={proposals ? "Review on CLI or MCP" : undefined}
         to={link(`/i/${instanceId}/proposals?status=open`)}
       />
       <Tile
         label="Unread inbox"
         count={next ? unread : null}
         signal={unread ? "waiting" : undefined}
-        detail={unread ? "Posted by Lines" : "None posted"}
+        detail={unread ? "Posted by Lines" : undefined}
         to={link(`/i/${instanceId}/inbox?status=unread`)}
       />
       <Tile
         label="Next"
         count={next ? next.total_items : null}
         signal={nextSignal}
-        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : next.total_items ? "None urgent" : "None") : undefined}
+        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : next.total_items ? "None urgent" : undefined) : undefined}
         to={link(`/i/${instanceId}/next`)}
       />
       <Tile
@@ -206,19 +241,26 @@ function NeedsYou({
         count={enablements?.running ?? 0}
         countWord="running"
         signal={stalled ? "wrong" : stopped ? "waiting" : undefined}
-        detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : "None stalled or stopped"}
+        // "None stalled or stopped" says something only while some Line runs
+        detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : enablements?.running ? "None stalled or stopped" : undefined}
         to={link(`/i/${instanceId}/lines`)}
       />
-      <Tile
-        label="Health"
-        count={next ? sick.length : null}
-        countWord={sick.length ? "need a look" : undefined}
-        headline={next && sick.length === 0 ? "Healthy" : undefined}
-        signal={sick.some((row) => healthTone(next!.status[row].state) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
-        healthy={next !== undefined && sick.length === 0}
-        detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks`}
-        onClick={onHealth}
-      />
+      {/* The worst state present: a failed read (the panel shows its error; nothing read before it is asserted here), checks that need
+          a look, checks not observed or not set up (never "Healthy"), else Healthy. */}
+      {nextError ? (
+        <Tile label="Health" count={null} headline="Read failed" signal="wrong" detail={nextError.message} onClick={onHealth} />
+      ) : (
+        <Tile
+          label="Health"
+          count={next ? (sick.length || quiet.length) : null}
+          countWord={sick.length ? "need a look" : quiet.length ? quietWords : undefined}
+          headline={next && sick.length === 0 && quiet.length === 0 ? "Healthy" : undefined}
+          signal={sick.some((row) => toneOf(row) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
+          healthy={next !== undefined && sick.length === 0 && quiet.length === 0}
+          detail={sick.length ? sick.map((row) => row.label).join(", ") : quiet.length ? quiet.map((row) => row.label).join(", ") : `${health.filter((row) => row.health).length} checks`}
+          onClick={onHealth}
+        />
+      )}
     </section>
   );
 }
@@ -301,7 +343,11 @@ function Tile({
           </>
         )}
       </div>
-      {detail && <div className="mt-1 truncate text-[12px] text-zinc-500">{detail}</div>}
+      {detail && (
+        <div className="mt-1 truncate text-[12px] text-zinc-500" title={typeof detail === "string" ? detail : undefined}>
+          {detail}
+        </div>
+      )}
     </>
   );
   const className = `block border ${ring} bg-zinc-900/25 px-3.5 py-2.5 hover:bg-zinc-900/60`;
@@ -372,13 +418,11 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
   const chains = chainUpcoming(upcoming, sourceModel.data?.retentions ?? []);
 
   return (
-    <Panel
-      title="Coming up"
-      meta={rows ? <span>{on.length} of {live.length} Lines enabled</span> : undefined}
-    >
+    // One statement of what is not enabled: the fold below, or "None" when there are no live Lines at all.
+    <Panel title="Coming up" meta={on.length > 0 ? <span>{on.length} enabled</span> : undefined}>
       {pending && <LoadState />}
       {error && <LoadState error={error} />}
-      {rows && on.length === 0 && <EmptyState>None enabled</EmptyState>}
+      {rows && live.length === 0 && !error && <EmptyState>No live Lines</EmptyState>}
       {chains.length > 0 && (
         <div className="divide-y divide-zinc-800/60">
           {chains.map((chain) => (
@@ -388,7 +432,7 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
       )}
       {off.length > 0 && (
         <div className="mt-2">
-          <Disclosure label={`${off.length} ${off.length === 1 ? "Line is" : "Lines are"} not enabled`}>
+          <Disclosure label={`${off.length} not enabled`}>
             <LineLinks names={off.map((row) => lineName(row.line))} prefix={prefix} />
           </Disclosure>
         </div>
@@ -617,54 +661,63 @@ function LineLinks({ names, prefix }: { names: string[]; prefix: string }) {
 
 // -- health and kits ------------------------------------------------------------
 
-/** The environment's checks, folded to one line while all are healthy. */
+const HEALTH_COLUMNS: Column<HealthRow>[] = [
+  { id: "check", header: "Check", className: "whitespace-nowrap text-zinc-400", cell: (row) => row.label },
+  {
+    id: "state",
+    header: "State",
+    cell: (row) =>
+      row.health ? (
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <HealthChip state={row.health.state} />
+          {row.health.repair && <span className="text-[12px] text-zinc-500">{row.health.repair.required_change}</span>}
+        </span>
+      ) : (
+        <span className="font-mono text-zinc-300">{row.count}</span>
+      ),
+  },
+];
+
+/**
+ * The environment's checks, one row each (healthRows, the list the tile
+ * summarizes). The header counts only what needs a look.
+ */
 function HealthPanel({ next, pending, error }: { next: NextResult | undefined; pending: boolean; error: Error | null }) {
   const status = next?.status;
-  const sick = unhealthy(next);
+  const rows = healthRows(next);
+  const sick = sickRows(rows);
   return (
     <div id="health">
       <Panel
         title="Health"
-        meta={
-          status?.blocking ? (
-            <Chip concept="severity" value="blocking" />
-          ) : status ? (
-            <span>{sick.length ? `${sick.length} of ${HEALTH_ROWS.length} need a look` : `all ${HEALTH_ROWS.length} healthy`}</span>
-          ) : undefined
-        }
+        meta={status?.blocking ? <Chip concept="severity" value="blocking" /> : sick.length ? <span>{sick.length} need a look</span> : undefined}
       >
         {pending && <LoadState />}
         {error && <LoadState error={error} />}
-        {status && (
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-            {HEALTH_ROWS.map((row) => {
-              const health: NextHealth = status[row];
-              return (
-                <div key={row} className="contents">
-                  <dt className="text-zinc-500">{humanize(row)}</dt>
-                  <dd className="flex flex-wrap items-baseline gap-2">
-                    <HealthChip state={health.state} />
-                    {health.repair && <span className="text-[12px] text-zinc-500">{health.repair.required_change}</span>}
-                  </dd>
-                </div>
-              );
-            })}
-            {(status.held ?? 0) > 0 && (
-              <>
-                <dt className="text-zinc-500">Held</dt>
-                <dd className="font-mono text-zinc-300">{status.held}</dd>
-              </>
-            )}
-          </dl>
-        )}
-        {next && next.unobserved_domains.length > 0 && (
-          <div className="t-meta mt-2">Not observed: {next.unobserved_domains.map(humanize).join(", ")}</div>
-        )}
+        {status && <DataTable rows={rows} columns={HEALTH_COLUMNS} rowKey={(row) => row.key} label="Health" urlKey="health" toolbar={false} maxHeight="none" />}
       </Panel>
     </div>
   );
 }
 
+type KitProvider = Schemas["KitProviderStatus"];
+
+const PROVIDER_COLUMNS: Column<KitProvider>[] = [
+  { id: "provider", header: "Provider", className: "break-all", cell: (p) => <span className="font-mono text-[12px] text-zinc-300">{p.provider_id}</span> },
+  {
+    id: "version",
+    header: "Version",
+    className: "whitespace-nowrap",
+    cell: (p) => (
+      <span className="font-mono text-[12px] text-zinc-400" title={p.installed_version && p.installed_version !== p.version ? `Installed ${p.installed_version}` : undefined}>
+        {p.version}
+      </span>
+    ),
+  },
+  { id: "state", header: "Status", className: "whitespace-nowrap", cell: (p) => <Chip concept="provider" value={p.state} /> },
+];
+
+/** Each installed kit, its providers one row each under it. */
 function KitsPanel() {
   const kits = useKits();
   const rows = kits.data?.kits ?? [];
@@ -672,7 +725,7 @@ function KitsPanel() {
     <Panel title="Kits" meta={kits.data ? <span>{rows.length} installed</span> : undefined}>
       {kits.isPending && <LoadState />}
       {kits.error && <LoadState error={kits.error} />}
-      {kits.data && rows.length === 0 && <EmptyState>None</EmptyState>}
+      {kits.data && rows.length === 0 && !kits.error && <EmptyState>None</EmptyState>}
       <div className="divide-y divide-zinc-800/60">
         {rows.map((kit) => (
           <div key={kit.kit_id} className="py-1 text-[13px]">
@@ -685,12 +738,8 @@ function KitsPanel() {
               )}
             </div>
             {(kit.providers?.length ?? 0) > 0 && (
-              <div className="mt-0.5 flex flex-wrap gap-x-3 text-[12px] text-zinc-500">
-                {kit.providers!.map((provider) => (
-                  <span key={provider.provider_id}>
-                    {provider.provider_id} <Chip concept="provider" value={provider.state} />
-                  </span>
-                ))}
+              <div className="mt-1">
+                <DataTable rows={kit.providers!} columns={PROVIDER_COLUMNS} rowKey={(p) => p.provider_id} label={`${kit.kit_id} providers`} urlKey={`kit-${kit.kit_id}`} toolbar={false} maxHeight="none" />
               </div>
             )}
           </div>

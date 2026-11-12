@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
+import { errorEnvelope } from "@/fixtures/envelopes";
+import { server } from "@/test/msw-server";
 import { AUTHORED } from "@/fixtures/handlers";
 import type { OrientResult } from "@/api/schemas";
 import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
-import { renderApp } from "@/test/render";
+import { freshDashboard, populatedDashboard, unhealthyDashboard, withHealth } from "@/test/dashboard-worlds";
+import { renderApp, TEST_BASE } from "@/test/render";
+import { COORDINATE } from "@/fixtures/authored/world";
 
 /** jsdom here has no working localStorage: an in-memory one per test. */
 function memoryStorage(): Storage {
@@ -61,42 +67,61 @@ describe("Dashboard", () => {
     expect(await main.findByText("security.kev-catalog")).toBeInTheDocument();
   });
 
-  it("shows what happened, newest first: a Line run folds into one row, refusals are red, older rows page in", async () => {
+  it("shows what happened, newest first, in the Ledger's columns: a Line run folds into one row, refusals are red, older rows page in", async () => {
     renderApp("/i/inst_fixture");
-    const feed = within(await screen.findByRole("feed", { name: "Activity" }));
-    // a definition proposal keeps its own row
-    expect(await feed.findByRole("link", { name: "Generation 42" })).toHaveAttribute("href", "/i/inst_fixture?at=42");
-    expect(feed.getByText(/accepted · 1 change · proposed by release-owner/)).toBeInTheDocument();
-    expect(feed.getByText("Vendor advisory says rel-1 never shipped the build.")).toBeInTheDocument();
-    // kev-triage's run: its start, landing and accepted generation are one row, each part linked
-    const run = feed.getByRole("link", { name: "succeeded" });
+    const table = within(await screen.findByRole("table", { name: "Activity" }));
+    expect(table.getAllByRole("columnheader").map((h) => h.textContent).slice(1)).toEqual(["Generation", "When", "Author", "Description", "Changes"]);
+    // a definition proposal keeps its own row: generation, author, its words as written, its change count
+    const g42 = within((await table.findByRole("link", { name: "g42" })).closest("tr")!);
+    expect(g42.getByRole("link", { name: "g42" })).toHaveAttribute("href", "/i/inst_fixture?at=42");
+    expect(g42.getByText("release-owner")).toBeInTheDocument();
+    expect(g42.getByText("security-lead")).toBeInTheDocument();
+    expect(g42.getByText("Vendor advisory says rel-1 never shipped the build.")).toBeInTheDocument();
+    expect(g42.getAllByRole("cell").at(-1)).toHaveTextContent("1");
+    expect(table.queryByText(/accepted ·|proposed by/)).toBeNull();
+    // kev-triage's run: its start, landing and accepted generation are one row, each part in its column
+    const run = table.getByRole("link", { name: "Succeeded" });
     expect(run).toHaveAttribute("href", `/i/inst_fixture/runs/RUN-${"a1".repeat(16)}`);
-    const row = within(run.closest("div")!);
+    const row = within(run.closest("tr")!);
     expect(row.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
-    expect(row.getByText("3 changes")).toBeInTheDocument();
     expect(row.getByRole("link", { name: "g41" })).toHaveAttribute("href", "/i/inst_fixture?at=41");
     expect(row.getByRole("link", { name: "CAP-cccc…" })).toBeInTheDocument();
-    expect(feed.queryByText(/started a run|landed evidence/)).toBeNull();
-    expect(feed.queryByRole("link", { name: "Generation 41" })).toBeNull();
+    expect(row.getAllByRole("cell").at(-1)).toHaveTextContent("3");
+    expect(table.queryByText(/started a run|landed evidence/)).toBeNull();
+    expect(table.getAllByRole("link", { name: "g41" })).toHaveLength(1);
     // a refused run is red
-    const refused = feed.getByRole("link", { name: "refused" }).closest("div")!;
+    const refused = table.getByRole("link", { name: "Refused" }).closest("tr")!;
     expect(within(refused).getByRole("img", { name: /Refused at admission/ })).toBeInTheDocument();
-    expect(feed.getByText("posted to the inbox")).toBeInTheDocument();
-    expect(feed.getByText("armed → stopped")).toBeInTheDocument();
-    fireEvent.click(feed.getByRole("button", { name: "Show older activity" }));
-    expect(await feed.findByText("let due work lapse")).toBeInTheDocument();
-    expect(feed.queryByRole("button", { name: "Show older activity" })).toBeNull();
+    expect(table.getByText("Posted to the inbox")).toBeInTheDocument();
+    expect(table.getByText("Armed → stopped")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show older activity" }));
+    expect(await screen.findByText("Let due work lapse")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show older activity" })).toBeNull();
+  });
+
+  it("shows a fresh instance's activity, every row a generation, without a one-color legend", async () => {
+    renderApp("/i/inst_fixture", freshDashboard());
+    const table = within(await screen.findByRole("table", { name: "Activity" }));
+    expect(await table.findByText("Install kit security 0.3.0.")).toBeInTheDocument();
+    expect(table.getAllByRole("row")).toHaveLength(6);
+    expect(screen.queryByText("Accepted into state")).toBeNull();
+    expect(table.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Generation", "When", "Author", "Description", "Changes"]);
   });
 
   it("shows whether the knowledge is current: freshness per source, stale beliefs and evidence per kind", async () => {
     renderApp("/i/inst_fixture");
     const freshness = await panel("Freshness");
-    const sources = within(await freshness.findByRole("list", { name: "Sources" }));
+    // a table: Source, Line, Schedule, Last landed, one row per source
+    const sources = within(await freshness.findByRole("table", { name: "Sources" }));
+    expect(sources.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Source", "Line", "Schedule", "Last landed"]);
     const kev = await sources.findByRole("link", { name: "cisa.kev.catalog" });
     expect(kev).toHaveAttribute("href", `/i/inst_fixture/flow?focus=${encodeURIComponent("source:cisa.kev.catalog")}`);
-    const cell = within(kev.closest("li")!);
-    expect(cell.getByRole("link", { name: /ago$/ }).getAttribute("href")).toMatch(/^\/i\/inst_fixture\/ref\/Capture/);
-    expect(cell.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+    const row = within(kev.closest("tr")!);
+    expect(row.getByRole("link", { name: /ago$/ }).getAttribute("href")).toMatch(/^\/i\/inst_fixture\/ref\/Capture/);
+    expect(row.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", "/i/inst_fixture/lines/kev-triage");
+    const osv = within(sources.getByRole("link", { name: "osv.query" }).closest("tr")!);
+    expect(osv.getByText("By hand")).toBeInTheDocument();
+    expect(osv.getByText("Never")).toBeInTheDocument();
 
     const stale = await panel("Stale beliefs");
     expect(await stale.findByText("3 stale")).toBeInTheDocument();
@@ -129,7 +154,7 @@ describe("Dashboard", () => {
     });
     renderApp("/i/inst_fixture", fixtures);
     expect(await screen.findByRole("heading", { name: "Freshness" })).toBeInTheDocument();
-    expect(await screen.findByRole("list", { name: "Sources" })).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Sources" })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Stale beliefs" })).toBeNull());
     expect(screen.queryByRole("heading", { name: "Evidence coverage" })).toBeNull();
   });
@@ -154,7 +179,7 @@ describe("Dashboard", () => {
     expect(byKind.getByRole("link", { name: "security.assessment" })).toBeInTheDocument();
 
     fireEvent.click(later.getByRole("button", { name: "Mark seen" }));
-    expect(await later.findByText("Nothing new since g42")).toBeInTheDocument();
+    expect(await later.findByText("Nothing new")).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(SEEN_KEY)!)).toMatchObject({ generation: 42 });
   });
 
@@ -231,4 +256,188 @@ describe("Dashboard", () => {
     expect(coming.queryByText("Runs when asked")).toBeNull();
   });
 
+
+  it("does not call checks it did not observe healthy: the tile names them, the Health header counts nothing", async () => {
+    renderApp("/i/inst_fixture", freshDashboard());
+    const strip = within(await screen.findByRole("region", { name: "Needs you" }));
+    // the nine checks' quiet rows and the domains next did not observe (workspace floor is the Floor row)
+    const tile = await strip.findByRole("button", { name: /Health 5 not observed \/ not configured/ });
+    expect(tile).toHaveTextContent("Floor, Ledger mirror, Procedure catalog, Workspace sources, Workspace projections");
+    expect(within(tile).queryByText("Healthy")).toBeNull();
+    const health = await panel("Health");
+    const table = within(health.getByRole("table", { name: "Health" }));
+    expect(within(table.getByRole("row", { name: /^Floor/ })).getByText("Not observed")).toBeInTheDocument();
+    // the domains next did not observe are rows like the others, not a footnote
+    expect(within(table.getByRole("row", { name: /Workspace sources/ })).getByText("Not observed")).toBeInTheDocument();
+    expect(table.queryByRole("row", { name: /Workspace floor/ })).toBeNull();
+    expect(health.queryByText(/healthy|need a look/)).toBeNull();
+    expect(health.queryByText(/^Not observed:/)).toBeNull();
+  });
+
+  it("counts only the checks that need a look, in the tile and the Health header", async () => {
+    renderApp("/i/inst_fixture", unhealthyDashboard());
+    const strip = within(await screen.findByRole("region", { name: "Needs you" }));
+    const tile = await strip.findByRole("button", { name: /^Wrong or blocked Health 2 need a look/ });
+    expect(tile).toHaveTextContent("Provider lane, Compiler");
+    const health = await panel("Health");
+    expect(await health.findByText("2 need a look")).toBeInTheDocument();
+    const lane = within(health.getByRole("row", { name: /Provider lane/ }));
+    expect(lane.getByText("Unavailable")).toBeInTheDocument();
+    expect(lane.getByText("Reinstall the provider builds")).toBeInTheDocument();
+  });
+
+  it("shows evidence coverage with no live Claims as the empty state alone", async () => {
+    renderApp("/i/inst_fixture", freshDashboard());
+    const evidence = await panel("Evidence coverage");
+    expect(await evidence.findByText("No live Claims")).toBeInTheDocument();
+    expect(evidence.queryByText("all met")).toBeNull();
+  });
+
+  it("says each panel's emptiness once on a fresh instance", async () => {
+    localStorage.setItem(SEEN_KEY, JSON.stringify({ generation: 41, at: "2026-10-19T08:00:00Z" }));
+    renderApp("/i/inst_fixture", freshDashboard());
+    // a zero stands alone in its tile
+    const strip = within(await screen.findByRole("region", { name: "Needs you" }));
+    expect(strip.getByRole("link", { name: /Waiting for review/ })).toHaveTextContent(/^Waiting for review0$/);
+    expect(await strip.findByRole("link", { name: /Unread inbox/ })).toHaveTextContent(/^Unread inbox0$/);
+    expect(strip.getByRole("link", { name: /^Next/ })).toHaveTextContent(/^Next0$/);
+    expect(strip.getByRole("link", { name: /^Lines/ })).toHaveTextContent(/^Lines0running$/);
+    // Coming up: the fold of Lines not enabled, nothing else
+    const coming = await panel("Coming up");
+    expect(await coming.findByRole("button", { name: "2 not enabled" })).toBeInTheDocument();
+    expect(coming.queryByText(/None enabled|Lines enabled|^\d+ enabled$/)).toBeNull();
+    // Since you last looked: the empty state and the generations it covers, no zero totals
+    const since = await panel("Since you last looked");
+    expect(await since.findByText("No Claim changes")).toBeInTheDocument();
+    expect(since.getByRole("link", { name: "Ledger" })).toBeInTheDocument();
+    expect(since.queryByRole("link", { name: /New|Revised|Retired/ })).toBeNull();
+    // Stale beliefs: the zeros in its column, no "0 stale" above them
+    const stale = await panel("Stale beliefs");
+    expect(await stale.findByRole("table", { name: "Stale beliefs" })).toBeInTheDocument();
+    expect(stale.queryByText("0 stale")).toBeNull();
+  });
+
+  it("measures a source against its Line's schedule: stale past two intervals", async () => {
+    renderApp("/i/inst_fixture", populatedDashboard());
+    const freshness = await panel("Freshness");
+    const kev = within((await freshness.findByRole("link", { name: "cisa.kev.catalog" })).closest("tr")!);
+    expect(await kev.findByText("Every 1d")).toBeInTheDocument();
+    expect(kev.getByText("Stale")).toBeInTheDocument();
+  });
+
+  it("lists each kit's providers one row each: name, version, status", async () => {
+    renderApp("/i/inst_fixture");
+    const kits = await panel("Kits");
+    const providers = within(await kits.findByRole("table", { name: "security providers" }));
+    expect(providers.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Provider", "Version", "Status"]);
+    const row = within(providers.getByRole("row", { name: /security\.kev-catalog/ }));
+    expect(row.getByText("0.3.0")).toBeInTheDocument();
+    expect(row.getByText("Installed")).toBeInTheDocument();
+  });
+
+  it("summarizes in the Health tile every row the Health panel lists: healthy checks with unobserved domains are not Healthy", async () => {
+    const ok = { state: "current" };
+    const status = { floor: ok, ledger_mirror: ok, procedure_catalog: ok };
+    renderApp("/i/inst_fixture", withHealth(status, ["workspace_sources", "workspace_projections"]));
+    const health = await panel("Health");
+    expect(within(await health.findByRole("row", { name: /Workspace projections/ })).getByText("Not observed")).toBeInTheDocument();
+    const strip = within(screen.getByRole("region", { name: "Needs you" }));
+    const tile = await strip.findByRole("button", { name: /Health 2 not observed/ });
+    expect(tile).toHaveTextContent("Workspace sources, Workspace projections");
+    expect(within(tile).queryByText("Healthy")).toBeNull();
+    cleanup();
+    // with every row healthy, the tile says so
+    renderApp("/i/inst_fixture", withHealth(status, []));
+    expect(await within(await screen.findByRole("region", { name: "Needs you" })).findByText("Healthy")).toBeInTheDocument();
+  });
+
+  it("does not say Healthy once a refresh of the health read fails; the panel keeps the rows read before beside the error", async () => {
+    const ok = { state: "current" };
+    let client: QueryClient | null = null;
+    renderApp("/i/inst_fixture", withHealth({ floor: ok, ledger_mirror: ok, procedure_catalog: ok }, []), {
+      seed: (c) => {
+        client = c;
+      },
+    });
+    const strip = within(await screen.findByRole("region", { name: "Needs you" }));
+    expect(await strip.findByText("Healthy")).toBeInTheDocument();
+    server.use(http.post(`${TEST_BASE}/api/v1/:instance/next`, () => HttpResponse.json(errorEnvelope("Unavailable", "next is unavailable"), { status: 500 })));
+    await act(async () => {
+      await client!.refetchQueries();
+    });
+    const tile = await strip.findByRole("button", { name: /Health Read failed/ });
+    expect(tile).toHaveTextContent("next is unavailable");
+    expect(strip.queryByText("Healthy")).toBeNull();
+    const health = await panel("Health");
+    expect(health.getByText("next is unavailable")).toBeInTheDocument();
+    expect(health.getByRole("table", { name: "Health" })).toBeInTheDocument();
+  });
+
+  describe("Since you last looked never says No Claim changes once a read it rests on fails", () => {
+    const failing = {
+      generations: http.get(`${TEST_BASE}/api/v1/:instance/orient`, ({ request }) =>
+        new URL(request.url).searchParams.get("section") === "generations" ? HttpResponse.json(errorEnvelope("Unavailable", "generations unavailable"), { status: 500 }) : undefined,
+      ),
+      since: http.post(`${TEST_BASE}/api/v1/:instance/since`, () => HttpResponse.json(errorEnvelope("Unavailable", "since unavailable"), { status: 500 })),
+    };
+    for (const read of ["generations", "since"] as const) {
+      it(`the ${read} read`, async () => {
+        localStorage.setItem(SEEN_KEY, JSON.stringify({ generation: 41, at: "2026-10-19T08:00:00Z" }));
+        let client: QueryClient | null = null;
+        renderApp("/i/inst_fixture", freshDashboard(), {
+          seed: (c) => {
+            client = c;
+          },
+        });
+        const since = await panel("Since you last looked");
+        expect(await since.findByText("No Claim changes")).toBeInTheDocument();
+        server.use(failing[read]);
+        await act(async () => {
+          await client!.refetchQueries();
+        });
+        expect(await since.findByText(`${read} unavailable`)).toBeInTheDocument();
+        expect(since.queryByText("No Claim changes")).toBeNull();
+      });
+    }
+  });
+
+  it("makes no read per Activity row: generations a run produced name its Procedure and run from their own fields", async () => {
+    // three accepted generations, each from a run whose start and finish are not on the page, each run from its own Line
+    const events = [1, 2, 3].map((i) => ({
+      event: "generation_accepted",
+      at: "2026-10-19T11:00:00Z",
+      sequence: 43 - i,
+      git_oid: String(i).repeat(40),
+      proposal: "sha256:" + String(i).repeat(64),
+      proposer: "maintainer",
+      because: `Proposed by Procedure demo.read run RUN-${String(i).repeat(32)} terminal write\n\n1 item; each item's reason is recorded with the Claim or Subject it explains.`,
+      members: 1,
+    }));
+    const requests: { path: string; body: unknown }[] = [];
+    const listen = async ({ request }: { request: Request }) => {
+      requests.push({ path: new URL(request.url).pathname, body: request.method === "POST" ? await request.clone().json() : null });
+    };
+    server.events.on("request:start", listen);
+    try {
+      renderApp("/i/inst_fixture", freshDashboard(), {
+        handlers: [
+          http.get(`${TEST_BASE}/api/v1/:instance/orient`, ({ request }) =>
+            new URL(request.url).searchParams.get("section") === "activity" ? HttpResponse.json({ coordinate: COORDINATE, activity: events, next_cursor: null }) : undefined,
+          ),
+        ],
+      });
+      const table = within(await screen.findByRole("table", { name: "Activity" }));
+      const row = within((await table.findByRole("link", { name: "g42" })).closest("tr")!);
+      await screen.findByRole("table", { name: "Stale beliefs" });
+      await waitFor(() => expect(document.querySelectorAll(".animate-pulse")).toHaveLength(0));
+      // no run card, no Line history: the page's reads do not grow with its rows
+      expect(JSON.stringify(requests)).not.toContain("ProcedureRun:RUN-");
+      expect(requests.filter((r) => r.path.endsWith("/get") && JSON.stringify(r.body).includes('"history"'))).toEqual([]);
+      expect(row.getByText("demo.read")).toBeInTheDocument();
+      expect(row.getByRole("link", { name: "111111…" })).toHaveAttribute("href", `/i/inst_fixture/runs/RUN-${"1".repeat(32)}`);
+      expect(row.queryByText("maintainer")).toBeNull();
+    } finally {
+      server.events.removeListener("request:start", listen);
+    }
+  });
 });

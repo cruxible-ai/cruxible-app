@@ -1,16 +1,18 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
-import type { OrientActivity } from "../api/schemas.ts";
+import type { OrientActivity, Schemas } from "../api/schemas.ts";
 import { activityRows, type ActivityRow } from "./activity.ts";
 import { proposalRun } from "./change-sets.ts";
 
 /**
  * The Dashboard's compact activity: a Line run's events (its start, the
  * Captures it landed, the generation its proposal was accepted as) fold into
- * one row; every other event keeps its own row, worded as the activity feed
- * words it (lib/activity), definition proposals included.
+ * one row; a generation no loaded run produced keeps its own row, as the
+ * Ledger reads it (definition proposals included); every other event keeps
+ * its own row, worded as the activity feed words it (lib/activity).
  */
 
 type RunFinished = Extract<OrientActivity, { event: "run_finished" }>;
+type GenerationAccepted = Extract<OrientActivity, { event: "generation_accepted" }>;
 
 export interface RunRow {
   kind: "run";
@@ -30,7 +32,27 @@ export interface RunRow {
   unavailable: boolean;
 }
 
-export type CompactRow = RunRow | { kind: "event"; key: string; row: ActivityRow };
+export interface GenerationRow {
+  kind: "generation";
+  key: string;
+  at: string;
+  /** The event as the Ledger's generation row, so the two share their cells. */
+  generation: Schemas["OrientGeneration"];
+}
+
+export type CompactRow = RunRow | GenerationRow | { kind: "event"; key: string; row: ActivityRow };
+
+const asGeneration = (e: GenerationAccepted): Schemas["OrientGeneration"] => ({
+  sequence: e.sequence,
+  git_oid: e.git_oid,
+  accepted_at: e.at,
+  proposal: e.proposal ?? null,
+  proposer: e.proposer ?? null,
+  approvals: e.approvals ?? [],
+  because: e.because ?? null,
+  because_truncated: e.because_truncated ?? false,
+  members: e.members ?? 0,
+});
 
 const bare = (value: string, prefix: string) => value.replace(new RegExp(`^${prefix}:`), "");
 
@@ -108,6 +130,11 @@ export function compactRows(events: readonly OrientActivity[], label: (line: str
           : e.event === "generation_accepted"
             ? generationRun.get(e.sequence)
             : undefined;
+    if (run === undefined && e.event === "generation_accepted") {
+      flush();
+      out.push({ kind: "generation", key: `generation:${e.sequence}`, at: e.at, generation: asGeneration(e) });
+      return;
+    }
     if (run === undefined) {
       if (pending.length === 0) pendingStart = i;
       pending.push(e);

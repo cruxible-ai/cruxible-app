@@ -8,7 +8,7 @@ import { InfoButton } from "@/components/InfoButton";
 import { Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Pager } from "@/screens/ProposalsScreen";
-import { INBOX_LIST_PAGE, INBOX_STATUSES, totalUnread, type InboxFilterStatus } from "@/lib/inbox";
+import { INBOX_LIST_PAGE, INBOX_STATUSES, inboxCount, totalUnread, type InboxFilterStatus } from "@/lib/inbox";
 import { sharedPrefix } from "@/lib/evidence-flow";
 import { lineName } from "@/lib/lines";
 import { term } from "@/lib/vocabulary";
@@ -29,8 +29,10 @@ const EMPTY: Record<InboxFilterStatus | "all", string> = {
  * status on the daemon. A row leads with the payload fields that name
  * Subjects (linked, their current fields on hover), then the other fields
  * that tell items apart; a field with one value on every row, or one built
- * from other fields, is said once or left to the opened item. Items are in
- * the order the daemon serves them (most recently posted first).
+ * from other fields, is said once or left to the opened item. Rows are
+ * grouped under their item Contract (its name, linked, and its description as
+ * written); items are in the order the daemon serves them (most recently
+ * posted first), a group where its first item falls.
  */
 export function InboxScreen() {
   usePageTitle("Inbox");
@@ -123,9 +125,11 @@ export function InboxScreen() {
               Items <InfoButton label="How items are paged">{INBOX_TERMS.cap}</InfoButton>
             </span>
           }
+          meta={entries.length > 0 ? <span>{inboxCount(first, entries.length, nextCursor !== null)}</span> : undefined}
         >
           {entries.length === 0 ? (
-            <EmptyState>{EMPTY[status ?? "all"]}</EmptyState>
+            // a failed refresh shows its error above, never the empty state
+            !inbox.error && <EmptyState>{EMPTY[status ?? "all"]}</EmptyState>
           ) : (
             <InboxTable
               key={filterKey}
@@ -133,7 +137,7 @@ export function InboxScreen() {
               line={line}
               linePrefix={linePrefix}
               complete={index === 0 && !nextCursor}
-              count={`Items ${first + 1}–${first + entries.length}${nextCursor ? "" : ` of ${first + entries.length}`}`}
+              groupByContract
             />
           )}
         </Panel>

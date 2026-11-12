@@ -78,7 +78,7 @@ describe("recorded reference world", () => {
     const strip = within(await m.findByRole("region", { name: "Needs you" }));
     expect(await strip.findByRole("link", { name: /Next 7/ })).toBeInTheDocument();
     expect(await strip.findByRole("link", { name: /Waiting for review 2/ })).toBeInTheDocument();
-    expect(await m.findByText("None enabled")).toBeInTheDocument();
+    expect(await panel(m, "Coming up").findByRole("button", { name: /^\d+ not enabled$/ })).toBeInTheDocument();
     expect(await panel(m, "Kits").findByText("None")).toBeInTheDocument();
   });
 
@@ -155,7 +155,8 @@ describe("recorded reference world", () => {
     renderApp(`${I}/ledger`, RECORDED);
     const m = await main();
     expect(await m.findByRole("link", { name: "g22" })).toHaveAttribute("href", `${I}?at=22`);
-    expect(m.getByText(/on this page/)).toBeInTheDocument();
+    // one page: the count beside the title, no "on this page"
+    expect(m.getByRole("heading", { name: "Generations" }).closest("header")).toHaveTextContent(/^Generations\d+$/);
   });
 
   it("next: one row per item, its type first", async () => {
@@ -326,7 +327,7 @@ describe("recorded reference world", () => {
 
   it("proposals and a review", async () => {
     renderApp(`${I}/proposals?status=settled`, RECORDED);
-    expect(await screen.findByText(/on this page/)).toBeInTheDocument();
+    expect((await screen.findByRole("table", { name: "Proposals" })).closest("section")!.querySelector("header")).toHaveTextContent(/^Settled\d+$/);
     cleanup();
     renderApp(`${I}/p/${encodeURIComponent(REVIEWED)}`, RECORDED);
     const m = await main();

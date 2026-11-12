@@ -65,10 +65,11 @@ export function SinceLastLooked({ head, pinned }: { head: number; pinned: boolea
         ) : undefined
       }
     >
-      {!behind && <EmptyState>Nothing new since g{mark.generation}</EmptyState>}
+      {!behind && <EmptyState>Nothing new</EmptyState>}
       {behind && (generations.isPending || since.isPending) && !(generations.error ?? since.error) && <LoadState />}
       {behind && (generations.error ?? since.error) && <LoadState error={generations.error ?? since.error} />}
-      {behind && summary && lower !== null && (
+      {/* a failed refresh of either read it rests on (the generations that bound it, the since read) never says "No Claim changes" */}
+      {behind && summary && lower !== null && !((generations.error ?? since.error) && summary.created + summary.revised + summary.retired === 0) && (
         <Changes summary={summary} from={lower} seen={mark.generation} head={head} truncated={since.data?.truncated ?? false} />
       )}
     </Panel>
@@ -122,26 +123,33 @@ function Changes({
     [instanceId, link],
   );
   const none = summary.created + summary.revised + summary.retired === 0;
+  const range = (
+    <span className="t-meta">
+      g{from + 1}
+      {from + 1 < head && `–g${head}`}
+      {from > seen && " (window start)"} · {truncated && "first rows only · "}
+      <Link to={ledger} className="hover:text-zinc-200 hover:underline">
+        Ledger
+      </Link>
+    </span>
+  );
+  // No change says so once: the empty state and the generations it covers, not three zeros above it.
+  if (none)
+    return (
+      <div className="flex flex-wrap items-baseline gap-x-3">
+        <EmptyState>No Claim changes</EmptyState>
+        {range}
+      </div>
+    );
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[13px]">
         <Total change="create" word="New" value={summary.created} to={ledger} />
         <Total change="revise" word="Revised" value={summary.revised} to={ledger} />
         <Total change="retire" word="Retired" value={summary.retired} to={ledger} />
-        <span className="t-meta">
-          g{from + 1}
-          {from + 1 < head && `–g${head}`}
-          {from > seen && " (window start)"} · {truncated && "first rows only · "}
-          <Link to={ledger} className="hover:text-zinc-200 hover:underline">
-            Ledger
-          </Link>
-        </span>
+        {range}
       </div>
-      {none ? (
-        <EmptyState>No Claim changes</EmptyState>
-      ) : (
-        <DataTable rows={summary.byKind} columns={columns} rowKey={(row) => row.kind || "-"} label="Changes by kind" urlKey="since" toolbar={false} maxHeight="none" />
-      )}
+      <DataTable rows={summary.byKind} columns={columns} rowKey={(row) => row.kind || "-"} label="Changes by kind" urlKey="since" toolbar={false} maxHeight="none" />
     </div>
   );
 }
