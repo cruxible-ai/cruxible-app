@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { renderApp } from "@/test/render";
+import { http } from "msw";
+import { renderApp, TEST_BASE } from "@/test/render";
 import { NODE_WIDTH } from "@/components/graph/ProcedureGraph";
 import { TEMPLATE_LINE, TEMPLATE_WORLD } from "@/fixtures/template";
 
@@ -128,5 +129,34 @@ describe("Procedure graph", () => {
     await waitFor(() => expect(node("pages")).not.toBeNull(), SLOW);
     expect(node("$input")).toBeNull();
     expect(within(node("pages")).getByTitle("url")).toBeInTheDocument();
+  });
+
+  it("shows what a read's Query is as rows in its node once the Query's card is read, and the node before it is", async () => {
+    // Hold the Query's card until the node has drawn without it.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const hold = http.post(`${TEST_BASE}/api/v1/:instance/get-batch`, async ({ request }) => {
+      if ((await request.clone().text()).includes("QueryDefinition:security.kev_exposure")) await held;
+      return undefined;
+    });
+    renderApp("/i/inst_fixture/ref/Procedure%3Asecurity.kev-triage", undefined, { handlers: [hold] });
+    await graph();
+    await waitFor(() => expect(node("watched")).not.toBeNull(), SLOW);
+    const watched = () => within(node("watched"));
+    // not yet read: the Query's name (a link to its page) and nothing else
+    expect(watched().getByText("kev_exposure").closest("a")).toHaveAttribute("href", `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`);
+    expect(watched().queryByText("Returns")).toBeNull();
+    expect(watched().queryByText("From")).toBeNull();
+
+    release();
+    await waitFor(() => expect(watched().getByText("Returns")).toBeInTheDocument(), SLOW);
+    // its description as written (clamped, all of it on hover), the kind its rows start from, its parameters, what it returns
+    const description = watched().getByText("Assessments whose vulnerability is KEV-listed and whose release is shipped.");
+    expect(description).toHaveClass("line-clamp-2");
+    expect(description).toHaveAttribute("title", "Assessments whose vulnerability is KEV-listed and whose release is shipped.");
+    expect(watched().getByText("From").nextElementSibling).toHaveTextContent("vulnerability");
+    expect(watched().getByTitle("From security.vulnerability")).toBeInTheDocument();
+    expect(watched().getByText("3 fields").closest("[title]")).toHaveAttribute("title", "cve_id, release, status");
+    expect(watched().getByText("kev_exposure").closest("a")).not.toBeNull();
   });
 });

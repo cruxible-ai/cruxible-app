@@ -81,6 +81,10 @@ export function resolveValue(value: unknown, parameters: Record<string, unknown>
 /** A Query's rows: the kind they are one per, the fields a reader cares about, the row Contract. */
 export interface QueryShape {
   kind: string | null;
+  /** The Subject kinds its rows start from (each entry binding's kind). */
+  kinds: string[];
+  /** The parameters it declares, by name. */
+  params: string[];
   /** Row fields, the Subject's own id and kind columns left out. */
   fields: string[];
   /** A field's type, from the row Contract when read. */
@@ -103,8 +107,11 @@ export function queryShape(
     ? definition.fields.flatMap((f) => Object.keys(record(f) ?? {}))
     : Object.keys(record(definition?.fields) ?? {});
   const names = rowContract?.fields?.map((f) => f.name) ?? declared;
+  const params = Array.isArray(query.params) ? query.params.map((p) => p.name) : Object.keys(record(definition?.params) ?? {});
   return {
     kind: kinds.length === 1 ? kinds[0]! : null,
+    kinds: [...new Set(kinds.flatMap((v) => /^\s*([A-Za-z_][\w.-]*)/.exec(v)?.[1] ?? []))],
+    params,
     fields: names.filter((name) => !SUBJECT_COLUMNS.has(name)),
     types: Object.fromEntries((rowContract?.fields ?? []).map((f) => [f.name, f.type])),
     description: str(query.description) ?? str(definition?.description),

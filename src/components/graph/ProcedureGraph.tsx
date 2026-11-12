@@ -10,10 +10,10 @@ import { CONTROL_CLASS, GraphCanvas, type GraphSelection } from "@/components/gr
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { parseRef, refRoute } from "@/lib/cruxible-ref";
-import { type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
+import { templateRef, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
-import { flowWords, partsText, queryShape, stepBrief, stepSections, summaryWords, type DetailSection, type Part, type QueryShape } from "@/lib/step-words";
+import { flowWords, partsText, queryShape, shortName, stepBrief, stepSections, summaryWords, type DetailSection, type Part, type QueryShape } from "@/lib/step-words";
 import { FieldList } from "@/components/FieldList";
 import { PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
 import { InfoButton } from "@/components/InfoButton";
@@ -76,6 +76,10 @@ interface NodeLine {
   code?: boolean;
   /** A parameter or input row: the parameter's name, shown before its value. */
   param?: string;
+  /** A labelled row: the label (sans, dim) before the value. */
+  label?: string;
+  /** Rows the line may take (text wraps and clamps; 1 when unset). */
+  span?: 1 | 2;
   signal?: Signal | undefined;
 }
 
@@ -105,6 +109,8 @@ const ROW_HEIGHT = 16;
 const BODY_PAD = 10;
 const MARK_HEIGHT = 25;
 const BORDER = 2;
+/** About as many characters of 11px sans as fit on one row of a node: a longer description takes two. */
+const ROW_CHARS = 40;
 /** The room the canvas keeps around the graph (px at any zoom): fit-on-load fits inside it, and panning never pushes a node past it. */
 const PAD = { x: 48, y: 56 };
 
@@ -189,6 +195,13 @@ function NodeText({ line }: { line: NodeLine }) {
     line.text
   );
   const title = line.title ?? (line.param !== undefined ? (line.text ? `${line.param} = ${line.text}` : line.param) : line.text);
+  if (line.span === 2) {
+    return (
+      <div className={`line-clamp-2 h-8 min-w-0 text-[11px] leading-4 ${tone}`} title={title}>
+        {body}
+      </div>
+    );
+  }
   return (
     <div className={`flex h-4 min-w-0 items-center gap-1.5 text-[11px] leading-4 ${tone}`} title={title}>
       {line.signal && <SignalDot signal={line.signal} title={title} />}
@@ -198,6 +211,7 @@ function NodeText({ line }: { line: NodeLine }) {
           <code className="max-w-[45%] shrink-0 truncate font-mono text-[10.5px] text-zinc-500">{line.param}</code>
         </>
       )}
+      {line.label !== undefined && <span className="shrink-0 text-zinc-500">{line.label}</span>}
       {line.text && <span className={`min-w-0 truncate ${line.code ? "font-mono text-[10.5px]" : ""}`}>{body}</span>}
     </div>
   );
@@ -277,9 +291,42 @@ function captionOn(text: string, points: readonly Point[], taken: Box[]): Point 
   return segments[0] ? along(segments[0], 0.5) : null;
 }
 
+/** A value as a row shows it: text as written, a step reference as `step.path`, a parameter as the Line's value (else `$params.name`). */
+function boundText(value: unknown, parameters: Readonly<Record<string, unknown>>, bound: Set<string>): string {
+  if (value === undefined) return "";
+  const ref = templateRef(value);
+  if (ref?.$ref === "step" && ref.step) return [ref.step, ...(ref.path ?? [])].join(".");
+  if ((ref?.$ref === "param" || ref?.$ref === "input") && ref.path?.length) {
+    const key = ref.path.join(".");
+    bound.add(key);
+    const given = ref.path.length === 1 && Object.hasOwn(parameters, key) ? parameters[key] : undefined;
+    return given === undefined ? `$params.${key}` : typeof given === "string" ? given : JSON.stringify(given);
+  }
+  if (ref) return ref.$ref;
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/**
+ * A read's Query, as rows: its description as written (two rows at most, all
+ * of it on hover), the kinds its rows start from, each parameter with the
+ * value the step binds, and how many fields it returns (their names on
+ * hover). None until the Query's card is read.
+ */
+function queryRows(shape: QueryShape | undefined, params: Readonly<Record<string, unknown>> | undefined, parameters: Readonly<Record<string, unknown>>, bound: Set<string>): NodeLine[] {
+  if (!shape) return [];
+  const rows: NodeLine[] = [];
+  if (shape.description) rows.push({ text: shape.description, span: shape.description.length > ROW_CHARS ? 2 : 1, tone: "plain" });
+  if (shape.kinds.length) rows.push({ label: "From", text: shape.kinds.map(shortName).join(", "), title: `From ${shape.kinds.join(", ")}`, code: true });
+  for (const name of new Set([...shape.params, ...Object.keys(params ?? {})])) rows.push({ param: name, text: boundText(params?.[name], parameters, bound), code: true });
+  if (shape.fields.length) {
+    rows.push({ label: "Returns", text: `${shape.fields.length} ${shape.fields.length === 1 ? "field" : "fields"}`, title: shape.fields.join(", ") });
+  }
+  return rows;
+}
+
 /** A node's height: the header, then one row per line (the brief, parameters, lines) and the mark. */
 function heightOf(d: NodeDisplay): number {
-  const rows = (d.brief ? 1 : 0) + d.lines.length;
+  const rows = (d.brief ? 1 : 0) + d.lines.reduce((n, line) => n + (line.span ?? 1), 0);
   const body = rows > 0 || d.mark ? BODY_PAD + rows * ROW_HEIGHT + (d.mark ? MARK_HEIGHT : 0) : 0;
   return HEAD_HEIGHT + body + BORDER;
 }
@@ -441,6 +488,8 @@ export function ProcedureGraph({
       let brief: NodeDisplay["brief"] = null;
       const v = node.view;
       const stage = node.index !== null ? stageOf(spec, node.index, grades) : null;
+      // Input fields a read's query parameters bind show on those parameters' rows, not again below.
+      const bound = new Set<string>();
       if (v && node.index !== null) {
         const parts = stepBrief(spec, node.index, ctx);
         if (parts.length) {
@@ -449,6 +498,8 @@ export function ProcedureGraph({
           const via = provider ? `\nslot ${v.slot} → ${provider}${mark?.provider ? " (pinned by this run)" : ""}` : "";
           brief = { parts, title: `${partsText(parts)}${via}`, routes: parts.map((p) => partRoute(p.ref)) };
         }
+        const step = spec.steps[node.index];
+        if (step && "read" in step && step.query) lines.push(...queryRows(queries.get(step.query), step.params, parameters, bound));
       } else if (node.kind === "halt") {
         if (node.detail[0]) brief = { parts: [{ text: node.detail[0], code: true }], title: `halt ${node.detail[0]}`, routes: [null] };
       } else if (node.kind === "returns") {
@@ -456,7 +507,7 @@ export function ProcedureGraph({
       }
       const read = inputs.get(node.id);
       if (read) {
-        for (const field of read.length > 0 ? read : ["input"]) {
+        for (const field of read.length > 0 ? read.filter((f) => !bound.has(f)) : ["input"]) {
           const value = Object.hasOwn(parameters, field) ? parameters[field] : undefined;
           lines.push({ param: field, text: value === undefined ? "" : typeof value === "string" ? value : JSON.stringify(value), code: true });
         }
@@ -485,7 +536,7 @@ export function ProcedureGraph({
       });
     }
     return out;
-  }, [model, spec, line, definition, run, routeOf, contractRoute, ctx, grades]);
+  }, [model, spec, line, definition, run, contractRoute, routeOf, ctx, grades, queries]);
 
   // The edges: the definition's (the input's are rows in the steps), plus a landing Trigger into the step that reads the landing.
   const edges = useMemo(() => {
