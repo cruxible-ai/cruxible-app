@@ -174,8 +174,9 @@ export function ContractScreen() {
               key: row.label,
               label: row.label,
               value: (
-                <span className="inline-flex items-center gap-1.5 text-zinc-200" title={row.raw}>
-                  {row.words}
+                <span className="inline-flex items-center gap-1.5 text-zinc-200">
+                  {/* the stored value on the words' hover; the ⓘ has its own */}
+                  <span title={row.raw}>{row.words}</span>
                   {row.info && <InfoButton label={`What ${row.label.toLowerCase()} means`}>{row.info}</InfoButton>}
                 </span>
               ),

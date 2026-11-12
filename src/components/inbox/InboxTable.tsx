@@ -404,7 +404,8 @@ function FieldValue({ value, subject, clip = false }: { value: unknown; subject:
   if (value === null || value === undefined || value === "") return <span className="text-zinc-600">—</span>;
   if (typeof value === "string") {
     const text = clip ? (
-      <span className="block max-w-[18rem] truncate" title={value}>
+      // a Subject value's hover card names it in full: no native title over it
+      <span className="block max-w-[18rem] truncate" title={subject ? undefined : value}>
         {value}
       </span>
     ) : (
