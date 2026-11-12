@@ -670,31 +670,42 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     ...rows,
   ];
   const height = Math.max(...placed.map((p) => p.y + p.h), top) + 8;
-  // Links into a Line run in lanes left of the Line column: the shortest nearest it, overlapping spans apart.
+  // Links into a Line run in lanes left of the Line column. The links out of one source (a Line, or Entered directly)
+  // share one lane, a trunk with a short branch into each reader; sources whose spans overlap take lanes apart,
+  // the shortest nearest the column.
   const lanes = new Map<string, number>();
   const at = new Map(placed.map((p) => [p.id, p] as const));
-  const spans = model.edges
-    .filter(isFeedLink)
-    .flatMap((e) => {
-      const a = at.get(e.from);
-      const b = at.get(e.to);
-      if (!a || !b) return [];
-      return [{ key: edgeKey(e), lo: Math.min(a.y, b.y), hi: Math.max(a.y + a.h, b.y + b.h) }];
-    })
-    .sort((a, b) => a.hi - a.lo - (b.hi - b.lo) || a.lo - b.lo || byText(a.key, b.key));
-  const taken: { lo: number; hi: number; lane: number }[] = [];
-  for (const span of spans) {
-    let lane = 0;
-    while (taken.some((t) => t.lane === lane && t.lo < span.hi && span.lo < t.hi)) lane += 1;
-    taken.push({ ...span, lane });
-    lanes.set(span.key, lane);
+  const trunks = new Map<string, { from: string; keys: string[]; lo: number; hi: number }>();
+  for (const e of model.edges.filter(isFeedLink)) {
+    const a = at.get(e.from);
+    const b = at.get(e.to);
+    if (!a || !b) continue;
+    const trunk = trunks.get(e.from) ?? { from: e.from, keys: [], lo: Infinity, hi: -Infinity };
+    trunk.keys.push(edgeKey(e));
+    trunk.lo = Math.min(trunk.lo, a.y, b.y);
+    trunk.hi = Math.max(trunk.hi, a.y + a.h, b.y + b.h);
+    trunks.set(e.from, trunk);
   }
+  const taken: { lo: number; hi: number; lane: number }[] = [];
+  for (const trunk of [...trunks.values()].sort((a, b) => a.hi - a.lo - (b.hi - b.lo) || a.lo - b.lo || byText(a.from, b.from))) {
+    let lane = 0;
+    while (taken.some((t) => t.lane === lane && t.lo < trunk.hi && trunk.lo < t.hi)) lane += 1;
+    taken.push({ lo: trunk.lo, hi: trunk.hi, lane });
+    for (const key of trunk.keys) lanes.set(key, lane);
+  }
+  // The lanes need room between the cards on the left and the Line column: widen that gutter when they would run
+  // behind those cards or off the canvas (the Line column and everything right of it move right).
+  const lineX = columns.line.x;
+  const leftEdge = Math.max(0, ...placed.filter((p) => p.x < lineX).map((p) => p.x + p.w));
+  const needed = lanes.size ? LANE_GAP + Math.max(...lanes.values()) * LANE_STEP + LANE_CLEAR : 0;
+  const shift = Math.max(0, needed - (lineX - leftEdge));
+  const shifted = shift ? placed.map((p) => (p.x >= lineX ? { ...p, x: p.x + shift } : p)) : placed;
   return {
-    placed,
-    byId: new Map(placed.map((p) => [p.id, p] as const)),
+    placed: shifted,
+    byId: new Map(shifted.map((p) => [p.id, p] as const)),
     edges: model.edges,
     lanes,
-    width: columns.produces.x + columns.produces.w,
+    width: columns.produces.x + columns.produces.w + shift,
     height,
   };
 }
@@ -704,6 +715,8 @@ const LINK_INSET = 18;
 /** The first lane's distance left of the Line column, and the step between lanes. */
 const LANE_GAP = 12;
 const LANE_STEP = 7;
+/** Room the outermost lane keeps from the cards on its left. */
+const LANE_CLEAR = 10;
 
 /**
  * A link into a Line, along its lane left of the Line column: out of a
