@@ -317,7 +317,11 @@ function Tile({
           </>
         )}
       </div>
-      {detail && <div className="mt-1 truncate text-[12px] text-zinc-500">{detail}</div>}
+      {detail && (
+        <div className="mt-1 truncate text-[12px] text-zinc-500" title={typeof detail === "string" ? detail : undefined}>
+          {detail}
+        </div>
+      )}
     </>
   );
   const className = `block border ${ring} bg-zinc-900/25 px-3.5 py-2.5 hover:bg-zinc-900/60`;

@@ -78,7 +78,8 @@ export function StaleBeliefsPanel() {
     <Panel
       title="Stale beliefs"
       description="Live Claims past their ClaimType's stale_after, per kind."
-      meta={rows ? <span>{total.toLocaleString()} stale</span> : undefined}
+      // a zero total stands alone in the column below
+      meta={rows && total > 0 ? <span>{total.toLocaleString()} stale</span> : undefined}
     >
       {claimTypes.isPending && <LoadState />}
       {claimTypes.error && <LoadState error={claimTypes.error} />}
