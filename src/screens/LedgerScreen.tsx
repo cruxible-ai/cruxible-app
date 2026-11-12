@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useGenerations, useInstanceId } from "@/api/hooks";
 import type { Schemas } from "@/api/schemas";
@@ -10,7 +10,7 @@ import { LoadState, Panel } from "@/components/Panel";
 import { ProposalPeek } from "@/components/ProposalList";
 import { RefLink } from "@/components/RefLink";
 import { withAt } from "@/lib/at";
-import { proposalRun, proposalWords } from "@/lib/change-sets";
+import { proposalRun, proposalWords, type Words } from "@/lib/change-sets";
 import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Pager } from "./ProposalsScreen";
@@ -34,6 +34,13 @@ export function LedgerScreen() {
   const instanceId = useInstanceId();
   usePageTitle("Ledger");
   const rows = page.data?.generations ?? [];
+  // A row's rationale as its expanded change set read it, when that read carries words past the row's cut:
+  // the Description cell shows these, so the rationale reads once.
+  const [longer, setLonger] = useState<ReadonlyMap<number, Words>>(new Map());
+  const onLongerWords = useCallback(
+    (sequence: number) => (words: Words) => setLonger((current) => new Map(current).set(sequence, words)),
+    [],
+  );
   const columns = useMemo<Column<Generation>[]>(
     () => [
       {
@@ -68,7 +75,8 @@ export function LedgerScreen() {
         header: "Description",
         title: "The proposal's own words",
         cell: (row) => {
-          const words = proposalWords(row.because, row.because_truncated ?? false);
+          const read = longer.get(row.sequence);
+          const words = read ? proposalWords(read.text, read.truncated) : proposalWords(row.because, row.because_truncated ?? false);
           return words ? <LongText text={words} lines={2} className="text-zinc-200" /> : <span className="text-zinc-600">—</span>;
         },
       },
@@ -96,7 +104,7 @@ export function LedgerScreen() {
         cell: (row) => (row.proposal ? <RefLink value={row.proposal} short className="text-[12px]" /> : <span className="text-zinc-600">—</span>),
       },
     ],
-    [instanceId],
+    [instanceId, longer],
   );
   return (
     <Page>
@@ -123,7 +131,13 @@ export function LedgerScreen() {
             label="Generations"
             urlKey="ledger"
             canExpand={(row) => Boolean(row.proposal)}
-            expanded={(row) => (row.proposal ? <ProposalPeek id={row.proposal} indent="ml-0" skipWords={row.because} origin={false} /> : null)}
+            expanded={(row) => (row.proposal ? <ProposalPeek
+                  id={row.proposal}
+                  indent="ml-0"
+                  rowWords={row.because ? { text: row.because, truncated: row.because_truncated ?? false } : null}
+                  onLongerWords={onLongerWords(row.sequence)}
+                  origin={false}
+                /> : null)}
             empty="None"
           />
         </Panel>
