@@ -477,7 +477,7 @@ export interface FlowLayout {
   placed: Placed[];
   byId: ReadonlyMap<string, Placed>;
   edges: FlowEdge[];
-  /** Line → Line links: the lane each runs in, left of the Line column (0 nearest it), by edge key. */
+  /** Links into a Line (from a Line, or from Entered directly): the lane each runs in, left of the Line column (0 nearest it), by edge key. */
   lanes: ReadonlyMap<string, number>;
   width: number;
   height: number;
@@ -486,6 +486,9 @@ export interface FlowLayout {
 /** A dependency link between two Lines (both ends in the Line column). */
 export const isLineLink = (edge: FlowEdge) =>
   Boolean(edge.dependencies || edge.landing) && edge.from.startsWith("line:") && edge.to.startsWith("line:");
+
+/** A link that feeds a Line: what its Queries read (from a Line, or Entered directly), or a derived landing that starts it. */
+export const isFeedLink = (edge: FlowEdge) => Boolean(edge.dependencies || edge.landing);
 
 /** Column boxes: sources, Lines, what they produce; the wider gutter carries the Line fan-out. */
 export const COLUMNS = [
@@ -667,13 +670,16 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     ...rows,
   ];
   const height = Math.max(...placed.map((p) => p.y + p.h), top) + 8;
-  // Line → Line links run in lanes left of the Line column: the shortest nearest it, overlapping spans apart.
+  // Links into a Line run in lanes left of the Line column: the shortest nearest it, overlapping spans apart.
   const lanes = new Map<string, number>();
-  const spans = lineLinks
-    .map((e) => {
-      const a = lineY.get(e.from)!;
-      const b = lineY.get(e.to)!;
-      return { key: edgeKey(e), lo: Math.min(a, b), hi: Math.max(a, b) + HEIGHT.line };
+  const at = new Map(placed.map((p) => [p.id, p] as const));
+  const spans = model.edges
+    .filter(isFeedLink)
+    .flatMap((e) => {
+      const a = at.get(e.from);
+      const b = at.get(e.to);
+      if (!a || !b) return [];
+      return [{ key: edgeKey(e), lo: Math.min(a.y, b.y), hi: Math.max(a.y + a.h, b.y + b.h) }];
     })
     .sort((a, b) => a.hi - a.lo - (b.hi - b.lo) || a.lo - b.lo || byText(a.key, b.key));
   const taken: { lo: number; hi: number; lane: number }[] = [];
@@ -700,20 +706,23 @@ const LANE_GAP = 12;
 const LANE_STEP = 7;
 
 /**
- * A Line → Line link's path: out of the producer's left edge near its bottom
- * (its top when it sits below), along its lane left of the column, and into
- * the reader's left edge near its top (or bottom): clear of the source → Line
- * edges, which meet the cards at mid-height, and of the fan-out on the right.
+ * A link into a Line, along its lane left of the Line column: out of a
+ * producing Line's left edge near its bottom (its top when it sits below), or
+ * out of Entered directly's right edge at mid-height; down (or up) the lane;
+ * into the reader's left edge near its top (or bottom). Clear of the source →
+ * Line edges, which meet the cards at mid-height, and of the fan-out on the right.
  */
 export function linkPath(from: Placed, to: Placed, lane: number): string {
-  const x = from.x;
-  const laneX = x - LANE_GAP - lane * LANE_STEP;
+  const laneX = to.x - LANE_GAP - lane * LANE_STEP;
+  const inColumn = from.x >= to.x;
   const down = from.y < to.y;
-  const y1 = down ? from.y + from.h - LINK_INSET : from.y + LINK_INSET;
+  const x1 = inColumn ? from.x : from.x + from.w;
+  const y1 = inColumn ? (down ? from.y + from.h - LINK_INSET : from.y + LINK_INSET) : from.y + from.h / 2;
   const y2 = down ? to.y + LINK_INSET : to.y + to.h - LINK_INSET;
   const r = Math.min(5, Math.abs(y2 - y1) / 2);
   const s = down ? 1 : -1;
-  return `M${x},${y1} H${laneX + r} Q${laneX},${y1} ${laneX},${y1 + s * r} V${y2 - s * r} Q${laneX},${y2} ${laneX + r},${y2} H${to.x}`;
+  const into = inColumn ? laneX + r : laneX - r;
+  return `M${x1},${y1} H${into} Q${laneX},${y1} ${laneX},${y1 + s * r} V${y2 - s * r} Q${laneX},${y2} ${laneX + r},${y2} H${to.x}`;
 }
 
 /** An edge's path between two placed nodes (right edge to left edge, a horizontal S-curve). */
@@ -722,16 +731,6 @@ export function edgePath(from: Placed, to: Placed): string {
   const y1 = from.y + from.h / 2;
   const x2 = to.x;
   const y2 = to.y + to.h / 2;
-  const dx = (x2 - x1) / 2;
-  return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
-}
-
-/** A link from Entered directly into a Line: an S-curve into the card's left edge near its bottom, clear of the source edges at mid-height. */
-export function directLinkPath(from: Placed, to: Placed): string {
-  const x1 = from.x + from.w;
-  const y1 = from.y + from.h / 2;
-  const x2 = to.x;
-  const y2 = to.y + to.h - LINK_INSET;
   const dx = (x2 - x1) / 2;
   return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
 }

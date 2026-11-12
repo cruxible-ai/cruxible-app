@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
+import { TEMPLATE_WORLD } from "@/fixtures/template";
+import { AUTHORITY_COLOR } from "@/lib/palette";
 
 afterEach(cleanup);
 
@@ -21,10 +23,11 @@ describe("Evidence flow", () => {
     expect(flow.getAllByText("Source").length).toBeGreaterThan(1);
     expect(flow.getAllByText("Line").length).toBeGreaterThan(1);
     expect(flow.getByText("What it produces")).toBeInTheDocument();
-    // a source is named by where it comes from (the host its fetch names); its logical source id and who fetches it are on hover
-    const source = flow.getByText("example.invalid").closest("[title]") as HTMLElement;
-    expect(source).toHaveAttribute("title", expect.stringContaining("Logical source cisa.kev.catalog"));
-    expect(source).toHaveAttribute("title", expect.stringContaining("Fetched when an agent runs security.kev-acquire"));
+    // a source is named by where it comes from (the host its fetch names); its logical source id and who fetches it are on its name's hover
+    const sourceName = flow.getByText("example.invalid");
+    expect(sourceName).toHaveAttribute("title", expect.stringContaining("Logical source cisa.kev.catalog"));
+    expect(sourceName).toHaveAttribute("title", expect.stringContaining("Fetched when an agent runs security.kev-acquire"));
+    const source = sourceName.closest("[data-card]") as HTMLElement;
     expect(within(source).getByText("Fetched")).toBeInTheDocument();
     expect(within(source).getByText("When an agent runs it")).toBeInTheDocument();
     expect(within(source).getByText("Landed")).toBeInTheDocument();
@@ -32,8 +35,8 @@ describe("Evidence flow", () => {
     expect(flow.getByText("osv.query")).toBeInTheDocument();
     // Lines in their own column, linked, with their kind, authority (on hover) and last run
     expect(flow.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/kev-triage`);
-    const card = flow.getByRole("link", { name: "kev-triage" }).closest("[title]") as HTMLElement;
-    expect(card).toHaveAttribute("title", expect.stringContaining("At most settle"));
+    expect(flow.getByRole("link", { name: "kev-triage" })).toHaveAttribute("title", expect.stringContaining("At most settle"));
+    const card = flow.getByRole("link", { name: "kev-triage" }).closest("[data-card]") as HTMLElement;
     expect(within(card).getByText("Last run")).toBeInTheDocument();
     // source cards and Line cards say which they are
     expect(within(source).getByText("Source")).toBeInTheDocument();
@@ -44,6 +47,9 @@ describe("Evidence flow", () => {
     // the legend names the neutral color for what no Line writes
     expect(screen.getByText("Written by people or agents")).toBeInTheDocument();
     expect(screen.queryByText("By hand")).toBeNull();
+    // nothing pops over the graph on hover: no card, row or edge carries a hover bubble (only names do)
+    for (const el of document.querySelectorAll('[data-testid="flow"] [data-card]')) expect(el).not.toHaveAttribute("title");
+    expect(document.querySelector('[data-testid="flow"] svg title')).toBeNull();
     // no old columns
     expect(screen.queryByText("Lines that read them")).toBeNull();
     expect(screen.queryByText("Where it comes from")).toBeNull();
@@ -69,7 +75,7 @@ describe("Evidence flow", () => {
     // the reader also reads what no Line writes: Entered directly links to it as well
     expect(screen.getByRole("button", { name: "Link Entered directly → kev-triage" })).toBeInTheDocument();
     // the producer sits above the reader
-    const card = (name: string) => screen.getByRole("link", { name }).closest("[title]") as HTMLElement;
+    const card = (name: string) => screen.getByRole("link", { name }).closest("[data-card]") as HTMLElement;
     expect(parseFloat(card("cve-applicability").style.top)).toBeLessThan(parseFloat(card("kev-triage").style.top));
 
     fireEvent.click(link);
@@ -84,4 +90,47 @@ describe("Evidence flow", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
+
+  it("draws two edge styles, both in the legend: evidence solid, a link that feeds a Line dashed with an arrow", async () => {
+    renderApp(`${I}/flow`);
+    const flow = await screen.findByTestId("flow", {}, { timeout: 8000 });
+    await screen.findByRole("button", { name: "Link cve-applicability → kev-triage" }, { timeout: 8000 });
+    expect(screen.getByText("Evidence")).toBeInTheDocument();
+    expect(screen.getByText("Feeds a Line")).toBeInTheDocument();
+    const paths = [...flow.querySelectorAll("svg path[d]")].filter((p) => p.getAttribute("stroke") !== "transparent" && !p.closest("marker"));
+    const evidence = paths.filter((p) => !p.getAttribute("marker-end"));
+    const feeds = paths.filter((p) => p.getAttribute("marker-end"));
+    expect(evidence.length).toBeGreaterThan(0);
+    expect(feeds.length).toBeGreaterThan(1); // Line → Line, and Entered directly → Line
+    // one stroke for both; only the dash differs
+    const style = (p: Element) => [p.getAttribute("stroke"), p.getAttribute("stroke-width"), p.getAttribute("stroke-opacity")].join(" ");
+    expect(new Set([...evidence, ...feeds].map(style)).size).toBe(1);
+    for (const p of evidence) expect(p).not.toHaveAttribute("stroke-dasharray");
+    for (const p of feeds) expect(p).toHaveAttribute("stroke-dasharray", "4 3");
+    // every feeding link runs in a lane (right-angled), Entered directly's too: no curves among them
+    for (const p of feeds) expect(p.getAttribute("d")).not.toContain("C");
+  });
+
+  it("colors only what the legend names: Line stripes and ClaimType bars in the authority palette, other cards neutral", async () => {
+    renderApp(`${I}/flow`, TEMPLATE_WORLD);
+    const flow = await screen.findByTestId("flow", {}, { timeout: 8000 });
+    await waitFor(() => expect(flow.querySelector('[data-card^="derive:"]')).not.toBeNull(), { timeout: 8000 });
+    const legend = new Set(Object.values(AUTHORITY_COLOR).map((c) => c.toLowerCase()));
+    const swatch = (el: HTMLElement) => el.style.borderLeftColor || el.style.borderLeft.split(" ").slice(2).join(" ");
+    for (const el of flow.querySelectorAll<HTMLElement>("[data-card]")) {
+      const color = swatch(el);
+      if (color) expect(legend.has(hex(color))).toBe(true);
+    }
+    // a derive card carries no color of its own (it has no authority): its kind word is plain, like Source and Line
+    const derive = flow.querySelector<HTMLElement>('[data-card^="derive:"]')!;
+    expect(swatch(derive)).toBe("");
+    expect(within(derive).getByText("Derive")).not.toHaveAttribute("style");
+  });
 });
+
+/** A CSS color (`rgb(r, g, b)` or hex) as lowercase #rrggbb. */
+function hex(color: string): string {
+  const rgb = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(color);
+  if (!rgb) return color.toLowerCase();
+  return `#${rgb.slice(1, 4).map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`;
+}

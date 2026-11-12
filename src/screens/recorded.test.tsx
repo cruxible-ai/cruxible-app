@@ -317,10 +317,12 @@ describe("recorded reference world", () => {
   it("evidence flow: the pilot's sources, the Lines that fetch them and the ClaimTypes they may write", async () => {
     renderApp(`${I}/flow`, RECORDED);
     const flow = within(await screen.findByTestId("flow"));
-    const catalog = flow.getByText("cisa.gov").closest("[title]") as HTMLElement;
+    // the source's details are on its name's hover, not over the card
+    const name = flow.getByText("cisa.gov");
+    const catalog = name.closest("[data-card]") as HTMLElement;
     expect(within(catalog).getByText("Source")).toBeInTheDocument();
-    expect(catalog).toHaveAttribute("title", expect.stringContaining("Logical source cisa.kev.catalog"));
-    expect(catalog).toHaveAttribute("title", expect.stringContaining("Fetched by Line security.kev-triage"));
+    expect(name).toHaveAttribute("title", expect.stringContaining("Logical source cisa.kev.catalog"));
+    expect(name).toHaveAttribute("title", expect.stringContaining("Fetched by Line security.kev-triage"));
     expect(flow.getByText("Entered directly")).toBeInTheDocument();
   });
 
