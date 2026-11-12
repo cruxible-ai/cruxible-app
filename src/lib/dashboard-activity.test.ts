@@ -59,10 +59,10 @@ const EVENTS: OrientActivity[] = [
 describe("compactRows", () => {
   it("folds a run's start, landing and accepted generation into one row", () => {
     const rows = compactRows(EVENTS, label);
-    expect(rows.map((r) => (r.kind === "run" ? `run ${r.run.slice(0, 5)} ${r.status}` : `event ${r.row.family}`))).toEqual([
+    expect(rows.map((r) => (r.kind === "run" ? `run ${r.run.slice(0, 5)} ${r.status}` : r.kind === "generation" ? `generation ${r.generation.sequence}` : `event ${r.row.family}`))).toEqual([
       "run RUN-a succeeded",
       "run RUN-b running",
-      "event generation",
+      "generation 8",
       "event capture",
     ]);
     expect(rows[0]).toMatchObject({
@@ -73,17 +73,20 @@ describe("compactRows", () => {
     });
   });
 
-  it("keeps a definition proposal and a Capture whose run is not loaded on their own rows", () => {
+  it("keeps a definition proposal (as the Ledger's generation row) and a Capture whose run is not loaded on their own rows", () => {
     const rows = compactRows(EVENTS, label);
-    const [generation, capture] = rows.slice(2).map((r) => (r.kind === "event" ? r.row : null));
-    expect(generation).toMatchObject({ what: "accepted · 8 changes · proposed by pilot-owner", detail: "Adopt the KEV and EPSS Lines." });
-    expect(capture).toMatchObject({ what: "landed evidence from cisa.kev.catalog" });
+    const [generation, capture] = rows.slice(2);
+    expect(generation).toMatchObject({
+      kind: "generation",
+      generation: { sequence: 8, accepted_at: "2026-11-03T00:58:40Z", proposer: "pilot-owner", because: "Adopt the KEV and EPSS Lines.", members: 8 },
+    });
+    expect(capture).toMatchObject({ kind: "event", row: { what: "landed evidence from cisa.kev.catalog" } });
   });
 
   it("does not fold a generation when its run is not loaded", () => {
     const rows = compactRows(EVENTS.slice(3, 4), label);
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.kind).toBe("event");
+    expect(rows[0]!.kind).toBe("generation");
   });
 });
 

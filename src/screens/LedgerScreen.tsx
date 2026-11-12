@@ -1,16 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { useGenerations, useInstanceId } from "@/api/hooks";
+import { useGenerations } from "@/api/hooks";
 import type { Schemas } from "@/api/schemas";
-import { ChangeAuthor } from "@/components/ChangeAuthor";
 import { DataTable, type Column } from "@/components/DataTable";
-import { LongText } from "@/components/LongText";
+import { GenerationAuthor, GenerationCell, GenerationDescription } from "@/components/GenerationCells";
 import { Page, PageHeader } from "@/components/Page";
 import { LoadState, Panel } from "@/components/Panel";
 import { ProposalPeek } from "@/components/ProposalList";
 import { RefLink } from "@/components/RefLink";
-import { withAt } from "@/lib/at";
-import { proposalRun, proposalWords, type Words } from "@/lib/change-sets";
+import { type Words } from "@/lib/change-sets";
 import { formatDateTime } from "@/lib/text";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Pager } from "./ProposalsScreen";
@@ -31,7 +28,6 @@ type Generation = Schemas["OrientGeneration"];
 export function LedgerScreen() {
   const [cursors, setCursors] = useCursorStack("generations");
   const page = useGenerations(cursors[cursors.length - 1]);
-  const instanceId = useInstanceId();
   usePageTitle("Ledger");
   const rows = page.data?.generations ?? [];
   // A row's rationale as its expanded change set read it, when that read carries words past the row's cut:
@@ -48,15 +44,7 @@ export function LedgerScreen() {
         header: "Generation",
         hideable: false,
         className: "whitespace-nowrap",
-        cell: (row) => (
-          <Link
-            to={withAt(`/i/${instanceId}`, String(row.sequence))}
-            className="font-mono text-zinc-200 hover:underline"
-            title="Open the instance pinned at this generation"
-          >
-            g{row.sequence}
-          </Link>
-        ),
+        cell: (row) => <GenerationCell sequence={row.sequence} />,
       },
       {
         id: "accepted",
@@ -68,7 +56,7 @@ export function LedgerScreen() {
         id: "author",
         header: "Author",
         title: "A run's Line, a direct run's Procedure, or the proposer; then the approvers",
-        cell: (row) => <Author row={row} />,
+        cell: (row) => <GenerationAuthor row={row} />,
       },
       {
         id: "description",
@@ -76,8 +64,7 @@ export function LedgerScreen() {
         title: "The proposal's own words",
         cell: (row) => {
           const read = longer.get(row.sequence);
-          const words = read ? proposalWords(read.text, read.truncated) : proposalWords(row.because, row.because_truncated ?? false);
-          return words ? <LongText text={words} lines={2} className="text-zinc-200" /> : <span className="text-zinc-600">—</span>;
+          return read ? <GenerationDescription text={read.text} truncated={read.truncated} /> : <GenerationDescription text={row.because} truncated={row.because_truncated ?? false} />;
         },
       },
       {
@@ -104,7 +91,7 @@ export function LedgerScreen() {
         cell: (row) => (row.proposal ? <RefLink value={row.proposal} short className="text-[12px]" /> : <span className="text-zinc-600">—</span>),
       },
     ],
-    [instanceId, longer],
+    [longer],
   );
   return (
     <Page>
@@ -143,16 +130,5 @@ export function LedgerScreen() {
         </Panel>
       )}
     </Page>
-  );
-}
-
-/** Who authored the generation and approved it. */
-function Author({ row }: { row: Generation }) {
-  const source = proposalRun(row.because);
-  if (!source && !row.proposer && (row.approvals ?? []).length === 0) return <span className="text-zinc-600">—</span>;
-  return (
-    <span className="inline-flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-zinc-400">
-      <ChangeAuthor source={source} sequence={row.sequence} actor={row.proposer ?? null} approvers={row.approvals ?? []} authorLabel={false} />
-    </span>
   );
 }

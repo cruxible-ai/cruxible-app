@@ -13,7 +13,7 @@ test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evi
   const comingUp = main.locator("section", { has: page.getByRole("heading", { name: "Coming up" }) });
   await expect(comingUp.getByRole("link", { name: "kev-triage", exact: true })).toBeVisible();
   // The activity feed: what happened, newest first.
-  await expect(main.getByRole("feed", { name: "Activity" }).getByRole("link", { name: "Generation 42" })).toBeVisible();
+  await expect(main.getByRole("table", { name: "Activity" }).getByRole("link", { name: "g42" })).toBeVisible();
   await expect(main.getByText("Daily at 06:00 UTC")).toBeVisible();
   await expect(main.getByText("security.kev-catalog")).toBeVisible();
   await expect(page.locator("aside").getByText("Generation")).toBeVisible();
