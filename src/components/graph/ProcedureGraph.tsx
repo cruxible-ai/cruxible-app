@@ -105,6 +105,8 @@ const ROW_HEIGHT = 16;
 const BODY_PAD = 10;
 const MARK_HEIGHT = 25;
 const BORDER = 2;
+/** The room the canvas keeps around the graph (px at any zoom): fit-on-load fits inside it, and panning never pushes a node past it. */
+const PAD = { x: 48, y: 56 };
 
 const EDGE_STROKE = "#6b6857";
 const EDGE_LABEL = "bg-zinc-950 px-1 text-[10.5px] leading-[14px] text-zinc-400";
@@ -367,9 +369,6 @@ function DependencyChip({ chip, to, dim, onOpen }: { chip: Chip; to: string | nu
 const nodeTypes = { step: StepNode };
 
 const TRIGGER_PREFIX = "trigger:";
-const FIT_PADDING = 0.04;
-/** Room the canvas keeps around the graph beyond the fit padding (px), so the corner controls clear it. */
-const CANVAS_SLACK = 28;
 const FIT_MAX_ZOOM = 1;
 /** Below this the step text is too small to read: a larger graph grows the canvas or pans sideways instead. */
 const FIT_MIN_ZOOM = 0.8;
@@ -546,7 +545,8 @@ export function ProcedureGraph({
       live = false;
     };
   }, [layoutKey]);
-  const laidOut = layout?.key === layoutKey ? layout : null;
+  // While a new layout computes (a Query's rows landed, the toggle), the last one stays on screen: the graph never blanks.
+  const laidOut = layout;
 
   // The canvas width, so its height can follow the zoom fitView will pick.
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -618,14 +618,14 @@ export function ProcedureGraph({
   const nodeName = useCallback((id: string) => (id.startsWith(TRIGGER_PREFIX) ? id.slice(TRIGGER_PREFIX.length) : id), []);
 
   if (!laidOut) return <LoadState />;
-  // As tall as the graph is at the zoom it will be shown at: the canvas width's fit, held to most of the window,
-  // but never below a readable zoom (a larger graph grows the canvas instead). Expanding it pushes the page down.
-  const spread = 1 + 2 * FIT_PADDING;
+  // As tall as the graph is at the zoom it will be shown at, plus the padding above and below: the canvas width's fit,
+  // held to most of the window, but never below a readable zoom (a larger graph grows the canvas instead).
+  // Expanding it pushes the page down.
   const most = typeof window !== "undefined" ? Math.round(window.innerHeight * 0.8) : 800;
-  const widthFit = canvasWidth > 0 && width > 0 ? canvasWidth / (width * spread) : FIT_MAX_ZOOM;
-  const heightFit = height > 0 ? (most - CANVAS_SLACK) / (height * spread) : FIT_MAX_ZOOM;
+  const widthFit = canvasWidth > 0 && width > 0 ? (canvasWidth - 2 * PAD.x) / width : FIT_MAX_ZOOM;
+  const heightFit = height > 0 ? (most - 2 * PAD.y) / height : FIT_MAX_ZOOM;
   const zoom = Math.max(FIT_MIN_ZOOM, Math.min(FIT_MAX_ZOOM, widthFit, heightFit));
-  const canvasHeight = Math.max(140, Math.ceil(height * zoom * spread) + CANVAS_SLACK);
+  const canvasHeight = Math.max(160, Math.ceil(height * zoom) + 2 * PAD.y);
   const lineRoute = (name: string) => link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`);
   const chipOf = (id: string) => chips.up.find((c) => c.id === id) ?? chips.down.find((c) => c.id === id);
   const band = (chip: Chip) => (
@@ -662,8 +662,10 @@ export function ProcedureGraph({
         neighborhood={neighborhood}
         onSelectionChange={onSelectionChange}
         recenter={false}
+        fitPaddingPx={PAD}
+        contain
         nodeName={nodeName}
-        fitPadding={FIT_PADDING}
+        fitKey={laidOut.key}
         draggable={false}
         controls={
           <button

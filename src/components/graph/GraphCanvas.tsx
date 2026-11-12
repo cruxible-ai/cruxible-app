@@ -4,6 +4,8 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  useStore,
+  type CoordinateExtent,
   type Edge,
   type Node,
   type NodeTypes,
@@ -81,6 +83,16 @@ export function GraphCanvas(props: {
   onEdgeClick?: (edgeId: string, event: ReactMouseEvent) => boolean;
   /** Nodes can be dragged off their laid-out spots (default true). */
   draggable?: boolean;
+  /** Fixed room around the graph (px at any zoom) instead of fitPadding's share of the canvas. */
+  fitPaddingPx?: { x: number; y: number };
+  /**
+   * Keep the graph inside the canvas while panning: a graph that fits moves
+   * only as far as the canvas edge (less fitPaddingPx), a larger one only as
+   * far as its own edge plus that room. Default off (pan anywhere).
+   */
+  contain?: boolean;
+  /** Fit the graph again whenever this changes (a new layout of the same graph). */
+  fitKey?: string;
 }) {
   return (
     <ReactFlowProvider>
@@ -110,8 +122,12 @@ function Canvas({
   controls,
   onEdgeClick,
   draggable = true,
+  fitPaddingPx,
+  contain = false,
+  fitKey,
 }: Parameters<typeof GraphCanvas>[0]) {
   const rf = useReactFlow();
+  const padding = fitPaddingPx ? { x: `${fitPaddingPx.x}px` as const, y: `${fitPaddingPx.y}px` as const } : fitPadding;
   const [selection, setSelection] = useState<GraphSelection | null>(null);
   // Expanded = a taller canvas in place: at least 1.6x its height on the page,
   // and at least the viewport, so the toggle always shows a difference.
@@ -151,9 +167,9 @@ function Canvas({
     const bounds = rf.getNodesBounds(rf.getNodes());
     const { zoom, y } = rf.getViewport();
     if (!box || bounds.width * zoom <= box.width) return;
-    const pad = box.width * fitPadding * 0.5;
+    const pad = fitPaddingPx ? fitPaddingPx.x : box.width * fitPadding * 0.5;
     void rf.setViewport({ x: pad - bounds.x * zoom, y, zoom });
-  }, [rf, fitMinZoom, fitPadding]);
+  }, [rf, fitMinZoom, fitPadding, fitPaddingPx]);
 
   // After the canvas resizes, fit the graph to it again (and bring a taller canvas into view).
   const resized = useRef(false);
@@ -166,12 +182,39 @@ function Canvas({
       requestAnimationFrame(() => {
         if (tall != null) boxRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
         void rf
-          .fitView({ maxZoom: 1.15, padding: fitPadding, duration: 250, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) })
+          .fitView({ maxZoom: 1.15, padding, duration: 250, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) })
           .then(() => window.setTimeout(startAtLeft, 260));
       }),
     );
     return () => cancelAnimationFrame(frame);
-  }, [tall, rf, fitPadding, fitMinZoom, startAtLeft]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- padding follows fitPadding/fitPaddingPx
+  }, [tall, rf, fitPadding, fitPaddingPx?.x, fitPaddingPx?.y, fitMinZoom, startAtLeft, fitKey]);
+
+  // Pan limits that keep the graph in view (contain): per axis, the graph's box plus the padding, widened by the
+  // canvas's slack when it fits, so the canvas edge stops the graph rather than cutting it.
+  const zoom = useStore((s) => s.transform[2]);
+  const paneWidth = useStore((s) => s.width);
+  const paneHeight = useStore((s) => s.height);
+  const translateExtent = useMemo((): CoordinateExtent | undefined => {
+    if (!contain || nodes.length === 0 || !paneWidth || !paneHeight || !zoom) return undefined;
+    let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const n of nodes) {
+      const w = Number(n.width ?? n.style?.width ?? n.measured?.width ?? 0);
+      const h = Number(n.height ?? n.style?.height ?? n.measured?.height ?? 0);
+      [x0, y0, x1, y1] = [Math.min(x0, n.position.x), Math.min(y0, n.position.y), Math.max(x1, n.position.x + w), Math.max(y1, n.position.y + h)];
+    }
+    const axis = (lo: number, hi: number, view: number, pad: number): [number, number] => {
+      const [a, b] = [lo - pad, hi + pad];
+      const slack = view - (b - a);
+      return slack > 0 ? [a - slack, b + slack] : [a, b];
+    };
+    const [ax, bx] = axis(x0, x1, paneWidth / zoom, (fitPaddingPx?.x ?? 0) / zoom);
+    const [ay, by] = axis(y0, y1, paneHeight / zoom, (fitPaddingPx?.y ?? 0) / zoom);
+    return [
+      [ax, ay],
+      [bx, by],
+    ];
+  }, [contain, nodes, paneWidth, paneHeight, zoom, fitPaddingPx?.x, fitPaddingPx?.y]);
 
   const centerOn = useCallback(
     (nodeId: string) => {
@@ -341,7 +384,8 @@ function Canvas({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
-          fitViewOptions={{ maxZoom: 1.15, padding: fitPadding, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) }}
+          fitViewOptions={{ maxZoom: 1.15, padding, ...(fitMinZoom !== undefined ? { minZoom: fitMinZoom } : {}) }}
+          {...(translateExtent ? { translateExtent } : {})}
           colorMode="dark"
           nodesDraggable={draggable}
           nodesConnectable={false}
