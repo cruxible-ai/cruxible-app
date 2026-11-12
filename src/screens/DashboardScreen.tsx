@@ -158,7 +158,8 @@ function unvouched(next: NextResult | undefined) {
 
 /**
  * One strip of tiles, each a count and where to act on it. A tile is amber or
- * red only while its count says something needs doing; at zero it is quiet.
+ * red only while its count says something needs doing; at zero it is quiet,
+ * and a zero stands alone: a sub-line only where it adds a fact.
  */
 function NeedsYou({
   orient,
@@ -196,21 +197,21 @@ function NeedsYou({
         label="Waiting for review"
         count={proposals}
         signal={proposals ? "waiting" : undefined}
-        detail={proposals ? "Review on CLI or MCP" : "None open"}
+        detail={proposals ? "Review on CLI or MCP" : undefined}
         to={link(`/i/${instanceId}/proposals?status=open`)}
       />
       <Tile
         label="Unread inbox"
         count={next ? unread : null}
         signal={unread ? "waiting" : undefined}
-        detail={unread ? "Posted by Lines" : "None posted"}
+        detail={unread ? "Posted by Lines" : undefined}
         to={link(`/i/${instanceId}/inbox?status=unread`)}
       />
       <Tile
         label="Next"
         count={next ? next.total_items : null}
         signal={nextSignal}
-        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : next.total_items ? "None urgent" : "None") : undefined}
+        detail={next ? (severityWords.length ? `${severityWords.join(", ")}${partial ? " on the first page" : ""}` : next.total_items ? "None urgent" : undefined) : undefined}
         to={link(`/i/${instanceId}/next`)}
       />
       <Tile
@@ -219,7 +220,8 @@ function NeedsYou({
         count={enablements?.running ?? 0}
         countWord="running"
         signal={stalled ? "wrong" : stopped ? "waiting" : undefined}
-        detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : "None stalled or stopped"}
+        // "None stalled or stopped" says something only while some Line runs
+        detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : enablements?.running ? "None stalled or stopped" : undefined}
         to={link(`/i/${instanceId}/lines`)}
       />
       {/* The worst state present: checks that need a look, else checks not observed or not set up (never "Healthy"), else Healthy. */}
@@ -386,13 +388,11 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
   const chains = chainUpcoming(upcoming, sourceModel.data?.retentions ?? []);
 
   return (
-    <Panel
-      title="Coming up"
-      meta={rows ? <span>{on.length} of {live.length} Lines enabled</span> : undefined}
-    >
+    // One statement of what is not enabled: the fold below, or "None" when there are no live Lines at all.
+    <Panel title="Coming up" meta={on.length > 0 ? <span>{on.length} enabled</span> : undefined}>
       {pending && <LoadState />}
       {error && <LoadState error={error} />}
-      {rows && on.length === 0 && <EmptyState>None enabled</EmptyState>}
+      {rows && live.length === 0 && !error && <EmptyState>No live Lines</EmptyState>}
       {chains.length > 0 && (
         <div className="divide-y divide-zinc-800/60">
           {chains.map((chain) => (
@@ -402,7 +402,7 @@ function ComingUp({ rows, pending, error }: { rows: OrientLine[] | undefined; pe
       )}
       {off.length > 0 && (
         <div className="mt-2">
-          <Disclosure label={`${off.length} ${off.length === 1 ? "Line is" : "Lines are"} not enabled`}>
+          <Disclosure label={`${off.length} not enabled`}>
             <LineLinks names={off.map((row) => lineName(row.line))} prefix={prefix} />
           </Disclosure>
         </div>

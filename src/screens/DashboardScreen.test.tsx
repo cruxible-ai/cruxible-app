@@ -155,7 +155,7 @@ describe("Dashboard", () => {
     expect(byKind.getByRole("link", { name: "security.assessment" })).toBeInTheDocument();
 
     fireEvent.click(later.getByRole("button", { name: "Mark seen" }));
-    expect(await later.findByText("Nothing new since g42")).toBeInTheDocument();
+    expect(await later.findByText("Nothing new")).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(SEEN_KEY)!)).toMatchObject({ generation: 42 });
   });
 
@@ -265,5 +265,25 @@ describe("Dashboard", () => {
     const evidence = await panel("Evidence coverage");
     expect(await evidence.findByText("No live Claims")).toBeInTheDocument();
     expect(evidence.queryByText("all met")).toBeNull();
+  });
+
+  it("says each panel's emptiness once on a fresh instance", async () => {
+    localStorage.setItem(SEEN_KEY, JSON.stringify({ generation: 41, at: "2026-10-19T08:00:00Z" }));
+    renderApp("/i/inst_fixture", freshDashboard());
+    // a zero stands alone in its tile
+    const strip = within(await screen.findByRole("region", { name: "Needs you" }));
+    expect(strip.getByRole("link", { name: /Waiting for review/ })).toHaveTextContent(/^Waiting for review0$/);
+    expect(await strip.findByRole("link", { name: /Unread inbox/ })).toHaveTextContent(/^Unread inbox0$/);
+    expect(strip.getByRole("link", { name: /^Next/ })).toHaveTextContent(/^Next0$/);
+    expect(strip.getByRole("link", { name: /^Lines/ })).toHaveTextContent(/^Lines0running$/);
+    // Coming up: the fold of Lines not enabled, nothing else
+    const coming = await panel("Coming up");
+    expect(await coming.findByRole("button", { name: "2 not enabled" })).toBeInTheDocument();
+    expect(coming.queryByText(/None enabled|Lines enabled|^\d+ enabled$/)).toBeNull();
+    // Since you last looked: the empty state and the generations it covers, no zero totals
+    const since = await panel("Since you last looked");
+    expect(await since.findByText("No Claim changes")).toBeInTheDocument();
+    expect(since.getByRole("link", { name: "Ledger" })).toBeInTheDocument();
+    expect(since.queryByRole("link", { name: /New|Revised|Retired/ })).toBeNull();
   });
 });
