@@ -8,11 +8,10 @@ import { EmptyState, LoadState } from "@/components/Panel";
 import { FocusChip, useClearOnEscape } from "@/components/graph/FocusChip";
 import { useAtLink } from "@/lib/at";
 import {
-  directLinkPath,
   edgeKey,
   edgePath,
   focusFlow,
-  isLineLink,
+  isFeedLink,
   linkPath,
   layoutFlow,
   related,
@@ -24,10 +23,11 @@ import {
   type Placed,
 } from "@/lib/evidence-flow";
 import { DependencyPopover, producerName, type PopoverAt } from "@/components/DependencyPopover";
-import { AUTHORITY_COLOR, STAGE_COLOR } from "@/lib/palette";
+import { AUTHORITY_COLOR } from "@/lib/palette";
 import { term } from "@/lib/vocabulary";
 import { contractName } from "@/lib/ontology";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { shortName } from "@/lib/step-words";
 import { useFlowModel } from "@/lib/useFlowModel";
 import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { AuthorityLegend } from "@/components/AuthorityLegend";
@@ -42,8 +42,13 @@ import type { Schemas } from "@/api/schemas";
  * Line that fetches it (its authority as a stripe, its state, its last run)
  * -> the ClaimTypes that Line writes, under their Subject kinds; a Line whose
  * Query reads what another Line writes links from it (left of the Line
- * column), a click on the link names the Query and what it connects. Source cards
- * and Line cards share one shape, each with its kind on top. Reads
+ * column), a click on the link names the Query and what it connects. Source,
+ * derive and Line cards share one shape, each with its kind on top; color is
+ * authority only (a Line's stripe, a ClaimType's bar), the same palette as the
+ * legend. Two edge styles, both in the legend: evidence (solid) and a link
+ * that feeds a Line (dashed, with an arrow, in a lane left of the Line column).
+ * Nothing pops over the graph on hover: a hover traces the path, and a card's
+ * details sit on its name's title. Reads
  * are ontology-sized: the claim_types and lines sections, the source model
  * (Procedure cards, Line envelopes, landing Triggers), the Line cards, and
  * one get-batch of ClaimType proofs for what each ClaimType's evidence rules
@@ -147,7 +152,10 @@ export function FlowScreen() {
             </span>
           )}
         </StatsRow>
-        <AuthorityLegend />
+        <AuthorityLegend>
+          <EdgeSample label="Evidence" />
+          {layout.edges.some(isFeedLink) && <EdgeSample label="Feeds a Line" feeds />}
+        </AuthorityLegend>
         {capped && <div className="mt-1 text-[12px] text-zinc-500">Partial: listing page cap</div>}
         {proofs.error && (
           <div className="mt-1 flex items-center gap-1.5 text-[12px] text-zinc-500">
@@ -196,10 +204,9 @@ export function FlowScreen() {
                     key={`${edge.from}\n${edge.to}`}
                     d={edgePath(from, to)}
                     fill="none"
-                    stroke={traced ?? "rgb(163 160 148)"}
-                    strokeDasharray={edge.direct || edge.inbox ? "4 3" : undefined}
-                    strokeWidth={on ? 1.5 : 1}
-                    strokeOpacity={on === null ? 0.22 : on ? 0.95 : 0.05}
+                    stroke={traced ?? EDGE_REST}
+                    strokeWidth={on ? 1.75 : 1.25}
+                    strokeOpacity={on === null ? EDGE_REST_OPACITY : on ? 1 : 0.06}
                   />
                 );
               })}
@@ -251,9 +258,10 @@ export function FlowScreen() {
 }
 
 /**
- * A dependency link: Line → Line in a lane left of the Line column, or
- * Entered directly → Line; unlabeled, with an arrowhead into the reader and
- * a wide transparent stroke to click (Enter on focus) for its popover.
+ * A link that feeds a Line (Line → Line, or Entered directly → Line), in a
+ * lane left of the Line column: dashed, with an arrowhead into the reader,
+ * unlabeled, and a wide transparent stroke to click (Enter on focus) for its
+ * popover.
  */
 function LinkEdge({
   edge,
@@ -272,9 +280,9 @@ function LinkEdge({
   const to = layout.byId.get(edge.to);
   if (!from || !to) return null;
   const key = edgeKey(edge);
-  const d = isLineLink(edge) ? linkPath(from, to, layout.lanes.get(key) ?? 0) : directLinkPath(from, to);
+  const d = linkPath(from, to, layout.lanes.get(key) ?? 0);
   const on = open ? true : lit ? lit.has(edge.from) && lit.has(edge.to) : null;
-  const color = on ? edgeColor(from.node, to.node) : "rgb(163 160 148)";
+  const color = on ? edgeColor(from.node, to.node) : EDGE_REST;
   const marker = `link-arrow-${key.replace(/[^\w-]/g, "_")}`;
   const landing = edge.landing?.length ? ` · lands ${edge.landing.map(contractName).join(", ")}` : "";
   const label = `${producerName(from.node?.ownWord ? null : (from.node?.label ?? null))} → ${to.node?.label ?? ""}${landing}`;
@@ -284,7 +292,7 @@ function LinkEdge({
     <g>
       <defs>
         <marker id={marker} viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M0,0.5 L8,4 L0,7.5 z" fill={color} />
+          <path d="M0,0.5 L8,4 L0,7.5 z" fill={color} fillOpacity={on === null ? EDGE_REST_OPACITY : on ? 1 : 0.06} />
         </marker>
       </defs>
       <path
@@ -292,8 +300,8 @@ function LinkEdge({
         fill="none"
         stroke={color}
         strokeWidth={on ? 1.75 : 1.25}
-        strokeDasharray={from.node?.ownWord ? "4 3" : undefined}
-        opacity={on === null ? 0.55 : on ? 1 : 0.08}
+        strokeDasharray={FEED_DASH}
+        strokeOpacity={on === null ? EDGE_REST_OPACITY : on ? 1 : 0.06}
         markerEnd={`url(#${marker})`}
       />
       <path
@@ -316,9 +324,7 @@ function LinkEdge({
           const box = (event.currentTarget as SVGPathElement).getBoundingClientRect();
           onOpen({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
         }}
-      >
-        <title>{label}</title>
-      </path>
+      />
     </g>
   );
 }
@@ -408,11 +414,15 @@ function FlowCell({
       <div
         style={{ ...style, borderLeft: `3px solid ${AUTHORITY_COLOR.observe}` }}
         className={`group absolute flex items-center gap-2 overflow-hidden border border-dashed border-zinc-700 bg-zinc-900 px-2 transition-opacity ${dim ? "opacity-25" : ""}`}
-        title="Items Lines post for an agent or a person to judge: not accepted state"
+        data-card={node.id}
         {...hover}
       >
         <InboxIcon className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
-        <Link to={link(`/i/${instanceId}/lines`)} className="truncate text-[12px] font-medium text-zinc-100 hover:underline">
+        <Link
+          to={link(`/i/${instanceId}/lines`)}
+          className="truncate text-[12px] font-medium text-zinc-100 hover:underline"
+          title="Items Lines post for an agent or a person to judge: not accepted state"
+        >
           Inbox
         </Link>
         <span className="text-[11px] text-zinc-500">{unread ? `${unread.count}${unread.more ? "+" : ""} unread` : "…"}</span>
@@ -432,8 +442,15 @@ function FlowCell({
           dim={dim}
           hover={hover}
           kindLabel="Source"
-          title={["Entered directly", "Facts people or agents enter directly, on their own word, without a source to cite"].join("\n")}
-          name={<span className="truncate text-[12.5px] font-medium text-zinc-100">Entered directly</span>}
+          id={node.id}
+          name={
+            <span
+              className="truncate text-[12.5px] font-medium text-zinc-100"
+              title={["Entered directly", "Facts people or agents enter directly, on their own word, without a source to cite"].join("\n")}
+            >
+              Entered directly
+            </span>
+          }
           about="by people or agents"
           focus={<FocusButton id={node.id} label="Entered directly" onFocus={onFocus} />}
           facts={[]}
@@ -441,6 +458,16 @@ function FlowCell({
       );
     }
     const tags = (node.contracts ?? []).map(contractName);
+    const details = [
+      node.host ?? node.label,
+      `Logical source ${node.label}`,
+      node.about,
+      node.arrives ? `Arrives by ${node.arrives}` : null,
+      node.detail,
+      tags.length ? `Captured under ${tags.join(", ")}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
     return (
       <FlowCard
         variant="source"
@@ -448,26 +475,20 @@ function FlowCell({
         dim={dim}
         hover={hover}
         kindLabel="Source"
-        title={[
-          node.host ?? node.label,
-          `Logical source ${node.label}`,
-          node.about,
-          node.arrives ? `Arrives by ${node.arrives}` : null,
-          node.detail,
-          tags.length ? `Captured under ${tags.join(", ")}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n")}
+        id={node.id}
         name={
           node.contracts?.length === 1 ? (
             <Link
               to={link(`/i/${instanceId}/contracts/${encodeURIComponent(node.contracts[0]!)}`)}
               className={`truncate text-[12.5px] font-medium text-zinc-100 hover:underline ${node.host ? "" : "font-mono"}`}
+              title={details}
             >
               {node.host ?? node.label}
             </Link>
           ) : (
-            <span className={`truncate text-[12.5px] font-medium text-zinc-100 ${node.host ? "" : "font-mono"}`}>{node.host ?? node.label}</span>
+            <span className={`truncate text-[12.5px] font-medium text-zinc-100 ${node.host ? "" : "font-mono"}`} title={details}>
+              {node.host ?? node.label}
+            </span>
           )
         }
         focus={<FocusButton id={node.id} label={node.host ?? node.label} onFocus={onFocus} />}
@@ -478,35 +499,44 @@ function FlowCell({
   if (node.kind === "derive") {
     const kinds = node.contracts ?? [];
     return (
-      <div
-        style={{ ...style, borderLeft: `3px solid ${STAGE_COLOR.derive.color}` }}
-        className={`group absolute flex flex-col overflow-hidden border border-zinc-700 bg-zinc-900 px-2 pb-1 pt-1.5 transition-opacity ${dim ? "opacity-25" : ""}`}
-        title={[`Derive ${node.label} in Line ${node.line}`, node.operation ? `operation ${node.operation}` : null, "effect: pure", kinds.length ? `commits ${kinds.join(", ")}` : null].filter(Boolean).join("\n")}
-        {...hover}
-      >
-        <div className="flex min-w-0 items-center gap-1.5 text-[9.5px] font-semibold uppercase leading-3 tracking-wider" style={{ color: STAGE_COLOR.derive.color }}>
-          Derive
-          <span className="font-normal normal-case tracking-normal text-zinc-500">pure</span>
-        </div>
-        <div className="mt-1 flex min-w-0 items-center gap-1.5 leading-4">
-          <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.line ?? "")}`)} className="truncate font-mono text-[12px] text-zinc-100 hover:underline">
+      <FlowCard
+        variant="source"
+        style={style}
+        dim={dim}
+        hover={hover}
+        kindLabel="Derive"
+        id={node.id}
+        state={<span className="text-zinc-500">pure</span>}
+        name={
+          <Link
+            to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.line ?? "")}`)}
+            className="truncate font-mono text-[12.5px] text-zinc-100 hover:underline"
+            title={[`Derive ${node.label} in Line ${node.line}`, node.operation ? `operation ${node.operation}` : null, "effect: pure", kinds.length ? `commits ${kinds.join(", ")}` : null].filter(Boolean).join("\n")}
+          >
             {node.operation ?? node.label}
           </Link>
-          <span className="ml-auto shrink-0">
-            <FocusButton id={node.id} label={node.label} onFocus={onFocus} always />
-          </span>
-        </div>
-        <div className="mt-auto truncate text-[10.5px] leading-4">
-          {kinds.map((kind, i) => (
-            <span key={kind}>
-              {i > 0 && <span className="text-zinc-600">, </span>}
-              <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(kind)}`)} className="font-mono text-zinc-400 hover:text-zinc-200 hover:underline">
-                {strip(kind, prefix)}
-              </Link>
+        }
+        about={
+          // What it commits: the derived CaptureKinds, linked (the namespace on hover); the focus control beside them.
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="min-w-0 truncate font-mono">
+              {kinds.map((kind, i) => (
+                <span key={kind}>
+                  {i > 0 && ", "}
+                  <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(kind)}`)} className="hover:text-zinc-200 hover:underline" title={kind}>
+                    {shortName(kind)}
+                  </Link>
+                </span>
+              ))}
             </span>
-          ))}
-        </div>
-      </div>
+            <span className="ml-auto shrink-0">
+              <FocusButton id={node.id} label={node.label} onFocus={onFocus} always />
+            </span>
+          </span>
+        }
+        focus={null}
+        facts={[]}
+      />
     );
   }
   if (node.kind === "line") {
@@ -519,17 +549,21 @@ function FlowCell({
         dim={dim}
         hover={hover}
         kindLabel="Line"
+        id={node.id}
         state={<LineStateDot state={node.enablement} running={runningLines.has(node.label)} />}
-        title={[
-          node.label,
-          node.authority ? `At most ${node.authority}: ${term("authority", node.authority).meaning}` : null,
-          node.about,
-          triggers?.length ? `Triggers: ${triggers.join("; ")}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n")}
         name={
-          <Link to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.label)}`)} className="truncate font-mono text-[12.5px] text-zinc-100 hover:underline">
+          <Link
+            to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.label)}`)}
+            className="truncate font-mono text-[12.5px] text-zinc-100 hover:underline"
+            title={[
+              node.label,
+              node.authority ? `At most ${node.authority}: ${term("authority", node.authority).meaning}` : null,
+              node.about,
+              triggers?.length ? `Triggers: ${triggers.join("; ")}` : null,
+            ]
+              .filter(Boolean)
+              .join("\n")}
+          >
             {strip(node.label, prefix)}
           </Link>
         }
@@ -545,12 +579,13 @@ function FlowCell({
     <div
       style={{ ...style, borderLeft: `2px solid ${authorityColor(node.authority)}` }}
       className={`${base} pl-3 text-[12px]`}
-      title={[node.detail, node.about, node.key ? "Identifies the Subject; no source writes it" : node.authority ? `Written by Lines that may ${node.authority}` : "Entered directly by people or agents"].filter(Boolean).join("\n")}
+      data-card={node.id}
       {...hover}
     >
       <Link
         to={link(`/i/${instanceId}/kinds/${encodeURIComponent(kind)}?view=claim-types&claim_type=${encodeURIComponent(node.detail ?? "")}`)}
         className="truncate font-mono text-zinc-300 hover:underline"
+        title={[node.detail, node.about, node.key ? "Identifies the Subject; no source writes it" : node.authority ? `Written by Lines that may ${node.authority}` : "Entered directly by people or agents"].filter(Boolean).join("\n")}
       >
         {node.label}
       </Link>
@@ -575,6 +610,24 @@ function edgeColor(from: FlowNode | undefined, to: FlowNode | undefined): string
   const line = from?.kind === "line" ? from : to?.kind === "line" ? to : undefined;
   if (line?.authority) return AUTHORITY_COLOR[line.authority];
   return "rgb(222 219 208)";
+}
+
+/** Every edge at rest: one stroke, one opacity; a feeding link differs only by its dash (and the arrow into its reader). */
+const EDGE_REST = "rgb(163 160 148)";
+const EDGE_REST_OPACITY = 0.35;
+const FEED_DASH = "4 3";
+
+/** An edge style in the legend: a short line as the graph draws it. */
+function EdgeSample({ label, feeds = false }: { label: string; feeds?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <svg width="22" height="8" aria-hidden className="shrink-0">
+        <line x1="1" y1="4" x2={feeds ? 16 : 21} y2="4" stroke={EDGE_REST} strokeWidth="1.25" strokeDasharray={feeds ? FEED_DASH : undefined} />
+        {feeds && <path d="M15,0.5 L21,4 L15,7.5 z" fill={EDGE_REST} />}
+      </svg>
+      {label}
+    </span>
+  );
 }
 
 const authorityColor = (authority: string | undefined) =>
@@ -623,10 +676,10 @@ function lastRunFact(lastRuns: ReadonlyMap<string, RunRow> | null, line: string,
 }
 
 /**
- * A source or Line card: its kind on top (with a Line's state), its
- * name, what a Line does, and label/value facts pinned to the bottom. A source
- * is outlined; your statements dashed; a Line filled, with its authority as
- * the left stripe.
+ * A source, derive or Line card: its kind on top (with a Line's state, a
+ * derive's effect), its name (its details on the name's title), what a Line
+ * does, and label/value facts pinned to the bottom. Your statements are
+ * dashed; a Line carries its authority as the left stripe.
  */
 function FlowCard({
   variant,
@@ -635,8 +688,8 @@ function FlowCard({
   dim,
   hover,
   kindLabel,
+  id,
   state = null,
-  title,
   name,
   about = null,
   focus,
@@ -648,10 +701,11 @@ function FlowCard({
   dim: boolean;
   hover: { onMouseEnter: () => void; onMouseLeave: () => void };
   kindLabel: string;
+  /** The node's id (data-card), for tests and tools. */
+  id: string;
   state?: ReactNode;
-  title: string;
   name: ReactNode;
-  about?: string | null;
+  about?: ReactNode;
   focus: ReactNode;
   facts: Fact[];
 }) {
@@ -661,7 +715,7 @@ function FlowCard({
     <div
       style={{ ...style, ...(accent ? { borderLeft: `3px solid ${accent}` } : {}) }}
       className={`group absolute flex flex-col overflow-hidden px-2.5 pb-1.5 pt-1.5 transition-opacity ${shape} ${dim ? "opacity-25" : ""}`}
-      title={title}
+      data-card={id}
       {...hover}
     >
       <div className="flex min-w-0 items-center gap-1 text-[9.5px] font-semibold uppercase leading-3 tracking-wider text-zinc-500">

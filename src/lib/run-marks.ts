@@ -32,6 +32,10 @@ export interface StepMark {
   summary?: RunSummary | null;
   /** A list call's members, as the run card's node serves them (index, Capture, status). */
   list?: ListOutcome | null;
+  /** The Captures the node read in this run (the run state's source observations), by digest. */
+  capturesIn?: string[];
+  /** The Captures the node produced in this run (a call's summary), by digest. */
+  capturesOut?: string[];
 }
 
 export interface RunMarks {
@@ -123,6 +127,14 @@ export function runMarks(nodeIds: readonly string[], card: RunCard, state: RunSt
   for (const [node, count] of reads) {
     const prev = marks.get(node);
     if (prev) prev.notes.push(`read ${count} ${count === 1 ? "Capture" : "Captures"}`);
+  }
+  // The Captures each node read and produced: before and after, by digest.
+  for (const observation of state?.source_observations ?? []) {
+    const prev = observation.node_id ? marks.get(observation.node_id) : undefined;
+    if (prev && observation.capture_digest && !(prev.capturesIn ??= []).includes(observation.capture_digest)) prev.capturesIn.push(observation.capture_digest);
+  }
+  for (const [, m] of marks) {
+    if (m.summary?.kind === "call" && m.summary.capture_digests?.length) m.capturesOut = [...m.summary.capture_digests];
   }
   // Pinned builds for nodes the card and journal did not mention still show.
   for (const [node, provider] of providers) {

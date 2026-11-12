@@ -246,3 +246,41 @@ describe("evidence flow: links between Lines", () => {
     expect(Math.min(...[...d.matchAll(/[HQ ](\d+)/g)].map((m) => Number(m[1])))).toBeGreaterThan(COLUMNS[0].x + COLUMNS[0].w);
   });
 });
+
+describe("feeding links at scale", () => {
+  const line = (name: string) => ({ name, authority: "observe" as const, reads: [], writes: [] });
+  const dependency = (producer: string | null, reader: string) => ({ producer, reader, step: "read", query: "q", claimTypes: ["demo.item.status"], kinds: ["demo.item"], writes: [] });
+  /** Every number in a path (its x and y coordinates). */
+  const numbers = (d: string) => [...d.matchAll(/-?\d+(\.\d+)?/g)].map((m) => Number(m[0]));
+  const check = (layout: ReturnType<typeof layoutFlow>) => {
+    const lineX = Math.min(...layout.placed.filter((p) => p.kind === "line").map((p) => p.x));
+    const leftEdge = Math.max(0, ...layout.placed.filter((p) => p.x < lineX).map((p) => p.x + p.w));
+    expect(layout.lanes.size).toBeGreaterThan(0);
+    for (const [key, lane] of layout.lanes) {
+      const [from, to] = key.split("\n").map((id) => layout.byId.get(id)!);
+      const d = linkPath(from!, to!, lane);
+      for (const n of numbers(d)) expect(n).toBeGreaterThanOrEqual(0);
+      // the vertical run stays right of every card on the left, inside the canvas
+      const laneX = Number(/V/.test(d) ? d.split(" ").find((t) => t.startsWith("Q"))?.slice(1).split(",")[0] : NaN);
+      expect(laneX).toBeGreaterThan(leftEdge);
+      expect(laneX).toBeLessThan(lineX);
+    }
+    for (const p of layout.placed) expect(p.x + p.w).toBeLessThanOrEqual(layout.width);
+  };
+
+  it("bundles Entered directly's links to fifty readers into one trunk inside the canvas", () => {
+    const names = Array.from({ length: 50 }, (_, i) => `reader${i}`);
+    const layout = layoutFlow(buildFlow({ sources: [], lines: names.map(line), claimTypes: [], dependencies: names.map((r) => dependency(null, r)) }));
+    check(layout);
+    expect(new Set(layout.lanes.values()).size).toBe(1);
+  });
+
+  it("widens the gutter when fifty producers each need a lane of their own", () => {
+    const pairs = Array.from({ length: 50 }, (_, i) => [`p${String(i).padStart(2, "0")}`, `r${String(i).padStart(2, "0")}`] as const);
+    // each reader reads its producer and the one before it: the spans overlap, so the trunks cannot share lanes
+    const deps = pairs.flatMap(([p, r], i) => [dependency(p, r), ...(i ? [dependency(pairs[i - 1]![0], r)] : [])]);
+    const layout = layoutFlow(buildFlow({ sources: [], lines: pairs.flat().map(line), claimTypes: [], dependencies: deps }));
+    check(layout);
+    expect(Math.max(...layout.lanes.values())).toBeGreaterThan(30);
+  });
+});

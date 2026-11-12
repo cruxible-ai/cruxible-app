@@ -161,7 +161,7 @@ describe("Line definitions", () => {
       return document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`) as HTMLElement;
     };
     fireEvent.click(await node("catalog"));
-    expect(within(await screen.findByRole("list", { name: "Returns" })).getByRole("link", { name: "kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
+    expect(within(await screen.findByRole("list", { name: "Returns" })).getByRole("link", { name: "security.kev-http-v1" })).toHaveAttribute("href", "/i/inst_fixture/contracts/security.kev-http-v1");
     const provider = within(screen.getByRole("list", { name: "Provider" }));
     expect(provider.getByText("fetch")).toBeInTheDocument();
     expect(provider.getByRole("link", { name: "cruxible-provider-web" })).toBeInTheDocument();

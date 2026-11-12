@@ -24,6 +24,10 @@ export interface LayoutNodeIn {
   first?: boolean;
 }
 
+/** A slot node's port ids (`ports` layouts). */
+export const inPort = (id: string) => `${id}::in`;
+export const outPort = (id: string) => `${id}::out`;
+
 export interface LayoutEdgeIn {
   id: string;
   source: string;
@@ -42,6 +46,13 @@ export interface LayeredOptions {
   layerGap?: number;
   /** Which way the layers run (default RIGHT: left to right). */
   direction?: "RIGHT" | "DOWN";
+  /**
+   * Slot nodes: one port at the centre of each flow side (in on the side the
+   * layers come from, out on the side they go to) where every edge attaches,
+   * edges routed orthogonally, nodes aligned in straight columns. Default off
+   * (splines from anywhere on the box, nodes centred between neighbours).
+   */
+  ports?: boolean;
 }
 
 const TYPE_MAP: LayeredOptions = { looseColumn: true, edgeLabels: false, modelOrder: false };
@@ -96,12 +107,22 @@ export async function layoutLayered(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[]
 
   if (layered.length > 0) {
     const elk = await loadElk();
+    const down = options.direction === "DOWN";
+    const portsOf = (n: LayoutNodeIn): Pick<ElkNode, "ports"> =>
+      options.ports
+        ? {
+            ports: [
+              { id: inPort(n.id), x: down ? n.width / 2 : 0, y: down ? 0 : n.height / 2, width: 0, height: 0, layoutOptions: { "elk.port.side": down ? "NORTH" : "WEST" } },
+              { id: outPort(n.id), x: down ? n.width / 2 : n.width, y: down ? n.height : n.height / 2, width: 0, height: 0, layoutOptions: { "elk.port.side": down ? "SOUTH" : "EAST" } },
+            ],
+          }
+        : {};
     const graph: ElkNode = {
       id: "root",
       layoutOptions: {
         "elk.algorithm": "layered",
         "elk.direction": options.direction ?? "RIGHT",
-        "elk.edgeRouting": "SPLINES",
+        "elk.edgeRouting": options.ports ? "ORTHOGONAL" : "SPLINES",
         "elk.layered.spacing.nodeNodeBetweenLayers": String(options.layerGap ?? 80),
         "elk.layered.spacing.edgeNodeBetweenLayers": "18",
         "elk.layered.spacing.edgeEdgeBetweenLayers": "8",
@@ -110,7 +131,8 @@ export async function layoutLayered(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[]
         "elk.spacing.edgeEdge": "8",
         "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
         "elk.layered.crossingMinimization.greedySwitch.type": "TWO_SIDED",
-        "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
+        // Slot nodes stand in straight columns under the step they follow (Brandes-Köpf aligns each with one neighbour).
+        "elk.layered.nodePlacement.strategy": options.ports ? "BRANDES_KOEPF" : "NETWORK_SIMPLEX",
         "elk.layered.cycleBreaking.strategy": "GREEDY",
         "elk.layered.mergeEdges": "false",
         ...(options.edgeLabels ? { "elk.edgeLabels.placement": "CENTER", "elk.spacing.edgeLabel": "2" } : {}),
@@ -118,17 +140,18 @@ export async function layoutLayered(nodes: LayoutNodeIn[], edges: LayoutEdgeIn[]
         // Without the loose column, every node stays in one layering (a first-layer pin holds for an unlinked node too).
         ...(options.looseColumn ? {} : { "elk.separateConnectedComponents": "false" }),
       },
-      children: layered.map((n) => ({
-        id: n.id,
-        width: n.width,
-        height: n.height,
-        ...(n.first ? { layoutOptions: { "elk.layered.layering.layerConstraint": "FIRST" } } : {}),
-      })),
+      children: layered.map((n) => {
+        const nodeOptions = {
+          ...(n.first ? { "elk.layered.layering.layerConstraint": "FIRST" } : {}),
+          ...(options.ports ? { "elk.portConstraints": "FIXED_POS", "elk.alignment": down ? "TOP" : "LEFT" } : {}),
+        };
+        return { id: n.id, width: n.width, height: n.height, ...portsOf(n), ...(Object.keys(nodeOptions).length ? { layoutOptions: nodeOptions } : {}) };
+      }),
       edges: crossing.map(
         (e): ElkExtendedEdge => ({
           id: e.id,
-          sources: [e.source],
-          targets: [e.target],
+          sources: [options.ports ? outPort(e.source) : e.source],
+          targets: [options.ports ? inPort(e.target) : e.target],
           ...(options.edgeLabels && e.label
             ? { labels: [{ id: `${e.id}:label`, text: e.label, width: monoWidth(e.label, 11) + 8, height: 14 }] }
             : {}),

@@ -252,6 +252,8 @@ export interface LineDefinition {
   operations?: Record<string, string>;
   maxAuthority: string | null;
   occurrenceEpoch: number | null;
+  /** Per capture output (`<alias>.<field>`): the origins the Line allows it to come from (absent: any). */
+  origins?: Record<string, string[]>;
 }
 
 const targetName = (value: unknown): string | null => str(record(record(value)?.target)?.name);
@@ -281,6 +283,12 @@ export function readLineEnvelope(proof: unknown): LineDefinition | null {
     operations,
     maxAuthority: str(envelope.max_authority),
     occurrenceEpoch: typeof envelope.occurrence_epoch === "number" ? envelope.occurrence_epoch : null,
+    origins: Object.fromEntries(
+      Object.entries(record(envelope.acquisition) ?? {}).flatMap(([output, rule]) => {
+        const origins = record(rule)?.origins;
+        return Array.isArray(origins) ? [[output, origins.filter((o): o is string => typeof o === "string")]] : [];
+      }),
+    ),
   };
 }
 

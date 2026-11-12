@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { HealthDot } from "@/components/Chip";
 import { LegendRow } from "@/components/StatsRow";
 import { AUTHORITY_COLOR } from "@/lib/palette";
@@ -13,8 +14,9 @@ export function AuthorityBar({ authority }: { authority: string | undefined }) {
 /**
  * What the authority colors and the state dots mean (Evidence flow, Lines).
  * `byHand`: also name the neutral color a ClaimType no Line writes takes.
+ * `children`: more entries at the end of the row (a page's edge styles).
  */
-export function AuthorityLegend({ byHand = true }: { byHand?: boolean }) {
+export function AuthorityLegend({ byHand = true, children }: { byHand?: boolean; children?: ReactNode }) {
   const swatch = (color: string, label: string, help: string) => (
     <span className="inline-flex items-center gap-1.5" title={help}>
       <span className="inline-block h-2.5 w-[3px]" style={{ background: color }} />
@@ -36,6 +38,7 @@ export function AuthorityLegend({ byHand = true }: { byHand?: boolean }) {
       <span className="inline-flex items-center gap-1.5">
         <HealthDot tone="off" title="Not enabled" /> Not enabled
       </span>
+      {children}
     </LegendRow>
   );
 }

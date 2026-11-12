@@ -477,7 +477,7 @@ export interface FlowLayout {
   placed: Placed[];
   byId: ReadonlyMap<string, Placed>;
   edges: FlowEdge[];
-  /** Line → Line links: the lane each runs in, left of the Line column (0 nearest it), by edge key. */
+  /** Links into a Line (from a Line, or from Entered directly): the lane each runs in, left of the Line column (0 nearest it), by edge key. */
   lanes: ReadonlyMap<string, number>;
   width: number;
   height: number;
@@ -487,23 +487,29 @@ export interface FlowLayout {
 export const isLineLink = (edge: FlowEdge) =>
   Boolean(edge.dependencies || edge.landing) && edge.from.startsWith("line:") && edge.to.startsWith("line:");
 
-/** Column boxes: sources, Lines, what they produce; the wider gutter carries the Line fan-out. */
+/** A link that feeds a Line: what its Queries read (from a Line, or Entered directly), or a derived landing that starts it. */
+export const isFeedLink = (edge: FlowEdge) => Boolean(edge.dependencies || edge.landing);
+
+/**
+ * Column boxes: sources, Lines, what they produce; the wider gutter carries the Line fan-out. Sized so the flow
+ * with two derive columns fits the console's content width at a 1440 px window (about 1,150 px) without scrolling.
+ */
 export const COLUMNS = [
-  { x: 0, w: 230 },
-  { x: 300, w: 260 },
-  { x: 650, w: 280 },
+  { x: 0, w: 210 },
+  { x: 270, w: 250 },
+  { x: 590, w: 230 },
 ] as const;
 
 /** A derive column's width and the step to the next one (a derive chain takes one column per hop). */
-const DERIVE_W = 170;
-const DERIVE_STEP = 210;
+const DERIVE_W = 140;
+const DERIVE_STEP = 160;
 
 /** The columns with `depths` derive columns between the sources and the Lines (none: COLUMNS). */
 function columnsFor(depths: number) {
   const shift = depths * DERIVE_STEP;
   return {
     source: COLUMNS[0],
-    derive: (depth: number) => ({ x: COLUMNS[1].x + depth * DERIVE_STEP - 10, w: DERIVE_W }),
+    derive: (depth: number) => ({ x: COLUMNS[1].x + depth * DERIVE_STEP - 20, w: DERIVE_W }),
     line: { x: COLUMNS[1].x + shift, w: COLUMNS[1].w },
     produces: { x: COLUMNS[2].x + shift, w: COLUMNS[2].w },
   };
@@ -667,28 +673,42 @@ export function layoutFlow(model: FlowModel): FlowLayout {
     ...rows,
   ];
   const height = Math.max(...placed.map((p) => p.y + p.h), top) + 8;
-  // Line → Line links run in lanes left of the Line column: the shortest nearest it, overlapping spans apart.
+  // Links into a Line run in lanes left of the Line column. The links out of one source (a Line, or Entered directly)
+  // share one lane, a trunk with a short branch into each reader; sources whose spans overlap take lanes apart,
+  // the shortest nearest the column.
   const lanes = new Map<string, number>();
-  const spans = lineLinks
-    .map((e) => {
-      const a = lineY.get(e.from)!;
-      const b = lineY.get(e.to)!;
-      return { key: edgeKey(e), lo: Math.min(a, b), hi: Math.max(a, b) + HEIGHT.line };
-    })
-    .sort((a, b) => a.hi - a.lo - (b.hi - b.lo) || a.lo - b.lo || byText(a.key, b.key));
-  const taken: { lo: number; hi: number; lane: number }[] = [];
-  for (const span of spans) {
-    let lane = 0;
-    while (taken.some((t) => t.lane === lane && t.lo < span.hi && span.lo < t.hi)) lane += 1;
-    taken.push({ ...span, lane });
-    lanes.set(span.key, lane);
+  const at = new Map(placed.map((p) => [p.id, p] as const));
+  const trunks = new Map<string, { from: string; keys: string[]; lo: number; hi: number }>();
+  for (const e of model.edges.filter(isFeedLink)) {
+    const a = at.get(e.from);
+    const b = at.get(e.to);
+    if (!a || !b) continue;
+    const trunk = trunks.get(e.from) ?? { from: e.from, keys: [], lo: Infinity, hi: -Infinity };
+    trunk.keys.push(edgeKey(e));
+    trunk.lo = Math.min(trunk.lo, a.y, b.y);
+    trunk.hi = Math.max(trunk.hi, a.y + a.h, b.y + b.h);
+    trunks.set(e.from, trunk);
   }
+  const taken: { lo: number; hi: number; lane: number }[] = [];
+  for (const trunk of [...trunks.values()].sort((a, b) => a.hi - a.lo - (b.hi - b.lo) || a.lo - b.lo || byText(a.from, b.from))) {
+    let lane = 0;
+    while (taken.some((t) => t.lane === lane && t.lo < trunk.hi && trunk.lo < t.hi)) lane += 1;
+    taken.push({ lo: trunk.lo, hi: trunk.hi, lane });
+    for (const key of trunk.keys) lanes.set(key, lane);
+  }
+  // The lanes need room between the cards on the left and the Line column: widen that gutter when they would run
+  // behind those cards or off the canvas (the Line column and everything right of it move right).
+  const lineX = columns.line.x;
+  const leftEdge = Math.max(0, ...placed.filter((p) => p.x < lineX).map((p) => p.x + p.w));
+  const needed = lanes.size ? LANE_GAP + Math.max(...lanes.values()) * LANE_STEP + LANE_CLEAR : 0;
+  const shift = Math.max(0, needed - (lineX - leftEdge));
+  const shifted = shift ? placed.map((p) => (p.x >= lineX ? { ...p, x: p.x + shift } : p)) : placed;
   return {
-    placed,
-    byId: new Map(placed.map((p) => [p.id, p] as const)),
+    placed: shifted,
+    byId: new Map(shifted.map((p) => [p.id, p] as const)),
     edges: model.edges,
     lanes,
-    width: columns.produces.x + columns.produces.w,
+    width: columns.produces.x + columns.produces.w + shift,
     height,
   };
 }
@@ -698,22 +718,27 @@ const LINK_INSET = 18;
 /** The first lane's distance left of the Line column, and the step between lanes. */
 const LANE_GAP = 12;
 const LANE_STEP = 7;
+/** Room the outermost lane keeps from the cards on its left. */
+const LANE_CLEAR = 10;
 
 /**
- * A Line → Line link's path: out of the producer's left edge near its bottom
- * (its top when it sits below), along its lane left of the column, and into
- * the reader's left edge near its top (or bottom): clear of the source → Line
- * edges, which meet the cards at mid-height, and of the fan-out on the right.
+ * A link into a Line, along its lane left of the Line column: out of a
+ * producing Line's left edge near its bottom (its top when it sits below), or
+ * out of Entered directly's right edge at mid-height; down (or up) the lane;
+ * into the reader's left edge near its top (or bottom). Clear of the source →
+ * Line edges, which meet the cards at mid-height, and of the fan-out on the right.
  */
 export function linkPath(from: Placed, to: Placed, lane: number): string {
-  const x = from.x;
-  const laneX = x - LANE_GAP - lane * LANE_STEP;
+  const laneX = to.x - LANE_GAP - lane * LANE_STEP;
+  const inColumn = from.x >= to.x;
   const down = from.y < to.y;
-  const y1 = down ? from.y + from.h - LINK_INSET : from.y + LINK_INSET;
+  const x1 = inColumn ? from.x : from.x + from.w;
+  const y1 = inColumn ? (down ? from.y + from.h - LINK_INSET : from.y + LINK_INSET) : from.y + from.h / 2;
   const y2 = down ? to.y + LINK_INSET : to.y + to.h - LINK_INSET;
   const r = Math.min(5, Math.abs(y2 - y1) / 2);
   const s = down ? 1 : -1;
-  return `M${x},${y1} H${laneX + r} Q${laneX},${y1} ${laneX},${y1 + s * r} V${y2 - s * r} Q${laneX},${y2} ${laneX + r},${y2} H${to.x}`;
+  const into = inColumn ? laneX + r : laneX - r;
+  return `M${x1},${y1} H${into} Q${laneX},${y1} ${laneX},${y1 + s * r} V${y2 - s * r} Q${laneX},${y2} ${laneX + r},${y2} H${to.x}`;
 }
 
 /** An edge's path between two placed nodes (right edge to left edge, a horizontal S-curve). */
@@ -722,16 +747,6 @@ export function edgePath(from: Placed, to: Placed): string {
   const y1 = from.y + from.h / 2;
   const x2 = to.x;
   const y2 = to.y + to.h / 2;
-  const dx = (x2 - x1) / 2;
-  return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
-}
-
-/** A link from Entered directly into a Line: an S-curve into the card's left edge near its bottom, clear of the source edges at mid-height. */
-export function directLinkPath(from: Placed, to: Placed): string {
-  const x1 = from.x + from.w;
-  const y1 = from.y + from.h / 2;
-  const x2 = to.x;
-  const y2 = to.y + to.h - LINK_INSET;
   const dx = (x2 - x1) / 2;
   return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
 }

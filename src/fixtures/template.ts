@@ -180,6 +180,7 @@ const lineProof = (name: string, procedure: string, extra: Record<string, unknow
 
 const TEMPLATE_PROOF = lineProof(TEMPLATE_LINE, TEMPLATE_PROCEDURE, {
   max_authority: "propose",
+  acquisition: { "pages.pages": { origins: ["https://vendor.example"] } },
   parameters: { url: PAGE_URL(1), logical_source: "vendor.advisories" },
   bindings: { pages: binding(WEB_BUILD, "web.fetch.pages"), narrow: binding(KIT_BUILD, "advisory.narrow"), fixes: binding(KIT_BUILD, "advisory.fixes") },
 });
@@ -342,10 +343,45 @@ const LINES: RecordedFixture[] = [
   batch(
     ["Contract:security.advisory-fixes.result@1", "Contract:security.advisory-narrow.result@1", "Contract:web.fetch.pages.result@1"],
     [
-      result("Contract:security.advisory-fixes.result@1", "contract", { card: { contract: "security.advisory-fixes.result", version: 1, fields: [{ name: "capture", type: "capture<*>" }] } }),
-      result("Contract:security.advisory-narrow.result@1", "contract", { card: { contract: "security.advisory-narrow.result", version: 1, fields: [{ name: "capture", type: "capture<*>" }] } }),
+      result("Contract:security.advisory-fixes.result@1", "contract", {
+        card: {
+          contract: "security.advisory-fixes.result",
+          version: 1,
+          description: "One derived JSON document: fixes (one record per watched CVE the advisories name: cve, the release that fixes it, the advisory id).",
+          fields: [{ name: "capture", type: "capture<*>" }],
+        },
+      }),
+      result("Contract:security.advisory-narrow.result@1", "contract", {
+        card: {
+          contract: "security.advisory-narrow.result",
+          version: 1,
+          description: "One derived JSON document: the advisory pages' entries that name a watched CVE, merged in page order.",
+          fields: [{ name: "capture", type: "capture<*>" }],
+        },
+      }),
       result("Contract:web.fetch.pages.result@1", "contract", {
         card: { contract: "web.fetch.pages.result", version: 1, fields: [{ name: "pages", type: "list<capture<*>>{max_items: 20}" }, { name: "next_url", type: "string", optional: true }] },
+      }),
+    ],
+  ),
+  // The slots' in Contracts: what each request field means.
+  batch(
+    ["Contract:security.advisory-fixes.request@1", "Contract:security.advisory-narrow.request@1", "Contract:web.fetch.pages.request@1"],
+    [
+      result("Contract:security.advisory-fixes.request@1", "contract", { card: { contract: "security.advisory-fixes.request", version: 1, fields: [{ name: "source", type: "capture<*>" }] } }),
+      result("Contract:security.advisory-narrow.request@1", "contract", {
+        card: { contract: "security.advisory-narrow.request", version: 1, fields: [{ name: "source", type: "list<capture<*>>" }, { name: "watched", type: "rows" }] },
+      }),
+      result("Contract:web.fetch.pages.request@1", "contract", {
+        card: {
+          contract: "web.fetch.pages.request",
+          version: 1,
+          fields: [
+            { name: "url", type: "string", description: "The first page's URL; each page names the next." },
+            { name: "logical_source", type: "string", description: "The logical source the pages are captured under." },
+            { name: "expected_format", type: "string" },
+          ],
+        },
       }),
     ],
   ),
