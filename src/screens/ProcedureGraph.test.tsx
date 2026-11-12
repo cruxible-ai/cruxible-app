@@ -4,6 +4,7 @@ import { http } from "msw";
 import { renderApp, TEST_BASE } from "@/test/render";
 import { NODE_WIDTH } from "@/components/graph/ProcedureGraph";
 import { TEMPLATE_LINE, TEMPLATE_WORLD } from "@/fixtures/template";
+import { LANDING_TRIGGER, READERS_WORLD } from "@/fixtures/readers";
 
 afterEach(cleanup);
 
@@ -60,12 +61,17 @@ describe("Procedure graph", () => {
     expect(document.querySelector('[data-step="watched"]')).not.toHaveAttribute("aria-current");
   });
 
-  it("wraps the graph in the Line: its Trigger, the build its slot binds, and a picked run's marks and counts", async () => {
+  it("wraps the graph in the Line: its Trigger in a Runs on band, the build its slot binds, and a picked run's marks and counts", async () => {
     renderApp("/i/inst_fixture/lines/kev-triage");
     const g = await graph();
-    await waitFor(() => expect(node("trigger:security.kev-daily")).not.toBeNull(), SLOW);
+    const runsOn = within(await g.findByRole("group", { name: "Runs on" }, SLOW));
+    expect(runsOn.getByRole("link", { name: "security.kev-daily" })).toHaveAttribute("href", expect.stringContaining("security.kev-daily"));
     // a UTC schedule reads in the viewer's zone (the suite runs in America/New_York)
-    expect(g.getByText(/^Daily at 1:00\s?AM EST$|^Daily at 2:00\s?AM EDT$/)).toBeInTheDocument();
+    expect(runsOn.getByText(/^Daily at 1:00\s?AM EST$|^Daily at 2:00\s?AM EDT$/)).toBeInTheDocument();
+    // a schedule feeds no step: no marker; and the Trigger is not a node of the graph
+    expect(runsOn.queryByRole("button", { name: /^lands/ })).toBeNull();
+    await waitFor(() => expect(node("catalog")).not.toBeNull(), SLOW);
+    expect(document.querySelector('[data-testid="procedure-graph"] .react-flow__node[data-id^="trigger:"]')).toBeNull();
     // the call reads the landing; the build its slot binds is on hover
     await waitFor(() => expect(node("catalog")).toHaveTextContent("landing · JSON"), SLOW);
     await waitFor(() => expect(node("catalog").querySelector("[title*='slot fetch → cruxible-provider-web']")).not.toBeNull(), SLOW);
@@ -129,6 +135,17 @@ describe("Procedure graph", () => {
     await waitFor(() => expect(node("pages")).not.toBeNull(), SLOW);
     expect(node("$input")).toBeNull();
     expect(within(node("pages")).getByTitle("url")).toBeInTheDocument();
+  });
+
+  it("names a landing Trigger's step on its Runs on entry; a click focuses that step", async () => {
+    renderApp("/i/inst_fixture/lines/cve-applicability", READERS_WORLD);
+    const g = await graph();
+    const runsOn = within(await g.findByRole("group", { name: "Runs on" }, SLOW));
+    expect(runsOn.getByRole("link", { name: LANDING_TRIGGER })).toBeInTheDocument();
+    expect(runsOn.getByText("When assessments.inbox lands")).toBeInTheDocument();
+    await waitFor(() => expect(node("record")).not.toBeNull(), SLOW);
+    fireEvent.click(runsOn.getByRole("button", { name: "lands → record" }));
+    expect(await screen.findByRole("button", { name: "Clear: Focused on record" }, SLOW)).toBeInTheDocument();
   });
 
   it("shows what a read's Query is as rows in its node once the Query's card is read, and the node before it is", async () => {

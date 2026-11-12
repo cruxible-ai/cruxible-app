@@ -123,7 +123,8 @@ test("fixture-backed inspection flow: dashboard, kind table, kind, contract, evi
   // The Line's graph: its Trigger, its steps, a picked run's marks.
   const lineGraph = page.getByTestId("procedure-graph");
   await expect(lineGraph.getByText(/^Daily at /)).toBeVisible();
-  await expect(lineGraph.locator(".react-flow__node")).toHaveCount(7); // the Trigger and its six steps
+  await expect(lineGraph.locator(".react-flow__node")).toHaveCount(6); // its six steps; the Trigger is in the Runs on band
+  await expect(lineGraph.getByRole("group", { name: "Runs on" }).getByRole("link", { name: "security.kev-daily" })).toBeVisible();
   await expect(lineGraph.getByRole("group", { name: "Reads from" }).getByRole("link", { name: "cve-applicability" })).toBeVisible(); // a Line its read depends on
   await page.getByRole("combobox", { name: "Mark the steps with a run" }).selectOption("run-7");
   await expect(lineGraph.getByText("Refused · guard_refused")).toBeVisible();

@@ -20,7 +20,7 @@ import { InfoButton } from "@/components/InfoButton";
 import { Parts } from "@/components/Parts";
 import { layoutLayered, type Point, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
-import { ROLE_COLOR, STAGE_COLOR } from "@/lib/palette";
+import { STAGE_COLOR } from "@/lib/palette";
 import { contractName } from "@/lib/ontology";
 import { listFields, stageOf, type ListField, type ListMember, type Stage } from "@/lib/template";
 import { MemberStatus, memberHover } from "@/components/ListMembers";
@@ -42,16 +42,23 @@ import { DependencyPopover, producerName, type PopoverAt } from "@/components/De
  * right angles, captioned with what it carries (a `{$ref: step}` reference's
  * path when short; a guard's then/else). The Procedure's input and a Line's
  * parameters are configuration, not steps: each shows as a row inside the step
- * that reads it, with the Line's value. On a Line page the graph also shows
- * its Triggers (first) and a run's marks when one is picked: what happened at
- * each step, in counts where the run card's node summary gives them ("1,766
+ * that reads it, with the Line's value. A read step also shows what its Query
+ * is, once the Query's card is read (one get-batch for the Procedure's
+ * Queries): its description as written, the kinds its rows start from, its
+ * parameters with the values the step binds, and how many fields it returns.
+ * The canvas keeps room around the graph, fits into it on load, and panning
+ * stops at that room so no node goes past the canvas edge. On a Line page the
+ * graph also shows a run's marks when one is picked: what happened at each
+ * step, in counts where the run card's node summary gives them ("1,766
  * records · complete"), and the count flowing along an edge. Clicking a step
  * focuses everything upstream and downstream of it (the focus chip and Esc
- * clear it) and tells the page which step it is. On a Line page, a band above
- * the graph names the Lines (or Entered directly) that produce what its read
- * steps' Queries read, and a band below names the Lines whose Queries read
- * what it writes: each a link to the Line, with a toggle that opens which
- * Query reads what.
+ * clear it) and tells the page which step it is. On a Line page, bands above
+ * the graph name its Triggers (Runs on: each with its schedule in words, a
+ * landing one with the step its Capture feeds) and the Lines (or Entered
+ * directly) that produce what its read steps' Queries read (Reads from); a
+ * band below names the Lines whose Queries read what it writes (Read by).
+ * Each Line links to its page, with a count beside it that opens which Query
+ * reads what.
  */
 
 /** A Line's Trigger as the graph shows it: its schedule in words, and whether its landing feeds the trigger input. */
@@ -85,13 +92,11 @@ interface NodeLine {
 
 interface NodeDisplay {
   role: StepRole;
-  /** The step's template stage (D-R37); null for a step outside it (and the Trigger nodes). */
+  /** The step's template stage (D-R37); null for a step outside it. */
   stage: Stage | null;
   kindWord: string;
   kindMeaning: string;
   name: string | null;
-  /** Where the name links (a Trigger's page). */
-  nameTo?: string | null;
   /** The step's key fields, one line (`cisa.gov · JSON`); named things linked, all of it on hover. */
   brief: { parts: Part[]; routes: (string | null)[]; title: string } | null;
   lines: NodeLine[];
@@ -117,10 +122,9 @@ const PAD = { x: 48, y: 56 };
 const EDGE_STROKE = "#6b6857";
 const EDGE_LABEL = "bg-zinc-950 px-1 text-[10.5px] leading-[14px] text-zinc-400";
 
-/** A kind word's color: its stage's, the Trigger's; none (neutral text) for a step outside the template. */
-function kindColor(d: Pick<NodeDisplay, "role" | "stage">): string | null {
-  if (d.stage) return STAGE_COLOR[d.stage].color;
-  return d.role === "trigger" ? ROLE_COLOR.trigger.color : null;
+/** A kind word's color: its stage's; none (neutral text) for a step outside the template. */
+function kindColor(d: Pick<NodeDisplay, "stage">): string | null {
+  return d.stage ? STAGE_COLOR[d.stage].color : null;
 }
 
 /** A name that truncates from its start, so the end that tells names apart shows; all of it on hover. */
@@ -162,14 +166,7 @@ function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
         >
           {word}
         </span>
-        {data.name &&
-          (data.nameTo ? (
-            <Link to={data.nameTo} className="nodrag nopan min-w-0 font-mono text-[12px] text-zinc-100 hover:text-white hover:underline" onClick={(e) => e.stopPropagation()}>
-              <EndFirst text={data.name} />
-            </Link>
-          ) : (
-            <EndFirst text={data.name} className="font-mono text-[12px] text-zinc-100" />
-          ))}
+        {data.name && <EndFirst text={data.name} className="font-mono text-[12px] text-zinc-100" />}
       </div>
       {body && (
         <div className="flex min-h-0 flex-col px-2.5 py-[5px]">
@@ -368,7 +365,7 @@ function dependencyChips(line: string, dependencies: readonly LineDependency[], 
   return { up: [...up.values()].sort(order), down: [...down.values()].sort(order) };
 }
 
-/** A band of Lines beside the graph, under its heading: above for what feeds the reads, below for who reads the writes. */
+/** A band beside the graph, under its heading: what starts the Line and what feeds its reads above, who reads its writes below. */
 function Band({ heading, place, children }: { heading: string; place: "above" | "below"; children: ReactNode }) {
   return (
     <div
@@ -422,9 +419,35 @@ function DependencyChip({ chip, to, dim, onOpen }: { chip: Chip; to: string | nu
   );
 }
 
+/** A Trigger in the Runs on band: its name links to it, then its schedule in words; a landing one names the step it feeds (a click focuses it). */
+function TriggerEntry({ trigger, to, feeds, dim, onFeeds }: { trigger: GraphTrigger; to: string | null; feeds: string | null; dim: boolean; onFeeds: (step: string) => void }) {
+  return (
+    <span data-trigger={trigger.name} className={`inline-flex min-w-0 items-baseline gap-1.5 transition-opacity ${dim ? "opacity-30" : ""}`}>
+      {to ? (
+        <Link to={to} className={BAND_LINK}>
+          <EndFirst text={trigger.name} title={`Trigger ${trigger.name}`} />
+        </Link>
+      ) : (
+        <EndFirst text={trigger.name} className="font-mono text-[12px] text-zinc-200" />
+      )}
+      <span className="shrink-0 text-[11px] text-zinc-400">{sentence(trigger.words)}</span>
+      {feeds && (
+        <button
+          type="button"
+          onClick={() => onFeeds(feeds)}
+          title={`lands → ${feeds}`}
+          aria-label={`lands → ${feeds}`}
+          className="shrink-0 text-[11px] text-zinc-500 hover:text-zinc-200"
+        >
+          → <span className="font-mono text-zinc-300 underline decoration-zinc-700 underline-offset-2">{feeds}</span>
+        </button>
+      )}
+    </span>
+  );
+}
+
 const nodeTypes = { step: StepNode };
 
-const TRIGGER_PREFIX = "trigger:";
 const FIT_MAX_ZOOM = 1;
 /** Below this the step text is too small to read: a larger graph grows the canvas or pans sideways instead. */
 const FIT_MIN_ZOOM = 0.8;
@@ -529,51 +552,37 @@ export function ProcedureGraph({
       const word = term("stepKind", kind);
       out.set(node.id, { role: node.role, stage, kindWord: word.word, kindMeaning: word.meaning, name, brief, lines, mark, markWords });
     }
-    for (const trigger of line?.triggers ?? []) {
-      const word = term("stepKind", "trigger");
-      out.set(`${TRIGGER_PREFIX}${trigger.name}`, {
-        role: "trigger",
-        stage: null,
-        kindWord: word.word,
-        kindMeaning: word.meaning,
-        name: trigger.name,
-        nameTo: routeOf(`Trigger:${trigger.name}`),
-        brief: null,
-        lines: [{ text: sentence(trigger.words), tone: "plain" }],
-        mark: null,
-        markWords: null,
-      });
-    }
     return out;
   }, [model, spec, line, definition, run, contractRoute, routeOf, ctx, grades, queries]);
 
-  // The edges: the definition's (the input's are rows in the steps), plus a landing Trigger into the step that reads the landing.
-  const edges = useMemo(() => {
-    // A data edge carries the run's count of what flows along it when the source's summary gives one.
-    const out = model.edges
-      .filter((e) => e.source !== INPUT_NODE)
-      .map((e) => {
-        const flow = e.kind === "data" ? flowWords(run?.marks.get(e.source)?.summary, e.fields) : null;
-        return { id: e.id, source: e.source, target: e.target, label: e.kind === "control" ? e.fields.join(", ") : (flow ?? edgeLabel(e)) };
-      });
-    const inputStep = definition?.triggerInput
-      ? model.nodes.find((n) => n.view?.kind === "call" && (n.view.name ?? n.view.id) === definition.triggerInput)
-      : undefined;
-    for (const trigger of line?.triggers ?? []) {
-      if (trigger.landing && inputStep) {
-        out.push({ id: `landing:${trigger.name}`, source: `${TRIGGER_PREFIX}${trigger.name}`, target: inputStep.id, label: "lands" });
-      }
-    }
-    return out;
-  }, [model, definition, line, run]);
+  // The edges: the definition's (the input's are rows in the steps).
+  const edges = useMemo(
+    () =>
+      model.edges
+        .filter((e) => e.source !== INPUT_NODE)
+        .map((e) => {
+          // A data edge carries the run's count of what flows along it when the source's summary gives one.
+          const flow = e.kind === "data" ? flowWords(run?.marks.get(e.source)?.summary, e.fields) : null;
+          return { id: e.id, source: e.source, target: e.target, label: e.kind === "control" ? e.fields.join(", ") : (flow ?? edgeLabel(e)) };
+        }),
+    [model, run],
+  );
+  // The step a landing Trigger's Capture feeds (the Line's trigger input).
+  const landingStep = useMemo(
+    () =>
+      definition?.triggerInput
+        ? (model.nodes.find((n) => n.view?.kind === "call" && (n.view.name ?? n.view.id) === definition.triggerInput)?.id ?? null)
+        : null,
+    [model, definition],
+  );
 
   const layoutInput = useMemo(() => {
-    const ids = [...(line?.triggers ?? []).map((t) => `${TRIGGER_PREFIX}${t.name}`), ...model.nodes.filter((n) => n.id !== INPUT_NODE).map((n) => n.id)];
+    const ids = model.nodes.filter((n) => n.id !== INPUT_NODE).map((n) => n.id);
     return {
-      nodes: ids.map((id) => ({ id, width: NODE_WIDTH, height: heightOf(display.get(id)!), first: id.startsWith(TRIGGER_PREFIX) })),
+      nodes: ids.map((id) => ({ id, width: NODE_WIDTH, height: heightOf(display.get(id)!) })),
       edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
     };
-  }, [model, display, edges, line]);
+  }, [model, display, edges]);
   // Which way the steps run: top to bottom (default) or left to right; remembered per browser.
   const [vertical, setVertical] = useState(() => {
     try {
@@ -675,7 +684,9 @@ export function ProcedureGraph({
     [onSelectStep, stepIds],
   );
   const lit = useMemo(() => (focus ? lineage(focus, edges).nodes : null), [focus, edges]);
-  const nodeName = useCallback((id: string) => (id.startsWith(TRIGGER_PREFIX) ? id.slice(TRIGGER_PREFIX.length) : id), []);
+  // A click on a landing Trigger's step focuses it in the graph.
+  const [selectRequest, setSelectRequest] = useState<{ id: string; nonce: number } | null>(null);
+  const focusStep = useCallback((id: string) => setSelectRequest((r) => ({ id, nonce: (r?.nonce ?? 0) + 1 })), []);
 
   if (!laidOut) return <LoadState />;
   // As tall as the graph is at the zoom it will be shown at, plus the padding above and below: the canvas width's fit,
@@ -686,6 +697,7 @@ export function ProcedureGraph({
   const heightFit = height > 0 ? (most - 2 * PAD.y) / height : FIT_MAX_ZOOM;
   const zoom = Math.max(FIT_MIN_ZOOM, Math.min(FIT_MAX_ZOOM, widthFit, heightFit));
   const canvasHeight = Math.max(160, Math.ceil(height * zoom) + 2 * PAD.y);
+  const triggers = line?.triggers ?? [];
   const lineRoute = (name: string) => link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`);
   const chipOf = (id: string) => chips.up.find((c) => c.id === id) ?? chips.down.find((c) => c.id === id);
   const band = (chip: Chip) => (
@@ -699,6 +711,23 @@ export function ProcedureGraph({
   );
   return (
     <div ref={measure} data-testid="procedure-graph">
+      {triggers.length > 0 && (
+        <Band heading="Runs on" place="above">
+          {triggers.map((trigger) => {
+            const feeds = trigger.landing ? landingStep : null;
+            return (
+              <TriggerEntry
+                key={trigger.name}
+                trigger={trigger}
+                to={routeOf(`Trigger:${trigger.name}`)}
+                feeds={feeds}
+                dim={lit !== null && feeds !== null && !lit.has(feeds)}
+                onFeeds={focusStep}
+              />
+            );
+          })}
+        </Band>
+      )}
       {chips.up.length > 0 && (
         <Band heading="Reads from" place="above">
           {chips.up.map(band)}
@@ -724,8 +753,8 @@ export function ProcedureGraph({
         recenter={false}
         fitPaddingPx={PAD}
         contain
-        nodeName={nodeName}
         fitKey={laidOut.key}
+        selectRequest={selectRequest}
         draggable={false}
         controls={
           <button
