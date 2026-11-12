@@ -643,6 +643,13 @@ export function ProcedureGraph({
         }),
     [model, run],
   );
+  // Declared parameters and inputs no step reads: no step row shows them, so a band names them.
+  const unused = useMemo(() => {
+    const reads = model.edges.filter((e) => e.source === INPUT_NODE);
+    if (reads.some((e) => e.fields.length === 0)) return [];
+    const read = new Set(reads.flatMap((e) => e.fields.map((f) => f.split(".")[0]!)));
+    return [...new Set([...Object.keys(spec.input ?? {}), ...Object.keys(spec.params ?? {})])].filter((name) => !read.has(name)).sort();
+  }, [model, spec]);
   // The step a landing Trigger's Capture feeds (the Line's trigger input).
   const landingStep = useMemo(
     () =>
@@ -807,6 +814,21 @@ export function ProcedureGraph({
       {chips.up.length > 0 && (
         <Band heading="Reads from" place="above">
           {chips.up.map(band)}
+        </Band>
+      )}
+      {unused.length > 0 && (
+        <Band heading="Unused" place="above">
+          {unused.map((name) => {
+            const given = line && definition && Object.hasOwn(definition.parameters, name) ? definition.parameters[name] : undefined;
+            const value = given === undefined ? null : typeof given === "string" ? given : JSON.stringify(given);
+            return (
+              <span key={name} data-unused={name} className="inline-flex min-w-0 max-w-[24rem] items-center gap-1.5 text-[11px]" title={value === null ? name : `${name} = ${value}`}>
+                <SlidersHorizontal className="h-2.5 w-2.5 shrink-0 text-zinc-600" aria-hidden />
+                <code className="shrink-0 font-mono text-zinc-300">{name}</code>
+                {value !== null && <code className="min-w-0 truncate font-mono text-zinc-400">{value}</code>}
+              </span>
+            );
+          })}
         </Band>
       )}
       <GraphCanvas

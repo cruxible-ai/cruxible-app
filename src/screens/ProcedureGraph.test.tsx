@@ -5,6 +5,8 @@ import { renderApp, TEST_BASE } from "@/test/render";
 import { NODE_WIDTH } from "@/components/graph/ProcedureGraph";
 import { TEMPLATE_LINE, TEMPLATE_WORLD } from "@/fixtures/template";
 import { KEV_TRIAGE_SPEC } from "@/fixtures/authored/definitions";
+import { AUTHORED } from "@/fixtures/handlers";
+import type { GetResult } from "@/api/schemas";
 import { LANDING_TRIGGER, READERS_WORLD } from "@/fixtures/readers";
 
 afterEach(cleanup);
@@ -263,6 +265,40 @@ describe("Procedure graph", () => {
     } finally {
       KEV_TRIAGE_SPEC.steps = saved.steps;
       KEV_TRIAGE_SPEC.returns = saved.returns;
+    }
+  }, 30000);
+
+  it("names declared parameters no step reads in an Unused band, with the Line's value on a Line page; a parameter two steps read shows in both", async () => {
+    const saved = { steps: KEV_TRIAGE_SPEC.steps, params: KEV_TRIAGE_SPEC.params, returns: KEV_TRIAGE_SPEC.returns ?? null };
+    KEV_TRIAGE_SPEC.params = { used: { type: { kind: "string" } }, unused: { type: { kind: "string" } } };
+    KEV_TRIAGE_SPEC.steps = ["one", "two"].map((read) => ({ read, query: "security.kev_exposure", params: { selected: { $ref: "param" as const, path: ["used"] } } }));
+    KEV_TRIAGE_SPEC.returns = null;
+    const proof = AUTHORED.flatMap((f) => ((f.response as { results?: GetResult[] }).results ?? [f.response as GetResult]))
+      .filter((r) => r?.ref === "Line:kev-triage" && r.detail === "proof")
+      .map((r) => (r.proof as { envelope: { parameters: Record<string, unknown> } }).envelope);
+    const before = proof.map((e) => e.parameters);
+    try {
+      renderApp("/i/inst_fixture/ref/Procedure%3Asecurity.kev-triage");
+      const g = await graph();
+      const band = within(await g.findByRole("group", { name: "Unused" }, SLOW));
+      expect(band.getByText("unused").tagName).toBe("CODE");
+      expect(band.queryByText("used")).toBeNull();
+      await waitFor(() => expect(node("two")).not.toBeNull(), SLOW);
+      // the parameter both steps read sits on each one's Query parameter row (not yet given on a Procedure page)
+      await waitFor(() => expect(within(node("one")).getByText("$params.used")).toBeInTheDocument(), SLOW);
+      expect(within(node("two")).getByText("$params.used")).toBeInTheDocument();
+      cleanup();
+
+      for (const e of proof) e.parameters = { used: "a", unused: "kept" };
+      renderApp("/i/inst_fixture/lines/kev-triage");
+      const line = within(await (await graph()).findByRole("group", { name: "Unused" }, SLOW));
+      expect(line.getByTitle("unused = kept")).toBeInTheDocument();
+    } finally {
+      KEV_TRIAGE_SPEC.steps = saved.steps;
+      KEV_TRIAGE_SPEC.returns = saved.returns;
+      if (saved.params === undefined) delete KEV_TRIAGE_SPEC.params;
+      else KEV_TRIAGE_SPEC.params = saved.params;
+      proof.forEach((e, i) => (e.parameters = before[i]!));
     }
   }, 30000);
 });
