@@ -126,7 +126,8 @@ export function InboxScreen() {
           meta={entries.length > 0 ? <span>{inboxCount(first, entries.length, nextCursor !== null)}</span> : undefined}
         >
           {entries.length === 0 ? (
-            <EmptyState>{EMPTY[status ?? "all"]}</EmptyState>
+            // a failed refresh shows its error above, never the empty state
+            !inbox.error && <EmptyState>{EMPTY[status ?? "all"]}</EmptyState>
           ) : (
             <InboxTable
               key={filterKey}

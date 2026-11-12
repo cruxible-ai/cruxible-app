@@ -1010,7 +1010,7 @@ function InboxPanel({ line }: { line: string }) {
       {inbox.error && <LoadState error={inbox.error} />}
       {inbox.data &&
         (entries.length === 0 ? (
-          <div className="text-[13px] text-zinc-500">None</div>
+          !inbox.error && <div className="text-[13px] text-zinc-500">None</div>
         ) : (
           <InboxTable
             key={first}

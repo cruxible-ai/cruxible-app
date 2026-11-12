@@ -125,7 +125,8 @@ export function LedgerScreen() {
                   onLongerWords={onLongerWords(row.sequence)}
                   origin={false}
                 /> : null)}
-            empty="None"
+            // a failed refresh shows its error above, never "None"
+            empty={page.error ? null : "None"}
             count={false}
           />
         </Panel>

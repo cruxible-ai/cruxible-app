@@ -68,8 +68,8 @@ export function SinceLastLooked({ head, pinned }: { head: number; pinned: boolea
       {!behind && <EmptyState>Nothing new</EmptyState>}
       {behind && (generations.isPending || since.isPending) && !(generations.error ?? since.error) && <LoadState />}
       {behind && (generations.error ?? since.error) && <LoadState error={generations.error ?? since.error} />}
-      {/* a failed refresh never says "No Claim changes" */}
-      {behind && summary && lower !== null && !(since.error && summary.created + summary.revised + summary.retired === 0) && (
+      {/* a failed refresh of either read it rests on (the generations that bound it, the since read) never says "No Claim changes" */}
+      {behind && summary && lower !== null && !((generations.error ?? since.error) && summary.created + summary.revised + summary.retired === 0) && (
         <Changes summary={summary} from={lower} seen={mark.generation} head={head} truncated={since.data?.truncated ?? false} />
       )}
     </Panel>

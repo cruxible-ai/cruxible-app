@@ -91,7 +91,7 @@ export function ProposalsScreen() {
           meta={<span>{list.data.entries.length}{list.data.next_cursor || index > 0 ? " on this page" : ""}</span>}
         >
           {list.data.entries.length === 0 ? (
-            <EmptyState>None {status === "settled" ? "settled" : status === "open" ? "waiting for review" : "incomplete"}</EmptyState>
+            !list.error && <EmptyState>None {status === "settled" ? "settled" : status === "open" ? "waiting for review" : "incomplete"}</EmptyState>
           ) : (
             <ProposalList
               entries={list.data.entries}

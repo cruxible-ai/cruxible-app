@@ -371,4 +371,32 @@ describe("Dashboard", () => {
     expect(health.getByText("next is unavailable")).toBeInTheDocument();
     expect(health.getByRole("table", { name: "Health" })).toBeInTheDocument();
   });
+
+  describe("Since you last looked never says No Claim changes once a read it rests on fails", () => {
+    const failing = {
+      generations: http.get(`${TEST_BASE}/api/v1/:instance/orient`, ({ request }) =>
+        new URL(request.url).searchParams.get("section") === "generations" ? HttpResponse.json(errorEnvelope("Unavailable", "generations unavailable"), { status: 500 }) : undefined,
+      ),
+      since: http.post(`${TEST_BASE}/api/v1/:instance/since`, () => HttpResponse.json(errorEnvelope("Unavailable", "since unavailable"), { status: 500 })),
+    };
+    for (const read of ["generations", "since"] as const) {
+      it(`the ${read} read`, async () => {
+        localStorage.setItem(SEEN_KEY, JSON.stringify({ generation: 41, at: "2026-10-19T08:00:00Z" }));
+        let client: QueryClient | null = null;
+        renderApp("/i/inst_fixture", freshDashboard(), {
+          seed: (c) => {
+            client = c;
+          },
+        });
+        const since = await panel("Since you last looked");
+        expect(await since.findByText("No Claim changes")).toBeInTheDocument();
+        server.use(failing[read]);
+        await act(async () => {
+          await client!.refetchQueries();
+        });
+        expect(await since.findByText(`${read} unavailable`)).toBeInTheDocument();
+        expect(since.queryByText("No Claim changes")).toBeNull();
+      });
+    }
+  });
 });

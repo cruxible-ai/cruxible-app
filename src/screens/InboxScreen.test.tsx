@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, screen, within } from "@testing-library/react";
-import { renderApp } from "@/test/render";
+import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
+import { errorEnvelope } from "@/fixtures/envelopes";
+import { server } from "@/test/msw-server";
+import { renderApp, TEST_BASE } from "@/test/render";
 import { UNREAD_ITEM } from "@/fixtures/authored/worklists";
 import { AUTHORED } from "@/fixtures/handlers";
 import type { RecordedFixture } from "@/fixtures/fixture";
@@ -215,5 +219,21 @@ describe("Inbox", () => {
       expect(await header()).toHaveTextContent(/^Items i1–7$/);
       expect(screen.getByLabelText("Same in all 7 on this page")).toHaveTextContent("note");
     });
+  });
+
+  it("says No items only while the latest read succeeded", async () => {
+    let client: QueryClient | null = null;
+    renderApp(`${I}/inbox`, inboxPage({ n: 0 }), {
+      seed: (c) => {
+        client = c;
+      },
+    });
+    expect(await screen.findByText("No items")).toBeInTheDocument();
+    server.use(http.get(`${TEST_BASE}/api/v1/:instance/inbox`, () => HttpResponse.json(errorEnvelope("Unavailable", "inbox unavailable"), { status: 500 })));
+    await act(async () => {
+      await client!.refetchQueries();
+    });
+    expect(await screen.findByText("inbox unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("No items")).toBeNull();
   });
 });

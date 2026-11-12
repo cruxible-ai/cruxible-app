@@ -104,12 +104,12 @@ export function NextScreen() {
         >
           <NextTable
             items={rows}
-            empty="None on this page"
+            empty={page.error ? "" : "None on this page"}
             partial={more ? `${index === 0 ? "the first" : "this page of"} ${items.length} of ${page.data.total_items}` : null}
           />
         </Panel>
       )}
-      {page.data && items.length === 0 && page.data.total_items > 0 && <EmptyState>None on this page</EmptyState>}
+      {page.data && items.length === 0 && page.data.total_items > 0 && !page.error && <EmptyState>None on this page</EmptyState>}
       {/* an empty queue is the good case: nothing to repair or decide; said only on a read that succeeded (a failed refresh keeps its error alone) */}
       {page.isSuccess && page.data.total_items === 0 && (
         <Panel title="Items">
