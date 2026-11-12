@@ -490,23 +490,26 @@ export const isLineLink = (edge: FlowEdge) =>
 /** A link that feeds a Line: what its Queries read (from a Line, or Entered directly), or a derived landing that starts it. */
 export const isFeedLink = (edge: FlowEdge) => Boolean(edge.dependencies || edge.landing);
 
-/** Column boxes: sources, Lines, what they produce; the wider gutter carries the Line fan-out. */
+/**
+ * Column boxes: sources, Lines, what they produce; the wider gutter carries the Line fan-out. Sized so the flow
+ * with two derive columns fits the console's content width at a 1440 px window (about 1,150 px) without scrolling.
+ */
 export const COLUMNS = [
-  { x: 0, w: 230 },
-  { x: 300, w: 260 },
-  { x: 650, w: 280 },
+  { x: 0, w: 210 },
+  { x: 270, w: 250 },
+  { x: 590, w: 230 },
 ] as const;
 
 /** A derive column's width and the step to the next one (a derive chain takes one column per hop). */
-const DERIVE_W = 170;
-const DERIVE_STEP = 210;
+const DERIVE_W = 140;
+const DERIVE_STEP = 160;
 
 /** The columns with `depths` derive columns between the sources and the Lines (none: COLUMNS). */
 function columnsFor(depths: number) {
   const shift = depths * DERIVE_STEP;
   return {
     source: COLUMNS[0],
-    derive: (depth: number) => ({ x: COLUMNS[1].x + depth * DERIVE_STEP - 10, w: DERIVE_W }),
+    derive: (depth: number) => ({ x: COLUMNS[1].x + depth * DERIVE_STEP - 20, w: DERIVE_W }),
     line: { x: COLUMNS[1].x + shift, w: COLUMNS[1].w },
     produces: { x: COLUMNS[2].x + shift, w: COLUMNS[2].w },
   };

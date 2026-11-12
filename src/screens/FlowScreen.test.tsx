@@ -122,6 +122,8 @@ describe("Evidence flow", () => {
       if (color) expect(legend.has(hex(color))).toBe(true);
     }
     // a derive card carries no color of its own (it has no authority): its kind word is plain, like Source and Line
+    // two derive columns still fit the content width of a 1440 px window (about 1,150 px)
+    expect(parseFloat(flow.style.width)).toBeLessThanOrEqual(1150);
     const derive = flow.querySelector<HTMLElement>('[data-card^="derive:"]')!;
     expect(swatch(derive)).toBe("");
     expect(within(derive).getByText("Derive")).not.toHaveAttribute("style");

@@ -508,30 +508,30 @@ function FlowCell({
         id={node.id}
         state={<span className="text-zinc-500">pure</span>}
         name={
-          <>
-            <Link
-              to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.line ?? "")}`)}
-              className="truncate font-mono text-[12.5px] text-zinc-100 hover:underline"
-              title={[`Derive ${node.label} in Line ${node.line}`, node.operation ? `operation ${node.operation}` : null, "effect: pure", kinds.length ? `commits ${kinds.join(", ")}` : null].filter(Boolean).join("\n")}
-            >
-              {node.operation ?? node.label}
-            </Link>
-            <span className="ml-auto shrink-0 pl-1">
-              <FocusButton id={node.id} label={node.label} onFocus={onFocus} always />
-            </span>
-          </>
+          <Link
+            to={link(`/i/${instanceId}/lines/${encodeURIComponent(node.line ?? "")}`)}
+            className="truncate font-mono text-[12.5px] text-zinc-100 hover:underline"
+            title={[`Derive ${node.label} in Line ${node.line}`, node.operation ? `operation ${node.operation}` : null, "effect: pure", kinds.length ? `commits ${kinds.join(", ")}` : null].filter(Boolean).join("\n")}
+          >
+            {node.operation ?? node.label}
+          </Link>
         }
         about={
-          // What it commits: the derived CaptureKinds, linked (the namespace on hover).
-          <span className="font-mono">
-            {kinds.map((kind, i) => (
-              <span key={kind}>
-                {i > 0 && ", "}
-                <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(kind)}`)} className="hover:text-zinc-200 hover:underline" title={kind}>
-                  {shortName(kind)}
-                </Link>
-              </span>
-            ))}
+          // What it commits: the derived CaptureKinds, linked (the namespace on hover); the focus control beside them.
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="min-w-0 truncate font-mono">
+              {kinds.map((kind, i) => (
+                <span key={kind}>
+                  {i > 0 && ", "}
+                  <Link to={link(`/i/${instanceId}/contracts/${encodeURIComponent(kind)}`)} className="hover:text-zinc-200 hover:underline" title={kind}>
+                    {shortName(kind)}
+                  </Link>
+                </span>
+              ))}
+            </span>
+            <span className="ml-auto shrink-0">
+              <FocusButton id={node.id} label={node.label} onFocus={onFocus} always />
+            </span>
           </span>
         }
         focus={null}
