@@ -274,3 +274,13 @@ export function totalUnread(items: readonly NextItem[] | undefined): number | nu
   }
   return total;
 }
+
+/**
+ * An inbox page's count, for its panel's meta: "7" when the page is the whole
+ * list; "1–50", then "51–57 of 57" on the last page, when it is one of
+ * several (the daemon pages by cursor and serves no total).
+ */
+export function inboxCount(first: number, shown: number, more: boolean): string {
+  if (first === 0 && !more) return shown.toLocaleString();
+  return `${first + 1}–${first + shown}${more ? "" : ` of ${first + shown}`}`;
+}

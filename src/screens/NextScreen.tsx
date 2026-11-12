@@ -91,7 +91,8 @@ export function NextScreen() {
           title="Items"
           meta={
             <span className="inline-flex items-center gap-2">
-              {beliefs ? `${rows.length} of ${items.length}` : items.length} on this page
+              {beliefs ? `${rows.length} of ${items.length}` : items.length}
+              {(more || index > 0) && " on this page"}
               {/* the summary's "Drift not observed" carries this when drift is among them */}
               {page.data.unobserved_domains.length > 0 && !driftUnobserved && (
                 <InfoButton label="What the console does not check">

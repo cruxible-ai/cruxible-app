@@ -8,7 +8,7 @@ import { InfoButton } from "@/components/InfoButton";
 import { Page, PageHeader } from "@/components/Page";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { Pager } from "@/screens/ProposalsScreen";
-import { INBOX_LIST_PAGE, INBOX_STATUSES, totalUnread, type InboxFilterStatus } from "@/lib/inbox";
+import { INBOX_LIST_PAGE, INBOX_STATUSES, inboxCount, totalUnread, type InboxFilterStatus } from "@/lib/inbox";
 import { sharedPrefix } from "@/lib/evidence-flow";
 import { lineName } from "@/lib/lines";
 import { term } from "@/lib/vocabulary";
@@ -123,6 +123,7 @@ export function InboxScreen() {
               Items <InfoButton label="How items are paged">{INBOX_TERMS.cap}</InfoButton>
             </span>
           }
+          meta={entries.length > 0 ? <span>{inboxCount(first, entries.length, nextCursor !== null)}</span> : undefined}
         >
           {entries.length === 0 ? (
             <EmptyState>{EMPTY[status ?? "all"]}</EmptyState>
@@ -133,7 +134,6 @@ export function InboxScreen() {
               line={line}
               linePrefix={linePrefix}
               complete={index === 0 && !nextCursor}
-              count={`Items ${first + 1}–${first + entries.length}${nextCursor ? "" : ` of ${first + entries.length}`}`}
             />
           )}
         </Panel>

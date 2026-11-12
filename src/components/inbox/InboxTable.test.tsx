@@ -71,7 +71,7 @@ describe("Inbox rows: the item's current row from its Line's Query", () => {
     // every Line, with a second page: no order choice
     expect(await t.findByText("under_investigation")).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Order" })).toBeNull();
-    expect(screen.getByText("Newest posted first")).toBeInTheDocument();
+    expect(screen.getByLabelText("Newest posted first")).toBeInTheDocument();
   });
 
   it("joins items from two Lines that post from the same step with one read for the shared Query", async () => {

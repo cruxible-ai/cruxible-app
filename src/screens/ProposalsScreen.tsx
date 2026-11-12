@@ -85,7 +85,11 @@ export function ProposalsScreen() {
       {list.isPending && <LoadState />}
       {list.error && <LoadState error={list.error} />}
       {list.data && (
-        <Panel title={term("proposal", status).word} meta={<span>{list.data.entries.length} on this page</span>}>
+        <Panel
+          title={term("proposal", status).word}
+          // "on this page" only where there is more than one page
+          meta={<span>{list.data.entries.length}{list.data.next_cursor || index > 0 ? " on this page" : ""}</span>}
+        >
           {list.data.entries.length === 0 ? (
             <EmptyState>None {status === "settled" ? "settled" : status === "open" ? "waiting for review" : "incomplete"}</EmptyState>
           ) : (

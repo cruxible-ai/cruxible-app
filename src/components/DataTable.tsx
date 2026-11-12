@@ -108,8 +108,12 @@ export function DataTable<T>({
   apply?: "client" | "external";
   partial?: string | null;
   note?: ReactNode;
-  /** The count line's override ("14 Subjects"); default "N rows" / "N of M". */
-  count?: ReactNode;
+  /**
+   * The count line's override ("14 Subjects"); default "N rows" / "N of M".
+   * `false` when the caller says the count (a panel's meta): only a filter's
+   * "N of M" then shows.
+   */
+  count?: ReactNode | false;
   /** A row's expanded detail; rows then carry a disclosure toggle. */
   expanded?: (row: T) => ReactNode;
   /** Rows that have a detail (default: every row). */
@@ -213,12 +217,16 @@ export function DataTable<T>({
     <div>
       {toolbar && (
         <div className="mb-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[12px] text-zinc-500">
-          <span>
-            {count ??
-              (shown.length === rows.length || apply === "external"
-                ? `${rows.length} ${rows.length === 1 ? "row" : "rows"}`
-                : `${shown.length} of ${rows.length}`)}
-          </span>
+          {count === false ? (
+            shown.length !== rows.length && apply !== "external" && <span>{`${shown.length} of ${rows.length}`}</span>
+          ) : (
+            <span>
+              {count ??
+                (shown.length === rows.length || apply === "external"
+                  ? `${rows.length} ${rows.length === 1 ? "row" : "rows"}`
+                  : `${shown.length} of ${rows.length}`)}
+            </span>
+          )}
           {scope && <span className="text-zinc-400">{scope}.</span>}
           {note && <span className="text-zinc-400">{note}</span>}
           <span className="ml-auto flex items-center gap-1.5">

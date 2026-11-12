@@ -65,7 +65,8 @@ export function NextTable({
     [items],
   );
   const columns = useMemo(() => nextColumns({ family, items }), [family, items]);
-  return <DataTable rows={ordered} columns={columns} rowKey={(item) => item.item_id} urlKey={urlKey} label={label} partial={partial} empty={empty} />;
+  // every caller says the count in its panel's meta
+  return <DataTable rows={ordered} columns={columns} rowKey={(item) => item.item_id} urlKey={urlKey} label={label} partial={partial} empty={empty} count={false} />;
 }
 
 /** The columns a page needs: Detail, Findings and Repair only when some row fills them. */

@@ -109,7 +109,7 @@ export function LedgerScreen() {
       {page.isPending && <LoadState />}
       {page.error && <LoadState error={page.error} />}
       {page.data && (
-        <Panel title="Generations" meta={<span>{rows.length} on this page</span>}>
+        <Panel title="Generations" meta={<span>{rows.length}{page.data.next_cursor || cursors.length > 0 ? " on this page" : ""}</span>}>
           <DataTable
             rows={rows}
             columns={columns}
@@ -126,6 +126,7 @@ export function LedgerScreen() {
                   origin={false}
                 /> : null)}
             empty="None"
+            count={false}
           />
         </Panel>
       )}

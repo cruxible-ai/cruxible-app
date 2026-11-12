@@ -5,6 +5,7 @@ import { UNREAD_ITEM } from "@/fixtures/authored/worklists";
 import { AUTHORED } from "@/fixtures/handlers";
 import type { RecordedFixture } from "@/fixtures/fixture";
 import type { Schemas } from "@/api/schemas";
+import { inboxPage } from "@/test/inbox-pages";
 
 afterEach(cleanup);
 
@@ -43,7 +44,8 @@ describe("Inbox", () => {
     expect(t.getByRole("link", { name: "kev-triage" })).toHaveAttribute("href", `${I}/lines/kev-triage`);
     // status is a quiet marker: an amber dot while unread
     expect(within(bodyRows(t)[0]!).getByRole("img", { name: /Unread/ })).toBeInTheDocument();
-    expect(screen.getByText("Newest posted first")).toBeInTheDocument();
+    // the daemon's order shows on the Last posted column, as a sorted column does
+    expect(within(t.getByRole("columnheader", { name: /Last posted/ })).getByLabelText("Newest posted first")).toBeInTheDocument();
     expect(t.queryByRole("button", { name: /acknowledge|dismiss|link/i })).toBeNull();
   });
 
@@ -96,10 +98,9 @@ describe("Inbox", () => {
     await t.findByText("CVE-2021-44228");
     expect(t.queryByRole("columnheader", { name: "state" })).toBeNull();
     expect(t.queryByRole("columnheader", { name: "occurrence" })).toBeNull();
-    const shared = screen.getByTitle("The same on every item on this page");
-    expect(shared).toHaveTextContent("Every row");
-    expect(shared).toHaveTextContent("state unjudged");
-    // the Line filter already names the Line: the strip does not repeat it
+    const shared = screen.getByLabelText("Same in all 2");
+    expect(shared).toHaveTextContent("stateunjudged");
+    // the Line filter already names the Line: the row does not repeat it
     expect(shared).not.toHaveTextContent("kev-triage");
   });
 
@@ -130,9 +131,9 @@ describe("Inbox", () => {
   it("pages through the daemon's cursor", async () => {
     renderApp(`${I}/inbox`);
     await table();
-    expect(screen.getByText("Items 1–2")).toBeInTheDocument();
+    expect(screen.getByText("1–2")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Next page/ }));
-    expect(await screen.findByText("Items 3–3 of 3")).toBeInTheDocument();
+    expect(await screen.findByText("3–3 of 3")).toBeInTheDocument();
     expect((await table()).getByText("CVE-2021-44228")).toBeInTheDocument();
   });
 
@@ -179,5 +180,40 @@ describe("Inbox", () => {
     expect(cell).toHaveClass("truncate");
     expect(cell).toHaveAttribute("title", LONG);
     expect(t.getByText("CVE-2024-6387")).not.toHaveClass("truncate");
+  });
+
+  describe("the Items header", () => {
+    const header = async () => (await screen.findByRole("heading", { name: /^Items/ })).closest("header")!;
+
+    it("counts beside the title, and lifts what every row shares into one labelled row", async () => {
+      renderApp(`${I}/inbox`, inboxPage({ n: 7 }));
+      await (await table()).findByText("CVE-2026-1006");
+      // the count where list panels put theirs ("i" is the title's info button), "Items" said once
+      expect(await header()).toHaveTextContent(/^Items i7$/);
+      expect(screen.queryByText(/Items \d/)).toBeNull();
+      expect(screen.queryByText("Every row")).toBeNull();
+      // the shared values: their own row, each under its name
+      const shared = within(screen.getByLabelText("Same in all 7"));
+      expect(screen.getByText("Same in all 7")).toBeInTheDocument();
+      expect(shared.getByText("Line").nextElementSibling).toHaveTextContent("kev-triage");
+      expect(shared.getByText("note").nextElementSibling).toHaveTextContent("unjudged");
+      expect((await table()).queryByRole("columnheader", { name: "note" })).toBeNull();
+      // the order is the Last posted column's, not a sentence
+      expect(screen.queryByText("Newest posted first")).toBeNull();
+    });
+
+    it("has no shared row when nothing is the same on every row", async () => {
+      // the authored page: two Lines, no field with one value
+      renderApp(`${I}/inbox`);
+      await (await table()).findByText("CVE-2024-6387");
+      expect(screen.queryByText(/^Same in all/)).toBeNull();
+    });
+
+    it("says which items a page holds when there are more pages, and that the shared values are this page's", async () => {
+      renderApp(`${I}/inbox`, inboxPage({ n: 7, more: true }));
+      await (await table()).findByText("CVE-2026-1006");
+      expect(await header()).toHaveTextContent(/^Items i1–7$/);
+      expect(screen.getByLabelText("Same in all 7 on this page")).toHaveTextContent("note");
+    });
   });
 });

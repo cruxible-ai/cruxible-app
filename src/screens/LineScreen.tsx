@@ -35,6 +35,7 @@ import { mandateContext, mandateTable, type MandateContext, type MandateRow } fr
 import { runChangedWords } from "@/lib/step-words";
 import { useAtLink } from "@/lib/at";
 import { lineName, nextRowsByLine, runId, shortRunId } from "@/lib/lines";
+import { inboxCount } from "@/lib/inbox";
 import { formatDateTime, formatWhen, sentence } from "@/lib/text";
 import { LineStateDot } from "@/components/LineStateDot";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -635,7 +636,7 @@ function LineNextPanel({ line }: { line: string }) {
     );
   }
   return (
-    <Panel title="Next" meta={<span>{rows.length} on the first page</span>}>
+    <Panel title="Next" meta={<span>{rows.length}{next.data.next_cursor ? " on the first page" : ""}</span>}>
       {next.error && <LoadState error={next.error} />}
       <NextTable
         items={rows}
@@ -990,6 +991,7 @@ function InboxPanel({ line }: { line: string }) {
       title="Inbox"
       meta={
         <span className="flex items-baseline gap-3">
+          {inbox.data && entries.length > 0 && <span>{inboxCount(first, entries.length, nextCursor !== null)}</span>}
           {cursors.length > 0 && (
             <button onClick={() => setCursors((c) => c.slice(0, -1))} className="hover:text-zinc-200">
               ← Newer
@@ -1015,7 +1017,6 @@ function InboxPanel({ line }: { line: string }) {
             entries={entries}
             line={line}
             complete={cursors.length === 0 && !nextCursor}
-            count={`Items ${first + 1}–${first + entries.length}${nextCursor ? "" : ` of ${first + entries.length}`}`}
           />
         ))}
     </Panel>

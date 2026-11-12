@@ -1,3 +1,4 @@
+import { ArrowDown } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useGetBatch, useInboxItem, useStateQueries, useSubjectKinds } from "@/api/hooks";
@@ -710,45 +711,52 @@ function ItemDetail({
   );
 }
 
-/** What the page's rows share (the Line, a field's one value), said once instead of in a column. */
-function Shared({ shape, filtered }: { shape: PageShape; filtered: boolean }) {
-  const parts: ReactNode[] = [];
+/**
+ * What every row on the page shares (the Line, a field's one value), lifted
+ * out of the table to save its width: one labelled row under the panel's
+ * title, each value under its name. Absent when nothing is shared.
+ */
+function Shared({ shape, filtered, rows, complete }: { shape: PageShape; filtered: boolean; rows: number; complete: boolean }) {
+  const parts: { key: string; label: ReactNode; value: ReactNode }[] = [];
   if (shape.line && !filtered)
-    parts.push(
-      <span key="line">
-        Line{" "}
+    parts.push({
+      key: "line",
+      label: "Line",
+      value: (
         <RefLink value={lineRef(shape.line)}>
           <span className="font-mono text-[12px] text-zinc-300">{shape.line}</span>
         </RefLink>
-      </span>,
-    );
-  for (const [name, value] of shape.constant)
-    parts.push(
-      <span key={name}>
-        <span className="font-mono">{name}</span> <span className="text-zinc-300">{String(value)}</span>
-      </span>,
-    );
+      ),
+    });
+  for (const [name, value] of shape.constant) parts.push({ key: name, label: name, value: <span className="text-zinc-300">{String(value)}</span> });
   if (parts.length === 0) return null;
+  const heading = `Same in all ${rows}${complete ? "" : " on this page"}`;
   return (
-    <span className="inline-flex flex-wrap items-baseline gap-x-3" title="The same on every item on this page">
-      <span className="text-zinc-600">Every row</span>
-      {parts}
-    </span>
+    <div className="mb-2 flex flex-wrap items-baseline gap-x-5 gap-y-1 border-b border-zinc-800/70 pb-2 text-[12px]">
+      <span className="text-zinc-500">{heading}</span>
+      <dl aria-label={heading} className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+        {parts.map((part) => (
+          <div key={part.key} className="flex items-baseline gap-1.5">
+            <dt className="text-zinc-500">{part.label}</dt>
+            <dd>{part.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
 /**
  * One page of inbox items in the shared table. `line` is the Line the page is
- * filtered to (the Line column and the "every row" Line note then hide);
- * `linePrefix` is the namespace every Line shares, said once by the caller.
- * The caller pages and filters on the daemon and says which items these are
- * in `count`.
+ * filtered to (the Line column and the shared Line then hide); `linePrefix`
+ * is the namespace every Line shares, said once by the caller. The caller
+ * pages and filters on the daemon and says which items these are in its
+ * panel's meta.
  */
 export function InboxTable({
   entries,
   line,
   linePrefix = "",
-  count,
   complete = false,
   urlKey = "inbox",
   label = "Inbox",
@@ -756,7 +764,6 @@ export function InboxTable({
   entries: readonly Entry[];
   line?: string | undefined;
   linePrefix?: string;
-  count?: ReactNode;
   /** The page holds every item the filter matches (no other daemon page): only then may the worklist order it. */
   complete?: boolean;
   urlKey?: string;
@@ -794,11 +801,37 @@ export function InboxTable({
       { replace: true },
     );
   const query = worklist.parts[0]?.query;
+  // In the daemon's order the Last posted column carries the order, as a sorted column does.
+  const orderedColumns = useMemo(
+    () =>
+      byWorklist
+        ? columns
+        : columns.map((column) =>
+            column.id === "last"
+              ? {
+                  ...column,
+                  label: "Last posted",
+                  header: (
+                    <span className="inline-flex items-center gap-1">
+                      Last posted
+                      <ArrowDown className="h-3 w-3" aria-label="Newest posted first" />
+                    </span>
+                  ),
+                  title:
+                    worklist.parts.length > 0 && line !== undefined && !complete
+                      ? "Newest posted first, the daemon's order. Worklist order needs every item on one page"
+                      : "Newest posted first, the daemon's order",
+                }
+              : column,
+          ),
+    [byWorklist, columns, worklist.parts.length, line, complete],
+  );
   return (
     <>
+      <Shared shape={shape} filtered={line !== undefined} rows={entries.length} complete={complete} />
       <DataTable
         rows={rows}
-        columns={columns}
+        columns={orderedColumns}
         rowKey={(entry) => entry.item.item_id}
         rowLabel={(entry) => entry.item.item_id}
         rowClassName={(entry) => (entry.item.status === "unread" ? "text-zinc-100" : "text-zinc-500")}
@@ -806,10 +839,10 @@ export function InboxTable({
         apply="external"
         label={label}
         maxHeight="none"
-        count={count}
+        count={false}
         note={
           <span className="inline-flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            {orderable ? (
+            {orderable && (
               <span className="inline-flex items-center gap-1.5" role="group" aria-label="Order">
                 <button className={toggleChipClass(byWorklist)} aria-pressed={byWorklist} onClick={() => setOrder(true)} title={`The order of ${query}, as its author set it`}>
                   In worklist order
@@ -818,12 +851,7 @@ export function InboxTable({
                   Newest posted first
                 </button>
               </span>
-            ) : (
-              <span className="text-zinc-500" title={worklist.parts.length > 0 && line !== undefined && !complete ? "Worklist order needs every item on one page; across daemon pages the daemon's order stands" : "The daemon's order: by when each item was last posted"}>
-                Newest posted first
-              </span>
             )}
-            <Shared shape={shape} filtered={line !== undefined} />
             <WorklistNotes worklist={worklist} />
           </span>
         }

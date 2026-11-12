@@ -97,6 +97,8 @@ export function ProposalList({ entries, partial = null }: { entries: Entry[]; pa
       partial={partial}
       expanded={(entry) => <ProposalPeek id={entry.proposal_id} indent="ml-0" />}
       empty="None"
+      // the Proposals panel says the count in its meta
+      count={false}
     />
   );
 }
