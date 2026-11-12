@@ -30,15 +30,16 @@ const staleHead = (generation: number) => (client: QueryClient) => client.setQue
 const node = (id: string) => document.querySelector(`[data-testid="procedure-graph"] .react-flow__node[data-id="${id}"]`) as HTMLElement;
 
 describe("D-R37 template: the step graph", () => {
-  it("tags each step with its stage; a derive is pure and names its operation; a list fetch shows its origin and cap", async () => {
+  it("tags each step with its stage; a derive names its operation (its effect is in the panel); a list fetch shows its origin and cap", async () => {
     renderApp(`${I}/lines/${TEMPLATE_LINE}`, TEMPLATE_WORLD);
     await screen.findByTestId("procedure-graph", {}, SLOW);
     await waitFor(() => expect(node("view")).not.toBeNull(), SLOW);
     await waitFor(() => expect(node("view").querySelector("[data-stage]")).toHaveAttribute("data-stage", "derive"), SLOW);
     const stages = { watched: "READ", pages: "FETCH", view: "DERIVE", fixes: "DERIVE", entries: "EXTRACT", write: "CLAIMS" };
     for (const [id, tag] of Object.entries(stages)) expect(within(node(id)).getByText(tag)).toBeInTheDocument();
-    expect(node("view")).toHaveTextContent("pure · advisory.narrow");
-    expect(node("fixes")).toHaveTextContent("pure · advisory.fixes");
+    expect(within(node("view")).getByText("advisory.narrow").tagName).toBe("CODE");
+    expect(within(node("fixes")).getByText("advisory.fixes").tagName).toBe("CODE");
+    expect(node("view")).not.toHaveTextContent(/\bpure\b/);
     await waitFor(() => expect(node("pages")).toHaveTextContent("vendor.example · JSON · ≤ 20 Captures"), SLOW);
 
     // a derive's panel: operation, inputs and output as fields
@@ -49,7 +50,7 @@ describe("D-R37 template: the step graph", () => {
     const inputs = within(screen.getByRole("list", { name: "Inputs" }));
     expect(inputs.getByText("pages.pages")).toBeInTheDocument();
     expect(inputs.getByRole("link", { name: "watched" })).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "Output" })).getByRole("link", { name: "advisory-view" })).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Output" })).getByRole("link", { name: "security.advisory-view" })).toBeInTheDocument();
 
     // the claims panel lists the kinds it may create, value targets included
     fireEvent.click(within(node("write")).getByText("write"));

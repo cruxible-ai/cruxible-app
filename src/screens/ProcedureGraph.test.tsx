@@ -183,7 +183,7 @@ describe("Procedure graph", () => {
     expect(watched().getByText("kev_exposure").closest("a")).not.toBeNull();
   });
 
-  it("shows what a derive does: what it reads and commits, its request and result Contracts, the result's description once read", async () => {
+  it("a derive node shows its operation, then its result's description in full, then its parameters; no Input, Request, Result or Output rows", async () => {
     let release!: () => void;
     const held = new Promise<void>((resolve) => (release = resolve));
     const hold = http.post(`${TEST_BASE}/api/v1/:instance/get-batch`, async ({ request }) => {
@@ -194,17 +194,77 @@ describe("Procedure graph", () => {
     await graph();
     await waitFor(() => expect(node("view")).not.toBeNull(), SLOW);
     const view = () => within(node("view"));
-    // from the definition alone: in reading order, each linked
-    expect(view().getByText("Input").nextElementSibling).toHaveTextContent("advisory-page");
-    expect(view().getByText("advisory-narrow.request").closest("a")).toHaveAttribute("href", expect.stringContaining("security.advisory-narrow.request"));
-    expect(view().getByText("advisory-narrow.result").closest("a")).toHaveAttribute("title", "Result Contract security.advisory-narrow.result@1");
-    expect(view().getByText("advisory-view").closest("a")).toHaveAttribute("href", "/i/inst_fixture/contracts/security.advisory-view");
+    // the operation the Line binds, alone: no effect word; the edges in and out name what flows, the panel the Contracts
+    await waitFor(() => expect(view().getByText("advisory.narrow")).toBeInTheDocument(), SLOW);
+    expect(node("view")).not.toHaveTextContent(/\bpure\b/);
+    for (const label of ["Input", "Output", "Request", "Result"]) expect(view().queryByText(label)).toBeNull();
+    expect(view().queryByText(/advisory-narrow\.(request|result)/)).toBeNull();
     // the result Contract's description waits for its read; the node is drawn without it
     expect(view().queryByText(/One derived JSON document/)).toBeNull();
+    const before = parseFloat(node("view").style.height);
     release();
-    const description = await waitFor(() => view().getByText(/^One derived JSON document: the advisory pages/), SLOW);
-    expect(description).toHaveClass("line-clamp-2");
-    expect(description).toHaveAttribute("title", expect.stringContaining("merged in page order"));
+    const text = "One derived JSON document: the advisory pages' entries that name a watched CVE, merged in page order.";
+    const description = await waitFor(() => view().getByText(text), SLOW);
+    // in full: not clamped, as many rows as it wraps to, and the node grows by them
+    expect(description).not.toHaveClass("line-clamp-2");
+    const rows = parseFloat(description.style.height) / 16;
+    expect(rows).toBeGreaterThanOrEqual(3);
+    await waitFor(() => expect(parseFloat(node("view").style.height)).toBe(before + rows * 16), SLOW);
+    // first after the operation
+    const body = description.parentElement!;
+    expect(body.children[0]).toHaveTextContent("advisory.narrow");
+    expect(body.children[1]).toBe(description);
+  });
+
+  it("the side panel shows the description the node shows and, for a call, its effect, operation, full Contract names and versions and its kinds", async () => {
+    // The fetch's result Contract carries a description here, so the FETCH step has one too.
+    const described = http.post(`${TEST_BASE}/api/v1/:instance/get-batch`, async ({ request }) => {
+      if (!(await request.clone().text()).includes("Contract:web.fetch.pages.result@1")) return undefined;
+      const fixture = TEMPLATE_WORLD.find((f) => (f.response as { results?: GetResult[] }).results?.some((r) => r.ref === "Contract:web.fetch.pages.result@1"))!;
+      const response = structuredClone(fixture.response) as { results: GetResult[] };
+      for (const r of response.results) {
+        if (r.ref === "Contract:web.fetch.pages.result@1") (r.card as { description?: string }).description = "Every advisory page, one Capture each, in the order the pages name each other.";
+      }
+      return HttpResponse.json(response);
+    });
+    renderApp(`/i/inst_fixture/lines/${TEMPLATE_LINE}`, TEMPLATE_WORLD, { handlers: [described] });
+    await graph();
+    const panelText = () => screen.getByTestId("step-description");
+    const link = (group: string, text: string) => within(screen.getByRole("list", { name: group })).getByText(text).closest("a");
+
+    // DERIVE
+    await waitFor(() => expect(within(node("view")).getByText(/^One derived JSON document: the advisory pages/)).toBeInTheDocument(), SLOW);
+    fireEvent.click(node("view"));
+    await waitFor(() => expect(panelText()).toHaveTextContent("One derived JSON document: the advisory pages' entries that name a watched CVE, merged in page order."), SLOW);
+    const derive = within(screen.getByRole("list", { name: "Derive" }));
+    expect(derive.getByText("pure")).toBeInTheDocument();
+    expect(derive.getByText("advisory.narrow")).toBeInTheDocument();
+    expect(link("Derive", "security.advisory-narrow.request@1")).toHaveAttribute("href", expect.stringContaining(encodeURIComponent("Contract:security.advisory-narrow.request@1")));
+    expect(link("Derive", "security.advisory-narrow.result@1")).not.toBeNull();
+    expect(link("Inputs", "security.advisory-page")).toHaveAttribute("href", expect.stringContaining("security.advisory-page"));
+    expect(link("Output", "security.advisory-view")).toHaveAttribute("href", expect.stringContaining("security.advisory-view"));
+
+    // FETCH: its description in full on the node and in the panel; what the node shows is in the panel too
+    await waitFor(() => expect(within(node("pages")).getByText(/^Every advisory page, one Capture each/)).not.toHaveClass("line-clamp-2"), SLOW);
+    fireEvent.click(node("pages"));
+    await waitFor(() => expect(panelText()).toHaveTextContent("Every advisory page, one Capture each, in the order the pages name each other."), SLOW);
+    expect(within(screen.getByRole("list", { name: "Provider" })).getByText("external read")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Provider" })).getByText("web.fetch.pages")).toBeInTheDocument();
+    expect(link("Provider", "web.fetch.pages.request@1")).not.toBeNull();
+    expect(link("Provider", "web.fetch.pages.result@1")).not.toBeNull();
+    expect(link("Returns", "security.advisory-page")).not.toBeNull();
+    expect(within(screen.getByRole("list", { name: "Fetches" })).getByText("https://vendor.example")).toBeInTheDocument();
+    const params = within(screen.getByRole("list", { name: "Parameters" }));
+    expect(params.getByText("url")).toBeInTheDocument();
+    expect(params.getByText("https://vendor.example/advisories?page=1")).toBeInTheDocument();
+    expect(params.getByText("vendor.advisories")).toBeInTheDocument();
+
+    // READ: its Query's description, in full
+    await waitFor(() => expect(within(node("watched")).getByText("Returns")).toBeInTheDocument(), SLOW);
+    fireEvent.click(node("watched"));
+    await waitFor(() => expect(panelText()).toHaveTextContent("Assessments whose vulnerability is KEV-listed and whose release is shipped."), SLOW);
+    expect(panelText()).not.toHaveClass("line-clamp-2");
+    expect(within(screen.getByRole("list", { name: "Reads" })).getByText("vulnerability")).toBeInTheDocument();
   });
 
   it("names a fetch's allowed origins, says on a parameter's hover what its request field means, and keeps the node when that read fails", async () => {

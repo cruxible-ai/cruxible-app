@@ -134,6 +134,10 @@ export interface StepWordsContext {
   grades?: Grades | null | undefined;
   /** Slot -> the list-of-Captures fields of its out Contract. */
   lists?: ReadonlyMap<string, readonly ListField[]> | undefined;
+  /** A call output (`step.output`) -> the origins the Line allows it to fetch from. */
+  origins?: Record<string, string[]> | undefined;
+  /** The highest authority the Line lets its claims steps write with. */
+  maxAuthority?: string | null | undefined;
 }
 
 /** A call's list fields, by its slot's out Contract. */
@@ -156,6 +160,17 @@ const claimTypePart = (name: string): Part => ({ text: lastSegment(name), ref: `
 const kindPart = (name: string): Part => ({ text: lastSegment(name), ref: `SubjectKind:${name}`, title: `Subject kind ${name}` });
 const queryPart = (name: string): Part => ({ text: shortName(name), ref: `QueryDefinition:${name}`, title: `Query ${name}` });
 const code = (text: string, title?: string): Part => ({ text, code: true, title });
+/** A CaptureKind by its full name, linked: the side panel has room for the whole name. */
+const kindFullPart = (name: string): Part => ({ text: name, code: true, ref: `CaptureContract:${name}`, title: `CaptureKind ${name}` });
+/** A slot's Contract by its full name and version, linked. */
+const contractRefPart = (ref: { name: string; version: number }, side: "Request" | "Result"): Part => ({
+  text: `${ref.name}@${ref.version}`,
+  code: true,
+  ref: `Contract:${ref.name}@${ref.version}`,
+  title: `${side} Contract ${ref.name}@${ref.version}`,
+});
+/** A template value given as written (not a `$ref`): only these are configuration the step itself carries. */
+const literal = (value: unknown): unknown => (templateRef(value) ? undefined : value);
 
 /** A call's fetch: its URL and host (through the Line's parameters), format and byte cap. */
 function callInput(step: Extract<ProcedureStep, { call: string }>, ctx: StepWordsContext) {
@@ -194,12 +209,9 @@ export function stepBrief(spec: ProcedureSpec, index: number, ctx: StepWordsCont
   if (!step) return [];
   if ("call" in step) {
     if (isDerive(spec, index, ctx.grades)) {
+      // The operation alone: its effect, Contracts and kinds are in the side panel; the edges say what flows in and out.
       const op = operationOf(spec, step, ctx);
-      return [
-        { text: "pure", title: "effect: pure — the same inputs give the same bytes" },
-        SEP,
-        code(op.name ?? step.slot, [op.name ? `operation ${op.name}` : `slot ${step.slot}`, op.signature].filter(Boolean).join("\n")),
-      ];
+      return [code(op.name ?? step.slot, [op.name ? `operation ${op.name}` : `slot ${step.slot}`, op.signature].filter(Boolean).join("\n"))];
     }
     const { url, host, format } = callInput(step, ctx);
     const landing = ctx.triggerInput === stepAlias(step, index);
@@ -284,50 +296,70 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
     const ref = templateRef(value);
     return ref?.$ref === "step" && ref.step ? [code([ref.step, ...(ref.path ?? [])].join("."))] : null;
   };
-  if ("call" in step && isDerive(spec, index, ctx.grades)) {
+  if ("call" in step) {
     const op = operationOf(spec, step, ctx);
-    section("Derive");
-    add("Operation", [code(op.name ?? step.slot, op.signature ?? undefined)]);
-    add("Effect", op.effect ? [{ text: op.effect }] : null);
-    add("Slot", [code(step.slot, op.signature ?? undefined)]);
-    add("Build", op.build ? [{ text: op.build.split("/")[0]!, ref: `Provider:${op.build}`, title: op.build }] : null);
-    section("Inputs");
-    add(
-      "Captures",
-      list(
-        captureInputs(spec, index).map((c): Part => ({ text: `${c.step}.${c.field}`, code: true, title: c.kind ? `CaptureKind ${c.kind} · input ${c.at}` : `input ${c.at}` })),
-      ),
-    );
-    add(
-      "Reads",
-      list(stateReads(spec, index).map((r): Part => (r.query ? { text: r.step, ref: `QueryDefinition:${r.query}`, title: `Query ${r.query}` } : code(r.step)))),
-    );
-    section("Output");
-    add("CaptureKind", list(Object.values(step.captures ?? {}).map(contractPart)));
-    add("Grade", [{ text: "derived" }]);
-  } else if ("call" in step) {
-    const { url, host, format, maxBytes } = callInput(step, ctx);
-    section("Fetches");
-    add("Source", ctx.triggerInput === stepAlias(step, index) ? [{ text: "landing" }] : host && url ? [{ text: host, href: url, title: url }] : null);
-    add("URL", url ? [code(url)] : null);
-    add("Format", format ? [{ text: format }] : null);
-    add("Limit", maxBytes !== null ? [{ text: bytesWords(maxBytes), title: `${count(maxBytes)} bytes` }] : null);
-    const source = str(resolveValue(record(step.input)?.logical_source, ctx.parameters));
-    add("Logical source", source ? [code(source)] : null);
-    section("Returns");
-    add("CaptureKind", list(Object.values(step.captures ?? {}).map(contractPart)));
-    add("List", listWords(listsOf(step, ctx)));
-    section("Provider");
-    add("Slot", [code(step.slot)]);
-    add("Operation", ctx.operations?.[step.slot] ? [code(ctx.operations[step.slot]!)] : null);
-    const provider = ctx.bindings?.[step.slot];
-    add("Build", provider ? [{ text: provider.split("/")[0]!, ref: `Provider:${provider}`, title: provider }] : null);
+    const slot = spec.slots?.[step.slot];
+    const effect = op.effect ? [{ text: op.effect.replaceAll("_", " ") }] : null;
+    const request = slot?.in ? [contractRefPart(slot.in, "Request")] : null;
+    const result = slot?.out ? [contractRefPart(slot.out, "Result")] : null;
+    const build = op.build ? [{ text: op.build.split("/")[0]!, ref: `Provider:${op.build}`, title: op.build }] : null;
+    const inputs = captureInputs(spec, index);
+    const reads = list([...new Set(inputs.flatMap((c) => (c.kind ? [c.kind] : [])))].map(kindFullPart));
+    const commits = list(Object.values(step.captures ?? {}).map(kindFullPart));
+    if (isDerive(spec, index, ctx.grades)) {
+      section("Derive");
+      add("Operation", op.name ? [code(op.name, op.signature ?? undefined)] : null);
+      add("Effect", effect);
+      add("Slot", [code(step.slot, op.signature ?? undefined)]);
+      add("Request", request);
+      add("Result", result);
+      add("Build", build);
+      section("Inputs");
+      add("CaptureKinds", reads);
+      add(
+        "Captures",
+        list(inputs.map((c): Part => ({ text: `${c.step}.${c.field}`, code: true, title: c.kind ? `CaptureKind ${c.kind} · input ${c.at}` : `input ${c.at}` }))),
+      );
+      add(
+        "Reads",
+        list(stateReads(spec, index).map((r): Part => (r.query ? { text: r.step, ref: `QueryDefinition:${r.query}`, title: `Query ${r.query}` } : code(r.step)))),
+      );
+      section("Output");
+      add("CaptureKind", commits);
+      add("Grade", [{ text: "derived" }]);
+    } else {
+      const { url, host, format } = callInput(step, ctx);
+      const input = record(step.input);
+      // Values a Line parameter fills are under Parameters with their names; these rows are what the step carries itself.
+      const ownUrl = str(literal(input?.url));
+      const maxBytes = literal(input?.max_bytes);
+      const source = str(literal(input?.logical_source));
+      const origins = ctx.origins?.[`${stepAlias(step, index)}.${Object.keys(step.captures ?? {})[0] ?? "capture"}`] ?? [];
+      section("Fetches");
+      add("Source", ctx.triggerInput === stepAlias(step, index) ? [{ text: "landing" }] : host && url ? [{ text: host, href: url, title: url }] : null);
+      add("URL", ownUrl ? [code(ownUrl)] : null);
+      add("Format", format ? [{ text: format }] : null);
+      add("Limit", typeof maxBytes === "number" ? [{ text: bytesWords(maxBytes), title: `${count(maxBytes)} bytes` }] : null);
+      add("Logical source", source ? [code(source)] : null);
+      add("Origins", list(origins.map((o) => code(o))));
+      add("CaptureKinds", reads);
+      section("Returns");
+      add("CaptureKind", commits);
+      add("List", listWords(listsOf(step, ctx)));
+      section("Provider");
+      add("Slot", [code(step.slot)]);
+      add("Effect", effect);
+      add("Operation", op.name ? [code(op.name)] : null);
+      add("Request", request);
+      add("Result", result);
+      add("Build", build);
+    }
   } else if ("read" in step) {
     section("Reads");
     if (step.query) {
       const shape = ctx.queries?.get(step.query);
       add("Query", [queryPart(step.query)]);
-      add("Per", shape?.kind ? [kindPart(shape.kind)] : null);
+      add("From", shape?.kinds.length ? list(shape.kinds.map(kindPart)) : null);
       add("Row", shape?.row ? [{ text: shortName(shape.row), ref: `Contract:${shape.row}`, title: `Contract ${shape.row}` }] : null);
       if (shape?.fields.length) {
         section("Fields");
@@ -352,6 +384,7 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
   } else if ("claims" in step) {
     section("Writes on");
     add("Subject", [kindPart(step.subject.kind)]);
+    add("At most", ctx.maxAuthority ? [{ text: ctx.maxAuthority }] : null);
     add("Creates", list(createdKinds(step).map(kindPart)));
     add("For each", refText(step.for_each));
     add("Within", refText(step.subject.within));
@@ -437,6 +470,9 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
   } else if ("guard" in step) {
     section("Guard");
     add("Else", stepBrief(spec, index, ctx));
+  } else if ("select" in step) {
+    section("Selects");
+    add("Sources", stepBrief(spec, index, ctx));
   }
   return sections.filter((s) => s.rows.length > 0);
 }

@@ -37,7 +37,11 @@ import { DependencyPopover, producerName, type PopoverAt } from "@/components/De
  * out in layers (top to bottom by default, left to right on the toggle). Each
  * node is a frame: a header strip with the step's kind word (the only color,
  * its meaning on hover) and name, then rows of what the step reads, calls or
- * writes (step-words.ts), named things linked, all of it on hover. Every edge
+ * writes (step-words.ts), named things linked, all of it on hover. A call
+ * step (fetch or derive) names its operation or source and then says what it
+ * does: its result Contract's description, as written and in full (the node
+ * is as tall as it wraps to); its effect, Contracts and kinds are in the side
+ * panel, and the edges in and out name what flows. Every edge
  * leaves a step at its out port and enters the next at its in port, routed at
  * right angles, captioned with what it carries (a `{$ref: step}` reference's
  * path when short; a guard's then/else). The Procedure's input and a Line's
@@ -85,8 +89,10 @@ interface NodeLine {
   param?: string;
   /** A labelled row: the label (sans, dim) before the value. */
   label?: string;
-  /** Rows the line may take (text wraps and clamps; 1 when unset). */
-  span?: 1 | 2;
+  /** Rows the line takes (text wraps; 1 when unset). */
+  span?: number;
+  /** A wrapped line is cut at its rows (all of it on hover); unset: it shows in full, its rows sized to fit. */
+  clamp?: boolean;
   /** The value as separate named things, each linked (instead of text). */
   parts?: RowPart[];
   signal?: Signal | undefined;
@@ -111,7 +117,13 @@ interface NodeDisplay {
   name: string | null;
   /** The step's key fields, one line (`cisa.gov · JSON`); named things linked, all of it on hover. */
   brief: { parts: Part[]; routes: (string | null)[]; title: string } | null;
+  /** What the step does, as written: a read's Query description, a call's result Contract description. */
+  description: string | null;
   lines: NodeLine[];
+  /** The Captures a picked run recorded the step read (or the one inferred) and produced. */
+  captures: { in: string[]; out: string[] };
+  /** Step names the step references that no step declares. */
+  unresolved: string[];
   mark: StepMark | null;
   /** The mark's words: the run's counts for the node when its summary gives them. */
   markWords: { text: string; title: string } | null;
@@ -126,8 +138,8 @@ const ROW_HEIGHT = 16;
 const BODY_PAD = 10;
 const MARK_HEIGHT = 25;
 const BORDER = 2;
-/** About as many characters of 11px sans as fit on one row of a node: a longer description takes two. */
-const ROW_CHARS = 40;
+/** The width a node's text wraps in: the node less its border and side padding. */
+const TEXT_WIDTH = NODE_WIDTH - BORDER - 20;
 /** The room the canvas keeps around the graph (px at any zoom): fit-on-load fits inside it, and panning never pushes a node past it. */
 const PAD = { x: 48, y: 56 };
 
@@ -204,9 +216,17 @@ function NodeText({ line }: { line: NodeLine }) {
     line.text
   );
   const title = line.title ?? (line.param !== undefined ? (line.text ? `${line.param} = ${line.text}` : line.param) : line.text);
-  if (line.span === 2) {
+  if (line.clamp && (line.span ?? 1) > 1) {
     return (
       <div className={`line-clamp-2 h-8 min-w-0 text-[11px] leading-4 ${tone}`} title={title}>
+        {body}
+      </div>
+    );
+  }
+  if (line.clamp === false) {
+    // In full: as many rows as the text wraps to (the node's height counts them).
+    return (
+      <div className={`min-w-0 shrink-0 break-words text-[11px] leading-4 ${tone}`} style={{ height: (line.span ?? 1) * ROW_HEIGHT }} title={title}>
         {body}
       </div>
     );
@@ -334,14 +354,14 @@ function boundText(value: unknown, parameters: Readonly<Record<string, unknown>>
 
 /**
  * A read's Query, as rows: its description as written (two rows at most, all
- * of it on hover), the kinds its rows start from, each parameter with the
+ * of it on hover and in the side panel), the kinds its rows start from, each parameter with the
  * value the step binds, and how many fields it returns (their names on
  * hover). None until the Query's card is read.
  */
 function queryRows(shape: QueryShape | undefined, params: Readonly<Record<string, unknown>> | undefined, parameters: Readonly<Record<string, unknown>>, bound: Set<string>): NodeLine[] {
   if (!shape) return [];
   const rows: NodeLine[] = [];
-  if (shape.description) rows.push({ text: shape.description, span: shape.description.length > ROW_CHARS ? 2 : 1, tone: "plain" });
+  if (shape.description) rows.push({ text: shape.description, span: Math.min(2, wrappedRows(shape.description)), clamp: true, tone: "plain" });
   if (shape.kinds.length) rows.push({ label: "From", text: shape.kinds.map(shortName).join(", "), title: `From ${shape.kinds.join(", ")}`, code: true });
   for (const name of new Set([...shape.params, ...Object.keys(params ?? {})])) rows.push({ param: name, text: boundText(params?.[name], parameters, bound), code: true });
   if (shape.fields.length) {
@@ -384,6 +404,53 @@ export function inferredInput(spec: ProcedureSpec, index: number, marks: Readonl
   if (outputs.length !== 1 || outputs[0] !== field) return null;
   const produced = marks.get(stepView(source, at).id)?.capturesOut ?? [];
   return produced.length === 1 ? produced[0]! : null;
+}
+
+let measuring: OffscreenCanvasRenderingContext2D | null | undefined;
+
+/**
+ * How many rows a text takes in a node (11px sans, wrapped at spaces): measured
+ * with the page's font where the browser can measure, else at about 6px a
+ * character. A little narrower than the node, so a row the browser wraps a
+ * hair earlier still has room.
+ */
+function wrappedRows(text: string, width = TEXT_WIDTH - 8): number {
+  if (measuring === undefined) {
+    measuring = typeof OffscreenCanvas === "undefined" ? null : ((new OffscreenCanvas(1, 1).getContext("2d") as OffscreenCanvasRenderingContext2D | null) ?? null);
+  }
+  const context = measuring;
+  if (context) context.font = `11px ${(typeof document !== "undefined" && getComputedStyle(document.body).fontFamily) || "sans-serif"}`;
+  const widthOf = context ? (s: string) => context.measureText(s).width : (s: string) => s.length * 6;
+  const space = widthOf(" ");
+  let rows = 1;
+  let used = 0;
+  for (const word of text.trim().split(/\s+/)) {
+    const w = widthOf(word);
+    if (used > 0 && used + space + w <= width) {
+      used += space + w;
+      continue;
+    }
+    if (used > 0) rows += 1;
+    // A word wider than a row breaks across rows.
+    const extra = Math.max(0, Math.ceil(w / width) - 1);
+    rows += extra;
+    used = w - extra * width;
+  }
+  return rows;
+}
+
+/** Whether the page's web fonts have loaded: text measured before they do is re-measured after. */
+function useFontsLoaded(): boolean {
+  const [loaded, setLoaded] = useState(() => typeof document === "undefined" || !document.fonts || document.fonts.status === "loaded");
+  useEffect(() => {
+    if (loaded || typeof document === "undefined" || !document.fonts) return;
+    let live = true;
+    void document.fonts.ready.then(() => live && setLoaded(true));
+    return () => {
+      live = false;
+    };
+  }, [loaded]);
+  return loaded;
 }
 
 /** A node's height: the header, then one row per line (the brief, parameters, lines) and the mark. */
@@ -566,9 +633,20 @@ export function ProcedureGraph({
 
   // Every node's kind and name, its key fields, the parameters it reads, and the run's marks and counts when one is picked.
   const ctx = useMemo(
-    () => ({ parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, bindings: definition?.bindings, operations: definition?.operations, grades, lists }),
-    [definition, queries, grades, lists],
+    () => ({
+      parameters: definition?.parameters,
+      triggerInput: definition?.triggerInput,
+      queries,
+      bindings: definition?.bindings,
+      operations: definition?.operations,
+      grades,
+      lists,
+      origins: definition?.origins,
+      maxAuthority: line ? definition?.maxAuthority : null,
+    }),
+    [definition, line, queries, grades, lists],
   );
+  const fontsLoaded = useFontsLoaded();
   const display = useMemo(() => {
     const out = new Map<string, NodeDisplay>();
     const partRoute = (ref: string | undefined) => (ref ? (ref.startsWith("CaptureContract:") ? contractRoute(ref) : routeOf(ref)) : null);
@@ -583,6 +661,8 @@ export function ProcedureGraph({
       const kind: string = node.kind;
       const name: string | null = node.unnamed ? null : node.id;
       let brief: NodeDisplay["brief"] = null;
+      let description: string | null = null;
+      const captures: NodeDisplay["captures"] = { in: [], out: [] };
       const v = node.view;
       const stage = node.index !== null ? stageOf(spec, node.index, grades) : null;
       // Input fields a read's query parameters bind show on those parameters' rows, not again below.
@@ -598,23 +678,17 @@ export function ProcedureGraph({
           brief = { parts, title: `${partsText(parts)}${via}`, routes: parts.map((p) => partRoute(p.ref)) };
         }
         const step = spec.steps[node.index];
-        if (step && "read" in step && step.query) lines.push(...queryRows(queries.get(step.query), step.params, parameters, bound));
+        if (step && "read" in step && step.query) {
+          const shape = queries.get(step.query);
+          description = shape?.description ?? null;
+          lines.push(...queryRows(shape, step.params, parameters, bound));
+        }
         if (step && "call" in step) {
-          const slot = spec.slots?.[step.slot];
-          const contract = (ref: { name: string; version: number } | undefined, label: string): RowPart[] =>
-            ref ? [{ text: shortName(ref.name), to: routeOf(`Contract:${ref.name}@${ref.version}`), title: `${label} Contract ${ref.name}@${ref.version}` }] : [];
-          const kind = (name: string): RowPart => ({ text: shortName(name), to: contractRoute(name), title: `CaptureKind ${name}` });
-          if (isDerive(spec, node.index, grades)) {
-            // In reading order: the kinds of Capture it reads, the request and result Contracts, the kind it commits.
-            const reads = [...new Set(captureInputs(spec, node.index).flatMap((c) => (c.kind ? [c.kind] : [])))];
-            const commits = Object.values(step.captures ?? {});
-            if (reads.length) lines.push({ label: "Input", text: "", parts: reads.map(kind) });
-            if (slot?.in) lines.push({ label: "Request", text: "", parts: contract(slot.in, "Request") });
-            if (slot?.out) lines.push({ label: "Result", text: "", parts: contract(slot.out, "Result") });
-            if (commits.length) lines.push({ label: "Output", text: "", parts: commits.map(kind) });
-            const description = outs.get(step.slot)?.description;
-            if (description) lines.push({ text: description, span: description.length > ROW_CHARS ? 2 : 1, tone: "plain" });
-          } else {
+          // What the step does: its result Contract's description, as written and in full, first after the operation or
+          // source. Its effect, Contracts and kinds are in the side panel; the edges in and out name what flows.
+          description = outs.get(step.slot)?.description ?? null;
+          if (description) lines.push({ text: description, span: wrappedRows(description), clamp: false, tone: "plain" });
+          if (!isDerive(spec, node.index, grades)) {
             const output = `${stepAlias(step, node.index)}.${Object.keys(step.captures ?? {})[0] ?? "capture"}`;
             const origins = definition?.origins?.[output];
             if (origins?.length) lines.push({ label: "Origins", text: origins.join(", "), code: true });
@@ -645,8 +719,9 @@ export function ProcedureGraph({
           lines.push({ param: field, text, code: true, ...(about ? { title: `${text ? `${field} = ${text}` : field}\n${about}` } : {}) });
         }
       }
-      if (node.unresolved.length > 0) {
-        const names = [...new Set(node.unresolved.map((r) => r.name))];
+      const unresolved = [...new Set(node.unresolved.map((r) => r.name))];
+      if (unresolved.length > 0) {
+        const names = unresolved;
         lines.push({ text: `names ${names.join(", ")}`, title: `${names.join(", ")}: no step of this Procedure declares ${names.length === 1 ? "it" : "them"}`, tone: "dim" });
       }
       // With a run picked: the Captures the step read and produced, linked, so the before and after can be opened.
@@ -658,15 +733,19 @@ export function ProcedureGraph({
         const shown = (digests: readonly string[]): RowPart[] =>
           digests.length > 2 ? [...digests.slice(0, 2).map(capture), { text: `+${digests.length - 2}`, to: null, title: digests.slice(2).join("\n") }] : digests.map(capture);
         const unique = [...new Set(read)];
+        captures.in = unique;
+        captures.out = mark.capturesOut ?? [];
         if (unique.length) lines.push({ label: "In", text: "", parts: shown(unique) });
         if (mark.capturesOut?.length) lines.push({ label: "Out", text: "", parts: shown(mark.capturesOut) });
       }
       const markWords = mark?.summary ? summaryWords(mark.summary, mark.list ?? null) : null;
       const word = term("stepKind", kind);
-      out.set(node.id, { role: node.role, stage, kindWord: word.word, kindMeaning: word.meaning, name, brief, lines, mark, markWords });
+      out.set(node.id, { role: node.role, stage, kindWord: word.word, kindMeaning: word.meaning, name, brief, description, lines, captures, unresolved, mark, markWords });
     }
     return out;
-  }, [model, spec, line, definition, run, contractRoute, routeOf, ctx, grades, queries, ins, outs]);
+    // fontsLoaded: the description rows are measured again once the page's fonts have loaded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, spec, line, definition, run, contractRoute, routeOf, ctx, grades, queries, ins, outs, fontsLoaded]);
 
   // The edges: the definition's (the input's are rows in the steps).
   const edges = useMemo(
@@ -876,8 +955,9 @@ export function ProcedureGraph({
           if (selection.kind !== "node") return null;
           const view = model.nodes.find((n) => n.id === selection.id)?.view;
           const index = model.nodes.find((n) => n.id === selection.id)?.index;
-          return view && index != null ? (
-            <StepPanel view={view} stage={stageOf(spec, index, grades)} sections={stepSections(spec, index, ctx)} mark={run?.marks.get(selection.id) ?? null} />
+          const shown = display.get(selection.id);
+          return view && index != null && shown ? (
+            <StepPanel view={view} stage={stageOf(spec, index, grades)} sections={stepSections(spec, index, ctx)} shown={shown} mark={run?.marks.get(selection.id) ?? null} />
           ) : null;
         }}
         className=""
@@ -972,11 +1052,14 @@ function useSlotContracts(spec: ProcedureSpec): { lists: ReadonlyMap<string, rea
 }
 
 /**
- * A clicked step, in the Type map's panel style: kind and id, then its fields
+ * A clicked step, in the Type map's panel style: kind and id, what the step
+ * does as written (the description its node shows, in full), then its fields
  * in titled groups (compact name | value rows), named things linked, ids on
- * hover; with a run picked, that run's counts for it.
+ * hover; the parameters its node shows, with their values; with a run picked,
+ * that run's counts for it and the Captures it read and produced. Everything
+ * the node shows is here, in full.
  */
-function StepPanel({ view, stage, sections, mark }: { view: StepView; stage: Stage | null; sections: DetailSection[]; mark: StepMark | null }) {
+function StepPanel({ view, stage, sections, shown, mark }: { view: StepView; stage: Stage | null; sections: DetailSection[]; shown: NodeDisplay; mark: StepMark | null }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
   const kind = stage ? { word: sentence(stage) } : term("stepKind", view.kind);
@@ -987,6 +1070,28 @@ function StepPanel({ view, stage, sections, mark }: { view: StepView; stage: Sta
     return to ? link(to) : undefined;
   };
   const words = mark?.summary ? summaryWords(mark.summary, mark.list ?? null) : null;
+  const params = shown.lines.filter((line) => line.param !== undefined);
+  const captureParts = (digests: readonly string[]): Part[] =>
+    digests.flatMap((digest, i) => [...(i > 0 ? [{ text: ", " }] : []), { text: captureHandle(digest), ref: captureHandle(digest), title: digest, code: true }]);
+  const extra: DetailSection[] = [
+    ...(params.length
+      ? [{ title: "Parameters", rows: params.map((line) => ({ label: line.param!, name: true, title: line.title, value: line.text ? [{ text: line.text, code: true }] : [] })) }]
+      : []),
+    ...(shown.captures.in.length || shown.captures.out.length
+      ? [
+          {
+            title: "This run",
+            rows: [
+              ...(shown.captures.in.length ? [{ label: "In", value: captureParts(shown.captures.in) }] : []),
+              ...(shown.captures.out.length ? [{ label: "Out", value: captureParts(shown.captures.out) }] : []),
+            ],
+          },
+        ]
+      : []),
+    ...(shown.unresolved.length
+      ? [{ title: "Not declared", rows: [{ label: "Names", title: "No step of this Procedure declares these", value: shown.unresolved.map((n, i) => ({ text: i > 0 ? `, ${n}` : n, code: true })) }] }]
+      : []),
+  ];
   return (
     <div>
       <PanelHeading kicker={kind.word} title={view.id} />
@@ -995,7 +1100,12 @@ function StepPanel({ view, stage, sections, mark }: { view: StepView; stage: Sta
           {words && !mark.term.signal ? words.text : [mark.term.word, ...mark.notes].join(" · ")}
         </div>
       )}
-      {sections.map((section) =>
+      {shown.description && (
+        <p className="mt-1 whitespace-pre-line break-words text-[12px] leading-[18px] text-zinc-300" data-testid="step-description">
+          {shown.description}
+        </p>
+      )}
+      {[...sections, ...extra].map((section) =>
         section.columns && section.cells ? (
           <PanelGroup key={section.title} title={section.title}>
             <table className="w-full table-fixed text-[12px]" aria-label={section.title}>
