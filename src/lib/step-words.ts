@@ -221,7 +221,7 @@ export function stepBrief(spec: ProcedureSpec, index: number, ctx: StepWordsCont
     return joined([
       [code(pointerText(step.records), step.records)],
       keys.length ? [{ text: "key " }, ...list(keys.map((k) => code(k)))] : [],
-      n ? [{ text: plural(n, "field", "fields") }] : [],
+      n ? [{ text: plural(n, "field", "fields"), title: Object.keys(step.fields ?? {}).join(", ") }] : [],
     ]);
   }
   if ("claims" in step) {

@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { http } from "msw";
+import { http, HttpResponse } from "msw";
 import { renderApp, TEST_BASE } from "@/test/render";
 import { NODE_WIDTH } from "@/components/graph/ProcedureGraph";
 import { TEMPLATE_LINE, TEMPLATE_WORLD } from "@/fixtures/template";
@@ -123,7 +123,7 @@ describe("Procedure graph", () => {
     const pages = within(node("pages"));
     expect(pages.getByText("url").tagName).toBe("CODE");
     expect(pages.getByText("https://vendor.example/advisories?page=1")).toBeInTheDocument();
-    expect(pages.getByTitle("url = https://vendor.example/advisories?page=1")).toBeInTheDocument();
+    expect(pages.getByTitle(/^url = https:\/\/vendor\.example\/advisories\?page=1( |$)/)).toBeInTheDocument();
     expect(pages.getByText("logical_source")).toBeInTheDocument();
     // only the step that reads a parameter shows it
     expect(within(node("view")).queryByText("url")).toBeNull();
@@ -134,7 +134,7 @@ describe("Procedure graph", () => {
     await graph();
     await waitFor(() => expect(node("pages")).not.toBeNull(), SLOW);
     expect(node("$input")).toBeNull();
-    expect(within(node("pages")).getByTitle("url")).toBeInTheDocument();
+    expect(within(node("pages")).getByTitle(/^url( |$)/)).toBeInTheDocument();
   });
 
   it("names a landing Trigger's step on its Runs on entry; a click focuses that step", async () => {
@@ -175,5 +175,65 @@ describe("Procedure graph", () => {
     expect(watched().getByTitle("From security.vulnerability")).toBeInTheDocument();
     expect(watched().getByText("3 fields").closest("[title]")).toHaveAttribute("title", "cve_id, release, status");
     expect(watched().getByText("kev_exposure").closest("a")).not.toBeNull();
+  });
+
+  it("shows what a derive does: what it reads and commits, its request and result Contracts, the result's description once read", async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const hold = http.post(`${TEST_BASE}/api/v1/:instance/get-batch`, async ({ request }) => {
+      if ((await request.clone().text()).includes("security.advisory-narrow.result@1")) await held;
+      return undefined;
+    });
+    renderApp(`/i/inst_fixture/lines/${TEMPLATE_LINE}`, TEMPLATE_WORLD, { handlers: [hold] });
+    await graph();
+    await waitFor(() => expect(node("view")).not.toBeNull(), SLOW);
+    const view = () => within(node("view"));
+    // from the definition alone: in reading order, each linked
+    expect(view().getByText("Input").nextElementSibling).toHaveTextContent("advisory-page");
+    expect(view().getByText("advisory-narrow.request").closest("a")).toHaveAttribute("href", expect.stringContaining("security.advisory-narrow.request"));
+    expect(view().getByText("advisory-narrow.result").closest("a")).toHaveAttribute("title", "Result Contract security.advisory-narrow.result@1");
+    expect(view().getByText("advisory-view").closest("a")).toHaveAttribute("href", "/i/inst_fixture/contracts/security.advisory-view");
+    // the result Contract's description waits for its read; the node is drawn without it
+    expect(view().queryByText(/One derived JSON document/)).toBeNull();
+    release();
+    const description = await waitFor(() => view().getByText(/^One derived JSON document: the advisory pages/), SLOW);
+    expect(description).toHaveClass("line-clamp-2");
+    expect(description).toHaveAttribute("title", expect.stringContaining("merged in page order"));
+  });
+
+  it("names a fetch's allowed origins, says on a parameter's hover what its request field means, and keeps the node when that read fails", async () => {
+    renderApp(`/i/inst_fixture/lines/${TEMPLATE_LINE}`, TEMPLATE_WORLD);
+    await graph();
+    await waitFor(() => expect(within(node("pages")).getByTitle(/The first page's URL/)).toBeInTheDocument(), SLOW);
+    expect(within(node("pages")).getByText("Origins").nextElementSibling).toHaveTextContent("https://vendor.example");
+    expect(within(node("pages")).getByTitle(/The first page's URL/)).toHaveAttribute("title", "url = https://vendor.example/advisories?page=1\nThe first page's URL; each page names the next.");
+    // an extract's field names on hover of its count; a claims step's ceiling from the Line
+    expect(within(node("entries")).getByText("2 fields")).toHaveAttribute("title", "fixed_in, advisory");
+    expect(within(node("write")).getByText("At most").nextElementSibling).toHaveTextContent("propose");
+    cleanup();
+
+    const fail = http.post(`${TEST_BASE}/api/v1/:instance/get-batch`, async ({ request }) =>
+      (await request.clone().text()).includes("web.fetch.pages.request@1") ? HttpResponse.json({ error: "down" }, { status: 500 }) : undefined,
+    );
+    renderApp(`/i/inst_fixture/lines/${TEMPLATE_LINE}`, TEMPLATE_WORLD, { handlers: [fail] });
+    await graph();
+    await waitFor(() => expect(within(node("pages")).getByText("url")).toBeInTheDocument(), SLOW);
+    expect(within(node("pages")).getByTitle("url = https://vendor.example/advisories?page=1")).toBeInTheDocument();
+    expect(within(node("pages")).queryByTitle(/The first page's URL/)).toBeNull();
+  });
+
+  it("with a run picked, links the Captures each step read and produced", async () => {
+    renderApp(`/i/inst_fixture/lines/${TEMPLATE_LINE}`, TEMPLATE_WORLD);
+    await graph();
+    const picker = await screen.findByRole("combobox", { name: "Mark the steps with a run" }, SLOW);
+    await waitFor(() => expect(within(picker).getAllByRole("option").length).toBeGreaterThan(1), SLOW);
+    expect(within(node("view")).queryByText("Out")).toBeNull(); // no run: no Captures
+    fireEvent.change(picker, { target: { value: "run-t2" } });
+    await waitFor(() => expect(within(node("view")).getByText("Out")).toBeInTheDocument(), SLOW);
+    const out = within(node("view")).getByText("Out").nextElementSibling as HTMLElement;
+    expect(within(out).getByRole("link", { hidden: true })).toHaveAttribute("href", `/i/inst_fixture/ref/${encodeURIComponent("CAP-787878787878")}`);
+    // a derive's input is what the step it reads produced; the next derive reads this one's output
+    expect(within(node("view")).getByText("In").nextElementSibling).toHaveTextContent("CAP-747474747474");
+    expect(within(node("fixes")).getByText("In").nextElementSibling).toHaveTextContent("CAP-787878787878");
   });
 });

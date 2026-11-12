@@ -10,10 +10,10 @@ import { CONTROL_CLASS, GraphCanvas, type GraphSelection } from "@/components/gr
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { parseRef, refRoute } from "@/lib/cruxible-ref";
-import { templateRef, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
+import { stepAlias, templateRef, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
-import { flowWords, partsText, queryShape, shortName, stepBrief, stepSections, summaryWords, type DetailSection, type Part, type QueryShape } from "@/lib/step-words";
+import { bytesWords, flowWords, partsText, queryShape, shortName, stepBrief, stepSections, summaryWords, type DetailSection, type Part, type QueryShape } from "@/lib/step-words";
 import { FieldList } from "@/components/FieldList";
 import { PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
 import { InfoButton } from "@/components/InfoButton";
@@ -22,7 +22,7 @@ import { layoutLayered, type Point, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
 import { STAGE_COLOR } from "@/lib/palette";
 import { contractName } from "@/lib/ontology";
-import { listFields, stageOf, type ListField, type ListMember, type Stage } from "@/lib/template";
+import { captureInputs, isDerive, listFields, stageOf, type ListField, type ListMember, type Stage } from "@/lib/template";
 import { MemberStatus, memberHover } from "@/components/ListMembers";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
@@ -87,7 +87,19 @@ interface NodeLine {
   label?: string;
   /** Rows the line may take (text wraps and clamps; 1 when unset). */
   span?: 1 | 2;
+  /** The value as separate named things, each linked (instead of text). */
+  parts?: RowPart[];
   signal?: Signal | undefined;
+}
+
+const record = (value: unknown): Record<string, unknown> | null =>
+  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+
+/** One named thing in a row: a Contract, a CaptureKind, a Capture; linked where the console opens it. */
+interface RowPart {
+  text: string;
+  to: string | null;
+  title?: string;
 }
 
 interface NodeDisplay {
@@ -209,7 +221,24 @@ function NodeText({ line }: { line: NodeLine }) {
         </>
       )}
       {line.label !== undefined && <span className="shrink-0 text-zinc-500">{line.label}</span>}
-      {line.text && <span className={`min-w-0 truncate ${line.code ? "font-mono text-[10.5px]" : ""}`}>{body}</span>}
+      {line.parts ? (
+        <span className="min-w-0 truncate font-mono text-[10.5px]">
+          {line.parts.map((part, i) => (
+            <span key={i}>
+              {i > 0 && <span className="font-sans text-zinc-500"> · </span>}
+              {part.to ? (
+                <Link to={part.to} title={part.title} className="nodrag nopan text-zinc-200 hover:text-white hover:underline" onClick={(e) => e.stopPropagation()}>
+                  {part.text}
+                </Link>
+              ) : (
+                <span title={part.title}>{part.text}</span>
+              )}
+            </span>
+          ))}
+        </span>
+      ) : (
+        line.text && <span className={`min-w-0 truncate ${line.code ? "font-mono text-[10.5px]" : ""}`}>{body}</span>
+      )}
     </div>
   );
 }
@@ -484,7 +513,7 @@ export function ProcedureGraph({
 
   const queries = useQueryShapes(spec);
   const grades = useGrades();
-  const lists = useSlotLists(spec);
+  const { lists, ins, outs } = useSlotContracts(spec);
   // On a Line page: the Lines (or direct entry) upstream of its reads, and the Lines downstream of its writes.
   const lineName = definition?.line ?? null;
   const dependencies = useLineDependencies(lineName !== null);
@@ -522,6 +551,8 @@ export function ProcedureGraph({
       const stage = node.index !== null ? stageOf(spec, node.index, grades) : null;
       // Input fields a read's query parameters bind show on those parameters' rows, not again below.
       const bound = new Set<string>();
+      // Parameter -> what the request Contract says of the field it fills (on the parameter row's hover).
+      const described = new Map<string, string>();
       if (v && node.index !== null) {
         const parts = stepBrief(spec, node.index, ctx);
         if (parts.length) {
@@ -532,6 +563,38 @@ export function ProcedureGraph({
         }
         const step = spec.steps[node.index];
         if (step && "read" in step && step.query) lines.push(...queryRows(queries.get(step.query), step.params, parameters, bound));
+        if (step && "call" in step) {
+          const slot = spec.slots?.[step.slot];
+          const contract = (ref: { name: string; version: number } | undefined, label: string): RowPart[] =>
+            ref ? [{ text: shortName(ref.name), to: routeOf(`Contract:${ref.name}@${ref.version}`), title: `${label} Contract ${ref.name}@${ref.version}` }] : [];
+          const kind = (name: string): RowPart => ({ text: shortName(name), to: contractRoute(name), title: `CaptureKind ${name}` });
+          if (isDerive(spec, node.index, grades)) {
+            // In reading order: the kinds of Capture it reads, the request and result Contracts, the kind it commits.
+            const reads = [...new Set(captureInputs(spec, node.index).flatMap((c) => (c.kind ? [c.kind] : [])))];
+            const commits = Object.values(step.captures ?? {});
+            if (reads.length) lines.push({ label: "Input", text: "", parts: reads.map(kind) });
+            if (slot?.in) lines.push({ label: "Request", text: "", parts: contract(slot.in, "Request") });
+            if (slot?.out) lines.push({ label: "Result", text: "", parts: contract(slot.out, "Result") });
+            if (commits.length) lines.push({ label: "Output", text: "", parts: commits.map(kind) });
+            const description = outs.get(step.slot)?.description;
+            if (description) lines.push({ text: description, span: description.length > ROW_CHARS ? 2 : 1, tone: "plain" });
+          } else {
+            const output = `${stepAlias(step, node.index)}.${Object.keys(step.captures ?? {})[0] ?? "capture"}`;
+            const origins = definition?.origins?.[output];
+            if (origins?.length) lines.push({ label: "Origins", text: origins.join(", "), code: true });
+            const max = record(step.input)?.max_bytes;
+            if (typeof max === "number") lines.push({ label: "Max size", text: bytesWords(max) });
+          }
+          // A parameter row's hover adds what the request Contract says of the field it fills.
+          const fields = ins.get(step.slot)?.fields ?? [];
+          for (const [field, value] of Object.entries(record(step.input) ?? {})) {
+            const ref = templateRef(value);
+            const name = (ref?.$ref === "param" || ref?.$ref === "input") && ref.path?.length ? ref.path.join(".") : null;
+            const about = fields.find((f) => f.name === field)?.description;
+            if (name && about) described.set(name, about);
+          }
+        }
+        if (step && "claims" in step && line && definition?.maxAuthority) lines.push({ label: "At most", text: definition.maxAuthority });
       } else if (node.kind === "halt") {
         if (node.detail[0]) brief = { parts: [{ text: node.detail[0], code: true }], title: `halt ${node.detail[0]}`, routes: [null] };
       } else if (node.kind === "returns") {
@@ -541,19 +604,32 @@ export function ProcedureGraph({
       if (read) {
         for (const field of read.length > 0 ? read.filter((f) => !bound.has(f)) : ["input"]) {
           const value = Object.hasOwn(parameters, field) ? parameters[field] : undefined;
-          lines.push({ param: field, text: value === undefined ? "" : typeof value === "string" ? value : JSON.stringify(value), code: true });
+          const text = value === undefined ? "" : typeof value === "string" ? value : JSON.stringify(value);
+          const about = described.get(field);
+          lines.push({ param: field, text, code: true, ...(about ? { title: `${text ? `${field} = ${text}` : field}\n${about}` } : {}) });
         }
       }
       if (node.unresolved.length > 0) {
         const names = [...new Set(node.unresolved.map((r) => r.name))];
         lines.push({ text: `names ${names.join(", ")}`, title: `${names.join(", ")}: no step of this Procedure declares ${names.length === 1 ? "it" : "them"}`, tone: "dim" });
       }
+      // With a run picked: the Captures the step read and produced, linked, so the before and after can be opened.
+      if (mark) {
+        const upstream = model.edges.filter((e) => e.target === node.id && e.kind === "data").flatMap((e) => run?.marks.get(e.source)?.capturesOut ?? []);
+        const read = mark.capturesIn?.length ? mark.capturesIn : node.kind === "extract" || (v?.kind === "call" && node.index !== null && isDerive(spec, node.index, grades)) ? upstream : [];
+        const capture = (digest: string): RowPart => ({ text: captureHandle(digest), to: routeOf(captureHandle(digest)), title: digest });
+        const shown = (digests: readonly string[]): RowPart[] =>
+          digests.length > 2 ? [...digests.slice(0, 2).map(capture), { text: `+${digests.length - 2}`, to: null, title: digests.slice(2).join("\n") }] : digests.map(capture);
+        const unique = [...new Set(read)];
+        if (unique.length) lines.push({ label: "In", text: "", parts: shown(unique) });
+        if (mark.capturesOut?.length) lines.push({ label: "Out", text: "", parts: shown(mark.capturesOut) });
+      }
       const markWords = mark?.summary ? summaryWords(mark.summary, mark.list ?? null) : null;
       const word = term("stepKind", kind);
       out.set(node.id, { role: node.role, stage, kindWord: word.word, kindMeaning: word.meaning, name, brief, lines, mark, markWords });
     }
     return out;
-  }, [model, spec, line, definition, run, contractRoute, routeOf, ctx, grades, queries]);
+  }, [model, spec, line, definition, run, contractRoute, routeOf, ctx, grades, queries, ins, outs]);
 
   // The edges: the definition's (the input's are rows in the steps).
   const edges = useMemo(
@@ -792,29 +868,48 @@ function useGrades(): ReadonlyMap<string, string> | null {
   );
 }
 
-/** Slot -> the list-of-Captures fields of its out Contract: one get-batch of the call slots' out Contracts. */
-function useSlotLists(spec: ProcedureSpec): ReadonlyMap<string, readonly ListField[]> {
+type ContractCard = NonNullable<ReturnType<typeof cardOf<"contract">>>;
+
+/**
+ * The call slots' Contracts: one get-batch of their out Contracts (the
+ * list-of-Captures fields, a result's description) and one of their in
+ * Contracts (what each request field means). Empty maps while they load or
+ * when a read fails: the nodes draw without these rows.
+ */
+function useSlotContracts(spec: ProcedureSpec): { lists: ReadonlyMap<string, readonly ListField[]>; ins: ReadonlyMap<string, ContractCard>; outs: ReadonlyMap<string, ContractCard> } {
   const slots = useMemo(() => [...new Set(spec.steps.flatMap((step) => ("call" in step ? [step.slot] : [])))].sort(), [spec]);
-  const outs = useMemo(() => {
-    const refs = slots.flatMap((slot) => {
-      const out = spec.slots?.[slot]?.out;
-      return out ? [`Contract:${out.name}@${out.version}`] : [];
-    });
-    return [...new Set(refs)].sort();
-  }, [slots, spec]);
-  const reads = useGetBatch(outs);
-  const key = JSON.stringify(reads.results.map((r) => cardOf(r, "contract")?.fields ?? null));
+  const refsOf = useCallback(
+    (side: "in" | "out") => [...new Set(slots.flatMap((slot) => {
+      const ref = spec.slots?.[slot]?.[side];
+      return ref ? [`Contract:${ref.name}@${ref.version}`] : [];
+    }))].sort(),
+    [slots, spec],
+  );
+  const outRefs = useMemo(() => refsOf("out"), [refsOf]);
+  const inRefs = useMemo(() => refsOf("in"), [refsOf]);
+  const outReads = useGetBatch(outRefs);
+  const inReads = useGetBatch(inRefs);
+  const key = JSON.stringify([outReads.results.map((r) => cardOf(r, "contract") ?? null), inReads.results.map((r) => cardOf(r, "contract") ?? null)]);
   return useMemo(() => {
-    const out = new Map<string, ListField[]>();
-    for (const slot of slots) {
-      const ref = spec.slots?.[slot]?.out;
-      const i = ref ? outs.indexOf(`Contract:${ref.name}@${ref.version}`) : -1;
-      const fields = i >= 0 ? listFields(cardOf(reads.results[i], "contract")) : [];
-      if (fields.length) out.set(slot, fields);
+    const bySlot = (side: "in" | "out", refs: string[], results: typeof outReads.results) => {
+      const out = new Map<string, ContractCard>();
+      for (const slot of slots) {
+        const ref = spec.slots?.[slot]?.[side];
+        const i = ref ? refs.indexOf(`Contract:${ref.name}@${ref.version}`) : -1;
+        const card = i >= 0 ? cardOf(results[i], "contract") : null;
+        if (card) out.set(slot, card);
+      }
+      return out;
+    };
+    const outs = bySlot("out", outRefs, outReads.results);
+    const lists = new Map<string, ListField[]>();
+    for (const [slot, card] of outs) {
+      const fields = listFields(card);
+      if (fields.length) lists.set(slot, fields);
     }
-    return out;
+    return { lists, ins: bySlot("in", inRefs, inReads.results), outs };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
-  }, [slots, outs, key]);
+  }, [slots, outRefs, inRefs, key]);
 }
 
 /**
