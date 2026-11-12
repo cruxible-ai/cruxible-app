@@ -116,7 +116,7 @@ export function DocsScreen() {
       {documents.error && <LoadState error={documents.error} />}
       {documents.data &&
         (rows.length === 0 ? (
-          <EmptyState>No Documents</EmptyState>
+          documents.isSuccess && <EmptyState>No Documents</EmptyState>
         ) : (
           <div className={`grid grid-cols-1 items-start gap-5 ${listHidden ? "" : "lg:grid-cols-[20rem_minmax(0,1fr)]"}`}>
             {!listHidden && (

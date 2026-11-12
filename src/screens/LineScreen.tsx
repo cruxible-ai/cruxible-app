@@ -619,6 +619,13 @@ function LineNextPanel({ line }: { line: string }) {
   const next = useNext({ limit: NEXT_PAGE });
   // "Not enabled" is the banner under the header; the panel is for anything else.
   const rows = (nextRowsByLine(next.data?.items ?? []).get(line) ?? []).filter((item) => item.reason !== "line_not_enabled");
+  if (next.error) {
+    return (
+      <Panel title="Next">
+        <LoadState error={next.error} />
+      </Panel>
+    );
+  }
   if (!next.data) return null;
   if (rows.length === 0) {
     return (
@@ -645,6 +652,9 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
   const card = cardOf(read.data, "procedure");
   const readings = useReadings(procedure, READINGS_PAGE);
   const empty =
+    // only on reads that succeeded: a failed refresh over cached data is not "None"
+    read.isSuccess &&
+    readings.isSuccess &&
     card != null &&
     readings.data !== undefined &&
     (card.track_record ?? []).length === 0 &&

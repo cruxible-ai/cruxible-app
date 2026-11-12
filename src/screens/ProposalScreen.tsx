@@ -166,7 +166,7 @@ export function ProposalScreen() {
               )}
             </Panel>
           )}
-          {review.data.members.length === 0 && (
+          {review.isSuccess && review.data.members.length === 0 && (
             <Panel title="Changes">
               <EmptyState>None</EmptyState>
             </Panel>

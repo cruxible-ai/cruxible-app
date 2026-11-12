@@ -109,8 +109,8 @@ export function NextScreen() {
         </Panel>
       )}
       {page.data && items.length === 0 && page.data.total_items > 0 && <EmptyState>None on this page</EmptyState>}
-      {/* an empty queue is the good case: nothing to repair or decide */}
-      {page.data && page.data.total_items === 0 && (
+      {/* an empty queue is the good case: nothing to repair or decide; said only on a read that succeeded (a failed refresh keeps its error alone) */}
+      {page.isSuccess && page.data.total_items === 0 && (
         <Panel title="Items">
           <EmptyState>Nothing needs attention</EmptyState>
         </Panel>
