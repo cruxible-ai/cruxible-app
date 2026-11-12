@@ -394,7 +394,7 @@ export function ProcedureWithGraph({ spec }: { spec: ProcedureSpec }) {
   const [selected, setSelected] = useState<string | null>(null);
   return (
     <>
-      <Panel title="Steps" meta={<span>Arrow: reads · dashed: guard's other branch</span>}>
+      <Panel title="Steps">
         <ProcedureGraph spec={spec} onSelectStep={setSelected} />
       </Panel>
       <ProcedureDefinition spec={spec} selectedStep={selected} />

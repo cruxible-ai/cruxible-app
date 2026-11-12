@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
+import { NODE_WIDTH } from "@/components/graph/ProcedureGraph";
+import { TEMPLATE_LINE, TEMPLATE_WORLD } from "@/fixtures/template";
 
 afterEach(cleanup);
 
@@ -84,5 +86,47 @@ describe("Procedure graph", () => {
     const panel = within(await screen.findByRole("list", { name: "Records" }, SLOW));
     expect(panel.getByText("/vulnerabilities/*")).toBeInTheDocument();
     expect(within(screen.getByRole("list", { name: "Fields" })).getByText("dateAdded")).toBeInTheDocument();
+  });
+
+  it("draws every step as a slot of one width: the kind word and name in its header, ports where edges attach", async () => {
+    renderApp("/i/inst_fixture/lines/kev-triage");
+    await graph();
+    await waitFor(() => expect(node("settle")).not.toBeNull(), SLOW);
+    const nodes = [...document.querySelectorAll<HTMLElement>('[data-testid="procedure-graph"] .react-flow__node')];
+    expect(nodes.length).toBeGreaterThan(4);
+    for (const n of nodes) expect(n.style.width).toBe(`${NODE_WIDTH}px`);
+    // the kind word carries its meaning on hover; no legend repeats it
+    expect(within(node("catalog")).getByText("FETCH")).toHaveAttribute("title", expect.stringContaining("Fetches evidence"));
+    expect(screen.queryByText("Writes Claims")).toBeNull();
+    // the name is mono (a step id), the kind word is not
+    expect(within(node("catalog")).getByText("catalog").closest(".font-mono")).not.toBeNull();
+    expect(within(node("catalog")).getByText("FETCH").closest(".font-mono")).toBeNull();
+    // a port shows only where an edge attaches: catalog feeds entries, nothing feeds it
+    const ports = (id: string) => [...node(id).querySelectorAll<HTMLElement>(".react-flow__handle")].map((h) => !h.className.includes("!opacity-0"));
+    expect(ports("catalog")).toEqual([false, true]);
+    expect(ports("entries")).toEqual([true, true]);
+  });
+
+  it("shows a Line's parameters as rows in the step that reads them, with their values; never as a step of their own", async () => {
+    renderApp(`/i/inst_fixture/lines/${TEMPLATE_LINE}`, TEMPLATE_WORLD);
+    await graph();
+    await waitFor(() => expect(node("pages")).not.toBeNull(), SLOW);
+    expect(node("$input")).toBeNull();
+    expect(screen.queryByText("Parameters")).toBeNull();
+    const pages = within(node("pages"));
+    expect(pages.getByText("url").tagName).toBe("CODE");
+    expect(pages.getByText("https://vendor.example/advisories?page=1")).toBeInTheDocument();
+    expect(pages.getByTitle("url = https://vendor.example/advisories?page=1")).toBeInTheDocument();
+    expect(pages.getByText("logical_source")).toBeInTheDocument();
+    // only the step that reads a parameter shows it
+    expect(within(node("view")).queryByText("url")).toBeNull();
+  });
+
+  it("on a Procedure page, names the input each step reads as a row in it, with no input node", async () => {
+    renderApp("/i/inst_fixture/ref/Procedure%3Asecurity.advisory-pages", TEMPLATE_WORLD);
+    await graph();
+    await waitFor(() => expect(node("pages")).not.toBeNull(), SLOW);
+    expect(node("$input")).toBeNull();
+    expect(within(node("pages")).getByTitle("url")).toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { ArrowRightLeft, ArrowUpDown, Clock, Cpu, CornerDownRight, Database, Flag, Funnel, Shuffle, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { Handle, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
+import { ArrowRightLeft, ArrowUpDown, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useCaptureContracts, useGetBatch, useInstanceId } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
@@ -18,11 +18,11 @@ import { FieldList } from "@/components/FieldList";
 import { PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
 import { InfoButton } from "@/components/InfoButton";
 import { Parts } from "@/components/Parts";
-import { layoutLayered, monoWidth, type TypeLayout } from "@/lib/type-layout";
+import { layoutLayered, type Point, type TypeLayout } from "@/lib/type-layout";
 import { term, type Signal } from "@/lib/vocabulary";
-import { GENERIC_STEP_COLOR, ROLE_COLOR, STAGE_COLOR } from "@/lib/palette";
+import { ROLE_COLOR, STAGE_COLOR } from "@/lib/palette";
 import { contractName } from "@/lib/ontology";
-import { listFields, stageOf, STAGES, type ListField, type ListMember, type Stage } from "@/lib/template";
+import { listFields, stageOf, type ListField, type ListMember, type Stage } from "@/lib/template";
 import { MemberStatus, memberHover } from "@/components/ListMembers";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
@@ -33,22 +33,25 @@ import { useLineDependencies } from "@/lib/useLineDependencies";
 import { DependencyPopover, producerName, type PopoverAt } from "@/components/DependencyPopover";
 
 /**
- * A Procedure as a left-to-right graph: one node per step, typed by its role
- * with one visual per role (an icon and a border), edges wherever a step
- * names another (a `{$ref: step}` reference, labelled with its path when
- * short; a guard's then/else as a dashed edge). Each node shows its kind and
- * name and what the step is for in plain words (step-words.ts), with the
- * named things linked and the internal names on hover. On a Line page the
- * graph is wrapped by the Line: its Triggers and parameters on the left, and
- * a run's marks when one is picked: what happened at each step, in counts
- * where the run card's node summary gives them ("1,766 records · complete"),
- * and the count flowing along an edge. Clicking a step focuses everything
- * upstream and downstream of it (the focus chip and Esc clear it) and tells
- * the page which step it is. On a Line page, small chips name the Lines
- * (or Entered directly) that produce what each read step's Query reads, left
- * of the read, and the Lines whose Queries read what this Line writes, right
- * of its claims steps; a click on a chip's edge names the Query and what it
- * connects.
+ * A Procedure as a graph of slot nodes: one node per step, all one width, laid
+ * out in layers (top to bottom by default, left to right on the toggle). Each
+ * node is a frame: a header strip with the step's kind word (the only color,
+ * its meaning on hover) and name, then rows of what the step reads, calls or
+ * writes (step-words.ts), named things linked, all of it on hover. Every edge
+ * leaves a step at its out port and enters the next at its in port, routed at
+ * right angles, captioned with what it carries (a `{$ref: step}` reference's
+ * path when short; a guard's then/else). The Procedure's input and a Line's
+ * parameters are configuration, not steps: each shows as a row inside the step
+ * that reads it, with the Line's value. On a Line page the graph also shows
+ * its Triggers (first) and a run's marks when one is picked: what happened at
+ * each step, in counts where the run card's node summary gives them ("1,766
+ * records · complete"), and the count flowing along an edge. Clicking a step
+ * focuses everything upstream and downstream of it (the focus chip and Esc
+ * clear it) and tells the page which step it is. On a Line page, a band above
+ * the graph names the Lines (or Entered directly) that produce what its read
+ * steps' Queries read, and a band below names the Lines whose Queries read
+ * what it writes: each a link to the Line, with a toggle that opens which
+ * Query reads what.
  */
 
 /** A Line's Trigger as the graph shows it: its schedule in words, and whether its landing feeds the trigger input. */
@@ -63,45 +66,28 @@ export interface LineGraphContext {
   triggers: GraphTrigger[];
 }
 
-const ROLE_ICON: Record<StepRole, LucideIcon> = {
-  input: SlidersHorizontal,
-  trigger: Clock,
-  read: Database,
-  call: Cpu,
-  invoke: CornerDownRight,
-  guard: Funnel,
-  shape: Shuffle,
-  terminal: Flag,
-};
-
-/** One border treatment per role; the role's color (palette.ts) is the accent on the left edge and icon. */
-const ROLE_BOX: Record<StepRole, string> = {
-  input: "border-dashed border-zinc-700 bg-zinc-950",
-  trigger: "border-dashed border-zinc-700 bg-zinc-950",
-  read: "border-zinc-700 bg-zinc-900",
-  call: "border-zinc-500 bg-zinc-900",
-  invoke: "border-zinc-500 border-double border-[3px] bg-zinc-900",
-  guard: "border-dashed border-zinc-500 bg-zinc-900",
-  shape: "border-dotted border-zinc-600 bg-zinc-900",
-  terminal: "border-zinc-600 border-r-[3px] border-r-zinc-400 bg-zinc-900",
-};
-
 interface NodeLine {
   text: string;
   title?: string | undefined;
   /** An in-app route the line links to. */
   to?: string | null | undefined;
-  tone?: "name" | "dim" | "plain";
+  tone?: "dim" | "plain";
+  /** The text is a name (a field, URL, reference): mono. */
+  code?: boolean;
+  /** A parameter or input row: the parameter's name, shown before its value. */
+  param?: string;
   signal?: Signal | undefined;
 }
 
 interface NodeDisplay {
   role: StepRole;
-  /** The step's template stage (D-R37); null for a step outside it (and the Trigger and input nodes). */
+  /** The step's template stage (D-R37); null for a step outside it (and the Trigger nodes). */
   stage: Stage | null;
   kindWord: string;
   kindMeaning: string;
   name: string | null;
+  /** Where the name links (a Trigger's page). */
+  nameTo?: string | null;
   /** The step's key fields, one line (`cisa.gov · JSON`); named things linked, all of it on hover. */
   brief: { parts: Part[]; routes: (string | null)[]; title: string } | null;
   lines: NodeLine[];
@@ -110,54 +96,89 @@ interface NodeDisplay {
   markWords: { text: string; title: string } | null;
 }
 
-type StepNodeData = NodeDisplay & { vertical?: boolean; [key: string]: unknown };
+type StepNodeData = NodeDisplay & { vertical?: boolean; hasIn?: boolean; hasOut?: boolean; [key: string]: unknown };
 
-const LINE_HEIGHT = 15;
-const HEAD_HEIGHT = 20;
-const PAD = 12;
-const MIN_WIDTH = 130;
-const MAX_WIDTH = 240;
+/** Every node is one width, so the steps line up in columns. */
+export const NODE_WIDTH = 260;
+const HEAD_HEIGHT = 26;
+const ROW_HEIGHT = 16;
+const BODY_PAD = 10;
+const MARK_HEIGHT = 25;
+const BORDER = 2;
 
-/** A node's accent: its stage's color, the Trigger's and input's role color, neutral for a step outside the template. */
-function accentOf(d: Pick<NodeDisplay, "role" | "stage">): string {
+const EDGE_STROKE = "#6b6857";
+const EDGE_LABEL = "bg-zinc-950 px-1 text-[10.5px] leading-[14px] text-zinc-400";
+
+/** A kind word's color: its stage's, the Trigger's; none (neutral text) for a step outside the template. */
+function kindColor(d: Pick<NodeDisplay, "role" | "stage">): string | null {
   if (d.stage) return STAGE_COLOR[d.stage].color;
-  return d.role === "input" || d.role === "trigger" ? ROLE_COLOR[d.role].color : GENERIC_STEP_COLOR;
+  return d.role === "trigger" ? ROLE_COLOR.trigger.color : null;
+}
+
+/** A name that truncates from its start, so the end that tells names apart shows; all of it on hover. */
+function EndFirst({ text, title, className = "" }: { text: string; title?: string; className?: string }) {
+  return (
+    <span className={`block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${className}`} style={{ direction: "rtl", textAlign: "left" }} title={title ?? text}>
+      <bdi dir="ltr">{text}</bdi>
+    </span>
+  );
+}
+
+/** A port: a dot at the centre of the side edges enter (in) or leave (out) by; hidden where no edge attaches. */
+function Port({ type, vertical, shown }: { type: "source" | "target"; vertical: boolean; shown: boolean }) {
+  const position = type === "target" ? (vertical ? Position.Top : Position.Left) : vertical ? Position.Bottom : Position.Right;
+  return (
+    <Handle
+      type={type}
+      position={position}
+      isConnectable={false}
+      className={`!pointer-events-none !h-[7px] !min-h-0 !w-[7px] !min-w-0 !rounded-full !border !border-zinc-500 !bg-zinc-900 ${shown ? "" : "!opacity-0"}`}
+    />
+  );
 }
 
 function StepNode({ data }: NodeProps<Node<StepNodeData>>) {
-  const Icon = ROLE_ICON[data.role];
-  const accent = accentOf(data);
+  const color = kindColor(data);
+  const word = data.stage ? STAGE_COLOR[data.stage].tag : data.kindWord;
+  const meaning = data.stage ? `${STAGE_COLOR[data.stage].legend}\n${data.kindWord}: ${data.kindMeaning}` : `${data.kindWord}: ${data.kindMeaning}`;
+  const body = data.brief !== null || data.lines.length > 0 || data.mark !== null;
+  const vertical = data.vertical === true;
   return (
-    <div
-      className={`h-full w-full overflow-hidden border px-2 py-1.5 ${ROLE_BOX[data.role]}`}
-      style={{ borderLeftColor: accent, borderLeftWidth: 3 }}
-      title={data.kindMeaning}
-      data-stage={data.stage ?? undefined}
-    >
-      <Handle type="target" position={data.vertical ? Position.Top : Position.Left} className="!pointer-events-none !opacity-0" />
-      <div className="flex h-4 items-center gap-1.5 text-[11px] leading-4">
-        <Icon className="h-3 w-3 shrink-0" style={{ color: accent }} aria-hidden />
-        {data.stage ? (
-          <span className="text-[9.5px] font-semibold tracking-wider" style={{ color: accent }} title={`${data.kindWord}: ${data.kindMeaning}`}>
-            {STAGE_COLOR[data.stage].tag}
-          </span>
-        ) : (
-          <span style={{ color: accent }}>{data.kindWord}</span>
-        )}
-        {data.name && <span className="truncate font-mono text-[12px] text-zinc-100">{data.name}</span>}
+    <div className="flex h-full w-full flex-col border border-zinc-700 bg-zinc-900" data-stage={data.stage ?? undefined}>
+      <Port type="target" vertical={vertical} shown={data.hasIn === true} />
+      <div className={`flex h-[26px] shrink-0 items-center gap-2 bg-zinc-800/50 px-2.5 ${body ? "border-b border-zinc-800" : ""}`}>
+        <span
+          className={`shrink-0 text-[10px] font-semibold uppercase leading-4 tracking-wider ${color ? "" : "text-zinc-400"}`}
+          style={color ? { color } : undefined}
+          title={meaning}
+        >
+          {word}
+        </span>
+        {data.name &&
+          (data.nameTo ? (
+            <Link to={data.nameTo} className="nodrag nopan min-w-0 font-mono text-[12px] text-zinc-100 hover:text-white hover:underline" onClick={(e) => e.stopPropagation()}>
+              <EndFirst text={data.name} />
+            </Link>
+          ) : (
+            <EndFirst text={data.name} className="font-mono text-[12px] text-zinc-100" />
+          ))}
       </div>
-      {data.brief && <BriefLine brief={data.brief} />}
-      {data.lines.map((line, i) => (
-        <NodeText key={i} line={line} />
-      ))}
-      {data.mark && <MarkLine mark={data.mark} words={data.markWords} />}
-      <Handle type="source" position={data.vertical ? Position.Bottom : Position.Right} className="!pointer-events-none !opacity-0" />
+      {body && (
+        <div className="flex min-h-0 flex-col px-2.5 py-[5px]">
+          {data.brief && <BriefLine brief={data.brief} />}
+          {data.lines.map((line, i) => (
+            <NodeText key={i} line={line} />
+          ))}
+          {data.mark && <MarkLine mark={data.mark} words={data.markWords} />}
+        </div>
+      )}
+      <Port type="source" vertical={vertical} shown={data.hasOut === true} />
     </div>
   );
 }
 
 function NodeText({ line }: { line: NodeLine }) {
-  const tone = line.tone === "dim" ? "text-zinc-500" : line.tone === "plain" ? "font-sans text-zinc-400" : "text-zinc-300";
+  const tone = line.tone === "dim" ? "text-zinc-500" : line.tone === "plain" ? "text-zinc-400" : "text-zinc-300";
   const body = line.to ? (
     <Link to={line.to} className="nodrag nopan hover:text-white hover:underline" onClick={(e) => e.stopPropagation()}>
       {line.text}
@@ -165,10 +186,17 @@ function NodeText({ line }: { line: NodeLine }) {
   ) : (
     line.text
   );
+  const title = line.title ?? (line.param !== undefined ? (line.text ? `${line.param} = ${line.text}` : line.param) : line.text);
   return (
-    <div className={`flex h-[15px] items-center gap-1.5 truncate font-mono text-[11px] leading-[15px] ${tone}`} title={line.title ?? line.text}>
-      {line.signal && <SignalDot signal={line.signal} title={line.title ?? line.text} />}
-      <span className="truncate">{body}</span>
+    <div className={`flex h-4 min-w-0 items-center gap-1.5 text-[11px] leading-4 ${tone}`} title={title}>
+      {line.signal && <SignalDot signal={line.signal} title={title} />}
+      {line.param !== undefined && (
+        <>
+          <SlidersHorizontal className="h-2.5 w-2.5 shrink-0 text-zinc-600" aria-hidden />
+          <code className="max-w-[45%] shrink-0 truncate font-mono text-[10.5px] text-zinc-500">{line.param}</code>
+        </>
+      )}
+      {line.text && <span className={`min-w-0 truncate ${line.code ? "font-mono text-[10.5px]" : ""}`}>{body}</span>}
     </div>
   );
 }
@@ -176,7 +204,7 @@ function NodeText({ line }: { line: NodeLine }) {
 /** A step's key fields on one line: payload and definition names as code, named things linked, all of it on hover. */
 function BriefLine({ brief }: { brief: NonNullable<NodeDisplay["brief"]> }) {
   return (
-    <div className="truncate text-[11px] leading-[15px] text-zinc-300" title={brief.title}>
+    <div className="truncate text-[11px] leading-4 text-zinc-300" title={brief.title}>
       {brief.parts.map((part, i) => {
         const text = part.code ? <code className="font-mono text-[10.5px] text-zinc-200">{part.text}</code> : part.text;
         const to = brief.routes[i];
@@ -205,7 +233,8 @@ function MarkLine({ mark, words }: { mark: StepMark; words: NodeDisplay["markWor
   const text = markText(mark, words);
   return (
     <div
-      className="mt-0.5 flex h-[15px] items-center gap-1.5 border-t border-zinc-800 pt-0.5 text-[11px] leading-[15px] text-zinc-300"
+      className="mt-1 flex h-4 items-center gap-1.5 border-t border-zinc-800 pt-1 text-[11px] leading-4 text-zinc-300"
+      style={{ boxSizing: "content-box" }}
       title={[mark.term.meaning, ...(words ? [words.title] : []), ...mark.notes, ...mark.hints].join("\n")}
     >
       {mark.term.signal && <SignalDot signal={mark.term.signal} title={mark.term.meaning} />}
@@ -214,94 +243,135 @@ function MarkLine({ mark, words }: { mark: StepMark; words: NodeDisplay["markWor
   );
 }
 
-/** A Line (or Entered directly) upstream of a read or downstream of a claims step. */
-type ChipNodeData = { line: string | null; to: string | null; vertical?: boolean; [key: string]: unknown };
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
-const CHIP_HEIGHT = 24;
+const overlaps = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+/** A caption's box (10.5px sans, padded) centred on a point. */
+const captionBox = (text: string, at: Point): Box => {
+  const width = text.length * 6 + 10;
+  return { x: at.x - width / 2, y: at.y - 8, width, height: 16 };
+};
 
-function ChipNode({ data }: NodeProps<Node<ChipNodeData>>) {
-  const name = producerName(data.line);
+/**
+ * Where an edge's caption sits, on the line: along its longer segments first
+ * (the middle, then nearer either end), the first spot that covers no node and
+ * no caption already placed; the middle of the longest segment when none is free.
+ */
+function captionOn(text: string, points: readonly Point[], taken: Box[]): Point | null {
+  const segments = points.slice(1).map((b, i) => ({ a: points[i]!, b, length: Math.hypot(b.x - points[i]!.x, b.y - points[i]!.y) }));
+  segments.sort((x, y) => y.length - x.length);
+  const along = (s: (typeof segments)[number], t: number): Point => ({ x: s.a.x + (s.b.x - s.a.x) * t, y: s.a.y + (s.b.y - s.a.y) * t });
+  for (const segment of segments) {
+    for (const t of [0.5, 0.3, 0.7, 0.15, 0.85]) {
+      const at = along(segment, t);
+      if (!taken.some((box) => overlaps(box, captionBox(text, at)))) return at;
+    }
+  }
+  return segments[0] ? along(segments[0], 0.5) : null;
+}
+
+/** A node's height: the header, then one row per line (the brief, parameters, lines) and the mark. */
+function heightOf(d: NodeDisplay): number {
+  const rows = (d.brief ? 1 : 0) + d.lines.length;
+  const body = rows > 0 || d.mark ? BODY_PAD + rows * ROW_HEIGHT + (d.mark ? MARK_HEIGHT : 0) : 0;
+  return HEAD_HEIGHT + body + BORDER;
+}
+
+/** A Line upstream of this one's reads (or Entered directly), or downstream of its writes, with what the link carries. */
+interface Chip {
+  id: string;
+  /** The Line it names; null: entered directly. */
+  line: string | null;
+  from: string | null;
+  to: string;
+  /** This Line's steps it connects to: the reads it feeds, or the claims steps whose writes it reads. */
+  steps: string[];
+  dependencies: LineDependency[];
+}
+
+/**
+ * The Lines around a Line's steps: upstream, one per producer of what its read
+ * steps' Queries read (Lines by name, then Entered directly); downstream, one
+ * per Line whose Query reads what its claims steps write or create.
+ */
+function dependencyChips(line: string, dependencies: readonly LineDependency[], steps: ReadonlySet<string>): { up: Chip[]; down: Chip[] } {
+  const up = new Map<string, Chip>();
+  const down = new Map<string, Chip>();
+  const add = (chips: Map<string, Chip>, id: string, named: string | null, from: string | null, to: string, connects: string[], d: LineDependency) => {
+    let chip = chips.get(id);
+    if (!chip) chips.set(id, (chip = { id, line: named, from, to, steps: [], dependencies: [] }));
+    for (const step of connects) if (!chip.steps.includes(step)) chip.steps.push(step);
+    chip.dependencies.push(d);
+  };
+  for (const d of dependencies) {
+    if (d.reader === line && steps.has(d.step)) add(up, `up:${d.producer ?? ""}`, d.producer, d.producer, line, [d.step], d);
+    if (d.producer === line) {
+      const writes = d.writes.filter((w) => steps.has(w));
+      if (writes.length > 0) add(down, `down:${d.reader}`, d.reader, line, d.reader, writes, d);
+    }
+  }
+  const order = (a: Chip, b: Chip) => (a.line === null ? 1 : b.line === null ? -1 : a.line < b.line ? -1 : a.line > b.line ? 1 : 0);
+  return { up: [...up.values()].sort(order), down: [...down.values()].sort(order) };
+}
+
+/** A band of Lines beside the graph, under its heading: above for what feeds the reads, below for who reads the writes. */
+function DependencyBand({ heading, place, children }: { heading: string; place: "above" | "below"; children: ReactNode }) {
   return (
     <div
-      className={`flex h-full w-full items-center overflow-hidden border px-2 text-[11px] leading-4 ${data.line ? "border-zinc-600 bg-zinc-900" : "border-dashed border-zinc-700 bg-zinc-950"}`}
-      title={data.line ? `Line ${data.line}` : "Entered directly by people or agents"}
+      role="group"
+      aria-label={heading}
+      className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 border-x border-zinc-800 bg-zinc-950/60 px-3 py-2 ${place === "above" ? "border-t" : "border-b"}`}
     >
-      <Handle type="target" position={data.vertical ? Position.Top : Position.Left} className="!pointer-events-none !opacity-0" />
-      {data.to ? (
-        <Link to={data.to} className="nodrag nopan truncate font-mono text-zinc-200 hover:text-white hover:underline" onClick={(e) => e.stopPropagation()}>
-          {name}
-        </Link>
-      ) : (
-        <span className="truncate text-zinc-400">{name}</span>
-      )}
-      <Handle type="source" position={data.vertical ? Position.Bottom : Position.Right} className="!pointer-events-none !opacity-0" />
+      <span className="mr-1 text-[11px] font-medium text-zinc-500">{heading}</span>
+      {children}
     </div>
   );
 }
 
-const nodeTypes = { step: StepNode, chip: ChipNode };
-
-const CHIP_UP = "dep-up:";
-const CHIP_DOWN = "dep-down:";
-
-/** A chip: its node id, who it names, its box, and the edges into or out of it with what each carries. */
-interface Chip {
-  id: string;
-  line: string | null;
-  width: number;
-  edges: { id: string; source: string; target: string; dependencies: LineDependency[] }[];
+/** One Line in a band: its name links to it (shortened from the start, all of it on hover); the toggle opens what the link carries. */
+function DependencyChip({ chip, to, dim, onOpen }: { chip: Chip; to: string | null; dim: boolean; onOpen: (chip: string, event: ReactMouseEvent) => void }) {
+  const label = `${producerName(chip.from)} → ${chip.to}`;
+  return (
+    <span
+      data-chip={chip.id}
+      className={`inline-flex h-6 max-w-[20rem] items-stretch border border-zinc-700 bg-zinc-900 text-[12px] transition-opacity ${dim ? "opacity-30" : ""}`}
+    >
+      {chip.line !== null && to ? (
+        <Link to={to} className="flex min-w-0 items-center px-2 font-mono text-zinc-200 hover:text-white hover:underline">
+          <EndFirst text={chip.line} title={`Line ${chip.line}`} />
+        </Link>
+      ) : (
+        <span className="flex items-center px-2 text-zinc-400" title="Entered directly by people or agents">
+          {producerName(chip.line)}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={(event) => onOpen(chip.id, event)}
+        aria-label={label}
+        aria-haspopup="dialog"
+        title={label}
+        className="flex items-center border-l border-zinc-700 px-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+      >
+        <ChevronDown className="h-3 w-3" aria-hidden />
+      </button>
+    </span>
+  );
 }
 
-/**
- * The chips around a Line's steps: per read step, one per producer (Lines,
- * then Entered directly) with an edge into the read; per reading Line, one
- * right of the claims steps that write or create what its Query reads.
- */
-function dependencyChips(line: string, dependencies: readonly LineDependency[], steps: ReadonlySet<string>): Chip[] {
-  const width = (name: string, mono: boolean) => Math.min(MAX_WIDTH, Math.ceil((mono ? monoWidth(name, 11) : name.length * 6) + 22));
-  const chips = new Map<string, Chip>();
-  const chip = (id: string, producer: string | null) => {
-    let found = chips.get(id);
-    if (!found) chips.set(id, (found = { id, line: producer, width: width(producerName(producer), producer !== null), edges: [] }));
-    return found;
-  };
-  const edge = (c: Chip, id: string, source: string, target: string, d: LineDependency) => {
-    const found = c.edges.find((e) => e.id === id);
-    if (found) found.dependencies.push(d);
-    else c.edges.push({ id, source, target, dependencies: [d] });
-  };
-  for (const d of dependencies) {
-    if (d.reader === line && steps.has(d.step)) {
-      const c = chip(`${CHIP_UP}${d.step}:${d.producer ?? ""}`, d.producer);
-      edge(c, `dep:${c.id}`, c.id, d.step, d);
-    }
-    if (d.producer === line) {
-      const c = chip(`${CHIP_DOWN}${d.reader}`, d.reader);
-      for (const step of d.writes.filter((w) => steps.has(w))) edge(c, `dep:${step}:${c.id}`, step, c.id, d);
-    }
-  }
-  return [...chips.values()].filter((c) => c.edges.length > 0);
-}
-
-/**
- * The node box: the widest line (11px mono, the header 12px) between the
- * bounds; longer lines truncate, all of them on hover.
- */
-function boxOf(d: NodeDisplay) {
-  const inner = PAD + 6;
-  const head = monoWidth(d.name ?? "", 12) + monoWidth(d.stage ? STAGE_COLOR[d.stage].tag : d.kindWord, 11) + 56;
-  const body = Math.max(0, ...d.lines.map((l) => monoWidth(l.text, 11) + (l.signal ? 12 : 0)));
-  const markWidth = d.mark ? monoWidth(markText(d.mark, d.markWords), 11) + 12 : 0;
-  const brief = d.brief ? Math.ceil(monoWidth(partsText(d.brief.parts), 11) * 0.92) : 0;
-  const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, head, body + inner, markWidth + PAD, brief + inner));
-  const height = HEAD_HEIGHT + ((d.brief ? 1 : 0) + d.lines.length) * LINE_HEIGHT + (d.mark ? LINE_HEIGHT + 3 : 0) + PAD;
-  return { width, height };
-}
+const nodeTypes = { step: StepNode };
 
 const TRIGGER_PREFIX = "trigger:";
-const FIT_PADDING = 0.05;
-const FIT_MAX_ZOOM = 1.15;
-/** Below this the step text is too small to read: a wider graph pans sideways instead. */
+const FIT_PADDING = 0.04;
+/** Room the canvas keeps around the graph beyond the fit padding (px), so the corner controls clear it. */
+const CANVAS_SLACK = 28;
+const FIT_MAX_ZOOM = 1;
+/** Below this the step text is too small to read: a larger graph grows the canvas or pans sideways instead. */
 const FIT_MIN_ZOOM = 0.8;
 
 export function ProcedureGraph({
@@ -341,22 +411,17 @@ export function ProcedureGraph({
   const lineName = definition?.line ?? null;
   const dependencies = useLineDependencies(lineName !== null);
   const chips = useMemo(
-    () => (lineName && dependencies ? dependencyChips(lineName, dependencies, new Set(model.nodes.map((n) => n.id))) : []),
+    () => (lineName && dependencies ? dependencyChips(lineName, dependencies, new Set(model.nodes.map((n) => n.id))) : { up: [], down: [] }),
     [lineName, dependencies, model],
   );
-  const chipEdges = useMemo(() => new Map(chips.flatMap((c) => c.edges.map((e) => [e.id, e] as const))), [chips]);
-  const [opened, setOpened] = useState<{ edge: string; at: PopoverAt } | null>(null);
+  const [opened, setOpened] = useState<{ chip: string; at: PopoverAt } | null>(null);
   const closeLink = useCallback(() => setOpened(null), []);
-  const onEdgeClick = useCallback(
-    (id: string, event: { clientX: number; clientY: number }) => {
-      if (!chipEdges.has(id)) return false;
-      setOpened({ edge: id, at: { x: event.clientX, y: event.clientY } });
-      return true;
-    },
-    [chipEdges],
-  );
+  const openLink = useCallback((chip: string, event: ReactMouseEvent) => {
+    const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    setOpened({ chip, at: { x: box.left, y: box.bottom } });
+  }, []);
 
-  // Every node's kind and name, its key fields, and the run's marks and counts when one is picked.
+  // Every node's kind and name, its key fields, the parameters it reads, and the run's marks and counts when one is picked.
   const ctx = useMemo(
     () => ({ parameters: definition?.parameters, triggerInput: definition?.triggerInput, queries, bindings: definition?.bindings, operations: definition?.operations, grades, lists }),
     [definition, queries, grades, lists],
@@ -364,26 +429,20 @@ export function ProcedureGraph({
   const display = useMemo(() => {
     const out = new Map<string, NodeDisplay>();
     const partRoute = (ref: string | undefined) => (ref ? (ref.startsWith("CaptureContract:") ? contractRoute(ref) : routeOf(ref)) : null);
+    // The input and parameters each step reads: rows in the step, with the Line's values on a Line page.
+    const inputs = new Map(model.edges.filter((e) => e.source === INPUT_NODE).map((e) => [e.target, e.fields] as const));
+    const parameters: Record<string, unknown> = (line && definition?.parameters) || {};
 
     for (const node of model.nodes) {
+      if (node.id === INPUT_NODE) continue;
       const mark = run?.marks.get(node.id) ?? null;
       const lines: NodeLine[] = [];
-      let kind: string = node.kind;
-      let name: string | null = node.unnamed ? null : node.id;
+      const kind: string = node.kind;
+      const name: string | null = node.unnamed ? null : node.id;
       let brief: NodeDisplay["brief"] = null;
       const v = node.view;
       const stage = node.index !== null ? stageOf(spec, node.index, grades) : null;
-      if (node.kind === "input") {
-        const parameters = Object.entries(definition?.parameters ?? {});
-        name = null;
-        if (line && parameters.length > 0) {
-          kind = "parameters";
-          for (const [key, value] of parameters) lines.push({ text: `${key} = ${typeof value === "string" ? value : JSON.stringify(value)}` });
-        } else {
-          for (const field of node.detail) lines.push({ text: field, tone: "dim" });
-          if (node.detail.length === 0) lines.push({ text: "Given at run", tone: "plain" });
-        }
-      } else if (v && node.index !== null) {
+      if (v && node.index !== null) {
         const parts = stepBrief(spec, node.index, ctx);
         if (parts.length) {
           // A call's Provider is on hover: the run's pinned build, else the Line's binding.
@@ -395,6 +454,13 @@ export function ProcedureGraph({
         if (node.detail[0]) brief = { parts: [{ text: node.detail[0], code: true }], title: `halt ${node.detail[0]}`, routes: [null] };
       } else if (node.kind === "returns") {
         lines.push({ text: `${node.detail.length} ${node.detail.length === 1 ? "field" : "fields"}`, title: node.detail.join(", "), tone: "plain" });
+      }
+      const read = inputs.get(node.id);
+      if (read) {
+        for (const field of read.length > 0 ? read : ["input"]) {
+          const value = Object.hasOwn(parameters, field) ? parameters[field] : undefined;
+          lines.push({ param: field, text: value === undefined ? "" : typeof value === "string" ? value : JSON.stringify(value), code: true });
+        }
       }
       if (node.unresolved.length > 0) {
         const names = [...new Set(node.unresolved.map((r) => r.name))];
@@ -411,12 +477,10 @@ export function ProcedureGraph({
         stage: null,
         kindWord: word.word,
         kindMeaning: word.meaning,
-        name: null,
+        name: trigger.name,
+        nameTo: routeOf(`Trigger:${trigger.name}`),
         brief: null,
-        lines: [
-          { text: trigger.name, to: routeOf(`Trigger:${trigger.name}`), title: `Trigger:${trigger.name}` },
-          { text: sentence(trigger.words), tone: "plain" },
-        ],
+        lines: [{ text: sentence(trigger.words), tone: "plain" }],
         mark: null,
         markWords: null,
       });
@@ -424,46 +488,39 @@ export function ProcedureGraph({
     return out;
   }, [model, spec, line, definition, run, routeOf, contractRoute, ctx, grades]);
 
-  // The edges: the definition's, plus a landing Trigger into the step that reads the landing.
+  // The edges: the definition's (the input's are rows in the steps), plus a landing Trigger into the step that reads the landing.
   const edges = useMemo(() => {
     // A data edge carries the run's count of what flows along it when the source's summary gives one.
-    const out = model.edges.map((e) => {
-      const flow = e.kind === "data" ? flowWords(run?.marks.get(e.source)?.summary, e.fields) : null;
-      return { id: e.id, source: e.source, target: e.target, control: e.kind === "control", label: e.kind === "control" ? e.fields.join(", ") : (flow ?? edgeLabel(e)) };
-    });
+    const out = model.edges
+      .filter((e) => e.source !== INPUT_NODE)
+      .map((e) => {
+        const flow = e.kind === "data" ? flowWords(run?.marks.get(e.source)?.summary, e.fields) : null;
+        return { id: e.id, source: e.source, target: e.target, label: e.kind === "control" ? e.fields.join(", ") : (flow ?? edgeLabel(e)) };
+      });
     const inputStep = definition?.triggerInput
       ? model.nodes.find((n) => n.view?.kind === "call" && (n.view.name ?? n.view.id) === definition.triggerInput)
       : undefined;
     for (const trigger of line?.triggers ?? []) {
       if (trigger.landing && inputStep) {
-        out.push({ id: `landing:${trigger.name}`, source: `${TRIGGER_PREFIX}${trigger.name}`, target: inputStep.id, control: false, label: "lands" });
+        out.push({ id: `landing:${trigger.name}`, source: `${TRIGGER_PREFIX}${trigger.name}`, target: inputStep.id, label: "lands" });
       }
     }
-    // Unlabeled: a click names what it carries.
-    for (const chip of chips) for (const e of chip.edges) out.push({ id: e.id, source: e.source, target: e.target, control: false, label: "" });
     return out;
-  }, [model, definition, line, run, chips]);
+  }, [model, definition, line, run]);
 
   const layoutInput = useMemo(() => {
-    const ids = [...(line?.triggers ?? []).map((t) => `${TRIGGER_PREFIX}${t.name}`), ...model.nodes.map((n) => n.id)];
+    const ids = [...(line?.triggers ?? []).map((t) => `${TRIGGER_PREFIX}${t.name}`), ...model.nodes.filter((n) => n.id !== INPUT_NODE).map((n) => n.id)];
     return {
-      nodes: [
-        ...ids.map((id) => {
-          const d = display.get(id)!;
-          const box = boxOf(d);
-          return { id, ...box, first: id.startsWith(TRIGGER_PREFIX) || id === INPUT_NODE };
-        }),
-        ...chips.map((c) => ({ id: c.id, width: c.width, height: CHIP_HEIGHT, first: false })),
-      ],
+      nodes: ids.map((id) => ({ id, width: NODE_WIDTH, height: heightOf(display.get(id)!), first: id.startsWith(TRIGGER_PREFIX) })),
       edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
     };
-  }, [model, display, edges, line, chips]);
-  // Which way the steps run: left to right (default) or top to bottom, a wide Procedure's better fit; remembered per browser.
+  }, [model, display, edges, line]);
+  // Which way the steps run: top to bottom (default) or left to right; remembered per browser.
   const [vertical, setVertical] = useState(() => {
     try {
-      return window.localStorage.getItem("cruxible.steps.vertical") === "1";
+      return window.localStorage.getItem("cruxible.steps.vertical") !== "0";
     } catch {
-      return false;
+      return true;
     }
   });
   const toggleVertical = useCallback(() => {
@@ -481,7 +538,8 @@ export function ProcedureGraph({
   useEffect(() => {
     let live = true;
     const { nodes, edges } = JSON.parse(layoutKey) as typeof layoutInput;
-    layoutLayered(nodes, edges, { looseColumn: false, edgeLabels: true, modelOrder: true, layerGap: 28, direction: vertical ? "DOWN" : "RIGHT" })
+    // Captions sit on the line (captionOn), so the layout reserves no room for them beside it.
+    layoutLayered(nodes, edges, { looseColumn: false, edgeLabels: false, modelOrder: true, layerGap: vertical ? 40 : 72, direction: vertical ? "DOWN" : "RIGHT", ports: true })
       .then((result) => live && setLayout({ key: layoutKey, result }))
       .catch(() => live && setLayout({ key: layoutKey, result: null }));
     return () => {
@@ -505,82 +563,91 @@ export function ProcedureGraph({
 
   const { nodes, flowEdges, width, height } = useMemo(() => {
     if (!laidOut) return { nodes: [] as Node<StepNodeData>[], flowEdges: [] as Edge[], width: 0, height: 0 };
+    const at = (id: string, i: number) => laidOut.result?.positions.get(id) ?? { x: i * (NODE_WIDTH + 60), y: 0 };
+    const into = new Set(edges.map((e) => e.target));
+    const from = new Set(edges.map((e) => e.source));
+    const nodes: Node<StepNodeData>[] = layoutInput.nodes.map((n, i) => ({
+      id: n.id,
+      type: "step",
+      position: at(n.id, i),
+      style: { width: n.width, height: n.height },
+      data: { ...display.get(n.id)!, vertical, hasIn: into.has(n.id), hasOut: from.has(n.id) },
+    }));
     const sizes = new Map(layoutInput.nodes.map((n) => [n.id, n]));
-    const at = (id: string, i: number) => laidOut.result?.positions.get(id) ?? { x: i * (MAX_WIDTH + 60), y: 0 };
-    const chipOf = new Map(chips.map((c) => [c.id, c] as const));
-    const nodes: Node<StepNodeData | ChipNodeData>[] = layoutInput.nodes.map((n, i) => {
-      const chip = chipOf.get(n.id);
-      return chip
-        ? {
-            id: n.id,
-            type: "chip",
-            position: at(n.id, i),
-            style: { width: n.width, height: n.height },
-            data: { line: chip.line, to: chip.line ? link(`/i/${instanceId}/lines/${encodeURIComponent(chip.line)}`) : null, vertical },
-          }
-        : {
-            id: n.id,
-            type: "step",
-            position: at(n.id, i),
-            style: { width: n.width, height: n.height },
-            data: { ...display.get(n.id)!, vertical },
-          };
-    });
     const positions = new Map(nodes.map((n) => [n.id, n.position]));
+    // Captions keep clear of the nodes and of each other.
+    const taken: Box[] = nodes.map((n) => ({ ...n.position, width: sizes.get(n.id)!.width, height: sizes.get(n.id)!.height }));
     const flowEdges: Edge[] = edges.map((e) => {
-      const stroke = chipEdges.has(e.id) ? "#8f8b7c" : "#726f63";
       const route = laidOut.result?.routes.get(e.id);
-      const base = {
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: stroke },
-        style: { stroke, strokeWidth: 1.25, ...(e.control || chipEdges.get(e.id)?.dependencies[0]?.producer === null ? { strokeDasharray: "4 3" } : {}) },
-        ...(chipEdges.has(e.id) ? { interactionWidth: 14 } : {}),
-      };
+      const caption = route && e.label ? captionOn(e.label, route.points, taken) : null;
+      if (caption) taken.push(captionBox(e.label, caption));
+      const base = { id: e.id, source: e.source, target: e.target, style: { stroke: EDGE_STROKE, strokeWidth: 1.25 } };
       return route
         ? {
             ...base,
             type: "routed",
-            data: { points: route.points, labelAt: route.label, text: e.label, curve: true, always: true, sourceAt: positions.get(e.source)!, targetAt: positions.get(e.target)! } satisfies RoutedEdgeData,
+            data: {
+              points: route.points,
+              labelAt: caption,
+              text: e.label,
+              always: true,
+              labelClass: EDGE_LABEL,
+              sourceAt: positions.get(e.source)!,
+              targetAt: positions.get(e.target)!,
+            } satisfies RoutedEdgeData,
           }
         : { ...base, label: e.label };
     });
     const bottom = Math.max(0, ...nodes.map((n) => n.position.y + (sizes.get(n.id)?.height ?? 0)));
     const right = Math.max(0, ...nodes.map((n) => n.position.x + (sizes.get(n.id)?.width ?? 0)));
     return { nodes, flowEdges, width: right, height: bottom };
-  }, [laidOut, layoutInput, display, edges, vertical, chips, chipEdges, link, instanceId]);
+  }, [laidOut, layoutInput, display, edges, vertical]);
 
   const neighborhood = useCallback((nodeId: string, all: Edge[]) => lineage(nodeId, all), []);
   const stepIds = useMemo(() => new Set(model.nodes.filter((n) => n.index !== null).map((n) => n.id)), [model]);
+  // The focused node: the bands dim the Lines that do not connect to its lineage.
+  const [focus, setFocus] = useState<string | null>(null);
   const onSelectionChange = useCallback(
-    (selection: GraphSelection | null) => onSelectStep?.(selection?.kind === "node" && stepIds.has(selection.id) ? selection.id : null),
+    (selection: GraphSelection | null) => {
+      setFocus(selection?.kind === "node" ? selection.id : null);
+      onSelectStep?.(selection?.kind === "node" && stepIds.has(selection.id) ? selection.id : null);
+    },
     [onSelectStep, stepIds],
   );
-  const nodeName = useCallback(
-    (id: string) => {
-      if (id === INPUT_NODE) return display.get(id)?.kindWord.toLowerCase() ?? "input";
-      if (id.startsWith(TRIGGER_PREFIX)) return id.slice(TRIGGER_PREFIX.length);
-      const chip = chips.find((c) => c.id === id);
-      return chip ? producerName(chip.line) : id;
-    },
-    [display, chips],
-  );
+  const lit = useMemo(() => (focus ? lineage(focus, edges).nodes : null), [focus, edges]);
+  const nodeName = useCallback((id: string) => (id.startsWith(TRIGGER_PREFIX) ? id.slice(TRIGGER_PREFIX.length) : id), []);
 
   if (!laidOut) return <LoadState />;
-  // As tall as the graph is at the zoom it will be shown at (the width's fit, but never below a readable zoom),
-  // up to most of the window. The canvas owns its height, so expanding it pushes the page down.
-  const fitZoom = canvasWidth > 0 && width > 0 ? Math.min(FIT_MAX_ZOOM, canvasWidth / (width * (1 + 2 * FIT_PADDING))) : 1;
-  const zoom = Math.max(FIT_MIN_ZOOM, fitZoom);
+  // As tall as the graph is at the zoom it will be shown at: the canvas width's fit, held to most of the window,
+  // but never below a readable zoom (a larger graph grows the canvas instead). Expanding it pushes the page down.
+  const spread = 1 + 2 * FIT_PADDING;
   const most = typeof window !== "undefined" ? Math.round(window.innerHeight * 0.8) : 800;
-  const canvasHeight = Math.min(most, Math.max(220, Math.ceil(height * zoom * (1 + 2 * FIT_PADDING)) + 64));
+  const widthFit = canvasWidth > 0 && width > 0 ? canvasWidth / (width * spread) : FIT_MAX_ZOOM;
+  const heightFit = height > 0 ? (most - CANVAS_SLACK) / (height * spread) : FIT_MAX_ZOOM;
+  const zoom = Math.max(FIT_MIN_ZOOM, Math.min(FIT_MAX_ZOOM, widthFit, heightFit));
+  const canvasHeight = Math.max(140, Math.ceil(height * zoom * spread) + CANVAS_SLACK);
+  const lineRoute = (name: string) => link(`/i/${instanceId}/lines/${encodeURIComponent(name)}`);
+  const chipOf = (id: string) => chips.up.find((c) => c.id === id) ?? chips.down.find((c) => c.id === id);
+  const band = (chip: Chip) => (
+    <DependencyChip
+      key={chip.id}
+      chip={chip}
+      to={chip.line ? lineRoute(chip.line) : null}
+      dim={lit !== null && !chip.steps.some((s) => lit.has(s))}
+      onOpen={openLink}
+    />
+  );
   return (
     <div ref={measure} data-testid="procedure-graph">
+      {chips.up.length > 0 && (
+        <DependencyBand heading="Reads from" place="above">
+          {chips.up.map(band)}
+        </DependencyBand>
+      )}
       <GraphCanvas
         nodes={nodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
-        onEdgeClick={onEdgeClick}
         renderPanel={(selection) => {
           if (selection.kind !== "node") return null;
           const view = model.nodes.find((n) => n.id === selection.id)?.view;
@@ -597,7 +664,7 @@ export function ProcedureGraph({
         recenter={false}
         nodeName={nodeName}
         fitPadding={FIT_PADDING}
-        overlay={<StageLegend nodes={nodes.flatMap((n) => (n.type === "step" ? [n.data as StepNodeData] : []))} />}
+        draggable={false}
         controls={
           <button
             onClick={toggleVertical}
@@ -609,40 +676,21 @@ export function ProcedureGraph({
           </button>
         }
       />
+      {chips.down.length > 0 && (
+        <DependencyBand heading="Read by" place="below">
+          {chips.down.map(band)}
+        </DependencyBand>
+      )}
       {opened &&
         (() => {
-          const edge = chipEdges.get(opened.edge);
-          if (!edge) return null;
-          const d = edge.dependencies[0]!;
-          return <DependencyPopover at={opened.at} from={d.producer} to={d.reader} dependencies={edge.dependencies} onClose={closeLink} />;
+          const chip = chipOf(opened.chip);
+          if (!chip) return null;
+          return <DependencyPopover at={opened.at} from={chip.from} to={chip.to} dependencies={chip.dependencies} onClose={closeLink} />;
         })()}
     </div>
   );
 }
 
-/** The colors this graph uses, in reading order: what starts it, its input, the template stages, then any older step kinds. */
-function StageLegend({ nodes }: { nodes: Pick<NodeDisplay, "role" | "stage">[] }) {
-  const items: { key: string; color: string; legend: string }[] = [];
-  for (const role of ["trigger", "input"] as const) {
-    if (nodes.some((n) => n.role === role)) items.push({ key: role, color: ROLE_COLOR[role].color, legend: ROLE_COLOR[role].legend });
-  }
-  for (const stage of STAGES) {
-    if (nodes.some((n) => n.stage === stage)) items.push({ key: stage, color: STAGE_COLOR[stage].color, legend: STAGE_COLOR[stage].legend });
-  }
-  if (nodes.some((n) => n.stage === null && n.role !== "input" && n.role !== "trigger")) {
-    items.push({ key: "other", color: GENERIC_STEP_COLOR, legend: "Outside the template" });
-  }
-  return (
-    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 border border-zinc-800 bg-zinc-950/90 px-2 py-0.5 text-[11px] text-zinc-400">
-      {items.map((item) => (
-        <span key={item.key} className="inline-flex items-center gap-1">
-          <span className="h-2 w-2 shrink-0" style={{ backgroundColor: item.color }} aria-hidden />
-          {item.legend}
-        </span>
-      ))}
-    </span>
-  );
-}
 
 /** CaptureKind -> grade, from the capture_contracts section (one ontology-sized read, shared); null while it loads or fails. */
 function useGrades(): ReadonlyMap<string, string> | null {
