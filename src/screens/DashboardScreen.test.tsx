@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import { AUTHORED } from "@/fixtures/handlers";
 import type { OrientResult } from "@/api/schemas";
 import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
-import { freshDashboard, populatedDashboard, unhealthyDashboard } from "@/test/dashboard-worlds";
+import { freshDashboard, populatedDashboard, unhealthyDashboard, withHealth } from "@/test/dashboard-worlds";
 import { renderApp } from "@/test/render";
 
 /** jsdom here has no working localStorage: an in-memory one per test. */
@@ -255,14 +255,16 @@ describe("Dashboard", () => {
   it("does not call checks it did not observe healthy: the tile names them, the Health header counts nothing", async () => {
     renderApp("/i/inst_fixture", freshDashboard());
     const strip = within(await screen.findByRole("region", { name: "Needs you" }));
-    const tile = await strip.findByRole("button", { name: /Health 3 not observed \/ not configured/ });
-    expect(tile).toHaveTextContent("Floor, Ledger mirror, Procedure catalog");
+    // the nine checks' quiet rows and the domains next did not observe (workspace floor is the Floor row)
+    const tile = await strip.findByRole("button", { name: /Health 5 not observed \/ not configured/ });
+    expect(tile).toHaveTextContent("Floor, Ledger mirror, Procedure catalog, Workspace sources, Workspace projections");
     expect(within(tile).queryByText("Healthy")).toBeNull();
     const health = await panel("Health");
     const table = within(health.getByRole("table", { name: "Health" }));
     expect(within(table.getByRole("row", { name: /^Floor/ })).getByText("Not observed")).toBeInTheDocument();
     // the domains next did not observe are rows like the others, not a footnote
-    expect(within(table.getByRole("row", { name: /Workspace floor/ })).getByText("Not observed")).toBeInTheDocument();
+    expect(within(table.getByRole("row", { name: /Workspace sources/ })).getByText("Not observed")).toBeInTheDocument();
+    expect(table.queryByRole("row", { name: /Workspace floor/ })).toBeNull();
     expect(health.queryByText(/healthy|need a look/)).toBeNull();
     expect(health.queryByText(/^Not observed:/)).toBeNull();
   });
@@ -326,5 +328,21 @@ describe("Dashboard", () => {
     const row = within(providers.getByRole("row", { name: /security\.kev-catalog/ }));
     expect(row.getByText("0.3.0")).toBeInTheDocument();
     expect(row.getByText("Installed")).toBeInTheDocument();
+  });
+
+  it("summarizes in the Health tile every row the Health panel lists: healthy checks with unobserved domains are not Healthy", async () => {
+    const ok = { state: "current" };
+    const status = { floor: ok, ledger_mirror: ok, procedure_catalog: ok };
+    renderApp("/i/inst_fixture", withHealth(status, ["workspace_sources", "workspace_projections"]));
+    const health = await panel("Health");
+    expect(within(await health.findByRole("row", { name: /Workspace projections/ })).getByText("Not observed")).toBeInTheDocument();
+    const strip = within(screen.getByRole("region", { name: "Needs you" }));
+    const tile = await strip.findByRole("button", { name: /Health 2 not observed/ });
+    expect(tile).toHaveTextContent("Workspace sources, Workspace projections");
+    expect(within(tile).queryByText("Healthy")).toBeNull();
+    cleanup();
+    // with every row healthy, the tile says so
+    renderApp("/i/inst_fixture", withHealth(status, []));
+    expect(await within(await screen.findByRole("region", { name: "Needs you" })).findByText("Healthy")).toBeInTheDocument();
   });
 });

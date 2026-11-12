@@ -137,24 +137,41 @@ const HEALTH_ROWS = [
   "triggers",
 ] as const;
 
-function unhealthy(next: NextResult | undefined) {
-  const status = next?.status;
-  if (!status) return [];
-  return HEALTH_ROWS.filter((row) => {
-    const tone = healthTone(status[row].state);
-    return tone === "waiting" || tone === "wrong";
-  });
+interface HealthRow {
+  key: string;
+  label: string;
+  /** A check's state, or null for a count (Held). */
+  health: NextHealth | null;
+  count?: number;
 }
 
-/** Checks neither healthy nor needing a look: not observed from here, not set up, or a state the glossary does not know. */
-function unvouched(next: NextResult | undefined) {
+/**
+ * Every check the Health panel lists, and the tile summarizes: next's health
+ * rows, then each domain next did not observe from here (a workspace domain
+ * whose check already reads Not observed, workspace_floor beside floor, is
+ * that row), then what it holds. The tile and the panel read this one list.
+ */
+function healthRows(next: NextResult | undefined): HealthRow[] {
   const status = next?.status;
   if (!status) return [];
-  return HEALTH_ROWS.filter((row) => {
-    const tone = healthTone(status[row].state);
-    return tone === "off" || tone === undefined;
-  });
+  const facets: readonly string[] = HEALTH_ROWS;
+  return [
+    ...HEALTH_ROWS.map((row) => ({ key: row, label: humanize(row), health: status[row] })),
+    ...next!.unobserved_domains
+      .filter((domain) => {
+        const facet = domain.replace(/^workspace_/, "");
+        return !(facets.includes(facet) && status[facet as (typeof HEALTH_ROWS)[number]].state === "not_observed");
+      })
+      .map((domain) => ({ key: `domain:${domain}`, label: humanize(domain), health: { state: "not_observed" } })),
+    ...((status.held ?? 0) > 0 ? [{ key: "held", label: "Held", health: null, count: status.held! }] : []),
+  ];
 }
+
+const toneOf = (row: HealthRow) => (row.health ? healthTone(row.health.state) : "ok");
+/** Rows that need a look (waiting or wrong). */
+const sickRows = (rows: HealthRow[]) => rows.filter((row) => toneOf(row) === "waiting" || toneOf(row) === "wrong");
+/** Rows neither healthy nor needing a look: not observed from here, not set up, or a state the glossary does not know. */
+const quietRows = (rows: HealthRow[]) => rows.filter((row) => row.health && (toneOf(row) === "off" || toneOf(row) === undefined));
 
 /**
  * One strip of tiles, each a count and where to act on it. A tile is amber or
@@ -180,10 +197,11 @@ function NeedsYou({
   const enablements = attention?.enablements;
   const stalled = enablements?.stalled ?? 0;
   const stopped = enablements?.stopped ?? 0;
-  const sick = unhealthy(next);
-  const quiet = unvouched(next);
+  const health = healthRows(next);
+  const sick = sickRows(health);
+  const quiet = quietRows(health);
   // "not observed", or "not observed / not configured" when they differ
-  const quietWords = [...new Set(quiet.map((row) => term("health", next!.status[row].state).word.toLowerCase()))].join(" / ");
+  const quietWords = [...new Set(quiet.map((row) => term("health", row.health!.state).word.toLowerCase()))].join(" / ");
   const nextSignal: Signal | undefined = bySeverity.get("blocking") ? "wrong" : bySeverity.get("repair") ? "waiting" : undefined;
   const severityWords = SEVERITIES.flatMap((s) => {
     const n = bySeverity.get(s) ?? 0;
@@ -230,9 +248,9 @@ function NeedsYou({
         count={next ? (sick.length || quiet.length) : null}
         countWord={sick.length ? "need a look" : quiet.length ? quietWords : undefined}
         headline={next && sick.length === 0 && quiet.length === 0 ? "Healthy" : undefined}
-        signal={sick.some((row) => healthTone(next!.status[row].state) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
+        signal={sick.some((row) => toneOf(row) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
         healthy={next !== undefined && sick.length === 0 && quiet.length === 0}
-        detail={sick.length ? sick.map(humanize).join(", ") : quiet.length ? quiet.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks`}
+        detail={sick.length ? sick.map((row) => row.label).join(", ") : quiet.length ? quiet.map((row) => row.label).join(", ") : `${health.filter((row) => row.health).length} checks`}
         onClick={onHealth}
       />
     </section>
@@ -635,14 +653,6 @@ function LineLinks({ names, prefix }: { names: string[]; prefix: string }) {
 
 // -- health and kits ------------------------------------------------------------
 
-interface HealthRow {
-  key: string;
-  label: string;
-  /** A check's state, or null for a count (Held). */
-  health: NextHealth | null;
-  count?: number;
-}
-
 const HEALTH_COLUMNS: Column<HealthRow>[] = [
   { id: "check", header: "Check", className: "whitespace-nowrap text-zinc-400", cell: (row) => row.label },
   {
@@ -661,20 +671,13 @@ const HEALTH_COLUMNS: Column<HealthRow>[] = [
 ];
 
 /**
- * The environment's checks, one row each: next's health rows, then the
- * domains next did not observe from here, then what it holds. The header
- * counts only what needs a look.
+ * The environment's checks, one row each (healthRows, the list the tile
+ * summarizes). The header counts only what needs a look.
  */
 function HealthPanel({ next, pending, error }: { next: NextResult | undefined; pending: boolean; error: Error | null }) {
   const status = next?.status;
-  const sick = unhealthy(next);
-  const rows: HealthRow[] = status
-    ? [
-        ...HEALTH_ROWS.map((row) => ({ key: row, label: humanize(row), health: status[row] })),
-        ...next!.unobserved_domains.map((domain) => ({ key: `domain:${domain}`, label: humanize(domain), health: { state: "not_observed" } })),
-        ...((status.held ?? 0) > 0 ? [{ key: "held", label: "Held", health: null, count: status.held! }] : []),
-      ]
-    : [];
+  const rows = healthRows(next);
+  const sick = sickRows(rows);
   return (
     <div id="health">
       <Panel

@@ -111,3 +111,8 @@ export function populatedDashboard(fixtures: RecordedFixture[] = AUTHORED): Reco
     return text.includes('"daily at 06:00 UTC"') ? { ...fixture, response: JSON.parse(text.replaceAll('"daily at 06:00 UTC"', '"on cron 0 6 * * * (UTC)"')) } : fixture;
   });
 }
+
+/** The authored world with next's health rows patched and its unobserved domains replaced. */
+export function withHealth(status: Record<string, unknown>, unobserved: string[], fixtures: RecordedFixture[] = AUTHORED): RecordedFixture[] {
+  return edit(fixtures, nextRead, (r) => ({ ...r, status: { ...(r as unknown as NextResult).status, ...status }, unobserved_domains: unobserved }));
+}
