@@ -3,6 +3,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/re
 import { AUTHORED } from "@/fixtures/handlers";
 import type { OrientResult } from "@/api/schemas";
 import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
+import { freshDashboard, unhealthyDashboard } from "@/test/dashboard-worlds";
 import { renderApp } from "@/test/render";
 
 /** jsdom here has no working localStorage: an in-memory one per test. */
@@ -231,4 +232,38 @@ describe("Dashboard", () => {
     expect(coming.queryByText("Runs when asked")).toBeNull();
   });
 
+
+  it("does not call checks it did not observe healthy: the tile names them, the Health header counts nothing", async () => {
+    renderApp("/i/inst_fixture", freshDashboard());
+    const strip = within(await screen.findByRole("region", { name: "Needs you" }));
+    const tile = await strip.findByRole("button", { name: /Health 3 not observed \/ not configured/ });
+    expect(tile).toHaveTextContent("Floor, Ledger mirror, Procedure catalog");
+    expect(within(tile).queryByText("Healthy")).toBeNull();
+    const health = await panel("Health");
+    const table = within(health.getByRole("table", { name: "Health" }));
+    expect(within(table.getByRole("row", { name: /^Floor/ })).getByText("Not observed")).toBeInTheDocument();
+    // the domains next did not observe are rows like the others, not a footnote
+    expect(within(table.getByRole("row", { name: /Workspace floor/ })).getByText("Not observed")).toBeInTheDocument();
+    expect(health.queryByText(/healthy|need a look/)).toBeNull();
+    expect(health.queryByText(/^Not observed:/)).toBeNull();
+  });
+
+  it("counts only the checks that need a look, in the tile and the Health header", async () => {
+    renderApp("/i/inst_fixture", unhealthyDashboard());
+    const strip = within(await screen.findByRole("region", { name: "Needs you" }));
+    const tile = await strip.findByRole("button", { name: /^Wrong or blocked Health 2 need a look/ });
+    expect(tile).toHaveTextContent("Provider lane, Compiler");
+    const health = await panel("Health");
+    expect(await health.findByText("2 need a look")).toBeInTheDocument();
+    const lane = within(health.getByRole("row", { name: /Provider lane/ }));
+    expect(lane.getByText("Unavailable")).toBeInTheDocument();
+    expect(lane.getByText("Reinstall the provider builds")).toBeInTheDocument();
+  });
+
+  it("shows evidence coverage with no live Claims as the empty state alone", async () => {
+    renderApp("/i/inst_fixture", freshDashboard());
+    const evidence = await panel("Evidence coverage");
+    expect(await evidence.findByText("No live Claims")).toBeInTheDocument();
+    expect(evidence.queryByText("all met")).toBeNull();
+  });
 });

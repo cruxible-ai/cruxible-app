@@ -82,7 +82,7 @@ export function StaleBeliefsPanel() {
     >
       {claimTypes.isPending && <LoadState />}
       {claimTypes.error && <LoadState error={claimTypes.error} />}
-      {rows && rows.length === 0 && <EmptyState>No ClaimType sets stale_after</EmptyState>}
+      {rows && rows.length === 0 && !claimTypes.error && <EmptyState>No ClaimType sets stale_after</EmptyState>}
       {rows && rows.length > 0 && (
         <DataTable rows={rows} columns={columns} rowKey={(row) => row.kind} label="Stale beliefs" urlKey="stale" toolbar={false} maxHeight="none" />
       )}
@@ -105,11 +105,12 @@ export function EvidenceCoveragePanel() {
     <Panel
       title="Evidence coverage"
       description="Per kind, the live Claims citing admitted evidence, standing on their own words, or missing evidence their ClaimType requires."
-      meta={rows ? <span>{unmet ? `${unmet.toLocaleString()} not admitted` : "all met"}</span> : undefined}
+      // a count only over live Claims: with none, the empty state alone
+      meta={rows && rows.length > 0 ? <span>{unmet ? `${unmet.toLocaleString()} not admitted` : "all met"}</span> : undefined}
     >
       {claimTypes.isPending && <LoadState />}
       {claimTypes.error && <LoadState error={claimTypes.error} />}
-      {rows && rows.length === 0 && <EmptyState>No live Claims</EmptyState>}
+      {rows && rows.length === 0 && !claimTypes.error && <EmptyState>No live Claims</EmptyState>}
       {rows && rows.length > 0 && (
         <>
           <div className="mb-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">

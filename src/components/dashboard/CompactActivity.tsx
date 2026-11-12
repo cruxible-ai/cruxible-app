@@ -50,7 +50,7 @@ export function CompactActivity({ label }: { label: (line: string) => string }) 
   const families = [...new Set(visible.map((row) => (row.kind === "run" ? "run" : row.row.family)))];
   const now = new Date();
   return (
-    <Panel title="Activity" description="Each Line run on one row: how it ended, what it changed, the generation and the Capture it landed.">
+    <Panel title="Activity" description="Newest first. A Line run's landings and accepted generation share its row.">
       {cursors.map((cursor) => (
         <PageLoader key={cursor ?? "first"} cursor={cursor} onLoaded={onLoaded} first={cursor === undefined} />
       ))}

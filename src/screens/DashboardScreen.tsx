@@ -146,6 +146,16 @@ function unhealthy(next: NextResult | undefined) {
   });
 }
 
+/** Checks neither healthy nor needing a look: not observed from here, not set up, or a state the glossary does not know. */
+function unvouched(next: NextResult | undefined) {
+  const status = next?.status;
+  if (!status) return [];
+  return HEALTH_ROWS.filter((row) => {
+    const tone = healthTone(status[row].state);
+    return tone === "off" || tone === undefined;
+  });
+}
+
 /**
  * One strip of tiles, each a count and where to act on it. A tile is amber or
  * red only while its count says something needs doing; at zero it is quiet.
@@ -170,6 +180,9 @@ function NeedsYou({
   const stalled = enablements?.stalled ?? 0;
   const stopped = enablements?.stopped ?? 0;
   const sick = unhealthy(next);
+  const quiet = unvouched(next);
+  // "not observed", or "not observed / not configured" when they differ
+  const quietWords = [...new Set(quiet.map((row) => term("health", next!.status[row].state).word.toLowerCase()))].join(" / ");
   const nextSignal: Signal | undefined = bySeverity.get("blocking") ? "wrong" : bySeverity.get("repair") ? "waiting" : undefined;
   const severityWords = SEVERITIES.flatMap((s) => {
     const n = bySeverity.get(s) ?? 0;
@@ -209,14 +222,15 @@ function NeedsYou({
         detail={stalled || stopped ? `${stalled} stalled · ${stopped} stopped` : "None stalled or stopped"}
         to={link(`/i/${instanceId}/lines`)}
       />
+      {/* The worst state present: checks that need a look, else checks not observed or not set up (never "Healthy"), else Healthy. */}
       <Tile
         label="Health"
-        count={next ? sick.length : null}
-        countWord={sick.length ? "need a look" : undefined}
-        headline={next && sick.length === 0 ? "Healthy" : undefined}
+        count={next ? (sick.length || quiet.length) : null}
+        countWord={sick.length ? "need a look" : quiet.length ? quietWords : undefined}
+        headline={next && sick.length === 0 && quiet.length === 0 ? "Healthy" : undefined}
         signal={sick.some((row) => healthTone(next!.status[row].state) === "wrong") ? "wrong" : sick.length ? "waiting" : undefined}
-        healthy={next !== undefined && sick.length === 0}
-        detail={sick.length ? sick.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks`}
+        healthy={next !== undefined && sick.length === 0 && quiet.length === 0}
+        detail={sick.length ? sick.map(humanize).join(", ") : quiet.length ? quiet.map(humanize).join(", ") : `${HEALTH_ROWS.length} checks`}
         onClick={onHealth}
       />
     </section>
@@ -617,49 +631,55 @@ function LineLinks({ names, prefix }: { names: string[]; prefix: string }) {
 
 // -- health and kits ------------------------------------------------------------
 
-/** The environment's checks, folded to one line while all are healthy. */
+interface HealthRow {
+  key: string;
+  label: string;
+  /** A check's state, or null for a count (Held). */
+  health: NextHealth | null;
+  count?: number;
+}
+
+const HEALTH_COLUMNS: Column<HealthRow>[] = [
+  { id: "check", header: "Check", className: "whitespace-nowrap text-zinc-400", cell: (row) => row.label },
+  {
+    id: "state",
+    header: "State",
+    cell: (row) =>
+      row.health ? (
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <HealthChip state={row.health.state} />
+          {row.health.repair && <span className="text-[12px] text-zinc-500">{row.health.repair.required_change}</span>}
+        </span>
+      ) : (
+        <span className="font-mono text-zinc-300">{row.count}</span>
+      ),
+  },
+];
+
+/**
+ * The environment's checks, one row each: next's health rows, then the
+ * domains next did not observe from here, then what it holds. The header
+ * counts only what needs a look.
+ */
 function HealthPanel({ next, pending, error }: { next: NextResult | undefined; pending: boolean; error: Error | null }) {
   const status = next?.status;
   const sick = unhealthy(next);
+  const rows: HealthRow[] = status
+    ? [
+        ...HEALTH_ROWS.map((row) => ({ key: row, label: humanize(row), health: status[row] })),
+        ...next!.unobserved_domains.map((domain) => ({ key: `domain:${domain}`, label: humanize(domain), health: { state: "not_observed" } })),
+        ...((status.held ?? 0) > 0 ? [{ key: "held", label: "Held", health: null, count: status.held! }] : []),
+      ]
+    : [];
   return (
     <div id="health">
       <Panel
         title="Health"
-        meta={
-          status?.blocking ? (
-            <Chip concept="severity" value="blocking" />
-          ) : status ? (
-            <span>{sick.length ? `${sick.length} of ${HEALTH_ROWS.length} need a look` : `all ${HEALTH_ROWS.length} healthy`}</span>
-          ) : undefined
-        }
+        meta={status?.blocking ? <Chip concept="severity" value="blocking" /> : sick.length ? <span>{sick.length} need a look</span> : undefined}
       >
         {pending && <LoadState />}
         {error && <LoadState error={error} />}
-        {status && (
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
-            {HEALTH_ROWS.map((row) => {
-              const health: NextHealth = status[row];
-              return (
-                <div key={row} className="contents">
-                  <dt className="text-zinc-500">{humanize(row)}</dt>
-                  <dd className="flex flex-wrap items-baseline gap-2">
-                    <HealthChip state={health.state} />
-                    {health.repair && <span className="text-[12px] text-zinc-500">{health.repair.required_change}</span>}
-                  </dd>
-                </div>
-              );
-            })}
-            {(status.held ?? 0) > 0 && (
-              <>
-                <dt className="text-zinc-500">Held</dt>
-                <dd className="font-mono text-zinc-300">{status.held}</dd>
-              </>
-            )}
-          </dl>
-        )}
-        {next && next.unobserved_domains.length > 0 && (
-          <div className="t-meta mt-2">Not observed: {next.unobserved_domains.map(humanize).join(", ")}</div>
-        )}
+        {status && <DataTable rows={rows} columns={HEALTH_COLUMNS} rowKey={(row) => row.key} label="Health" urlKey="health" toolbar={false} maxHeight="none" />}
       </Panel>
     </div>
   );
