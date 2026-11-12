@@ -7,6 +7,7 @@ import {
   claimEvidence,
   columnLabels,
   definitionFields,
+  definitionIdentity,
   fieldName,
   groupDiff,
   hasReason,
@@ -170,5 +171,24 @@ describe("definitionFields", () => {
     expect(groups[2]!.fields).toEqual([
       expect.objectContaining({ field: "", ref: { before: "Contract:http-response-v0", after: "Contract:http-response-v1" } }),
     ]);
+  });
+});
+
+describe("definitionIdentity", () => {
+  it("reads each stored shape: identity {kind, name}, identity as a ref string, name and version", () => {
+    expect(definitionIdentity({ identity: { kind: "Provider", name: "web/abc" } }, "provider")).toEqual({ type: "Provider", name: "web/abc", ref: "Provider:web/abc" });
+    expect(definitionIdentity({ identity: "document:kit-security", kind: "document", title: "Kit security" }, "document")).toEqual({
+      type: "Document",
+      name: "kit-security",
+      ref: "Document:kit-security",
+    });
+    expect(definitionIdentity({ name: "security.app-judgment", version: 1, fields: [] }, "contract")).toEqual({
+      type: "Contract",
+      name: "security.app-judgment/v1",
+      ref: "Contract:security.app-judgment/v1",
+    });
+    // no shape names it: the kind from the artifact kind, no name
+    expect(definitionIdentity({ artifact_format: "x" }, "query-definition")).toEqual({ type: "QueryDefinition", name: null, ref: null });
+    expect(definitionIdentity(null, "widget")).toEqual({ type: "widget", name: null, ref: null });
   });
 });

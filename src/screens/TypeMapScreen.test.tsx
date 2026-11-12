@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { renderApp } from "@/test/render";
+import type { OrientKindSummary } from "@/api/schemas";
+import { withOrient } from "@/test/fresh";
 
 afterEach(cleanup);
 
@@ -64,5 +66,19 @@ describe("Type map", () => {
     expect(await screen.findByText("Kind link")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "product" })[0]!);
     expect(await screen.findByText("Subject kind")).toBeInTheDocument();
+  });
+
+  it("shows every declared kind on a fresh instance, and says when none is declared", async () => {
+    const withKinds = (kinds: (k: OrientKindSummary[]) => OrientKindSummary[]) => withOrient(null, (r) => ({ kinds: kinds(r.kinds as OrientKindSummary[]) }));
+    // a kit installed, no Subjects yet: the declared kinds show, not an empty "populated only" map
+    renderApp("/i/inst_fixture/map", withKinds((kinds) => kinds.map((k) => ({ ...k, subjects: 0 }))));
+    await screen.findAllByText(/vulnerability/);
+    expect(screen.getByRole("button", { name: "Only kinds with Subjects", pressed: false })).toBeInTheDocument();
+    expect(screen.queryByText("No kinds with Subjects")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Only kinds with Subjects" }));
+    expect(await screen.findByText("No kinds with Subjects")).toBeInTheDocument();
+    cleanup();
+    renderApp("/i/inst_fixture/map", withKinds(() => []));
+    expect(await screen.findByText("No kinds")).toBeInTheDocument();
   });
 });

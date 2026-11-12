@@ -250,6 +250,8 @@ describe("Contract page", () => {
     expect(main.getByText("attested")).toBeInTheDocument();
     expect(main.getByText("web response body + URL, status, content type")).toBeInTheDocument();
     expect(main.getByRole("button", { name: "What replay means" })).toBeInTheDocument();
+    // one hover surface: no native title over a term's ⓘ
+    expect(main.getByRole("button", { name: "What replay means" }).closest("[title]")).toBeNull();
     // the page reads Input -> Contract -> Output, in that order
     const [input, contract, output] = ["Input", "Contract", "Output"].map((name) => main.getByRole("heading", { name }));
     expect(input!.compareDocumentPosition(contract!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

@@ -128,6 +128,9 @@ describe("Next rows: every kind", () => {
     const table = within(await screen.findByRole("table", { name: "Next" }));
     fireEvent.click(table.getByRole("button", { name: "What severity means" }));
     expect(screen.getByRole("tooltip")).toHaveTextContent(/Blocking: .*Repair: .*Warning: .*Setup: /);
+    // one hover surface: the header's hover words lead the popover, and the header has no native title over it
+    expect(screen.getByRole("tooltip")).toHaveTextContent(/^How bad, and since when the condition holds \(when the queue says\)/);
+    expect(table.getByRole("columnheader", { name: /Severity/ })).not.toHaveAttribute("title");
     fireEvent.click(table.getByRole("button", { name: "What severity means" }));
     fireEvent.click(table.getByRole("button", { name: "What repair means" }));
     expect(screen.getByRole("tooltip")).toHaveTextContent("the console never runs one");

@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { renderApp } from "@/test/render";
+import { http, HttpResponse } from "msw";
+import { errorEnvelope } from "@/fixtures/envelopes";
+import { renderApp, TEST_BASE } from "@/test/render";
 import { LARGE_HEAD, OVERVIEW_LARGE } from "@/fixtures/overview-large";
+import { withOrient } from "@/test/fresh";
 
 afterEach(cleanup);
 
@@ -107,5 +110,55 @@ describe("Overview", () => {
     expect(run.getAttribute("href")).toMatch(new RegExp(`^${I}/runs/RUN-`));
     expect(grew.getByRole("link", { name: `Generation ${LARGE_HEAD - 12}: Upgrade kit platform from 1.2.0 to 1.3.0` })).toBeInTheDocument();
     expect(screen.queryAllByRole("table")).toHaveLength(0);
+  });
+
+  it("says what is absent on a fresh instance: no kinds, Subjects or live Claims, and no growth chart", async () => {
+    renderApp(`${I}/overview`, withOrient("claim_types", { claim_types: [] }, withOrient(null, { kinds: [], generation: 0 })));
+    expect(await (await section("What it knows")).findByText("No kinds declared yet")).toBeInTheDocument();
+    expect(await (await section("How it stands")).findByText("No Subjects yet")).toBeInTheDocument();
+    const grew = await section("How it grew");
+    expect(await grew.findByText("No live Claims yet")).toBeInTheDocument();
+    expect(grew.queryByRole("link", { name: /^Generation \d+:/ })).toBeNull();
+  });
+
+  /** The head with no kinds (nothing live now); earlier generations as the authored world has them. */
+  const zeroHead = () => withOrient(null, { kinds: [] });
+  const historyAt = (request: Request) => {
+    const at = new URL(request.url).searchParams.get("at");
+    return at !== null && at !== "42" ? at : null;
+  };
+
+  it("waits for earlier generations before saying none was live: a zero head with Claims in its history", async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    renderApp(`${I}/overview`, zeroHead(), {
+      handlers: [
+        http.get(`${TEST_BASE}/api/v1/:instance/head`, async ({ request }) => {
+          if (historyAt(request)) await held;
+          return undefined;
+        }),
+      ],
+    });
+    const grew = await section("How it grew");
+    expect(await grew.findByText("Loading…")).toBeInTheDocument();
+    expect(grew.queryByText("No live Claims yet")).toBeNull();
+    release();
+    expect((await grew.findAllByRole("link", { name: /^Generation \d+: [1-9][\d,]* live Claims$/ }, { timeout: 4000 })).length).toBeGreaterThan(0);
+    expect(grew.queryByText("No live Claims yet")).toBeNull();
+  });
+
+  it("does not say none was live when earlier generations could not be read", async () => {
+    renderApp(`${I}/overview`, zeroHead(), {
+      handlers: [
+        http.get(`${TEST_BASE}/api/v1/:instance/head`, ({ request }) =>
+          historyAt(request) ? HttpResponse.json(errorEnvelope("Unavailable", "history unavailable"), { status: 500 }) : undefined,
+        ),
+      ],
+    });
+    const grew = await section("How it grew");
+    expect(await grew.findByText(/generations could not be read; the chart skips them\.$/, undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(grew.queryByText("No live Claims yet")).toBeNull();
   });
 });

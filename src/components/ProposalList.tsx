@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useCard, useCards, useInstanceId, useReview } from "@/api/hooks";
+import { useCard, useCards, useInstanceId, useReview, useReviewSummary } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { type Schemas } from "@/api/schemas";
-import { ProposalChanges, proposalTitle, readProposalOrigin } from "@/components/ProposalChanges";
+import { ProposalChanges, proposalTitle, readProposalOrigin, SummaryChanges, summaryHasBeliefs } from "@/components/ProposalChanges";
 import { Chip } from "@/components/Chip";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RefLink } from "@/components/RefLink";
 import { useAtLink } from "@/lib/at";
 import { formatDateTime } from "@/lib/text";
+import { summaryRationale, wordsRelation, type Words } from "@/lib/change-sets";
 import { term } from "@/lib/vocabulary";
 
 type Entry = Schemas["ProposalListEntry"];
@@ -163,25 +164,51 @@ function CopyableId({ id }: { id: string }) {
   );
 }
 
-/** A proposal's origin and its changes as facts, from its review (expanded rows). */
+/**
+ * A proposal's origin and its changes as facts (expanded rows). It reads the
+ * review's summary form, small whatever the proposal's size, and lists
+ * definition changes from its groups. Only when the summary shows Subject or
+ * Claim changes does it read the detailed review, for the Claim lines and
+ * the Captures they cite (the summary carries neither the Subject grouping
+ * nor the citations).
+ */
 export function ProposalPeek({
   id,
   indent = "ml-6",
-  skipWords,
+  rowWords = null,
+  onLongerWords,
   origin: showOrigin = true,
 }: {
   id: string;
   indent?: string;
-  skipWords?: string | null | undefined;
+  /** The rationale the row already shows (maybe cut short): not repeated here. */
+  rowWords?: Words | null;
+  /**
+   * The read carries words past the row's cut: the row shows these instead,
+   * so the rationale reads once. Without it the peek shows them.
+   */
+  onLongerWords?: (words: Words) => void;
   /** Name the Procedure and run a Procedure's proposal came from (off where the header already does). */
   origin?: boolean;
 }) {
-  const review = useReview(id);
-  if (review.isPending) return <div className={`${indent} animate-pulse text-[12px] text-zinc-500`}>Reading…</div>;
-  if (review.error) return <div className={`${indent} text-[12px] text-red-400/80`}>{review.error.message}</div>;
-  if (!review.data) return null;
-  const words = review.data.rationale ?? null;
-  const origin = readProposalOrigin(words);
+  const summary = useReviewSummary(id);
+  const beliefs = summary.data ? summaryHasBeliefs(summary.data) : false;
+  const review = useReview(beliefs ? id : null);
+  // the detailed review's rationale is whole; the summary's may be cut
+  const read: Words | null = review.data?.rationale ? { text: review.data.rationale, truncated: false } : summaryRationale(summary.data?.rationale);
+  const relation = read ? wordsRelation(rowWords, read) : null;
+  const handOff = relation === "longer" && onLongerWords !== undefined;
+  useEffect(() => {
+    if (handOff && read) onLongerWords!(read);
+  }, [handOff, read?.text, read?.truncated]); // the callback may be a new function each render
+  const pending = summary.isPending || (beliefs && review.isPending);
+  const error = summary.error ?? (beliefs ? review.error : null);
+  if (pending) return <div className={`${indent} animate-pulse text-[12px] text-zinc-500`}>Reading…</div>;
+  if (error) return <div className={`${indent} text-[12px] text-red-400/80`}>{error.message}</div>;
+  if (!summary.data) return null;
+  const words = read ? `${read.text}${read.truncated ? "…" : ""}` : null;
+  const origin = readProposalOrigin(read?.text);
+  const showWords = words && (relation === "different" || (relation === "longer" && !handOff));
   return (
     <div className={`${indent} mt-2 space-y-2 border-l border-zinc-800 pl-3`}>
       {origin ? (
@@ -189,9 +216,9 @@ export function ProposalPeek({
           Proposed by <RefLink value={`Procedure:${origin.procedure}`} /> in run <RefLink value={origin.run} short />
         </div>
       ) : (
-        words && words !== skipWords && <div className="whitespace-pre-wrap text-[12px] text-zinc-300">{words}</div>
+        showWords && <div className="whitespace-pre-wrap text-[12px] text-zinc-300">{words}</div>
       )}
-      <ProposalChanges review={review.data} limit={12} />
+      {beliefs && review.data ? <ProposalChanges review={review.data} limit={12} /> : <SummaryChanges summary={summary.data} limit={12} />}
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { readProposalOrigin } from "@/components/ProposalChanges";
 import { ProposalStateChip } from "@/components/ProposalList";
 import { LongText } from "@/components/LongText";
 import { Fact, Page, PageHeader } from "@/components/Page";
-import { LoadState, Panel } from "@/components/Panel";
+import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { ShortId, shortId } from "@/components/ShortId";
 import { DeltaTable } from "@/components/StoredFields";
@@ -164,6 +164,11 @@ export function ProposalScreen() {
                   {review.data.prior_refusal_coverage.accepted_generation}
                 </div>
               )}
+            </Panel>
+          )}
+          {review.isSuccess && review.data.members.length === 0 && (
+            <Panel title="Changes">
+              <EmptyState>None</EmptyState>
             </Panel>
           )}
           {diff.unreadable.length > 0 && <WithheldPanel members={diff.unreadable} reasons={reasons} />}

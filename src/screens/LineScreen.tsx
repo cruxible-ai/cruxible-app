@@ -619,9 +619,24 @@ function LineNextPanel({ line }: { line: string }) {
   const next = useNext({ limit: NEXT_PAGE });
   // "Not enabled" is the banner under the header; the panel is for anything else.
   const rows = (nextRowsByLine(next.data?.items ?? []).get(line) ?? []).filter((item) => item.reason !== "line_not_enabled");
-  if (!next.data || rows.length === 0) return null;
+  // A failed refresh shows its error over the rows already read, and never says "None".
+  if (!next.data) {
+    return next.error ? (
+      <Panel title="Next">
+        <LoadState error={next.error} />
+      </Panel>
+    ) : null;
+  }
+  if (rows.length === 0) {
+    return (
+      <Panel title="Next">
+        {next.error ? <LoadState error={next.error} /> : <EmptyState>{next.data.next_cursor ? "None on the first page" : "None"}</EmptyState>}
+      </Panel>
+    );
+  }
   return (
     <Panel title="Next" meta={<span>{rows.length} on the first page</span>}>
+      {next.error && <LoadState error={next.error} />}
       <NextTable
         items={rows}
         urlKey="next"
@@ -632,12 +647,15 @@ function LineNextPanel({ line }: { line: string }) {
   );
 }
 
-/** The Procedure's track record, measurement reviews and readings; nothing at all when it has none of them. */
+/** The Procedure's track record, measurement reviews and readings; "None" when it has none of them. */
 function ProcedurePanel({ procedure }: { procedure: string }) {
   const read = useCard(`Procedure:${procedure}`);
   const card = cardOf(read.data, "procedure");
   const readings = useReadings(procedure, READINGS_PAGE);
   const empty =
+    // only on reads that succeeded: a failed refresh over cached data is not "None"
+    read.isSuccess &&
+    readings.isSuccess &&
     card != null &&
     readings.data !== undefined &&
     (card.track_record ?? []).length === 0 &&
@@ -645,7 +663,14 @@ function ProcedurePanel({ procedure }: { procedure: string }) {
     readings.data.contracts.length === 0 &&
     readings.data.readings.length === 0 &&
     !readings.data.cursor;
-  if (empty || (read.isPending && !read.error)) return null;
+  if (read.isPending && !read.error) return null;
+  if (empty) {
+    return (
+      <Panel title="Track record and measurements">
+        <EmptyState>None</EmptyState>
+      </Panel>
+    );
+  }
   return (
     <Panel title="Track record and measurements">
       {read.isPending && <LoadState />}

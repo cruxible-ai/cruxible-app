@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { BELIEFS, DEFINITIONS, MIXED } from "@/fixtures/authored/proposal-diff";
 import { renderApp } from "@/test/render";
+import { AUTHORED } from "@/fixtures/handlers";
 
 afterEach(cleanup);
 
@@ -98,5 +99,13 @@ describe("Proposal page: definitions", () => {
     const main = within(await screen.findByRole("main"));
     expect(await main.findByRole("table", { name: "Definitions" })).toBeInTheDocument();
     expect(await main.findByRole("table", { name: "Changes" })).toBeInTheDocument();
+  });
+
+  it("says None under Changes for a proposal with no changes", async () => {
+    const review = AUTHORED.find((f) => f.path.endsWith("/review") && (f.response as { tag?: string; proposal_id?: string }).tag === "playbill-proposal-review-v1" && (f.response as { proposal_id?: string }).proposal_id === DEFINITIONS)!;
+    renderApp(page(DEFINITIONS), [...AUTHORED, { ...review, response: { ...(review.response as object), members: [] } }]);
+    const main = within(await screen.findByRole("main"));
+    const panel = within((await main.findByRole("heading", { name: "Changes" })).closest("section")!);
+    expect(panel.getByText("None")).toBeInTheDocument();
   });
 });

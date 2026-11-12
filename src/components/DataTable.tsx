@@ -310,13 +310,18 @@ export function DataTable<T>({
 function HeaderCell<T>({ column, sort, onSort }: { column: Column<T>; sort: "asc" | "desc" | null; onSort: () => void }) {
   const base = `sticky top-0 z-10 whitespace-nowrap border-b border-zinc-800 bg-zinc-950 py-1.5 pr-4 align-bottom text-[12px] font-medium text-zinc-500 last:pr-0 ${column.numeric ? "text-right" : ""} ${column.headerClassName ?? ""}`;
   const ariaSort = sort === "asc" ? "ascending" : sort === "desc" ? "descending" : "none";
+  const hover = [column.title, column.sortValue ? null : column.noSort].filter(Boolean).join("\n") || undefined;
+  // One hover surface: a header with a concept ⓘ says its hover words there, first, and sets no native title.
   const info = column.info ? (
     <span className="ml-1.5 inline-flex align-middle">
-      <InfoButton label={`What ${columnLabel(column).toLowerCase()} means`}>{column.info}</InfoButton>
+      <InfoButton label={`What ${columnLabel(column).toLowerCase()} means`}>
+        {hover && <span className="mb-1 block whitespace-pre-line">{hover}</span>}
+        {column.info}
+      </InfoButton>
     </span>
   ) : null;
+  const title = column.info ? undefined : hover;
   if (!column.sortValue) {
-    const title = [column.title, column.noSort].filter(Boolean).join("\n") || undefined;
     return (
       <th className={base} title={title}>
         {column.header}
@@ -325,7 +330,7 @@ function HeaderCell<T>({ column, sort, onSort }: { column: Column<T>; sort: "asc
     );
   }
   return (
-    <th className={base} aria-sort={ariaSort} title={column.title}>
+    <th className={base} aria-sort={ariaSort} title={title}>
       <button
         onClick={onSort}
         className={`inline-flex items-center gap-1 hover:text-zinc-200 ${sort ? "text-zinc-200" : ""}`}

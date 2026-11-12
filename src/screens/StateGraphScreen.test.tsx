@@ -113,6 +113,31 @@ describe("State graph", () => {
     expect(pages.count).toBe(1);
   });
 
+  it("says there are no Subjects on a fresh instance, after one page", async () => {
+    const empty = defineFixture({
+      method: "get",
+      path: "/api/v1/{instance_id}/orient",
+      query: orientQuery({ coordinate: COORDINATE, section: "graph", limit: GRAPH_PAGE }),
+      response: {
+        instance: "inst_fixture",
+        coordinate: COORDINATE,
+        generation: AT.generation,
+        accepted_at: "2026-10-19T09:30:00Z",
+        evaluation_time: NOW,
+        section: "graph",
+        graph: { nodes: [], edges: [], totals: { subjects: 0 } },
+        truncated: false,
+        next_cursor: null,
+      },
+    });
+    renderApp("/i/inst_fixture/graph", [...AUTHORED.filter((f) => f.key !== empty.key), empty]);
+    const pages = countGraphPages();
+    expect(await screen.findByText("No Subjects")).toBeInTheDocument();
+    expect(screen.queryByTestId("dots")).toBeNull();
+    expect(screen.queryByText(/Loading/)).toBeNull();
+    expect(pages.count).toBe(1);
+  });
+
   it("panel shows a many-valued Subject-valued Claim linked and in Links", async () => {
     // cve-2026-0000 related cve-2026-0017 is an edge of the authored graph; the card serves it as the daemon does (a list).
     const held = subjectCard("security.vulnerability/cve-2026-0000", [

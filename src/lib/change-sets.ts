@@ -64,3 +64,47 @@ export function changeSets(events: readonly SubjectHistoryEvent[]): SubjectHisto
   }
   return groups;
 }
+
+/** A rationale as one read carries it: the text, and whether that read cut it short. */
+export interface Words {
+  text: string;
+  truncated: boolean;
+}
+
+/**
+ * A summary review's rationale. Core caps a summary value at 1 KiB; past it,
+ * the value is the first 512 bytes of its JSON text (`"Install…`, escapes
+ * and all), marked truncated: read back as the words it starts with.
+ */
+export function summaryRationale(rationale: { value: unknown; truncated?: boolean } | null | undefined): Words | null {
+  if (!rationale || typeof rationale.value !== "string") return null;
+  if (!rationale.truncated) return { text: rationale.value, truncated: false };
+  const raw = rationale.value;
+  if (!raw.startsWith('"')) return { text: raw, truncated: true };
+  // the JSON string's opening quote, then its escaped body cut anywhere (an escape may be cut short)
+  const body = raw.slice(1);
+  for (let cut = 0; cut <= 6 && cut <= body.length; cut += 1) {
+    try {
+      const text = JSON.parse(`"${body.slice(0, body.length - cut)}"`) as string;
+      return { text, truncated: true };
+    } catch {
+      /* a cut escape: drop a character and retry */
+    }
+  }
+  return { text: body, truncated: true };
+}
+
+/**
+ * How a read's rationale stands to the one a row already shows (both maybe
+ * cut short, at different lengths: a generation's `because` at 500
+ * characters, a summary at 512 bytes; the detailed review is whole):
+ * `same`, `shown` (the row already holds all of it), `longer` (it carries
+ * words past the row's cut), or `different` words.
+ */
+export function wordsRelation(row: Words | null, read: Words): "same" | "shown" | "longer" | "different" {
+  if (!row) return "different";
+  if (read.text === row.text) return read.truncated && !row.truncated ? "shown" : row.truncated && !read.truncated ? "longer" : "same";
+  if (read.text.startsWith(row.text)) return row.truncated ? "longer" : "different";
+  if (row.text.startsWith(read.text)) return read.truncated ? "shown" : "different";
+  return "different";
+}

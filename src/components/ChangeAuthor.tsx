@@ -18,11 +18,14 @@ export function ChangeAuthor({
   sequence,
   actor,
   approvers,
+  authorLabel = true,
 }: {
   source: { run: string; procedure: string } | null;
   sequence: number;
   actor: string | null;
   approvers: string[];
+  /** Label a lone principal "Author" (off in an Author column). */
+  authorLabel?: boolean;
 }) {
   const instanceId = useInstanceId();
   const link = useAtLink();
@@ -90,7 +93,7 @@ export function ChangeAuthor({
       )}
       {!source && actor && (
         <span className="inline-flex items-baseline gap-x-2">
-          <HeaderLabel>Author</HeaderLabel>
+          {authorLabel && <HeaderLabel>Author</HeaderLabel>}
           <span className="font-mono text-zinc-300">{actor}</span>
         </span>
       )}

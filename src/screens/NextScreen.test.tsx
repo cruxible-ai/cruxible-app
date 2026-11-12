@@ -5,7 +5,12 @@ import { AUTHORED } from "@/fixtures/handlers";
 import { defineFixture } from "@/fixtures/fixture";
 import { COORDINATE, NOW } from "@/fixtures/authored/world";
 import { NEXT_PAGE, nextBody } from "@/api/requests";
-import { renderApp } from "@/test/render";
+import { http, HttpResponse } from "msw";
+import type { QueryClient } from "@tanstack/react-query";
+import { act } from "@testing-library/react";
+import { server } from "@/test/msw-server";
+import { errorEnvelope } from "@/fixtures/envelopes";
+import { renderApp, TEST_BASE } from "@/test/render";
 import { REASONS } from "@/lib/next-reasons";
 
 afterEach(cleanup);
@@ -131,6 +136,34 @@ describe("Beliefs", () => {
     // the row citing a Capture names it and carries no such mark
     expect(main.getByRole("link", { name: "CAP-7c1e9a3b5d7f" })).toBeInTheDocument();
     expect(main.getAllByText("Doesn't count")).toHaveLength(1);
+  });
+
+  it("reads an empty queue as good news, not as a blank page", async () => {
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/next"))!;
+    const response = fixture.response as NextResult;
+    renderApp("/i/inst_fixture/next", [...AUTHORED, { ...fixture, response: { ...response, items: [], total_items: 0, next_cursor: null } }]);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("Nothing needs attention")).toBeInTheDocument();
+    expect(main.queryByRole("table", { name: "Next" })).toBeNull();
+  });
+
+  it("drops the good news when a refresh of an empty queue fails, keeping the error", async () => {
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/next"))!;
+    const response = fixture.response as NextResult;
+    let client: QueryClient | null = null;
+    renderApp("/i/inst_fixture/next", [...AUTHORED, { ...fixture, response: { ...response, items: [], total_items: 0, next_cursor: null } }], {
+      seed: (c) => {
+        client = c;
+      },
+    });
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("Nothing needs attention")).toBeInTheDocument();
+    server.use(http.post(`${TEST_BASE}/api/v1/:instance/next`, () => HttpResponse.json(errorEnvelope("Unavailable", "next is unavailable"), { status: 500 })));
+    await act(async () => {
+      await client!.refetchQueries();
+    });
+    expect(await main.findByText(/unavailable/i)).toBeInTheDocument();
+    expect(main.queryByText("Nothing needs attention")).toBeNull();
   });
 
   it("reports an empty filtered page and explains workspace drift on request", async () => {

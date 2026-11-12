@@ -9,6 +9,7 @@ import { defineFixture } from "../fixture";
 import { getBatchBody, reviewBody } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./world";
+import { reviewSummary, reviewSummaryFixture } from "../review-summary";
 
 export const BELIEFS = "sha256:" + "b1".repeat(32);
 export const DEFINITIONS = "sha256:" + "d1".repeat(32);
@@ -246,6 +247,9 @@ const runCard: Schemas["GetProcedureRunCard"] = {
 };
 
 export default [
+  reviewSummaryFixture(BELIEFS, reviewSummary(BELIEFS, BELIEF_MEMBERS, { rationale: { value: words } })),
+  reviewSummaryFixture(DEFINITIONS, reviewSummary(DEFINITIONS, [PROCEDURE_MEMBER])),
+  reviewSummaryFixture(MIXED, reviewSummary(MIXED, [PROCEDURE_MEMBER, subjectMember, BELIEF_MEMBERS[1]!], { rationale: { value: "Tighten KEV triage and record the new CVE." } })),
   batch([BELIEFS], [
     proposalCard(BELIEFS, {
       proposal: BELIEFS,

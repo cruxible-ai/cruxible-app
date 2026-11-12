@@ -7,7 +7,7 @@ import { InfoButton } from "@/components/InfoButton";
 import { ShownSlot } from "@/components/ShownValue";
 import { actionChipClass, Chip, toggleChipClass } from "@/components/Chip";
 import { FieldList } from "@/components/FieldList";
-import { LoadState } from "@/components/Panel";
+import { EmptyState, LoadState } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { CosmosDots, type GlDotEdge, type GlDotNode } from "@/components/graph/CosmosDots";
 import { ConnectionList, PanelActions, PanelGroup, PanelHeading } from "@/components/graph/PanelBits";
@@ -45,8 +45,12 @@ export function StateGraphScreen() {
   const first = useGraphFirstPage(true);
   const subjects = first.data?.page.graph?.totals.subjects;
   const tooMany = subjects !== undefined && subjects > GRAPH_SUBJECT_CAP;
+  // No live Subject (a fresh instance): nothing to page through or draw. Said only on a read that
+  // succeeded: a failed refresh over cached data shows its error, not "No Subjects".
+  const zero = first.data !== undefined && (subjects ?? first.data.page.graph?.nodes?.length ?? 0) === 0;
+  const none = zero && first.isSuccess;
   const [progress, setProgress] = useState<GraphProgress | null>(null);
-  const graph = useWholeGraph(first.data, subjects !== undefined && !tooMany, GRAPH_EDGE_CAP, setProgress);
+  const graph = useWholeGraph(first.data, subjects !== undefined && !tooMany && !zero, GRAPH_EDGE_CAP, setProgress);
   const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [jump, setJump] = useState<{ id: string; nonce: number } | null>(null);
@@ -177,7 +181,8 @@ export function StateGraphScreen() {
           </div>
         </div>
       )}
-      {!tooMany && subjects !== undefined && graph.isPending && (
+      {none && <EmptyState>No Subjects</EmptyState>}
+      {!tooMany && !zero && subjects !== undefined && graph.isPending && (
         <div className="py-3 text-[13px] text-zinc-500">
           Loading {subjects.toLocaleString()} Subjects
           {progress && (
@@ -197,7 +202,7 @@ export function StateGraphScreen() {
       )}
       {graph.error && <LoadState error={graph.error} />}
 
-      {graph.data && (
+      {graph.data && !zero && (
         <>
           <div className="mb-2 mt-1 flex flex-wrap items-center gap-1.5">
             {hiddenKinds.size > 0 && (

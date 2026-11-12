@@ -263,7 +263,19 @@ function Snapshot({ o }: { o: OrientResult }) {
       <Panel title="How it grew" description={ABOUT.grew} meta={<span title="The generations this chart covers">{`g${lo}–g${head}`}{growth.pending && <span className="animate-pulse"> · …</span>}</span>}>
         {!points && <LoadState />}
         {growth.failed > 0 && <EmptyState>{`${growth.failed} of ${earlier.length} generations could not be read; the chart skips them.`}</EmptyState>}
-        {points && <GrowthChart points={points} lo={lo} head={head} markers={markers} colorOf={colorOf} label={short.label} />}
+        {points &&
+          (points.some((p) => [...p.byKind.values()].some((n) => n > 0)) ? (
+            // any live Claim: the chart, partial while earlier generations land
+            <GrowthChart points={points} lo={lo} head={head} markers={markers} colorOf={colorOf} label={short.label} />
+          ) : growth.pending ? (
+            // nothing yet, but earlier generations may still hold Claims
+            <LoadState />
+          ) : growth.failed > 0 || details.error ? (
+            // the window could not be read whole (said above, or in How it stands): no claim that it is empty
+            <GrowthChart points={points} lo={lo} head={head} markers={markers} colorOf={colorOf} label={short.label} />
+          ) : (
+            <EmptyState>No live Claims yet</EmptyState>
+          ))}
       </Panel>
     </>
   );

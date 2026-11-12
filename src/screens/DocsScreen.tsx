@@ -11,7 +11,7 @@ import { FieldList } from "@/components/FieldList";
 import { InfoButton } from "@/components/InfoButton";
 import { PageDescription } from "@/components/Page";
 import { BodyView } from "@/components/BodyView";
-import { Disclosure, LoadState, Panel, SubSection } from "@/components/Panel";
+import { Disclosure, EmptyState, LoadState, Panel, SubSection } from "@/components/Panel";
 import { CopyButton } from "@/components/ShortId";
 import { SearchBox, Stat, StatsRow } from "@/components/StatsRow";
 import { bodyFormat, extensionFor } from "@/lib/body-format";
@@ -116,7 +116,7 @@ export function DocsScreen() {
       {documents.error && <LoadState error={documents.error} />}
       {documents.data &&
         (rows.length === 0 ? (
-          <p className="text-[14px] text-zinc-400">None at this generation</p>
+          documents.isSuccess && <EmptyState>No Documents</EmptyState>
         ) : (
           <div className={`grid grid-cols-1 items-start gap-5 ${listHidden ? "" : "lg:grid-cols-[20rem_minmax(0,1fr)]"}`}>
             {!listHidden && (

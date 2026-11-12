@@ -94,6 +94,62 @@ export interface ClaimRead {
   baseObject: unknown;
 }
 
+/**
+ * "claim-type" -> "ClaimType", "query-definition" -> "QueryDefinition": an
+ * artifact kind as the typed ref prefix, when the ref grammar knows it.
+ */
+function kindPrefix(artifactKind: string): string | null {
+  const pascal = artifactKind
+    .split(/[-_]/)
+    .map((part) => (part ? part[0]!.toUpperCase() + part.slice(1) : ""))
+    .join("");
+  return parseRef(`${pascal}:x`) ? pascal : null;
+}
+
+/**
+ * A definition's kind, name and link from its artifact's typed fields, in the
+ * shapes core stores: `identity: {kind, name}`; `identity` as a typed ref
+ * string (`document:kit-security`); or no identity but `name` and `version`
+ * (a Contract: `<name>/v<version>`). The kind falls back to the artifact kind.
+ * `name` is null when no shape gives one.
+ */
+export function definitionIdentity(
+  artifact: Record<string, unknown> | null,
+  artifactKind: string,
+): { type: string; name: string | null; ref: string | null } {
+  const fallback = kindPrefix(artifactKind) ?? artifactKind;
+  let type: string | null = null;
+  let name: string | null = null;
+  const identity = artifact?.identity;
+  const typed = rec(identity);
+  if (typed && str(typed.name)) {
+    type = str(typed.kind);
+    name = str(typed.name);
+  } else if (typeof identity === "string") {
+    const parsed = parseRef(identity);
+    if (parsed && "name" in parsed) {
+      const ref = formatRef(parsed);
+      type = ref.slice(0, ref.indexOf(":"));
+      name = parsed.name;
+    }
+  } else if (str(artifact?.name)) {
+    const version = artifact?.version;
+    name = typeof version === "number" || typeof version === "string" ? `${str(artifact!.name)}/v${version}` : str(artifact!.name);
+  }
+  const kind = type ?? fallback;
+  return { type: kind, name, ref: name && parseRef(`${kind}:${name}`) ? `${kind}:${name}` : null };
+}
+
+/**
+ * A definition member (anything not a Subject or Claim) by its artifact's
+ * typed fields (`definitionIdentity`). `name` is null when neither side's
+ * artifact is served or no shape names it.
+ */
+export function readDefinition(member: Member): DefinitionChange {
+  const artifact = rec(member.candidate_semantic_artifact) ?? rec(member.base_semantic_artifact);
+  return { member, kind: changeKindOf(member.disposition), ...definitionIdentity(artifact, member.artifact_kind) };
+}
+
 /** A Claim member's Subject, ClaimType and value (new, and before), from its stored artifacts; null for anything else. */
 export function memberClaim(member: Member): ClaimRead | null {
   return readClaim(member);
@@ -190,11 +246,7 @@ export function beliefDiff(members: readonly Member[], cardinality?: ReadonlyMap
       unreadable.push(member);
       continue;
     }
-    const identity = rec(artifact?.identity);
-    const type = str(identity?.kind) ?? member.artifact_kind;
-    const name = str(identity?.name);
-    const ref = name && parseRef(`${type}:${name}`) ? `${type}:${name}` : null;
-    definitions.push({ member, kind: changeKindOf(member.disposition), type, name, ref });
+    definitions.push(readDefinition(member));
   }
   const counts: Record<ChangeKind, number> = { new: 0, revised: 0, retired: 0 };
   const claimTypes = new Set<string>();

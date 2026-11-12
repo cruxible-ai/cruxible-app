@@ -7,6 +7,7 @@ import { defineFixture } from "../fixture";
 import { getBatchBody, LEDGER_PAGE, orientQuery, proposalsQuery, reviewBody } from "@/api/requests";
 import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./world";
+import { reviewSummary, reviewSummaryFixture } from "../review-summary";
 
 const ACCEPTED = "sha256:" + "6".repeat(64);
 const ACCEPTED_OLDER = "sha256:" + "3".repeat(64);
@@ -121,6 +122,9 @@ const reviewFixture = (id: string, response: Schemas["ProposalReview"], after?: 
     response,
   });
 
+const ACCEPTED_MEMBER = member(`claims/00/${CLAIM_A3}.json`, "object.value", undefined, "not_affected");
+const OPEN_MEMBER = member(`claims/00/${CLAIM_A3}.json`, "lifecycle.state", "live", "retired");
+
 const generations = defineFixture({
   method: "get",
   path: "/api/v1/{instance_id}/orient",
@@ -186,9 +190,11 @@ export default [
     rationale: "Retire the not_affected contender: OSV range covers rel-1's xz build.",
     changes: [{ path: `claims/00/${CLAIM_A3}.json`, change: "retired" }],
   }),
+  reviewSummaryFixture(ACCEPTED, reviewSummary(ACCEPTED, [ACCEPTED_MEMBER], { rationale: { value: "Vendor advisory says rel-1 never shipped the build." } })),
+  reviewSummaryFixture(OPEN, reviewSummary(OPEN, [OPEN_MEMBER], { rationale: { value: "Retire the not_affected contender: OSV range covers rel-1's xz build." } })),
   reviewFixture(
     ACCEPTED,
-    review(ACCEPTED, [member(`claims/00/${CLAIM_A3}.json`, "object.value", undefined, "not_affected")], {
+    review(ACCEPTED, [ACCEPTED_MEMBER], {
       rationale: "Vendor advisory says rel-1 never shipped the build.",
       attestation_coverage: {
         attestations: [{ signer_id: "security-lead", submitted_by: "release-owner", attestation_digest: "sha256:" + "f".repeat(64) }],
@@ -198,7 +204,7 @@ export default [
   ),
   reviewFixture(
     OPEN,
-    review(OPEN, [member(`claims/00/${CLAIM_A3}.json`, "lifecycle.state", "live", "retired")], {
+    review(OPEN, [OPEN_MEMBER], {
       provenance: { actor_id: "triage-agent" },
       rationale: "Retire the not_affected contender: OSV range covers rel-1's xz build.",
       item_reasons: [

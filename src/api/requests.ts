@@ -315,6 +315,16 @@ export function reviewBody(
   return itemReasonsAfter !== undefined ? { detail: true, item_reasons_after: itemReasonsAfter } : { detail: true };
 }
 
+/**
+ * The summary form of a review (no `detail`): counts, and members grouped by
+ * kind and disposition with their first rows. A peek's page: the most
+ * groups core serves (10), each with its first 5 rows (a row carries the
+ * member's stored fields, each capped by core, so rows are the cost).
+ */
+export function reviewSummaryBody(): RequestBody<"/api/v1/{instance_id}/proposals/{proposal_id}/review", "post"> {
+  return { groups_limit: 10, rows_limit: 5 };
+}
+
 export function inboxQuery(
   line: string | undefined,
   status: InboxStatus | undefined,
