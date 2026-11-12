@@ -6,7 +6,7 @@ import type { OrientActivity } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
 import { HeaderLabel } from "@/components/ChangeLog";
 import { DataTable, type Column } from "@/components/DataTable";
-import { GenerationAuthor, GenerationCell, GenerationDescription } from "@/components/GenerationCells";
+import { GenerationAuthorFromRow, GenerationCell, GenerationDescription } from "@/components/GenerationCells";
 import { EmptyState, LoadState, Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { FAMILY, formatDuration, shortRun, type ActivityFamily, type ActivityLink, type ActivityRow } from "@/lib/activity";
@@ -152,7 +152,8 @@ function Time({ at }: { at: string }) {
 function Author({ row, label }: { row: CompactRow; label: (line: string) => string }) {
   const instanceId = useInstanceId();
   const at = useAtLink();
-  if (row.kind === "generation") return <GenerationAuthor row={row.generation} />;
+  // from the event's own fields: the Dashboard makes no read per row
+  if (row.kind === "generation") return <GenerationAuthorFromRow row={row.generation} />;
   if (row.kind === "event") {
     const who = row.row.who;
     if (!who) return dash;

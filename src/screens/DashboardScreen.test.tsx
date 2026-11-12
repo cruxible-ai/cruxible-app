@@ -9,6 +9,7 @@ import type { OrientResult } from "@/api/schemas";
 import { RUNBOOK_WAKES } from "@/test/runbook-wakes";
 import { freshDashboard, populatedDashboard, unhealthyDashboard, withHealth } from "@/test/dashboard-worlds";
 import { renderApp, TEST_BASE } from "@/test/render";
+import { COORDINATE } from "@/fixtures/authored/world";
 
 /** jsdom here has no working localStorage: an in-memory one per test. */
 function memoryStorage(): Storage {
@@ -397,6 +398,46 @@ describe("Dashboard", () => {
         expect(await since.findByText(`${read} unavailable`)).toBeInTheDocument();
         expect(since.queryByText("No Claim changes")).toBeNull();
       });
+    }
+  });
+
+  it("makes no read per Activity row: generations a run produced name its Procedure and run from their own fields", async () => {
+    // three accepted generations, each from a run whose start and finish are not on the page, each run from its own Line
+    const events = [1, 2, 3].map((i) => ({
+      event: "generation_accepted",
+      at: "2026-10-19T11:00:00Z",
+      sequence: 43 - i,
+      git_oid: String(i).repeat(40),
+      proposal: "sha256:" + String(i).repeat(64),
+      proposer: "maintainer",
+      because: `Proposed by Procedure demo.read run RUN-${String(i).repeat(32)} terminal write\n\n1 item; each item's reason is recorded with the Claim or Subject it explains.`,
+      members: 1,
+    }));
+    const requests: { path: string; body: unknown }[] = [];
+    const listen = async ({ request }: { request: Request }) => {
+      requests.push({ path: new URL(request.url).pathname, body: request.method === "POST" ? await request.clone().json() : null });
+    };
+    server.events.on("request:start", listen);
+    try {
+      renderApp("/i/inst_fixture", freshDashboard(), {
+        handlers: [
+          http.get(`${TEST_BASE}/api/v1/:instance/orient`, ({ request }) =>
+            new URL(request.url).searchParams.get("section") === "activity" ? HttpResponse.json({ coordinate: COORDINATE, activity: events, next_cursor: null }) : undefined,
+          ),
+        ],
+      });
+      const table = within(await screen.findByRole("table", { name: "Activity" }));
+      const row = within((await table.findByRole("link", { name: "g42" })).closest("tr")!);
+      await screen.findByRole("table", { name: "Stale beliefs" });
+      await waitFor(() => expect(document.querySelectorAll(".animate-pulse")).toHaveLength(0));
+      // no run card, no Line history: the page's reads do not grow with its rows
+      expect(JSON.stringify(requests)).not.toContain("ProcedureRun:RUN-");
+      expect(requests.filter((r) => r.path.endsWith("/get") && JSON.stringify(r.body).includes('"history"'))).toEqual([]);
+      expect(row.getByText("demo.read")).toBeInTheDocument();
+      expect(row.getByRole("link", { name: "111111…" })).toHaveAttribute("href", `/i/inst_fixture/runs/RUN-${"1".repeat(32)}`);
+      expect(row.queryByText("maintainer")).toBeNull();
+    } finally {
+      server.events.removeListener("request:start", listen);
     }
   });
 });
