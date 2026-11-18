@@ -23,8 +23,8 @@ const event = (field: string, reason: NonNullable<SubjectHistoryEvent["reason"]>
   sequence,
   git_oid: "0".repeat(12),
   proposed_at: "2026-10-31T15:30:00Z",
-  actor: "robertmalone",
-  approved_by: ["robertmalone"],
+  actor: "owner",
+  approved_by: ["owner"],
   reason,
 });
 
