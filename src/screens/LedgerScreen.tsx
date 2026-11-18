@@ -48,9 +48,9 @@ export function LedgerScreen() {
       },
       {
         id: "accepted",
-        header: "Accepted",
+        header: "Proposed",
         className: "w-36 whitespace-nowrap text-zinc-500",
-        cell: (row) => <span title={row.accepted_at}>{formatDateTime(row.accepted_at)}</span>,
+        cell: (row) => <span title={row.proposed_at}>{formatDateTime(row.proposed_at)}</span>,
       },
       {
         id: "author",

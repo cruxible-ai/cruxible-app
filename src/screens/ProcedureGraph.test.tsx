@@ -45,8 +45,8 @@ describe("Procedure graph", () => {
     expect(node("catalog")).toHaveTextContent("fetch · JSON");
     expect(node("watched")).toHaveTextContent("kev_exposure");
     expect(within(node("watched")).getByText("kev_exposure").closest("a")).toHaveAttribute("href", `/i/inst_fixture/ref/${encodeURIComponent("query:security.kev_exposure")}`);
-    expect(node("entries")).toHaveTextContent("/vulnerabilities/* · key cveID · 1 field");
-    expect(within(node("entries")).getByText("cveID").tagName).toBe("CODE");
+    expect(node("entries")).toHaveTextContent("vulnerabilities · key cve_id");
+    expect(within(node("entries")).getByText("cve_id").tagName).toBe("CODE");
     expect(node("settle")).toHaveTextContent("kev_date_added → vulnerability");
     expect(within(node("settle")).getByText("kev_date_added").closest("a")).toHaveAttribute("href", "/i/inst_fixture/claim-types/security.vulnerability.kev_date_added");
     expect(node("changed")).toHaveTextContent("else halt");
@@ -97,8 +97,8 @@ describe("Procedure graph", () => {
     // a clicked step opens its fields in groups
     fireEvent.click(node("entries"));
     const panel = within(await screen.findByRole("list", { name: "Records" }, SLOW));
-    expect(panel.getByText("/vulnerabilities/*")).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "Fields" })).getByText("dateAdded")).toBeInTheDocument();
+    expect(panel.getByText("vulnerabilities")).toBeInTheDocument();
+    expect(panel.getByText("cve_id")).toBeInTheDocument();
   });
 
   it("draws every step as a slot of one width: the kind word and name in its header, ports where edges attach", async () => {
@@ -273,8 +273,8 @@ describe("Procedure graph", () => {
     await waitFor(() => expect(within(node("pages")).getByTitle(/The first page's URL/)).toBeInTheDocument(), SLOW);
     expect(within(node("pages")).getByText("Origins").nextElementSibling).toHaveTextContent("https://vendor.example");
     expect(within(node("pages")).getByTitle(/The first page's URL/)).toHaveAttribute("title", "url = https://vendor.example/advisories?page=1\nThe first page's URL; each page names the next.");
-    // an extract's field names on hover of its count; a claims step's ceiling from the Line
-    expect(within(node("entries")).getByText("2 fields")).toHaveAttribute("title", "fixed_in, advisory");
+    // an extract's record set; a claims step's ceiling from the Line
+    expect(within(node("entries")).getByText("fixes").tagName).toBe("CODE");
     expect(within(node("write")).getByText("At most").nextElementSibling).toHaveTextContent("propose");
     cleanup();
 

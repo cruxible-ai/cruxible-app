@@ -25,7 +25,7 @@ export default defineFixture({
       "compiler_digest": "sha256:368468b4786521ebebeb2b8a9de53d9ceb2a3f9e83985cad4d613895cc59eaaf"
     },
     "generation": 22,
-    "accepted_at": "2026-11-07T22:22:25.432116Z",
+    "proposed_at": "2026-11-07T22:22:25.432116Z",
     "evaluation_time": "2026-11-08T19:47:54.163866Z",
     "mirror_url": "https://127.0.0.1:9/cruxible/ledger.git",
     "retention_generations": 64,

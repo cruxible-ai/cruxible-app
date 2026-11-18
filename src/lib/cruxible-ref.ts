@@ -47,6 +47,7 @@ const TYPED_PREFIXES: Readonly<Record<string, GetRefKind>> = {
   Trigger: "trigger",
   SubjectKind: "subject_kind",
   Contract: "contract",
+  Capability: "capability",
   Proposal: "proposal",
   Line: "line",
   Capture: "capture",
@@ -59,6 +60,7 @@ const TYPED_PREFIXES: Readonly<Record<string, GetRefKind>> = {
   ProcedureRuntimePolicy: "procedure_runtime_policy",
   Provider: "provider",
   Runbook: "runbook",
+  Note: "note",
 };
 
 /** The prefix get prints for each named kind (core _DISPLAY_PREFIX). */
@@ -78,7 +80,9 @@ export const DISPLAY_PREFIX: Readonly<Record<NamedRefKind, string>> = {
   procedure_runtime_policy: "ProcedureRuntimePolicy",
   provider: "Provider",
   contract: "Contract",
+  capability: "Capability",
   runbook: "Runbook",
+  note: "Note",
 };
 
 // Subject kind and id grammar (cruxible_client contracts/subjects.py).

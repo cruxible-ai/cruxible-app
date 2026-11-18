@@ -12,18 +12,14 @@ import type { GetResult, Schemas } from "@/api/schemas";
 import { AT, COORDINATE, NOW } from "./world";
 
 type Spec = Schemas["ProcedureSpec"];
-type Slot = Schemas["ProcedureSlot"];
+type Slot = Schemas["CapabilitySlot"];
 
 const OSV = "security.osv-applicability-v1";
 const KEV = "security.kev-http-v1";
 
-const slot = (input: string, output: string, effect: Slot["effect"]): Slot => ({
-  in: { name: input, version: 1 },
-  out: { name: output, version: 1 },
-  effect,
-});
-const FETCH = slot("web.fetch.request", "web.fetch.result", "external_read");
-const OSV_QUERY = slot("security.osv-query.request", "security.osv-query.result", "external_read");
+const slot = (capability: string): Slot => ({ capability: { name: capability, version: 1 } });
+const FETCH = slot("web.fetch");
+const OSV_QUERY = slot("security.osv-query");
 const step = (name: string, ...path: string[]) => ({ $ref: "step" as const, step: name, path });
 const item = (...path: string[]) => ({ $ref: "item" as const, path });
 const input = (...path: string[]) => ({ $ref: "input" as const, path });
@@ -39,10 +35,8 @@ export const KEV_TRIAGE_SPEC: Spec = {
     {
       extract: "entries",
       capture: step("catalog", "capture"),
-      records: "/vulnerabilities/*",
-      row: "security.kev-record@1",
-      fields: { date_added: { at: "dateAdded", parse: "date" } },
-      key: { cve_id: { at: "cveID" } },
+      records: "vulnerabilities",
+      key: { cve_id: { type: "key_part<security.vulnerability:cve_id>" } },
     },
     { id: "changed", guard: { op: "present", of: step("entries", "records") }, else: { halt: "no_change" } },
     {
@@ -86,10 +80,7 @@ const CVE_SPEC: Spec = {
     {
       extract: "answers",
       capture: step("record", "capture"),
-      records: "/results/*",
-      row: "security.osv-answer@1",
-      fields: { status: { at: "status" } },
-      key: { assessment: { at: "assessment" } },
+      records: "results",
     },
     {
       id: "propose",
@@ -218,7 +209,7 @@ export default [
       instance: "inst_fixture",
       coordinate: COORDINATE,
       generation: AT.generation,
-      accepted_at: "2026-10-19T09:30:00Z",
+      proposed_at: "2026-10-19T09:30:00Z",
       evaluation_time: NOW,
       section: "procedures",
       procedures: SPECS.map((spec) => ({ name: spec.procedure, lifecycle: "live" as const, runnable: RUNNABLE[spec.procedure]! })),

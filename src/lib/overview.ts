@@ -544,16 +544,16 @@ export function growthMarkers(rows: readonly Generation[], lo: number, head: num
     const because = (row.because ?? "").trim();
     const run = PROPOSED_BY.exec(because);
     if (run) {
-      out.push({ kind: "run", sequence: row.sequence, acceptedAt: row.accepted_at, procedure: run[1]!, run: run[2]!, members: row.members ?? 0 });
+      out.push({ kind: "run", sequence: row.sequence, acceptedAt: row.proposed_at, procedure: run[1]!, run: run[2]!, members: row.members ?? 0 });
       continue;
     }
     const kit = KIT_CHANGE.exec(because.split("\n")[0] ?? "");
-    if (kit) out.push({ kind: "kit", sequence: row.sequence, acceptedAt: row.accepted_at, words: kit[1]!, members: row.members ?? 0 });
+    if (kit) out.push({ kind: "kit", sequence: row.sequence, acceptedAt: row.proposed_at, words: kit[1]!, members: row.members ?? 0 });
   }
   return out.sort((a, b) => a.sequence - b.sequence);
 }
 
 /** The instance's first generation date, when the page reaches genesis. */
 export function firstAccepted(rows: readonly Generation[]): string | null {
-  return rows.find((row) => row.sequence === 0)?.accepted_at ?? null;
+  return rows.find((row) => row.sequence === 0)?.proposed_at ?? null;
 }

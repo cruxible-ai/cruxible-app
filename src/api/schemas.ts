@@ -63,7 +63,9 @@ export type CardByKind = AssertEveryKind<{
   procedure_runtime_policy: Schemas["GetProcedureRuntimePolicyCard"];
   provider: Schemas["GetProviderCard"];
   contract: Schemas["GetContractCard"];
+  capability: Schemas["GetCapabilityCard"];
   runbook: Schemas["GetRunbookCard"];
+  note: Schemas["GetNoteCard"];
   /** A workspace file read (`file:<name>`) carries history or body, never a card. */
   file: null;
 }>;

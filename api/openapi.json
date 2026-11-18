@@ -4642,7 +4642,8 @@
                     "pins",
                     "activity",
                     "sources",
-                    "contracts"
+                    "contracts",
+                    "capabilities"
                   ],
                   "type": "string"
                 },
@@ -4817,6 +4818,25 @@
               "title": "Caller Tools"
             },
             "description": "Advertised MCP repair tools; repeat for each tool, or send an empty value for none."
+          },
+          {
+            "name": "vocabulary_at",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The Git OID a workspace's vocabulary file was exported at; the answer's vocabulary_file then says how many definitions it is behind.",
+              "title": "Vocabulary At"
+            },
+            "description": "The Git OID a workspace's vocabulary file was exported at; the answer's vocabulary_file then says how many definitions it is behind."
           }
         ],
         "responses": {
@@ -6279,6 +6299,27 @@
               "type": "string",
               "title": "Instance Id"
             }
+          },
+          {
+            "name": "document",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only these Documents (repeatable); default: every Document.",
+              "title": "Document"
+            },
+            "description": "Only these Documents (repeatable); default: every Document."
           }
         ],
         "responses": {
@@ -12368,125 +12409,13 @@
         }
       }
     },
-    "/api/v1/{instance_id}/curation/list": {
+    "/api/v1/{instance_id}/duplicates": {
       "post": {
         "tags": [
           "state"
         ],
-        "summary": "Curation List",
-        "operationId": "curation_list_api_v1__instance_id__curation_list_post",
-        "parameters": [
-          {
-            "name": "instance_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Instance Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CurationListRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CurationListResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Permission error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/{instance_id}/curation/duplicates": {
-      "post": {
-        "tags": [
-          "state"
-        ],
-        "summary": "Curation Duplicates",
-        "operationId": "curation_duplicates_api_v1__instance_id__curation_duplicates_post",
+        "summary": "Duplicates",
+        "operationId": "duplicates_api_v1__instance_id__duplicates_post",
         "parameters": [
           {
             "name": "instance_id",
@@ -12627,454 +12556,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuditResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Permission error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/{instance_id}/curation/overrule": {
-      "post": {
-        "tags": [
-          "state"
-        ],
-        "summary": "Curation Overrule",
-        "operationId": "curation_overrule_api_v1__instance_id__curation_overrule_post",
-        "parameters": [
-          {
-            "name": "instance_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Instance Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CurationOverruleRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CurationActionResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Permission error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/{instance_id}/curation/accept-fixed": {
-      "post": {
-        "tags": [
-          "state"
-        ],
-        "summary": "Curation Accept Fixed",
-        "operationId": "curation_accept_fixed_api_v1__instance_id__curation_accept_fixed_post",
-        "parameters": [
-          {
-            "name": "instance_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Instance Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CurationAcceptFixedRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CurationActionResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Permission error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/{instance_id}/curation/suppress": {
-      "post": {
-        "tags": [
-          "state"
-        ],
-        "summary": "Curation Suppress",
-        "operationId": "curation_suppress_api_v1__instance_id__curation_suppress_post",
-        "parameters": [
-          {
-            "name": "instance_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Instance Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CurationSuppressRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CurationActionResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Permission error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/{instance_id}/curation/unsuppress": {
-      "post": {
-        "tags": [
-          "state"
-        ],
-        "summary": "Curation Unsuppress",
-        "operationId": "curation_unsuppress_api_v1__instance_id__curation_unsuppress_post",
-        "parameters": [
-          {
-            "name": "instance_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Instance Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CurationUnsuppressRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CurationActionResult"
                 }
               }
             }
@@ -14007,12 +13488,11 @@
             "maxLength": 128,
             "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
             "title": "Action",
-            "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry, curation.detect.",
+            "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry.",
             "examples": [
               "floor.refresh",
               "evidence.sweep",
-              "prediction.anchor_retry",
-              "curation.detect"
+              "prediction.anchor_retry"
             ]
           },
           "wait": {
@@ -14083,12 +13563,11 @@
             "maxLength": 128,
             "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
             "title": "Action",
-            "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry, curation.detect.",
+            "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry.",
             "examples": [
               "floor.refresh",
               "evidence.sweep",
-              "prediction.anchor_retry",
-              "curation.detect"
+              "prediction.anchor_retry"
             ]
           }
         },
@@ -14136,6 +13615,17 @@
           },
           "workspace_advertisement": {
             "$ref": "#/components/schemas/WorkspaceAdvertisement"
+          },
+          "readmits": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readmits"
           }
         },
         "additionalProperties": false,
@@ -14513,8 +14003,20 @@
           },
           "text": {
             "type": "string",
-            "minLength": 1,
-            "title": "Text"
+            "title": "Text",
+            "default": ""
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading",
+            "description": "Heading text; the line is built at its depth and text is the body."
           },
           "name": {
             "anyOf": [
@@ -14533,11 +14035,10 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "file",
-          "text"
+          "file"
         ],
         "title": "AppendSection",
-        "description": "Append a child subtree; a missing file is created with exactly this text."
+        "description": "Append a child subtree, leaving one blank line after it; a missing file is created."
       },
       "ApprovalAttestation": {
         "properties": {
@@ -14625,6 +14126,17 @@
             "type": "boolean",
             "title": "Include Body",
             "default": false
+          },
+          "reviewed_candidate_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed Candidate Digest"
           }
         },
         "additionalProperties": false,
@@ -14826,6 +14338,33 @@
                 "type": "null"
               }
             ]
+          },
+          "readmits": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readmits"
+          },
+          "required_signers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Signers",
+            "default": []
+          },
+          "eligible_signers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Eligible Signers",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -14851,6 +14390,17 @@
             "type": "boolean",
             "title": "Hold",
             "default": false
+          },
+          "reviewed_candidate_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed Candidate Digest"
           }
         },
         "additionalProperties": false,
@@ -15685,6 +15235,9 @@
                 "$ref": "#/components/schemas/ContractAuthoringPayload"
               },
               {
+                "$ref": "#/components/schemas/CapabilityAuthoringPayload"
+              },
+              {
                 "$ref": "#/components/schemas/ChangeSetAuthoringPayload"
               }
             ],
@@ -15693,6 +15246,7 @@
               "propertyName": "tag",
               "mapping": {
                 "cruxible-attestation-authoring-payload-v1": "#/components/schemas/AttestationAuthoringPayload",
+                "cruxible-capability-authoring-payload-v1": "#/components/schemas/CapabilityAuthoringPayload",
                 "cruxible-claim-authoring-payload-v4": "#/components/schemas/ClaimAuthoringPayload",
                 "cruxible-contract-authoring-payload-v1": "#/components/schemas/ContractAuthoringPayload",
                 "cruxible-line-authoring-payload-v2": "#/components/schemas/LineAuthoringPayload",
@@ -15932,6 +15486,9 @@
                 "$ref": "#/components/schemas/ContractInput"
               },
               {
+                "$ref": "#/components/schemas/CapabilityInput"
+              },
+              {
                 "$ref": "#/components/schemas/ChangeSetInput"
               }
             ],
@@ -15940,6 +15497,7 @@
               "propertyName": "kind",
               "mapping": {
                 "approval_policy": "#/components/schemas/ApprovalPolicyInput",
+                "capability": "#/components/schemas/CapabilityInput",
                 "change_set": "#/components/schemas/ChangeSetInput",
                 "claim": "#/components/schemas/ClaimInput",
                 "contract": "#/components/schemas/ContractInput",
@@ -16025,6 +15583,9 @@
                 "$ref": "#/components/schemas/ContractInput"
               },
               {
+                "$ref": "#/components/schemas/CapabilityInput"
+              },
+              {
                 "$ref": "#/components/schemas/ChangeSetInput"
               }
             ],
@@ -16033,6 +15594,7 @@
               "propertyName": "kind",
               "mapping": {
                 "approval_policy": "#/components/schemas/ApprovalPolicyInput",
+                "capability": "#/components/schemas/CapabilityInput",
                 "change_set": "#/components/schemas/ChangeSetInput",
                 "claim": "#/components/schemas/ClaimInput",
                 "contract": "#/components/schemas/ContractInput",
@@ -16139,6 +15701,9 @@
                 "$ref": "#/components/schemas/ContractAuthoringPayload"
               },
               {
+                "$ref": "#/components/schemas/CapabilityAuthoringPayload"
+              },
+              {
                 "$ref": "#/components/schemas/ChangeSetAuthoringPayload"
               }
             ],
@@ -16147,6 +15712,7 @@
               "propertyName": "tag",
               "mapping": {
                 "cruxible-attestation-authoring-payload-v1": "#/components/schemas/AttestationAuthoringPayload",
+                "cruxible-capability-authoring-payload-v1": "#/components/schemas/CapabilityAuthoringPayload",
                 "cruxible-claim-authoring-payload-v4": "#/components/schemas/ClaimAuthoringPayload",
                 "cruxible-contract-authoring-payload-v1": "#/components/schemas/ContractAuthoringPayload",
                 "cruxible-line-authoring-payload-v2": "#/components/schemas/LineAuthoringPayload",
@@ -16286,6 +15852,11 @@
           },
           "accepted_coordinate": {
             "$ref": "#/components/schemas/AcceptedCoordinate"
+          },
+          "unchanged": {
+            "type": "boolean",
+            "title": "Unchanged",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -16386,6 +15957,11 @@
                 "type": "null"
               }
             ]
+          },
+          "unchanged": {
+            "type": "boolean",
+            "title": "Unchanged",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -16452,7 +16028,6 @@
               "independent_approval_required",
               "activation_not_permitted",
               "accept_never",
-              "preflight_refused",
               "not_ready_to_activate",
               "head_moved"
             ],
@@ -16472,6 +16047,16 @@
               }
             ],
             "title": "Next"
+          },
+          "next_repair": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepairOperation"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -16481,7 +16066,7 @@
           "message"
         ],
         "title": "AuthoringProposed",
-        "description": "Why submit stopped; a refused preflight has no proposal yet."
+        "description": "Why submit stopped short of landing a proposal it made, or one not yet ready."
       },
       "AuthoringReferenceExpectation": {
         "properties": {
@@ -16565,6 +16150,54 @@
         ],
         "title": "AuthoringRefusal",
         "description": "Why this actor cannot author, and the runnable repair."
+      },
+      "AuthoringRefused": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "refused",
+            "title": "Status",
+            "default": "refused"
+          },
+          "reason": {
+            "type": "string",
+            "const": "preflight_refused",
+            "title": "Reason",
+            "default": "preflight_refused"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          },
+          "next_repair": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepairOperation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "AuthoringRefused",
+        "description": "Submit proposed nothing: the payload failed its preflight.\n\nThe intent's preflight diagnostics name each fault. Preflight already\nre-checks a refused intent at the head, so running it again changes\nnothing: the repair is a revised payload, resubmitted to the same intent."
       },
       "AuthoringSlotExpectation": {
         "properties": {
@@ -16663,6 +16296,9 @@
               },
               {
                 "$ref": "#/components/schemas/AuthoringProposed"
+              },
+              {
+                "$ref": "#/components/schemas/AuthoringRefused"
               }
             ],
             "title": "Outcome",
@@ -16670,9 +16306,18 @@
               "propertyName": "status",
               "mapping": {
                 "landed": "#/components/schemas/AuthoringLanded",
-                "proposed": "#/components/schemas/AuthoringProposed"
+                "proposed": "#/components/schemas/AuthoringProposed",
+                "refused": "#/components/schemas/AuthoringRefused"
               }
             }
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "default": []
           },
           "intent": {
             "additionalProperties": true,
@@ -17930,7 +17575,7 @@
           "as"
         ],
         "title": "CallNode",
-        "description": "A typed call: the slot names the signature; the Line names the operation.\n\n``captures`` pins, for each ``capture<K>`` field of the slot's out Contract,\nthe accepted CaptureContract the field's bytes are committed as (``K``\nitself, or any CaptureContract for the generic ``capture<workspace.file>``\nof the core-served read). A call with captures acquires: its capture\nfields are committed byte-exact as Captures and its other fields are\nnormalized, and its value names each Capture by digest."
+        "description": "A typed call: the slot names the capability; the Line names the operation.\n\n``captures`` pins, for each ``capture<K>`` field of the slot's out Contract,\nthe accepted CaptureContract the field's bytes are committed as (``K``\nitself, or any CaptureContract for a generic ``capture<*>``, such as a\nworkspace read's). A call with captures acquires: its capture\nfields are committed byte-exact as Captures and its other fields are\nnormalized, and its value names each Capture by digest."
       },
       "CallRunSummary": {
         "properties": {
@@ -18129,6 +17774,169 @@
         ],
         "title": "CanonicalDuration"
       },
+      "CapabilityAuthoringPayload": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-capability-authoring-payload-v1",
+            "title": "Tag",
+            "default": "cruxible-capability-authoring-payload-v1"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 999999999.0,
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "pure",
+              "external_read",
+              "external_mutation"
+            ],
+            "title": "Effect"
+          },
+          "in": {
+            "$ref": "#/components/schemas/ContractRef"
+          },
+          "out": {
+            "$ref": "#/components/schemas/ContractRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "description",
+          "effect",
+          "in",
+          "out"
+        ],
+        "title": "CapabilityAuthoringPayload",
+        "description": "One Capability version: a named, immutable kind of call a Procedure slot names.\n\n``in`` is the Contract a slot sends and ``out`` the Contract it receives,\neach written ``name@N``. Lowering writes ``capabilities/<name>/v<version>.json``,\npins both to the accepted Contract versions' digests, and names version N-1\nas the predecessor of every later version. Every version of one name has the\nsame ``effect``. An accepted version never changes; author the next."
+      },
+      "CapabilityInput": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "capability",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The capability name, e.g. 'security.osv.match'."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "description": "The version this declares, starting at 1."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "What the capability does, led by its result; covered by its digest."
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "pure",
+              "external_read",
+              "external_mutation"
+            ],
+            "title": "Effect",
+            "description": "pure, external_read or external_mutation; fixed across versions."
+          },
+          "in": {
+            "type": "string",
+            "title": "In",
+            "description": "The request Contract, 'name@N'."
+          },
+          "out": {
+            "type": "string",
+            "title": "Out",
+            "description": "The result Contract, 'name@N'."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "version",
+          "description",
+          "effect",
+          "in",
+          "out"
+        ],
+        "title": "CapabilityInput",
+        "description": "One Capability version: a named, immutable kind of call a Procedure slot names.\n\n``in`` is the request Contract a slot sends and ``out`` the result Contract\nit receives back, each an accepted Contract written ``name@N`` (accepted\nearlier or in the same change set). ``effect`` is the same for every version\nof one name; a different effect is a different capability. Version 1 starts\na capability; version N names version N-1 as its predecessor. An accepted\nversion never changes: author the next."
+      },
+      "CapabilityRef": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 999999999.0,
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "version"
+        ],
+        "title": "CapabilityRef",
+        "description": "A pin to one capability version. Authors write ``name@N``; acceptance adds the digest."
+      },
+      "CapabilitySlot": {
+        "properties": {
+          "capability": {
+            "$ref": "#/components/schemas/CapabilityRef"
+          },
+          "may_truncate": {
+            "type": "boolean",
+            "title": "May Truncate",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capability"
+        ],
+        "title": "CapabilitySlot",
+        "description": "One binding point a Procedure declares: the capability version its operation serves.\n\n``may_truncate`` declares that the slot treats its result as possibly\nincomplete; an operation that may truncate binds only such a slot."
+      },
       "CaptureAdmissionAccount": {
         "properties": {
           "tag": {
@@ -18285,6 +18093,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/CaptureDecoding"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "layout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaptureLayout"
               },
               {
                 "type": "null"
@@ -18543,6 +18361,17 @@
               }
             ],
             "description": "How the bytes decode for an extract: {format: json|csv|text|bytes, encoding: identity|gzip, csv?: {comment_prefix, header}, limits: {decoded_bytes, depth, records}}. Required for any CaptureContract an extract reads."
+          },
+          "layout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaptureLayout"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The documents' declared shape, which an extract names: {header?: {<name>: <field rule>}, records: {<set>: {at, key?: {<part>: <field rule>}, row: 'name@N', fields: {<row field>: <field rule>}, count_at?}}}. A field rule is {at, type?, parse?, project?, canonicalize?, presence?}. Needs a json or csv decoding; a successor may only add header fields, record sets and optional row fields."
           },
           "body_access": {
             "anyOf": [
@@ -19357,6 +19186,34 @@
         "title": "CaptureLandingByNameSchedule",
         "description": "Resolve a live CaptureContract at prepare; accepted Triggers retain its name."
       },
+      "CaptureLayout": {
+        "properties": {
+          "header": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ExtractField"
+            },
+            "type": "object",
+            "maxProperties": 64,
+            "title": "Header"
+          },
+          "records": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LayoutRecordSet"
+            },
+            "type": "object",
+            "maxProperties": 64,
+            "minProperties": 1,
+            "title": "Records"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "records"
+        ],
+        "title": "CaptureLayout",
+        "description": "A CaptureKind's declared document shape: header fields and named record sets."
+      },
       "CaptureRead": {
         "properties": {
           "tag": {
@@ -20121,6 +19978,36 @@
         ],
         "title": "CasSourceReference"
       },
+      "CataloguedFile": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "minLength": 1,
+            "title": "File",
+            "description": "Its path from the workspace root."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "The catalog name it was added under."
+          },
+          "written": {
+            "type": "boolean",
+            "title": "Written",
+            "description": "False on a dry run: it would be catalogued."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "file",
+          "name",
+          "written"
+        ],
+        "title": "CataloguedFile",
+        "description": "A workspace file this write cited and catalogued, as ``files add`` would."
+      },
       "ChangeControlRequest": {
         "properties": {
           "tag": {
@@ -20429,6 +20316,9 @@
                   "$ref": "#/components/schemas/ContractAuthoringPayload"
                 },
                 {
+                  "$ref": "#/components/schemas/CapabilityAuthoringPayload"
+                },
+                {
                   "$ref": "#/components/schemas/ProcedureAuthoringPayload"
                 }
               ],
@@ -20436,6 +20326,7 @@
                 "propertyName": "tag",
                 "mapping": {
                   "cruxible-attestation-authoring-payload-v1": "#/components/schemas/AttestationAuthoringPayload",
+                  "cruxible-capability-authoring-payload-v1": "#/components/schemas/CapabilityAuthoringPayload",
                   "cruxible-claim-authoring-payload-v4": "#/components/schemas/ClaimAuthoringPayload",
                   "cruxible-contract-authoring-payload-v1": "#/components/schemas/ContractAuthoringPayload",
                   "cruxible-line-authoring-payload-v2": "#/components/schemas/LineAuthoringPayload",
@@ -20538,6 +20429,9 @@
                   "$ref": "#/components/schemas/ContractInput"
                 },
                 {
+                  "$ref": "#/components/schemas/CapabilityInput"
+                },
+                {
                   "$ref": "#/components/schemas/ProcedureInput"
                 }
               ],
@@ -20545,6 +20439,7 @@
                 "propertyName": "kind",
                 "mapping": {
                   "approval_policy": "#/components/schemas/ApprovalPolicyInput",
+                  "capability": "#/components/schemas/CapabilityInput",
                   "claim": "#/components/schemas/ClaimInput",
                   "claim_retirement": "#/components/schemas/ClaimRetirementInput",
                   "claim_type": "#/components/schemas/ClaimTypeInput",
@@ -21821,6 +21716,12 @@
       },
       "ClaimInverseInput": {
         "properties": {
+          "tag": {
+            "type": "string",
+            "const": "cruxible-claim-inverse-v1",
+            "title": "Tag",
+            "default": "cruxible-claim-inverse-v1"
+          },
           "key": {
             "oneOf": [
               {
@@ -21883,7 +21784,7 @@
           "evidence_rules"
         ],
         "title": "ClaimInverseInput",
-        "description": "How the type states that a unit holds nothing.\n\n``key`` names the unit: ``{kind: slot}`` for a one-valued type,\n``{kind: object}`` or ``{kind: object_key, predicate}`` (a key ClaimType of\nevery object SubjectKind) for a many-valued one. ``evidence_rules`` are ids\nof the type's own evidence rules, in any order; only a Capture one of them\nadmits establishes a none. ``stale_after`` takes ``P7D`` (absent: the type's\nevidence freshness applies)."
+        "description": "How the type states that a unit holds nothing.\n\n``key`` names the unit: ``{kind: slot}`` for a one-valued type,\n``{kind: object}`` or ``{kind: object_key, predicate}`` (a key ClaimType of\nevery object SubjectKind) for a many-valued one. ``evidence_rules`` are ids\nof the type's own evidence rules, in any order; only a Capture one of them\nadmits establishes a none. ``stale_after`` takes ``P7D`` (absent: the type's\nevidence freshness applies). ``tag`` may be left out; it is accepted so a\nstored ClaimType's own inverse is also its input form."
       },
       "ClaimInverseObjectKey": {
         "properties": {
@@ -23882,6 +23783,20 @@
               }
             ]
           },
+          "evidence": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
           "anticipated_source_ids": {
             "items": {
               "type": "string"
@@ -23897,7 +23812,7 @@
           "predicate"
         ],
         "title": "ClaimTypeInputRecord",
-        "description": "One ClaimType, as authored: state what differs from the defaults.\n\nA new ClaimType states ``predicate`` and ``cardinality``. The predicate's\nprefix before its last dot supplies ``allowed_subject_kinds``; state it for\na multi-kind field. ``value`` declares a native Contract field type;\nomitted, it is ``string{max_len: 256}``. Subject-valued fields state\n``subject<K>`` or ``subject<K1 | K2>``. Prose belongs in Documents.\nEvery other field takes its default, written out in full in the stored ClaimType\n(``cruxible claim-type propose --template --expanded`` prints them):\n\n- ``permitted_roles``: ``[default_role]`` when one is stated, else\n  ``[normative]``.\n- ``evidence_admission_policy``: with ``evidence_requirement`` ``self`` (the\n  default) or ``none``, one own-words rule (``self``, contract\n  ``cruxible.coordinator-self-source-v1``) for every permitted role but\n  ``derivation``, plus one rule per ``anticipated_source_ids`` entry; with\n  ``captured``, the source rules only.\n- ``admission_policy``: no corroboration or freeze requirements.\n- ``resolution_policy``: supported, current Claims; ``only_contender``\n  (one) or ``all`` (many); a conflict leaves the field unresolved.\n- ``evidence_requirement``: ``captured`` for exactly ``[observation]``\n  (which requires a source or explicit evidence policy), otherwise ``self``.\n  ``revision_evidence``: ``replace``.\n- ``canonical_form``: ``[nfc, trim]`` for string literals, enum included;\n  state ``[]`` for no transforms. Other object types have no default form.\n\nAn edit (a predicate this instance already holds) follows JSON merge-patch\n(RFC 7396) against the accepted predecessor for every field but\n``predicate``: a field left out keeps the predecessor's value, so an\nunrelated edit never drops what the type means or how it is backed. An\nexplicit ``null`` clears a field that may be empty (``evidence_freshness``,\n``attestation_consequence_policy``,\n``unsure_hold_for``, ``description``, ``member_descriptions`` (``[]`` too),\n``default_role``, ``canonical_form``, ``inverse``); the others always have a value, so\nthey are named or left out, never ``null``. Durations (``evidence_freshness.stale_after``,\n``unsure_hold_for``) take ISO-8601 (``P30D``) or ``{microseconds: N}``.\nA rule names a contract by its public or stored name."
+        "description": "One ClaimType, as authored: state what differs from the defaults.\n\nA new ClaimType states ``predicate`` and ``cardinality``. The predicate's\nprefix before its last dot supplies ``allowed_subject_kinds``; state it for\na multi-kind field. ``value`` declares a native Contract field type;\nomitted, it is ``string{max_len: 256}``. Subject-valued fields state\n``subject<K>`` or ``subject<K1 | K2>``. Prose belongs in Documents.\nEvery other field takes its default, written out in full in the stored ClaimType\n(``cruxible claim-type propose --template --expanded`` prints them):\n\n- ``permitted_roles``: ``[default_role]`` when one is stated, else\n  ``[normative]``.\n- ``evidence_admission_policy``: with ``evidence_requirement`` ``self`` (the\n  default) or ``none``, one own-words rule (``self``, contract\n  ``cruxible.coordinator-self-source-v1``) for every permitted role but\n  ``derivation``, which also admits workspace file and section citations;\n  plus, for ``evidence: [<contract>, ...]``, one rule admitting those shaped\n  contracts (derivationally for ``derivation``); with ``captured``, the\n  ``evidence`` rules only.\n- ``admission_policy``: no corroboration or freeze requirements.\n- ``resolution_policy``: supported, current Claims; ``only_contender``\n  (one) or ``all`` (many); a conflict leaves the field unresolved.\n- ``evidence_requirement``: ``captured`` for exactly ``[observation]``\n  (which requires a source or explicit evidence policy), otherwise ``self``.\n  ``revision_evidence``: ``replace``.\n- ``canonical_form``: ``[nfc, trim]`` for string literals, enum included;\n  state ``[]`` for no transforms. Other object types have no default form.\n\nAn edit (a predicate this instance already holds) follows JSON merge-patch\n(RFC 7396) against the accepted predecessor for every field but\n``predicate``: a field left out keeps the predecessor's value, so an\nunrelated edit never drops what the type means or how it is backed. An\nexplicit ``null`` clears a field that may be empty (``evidence_freshness``,\n``attestation_consequence_policy``,\n``unsure_hold_for``, ``description``, ``member_descriptions`` (``[]`` too),\n``default_role``, ``canonical_form``, ``inverse``); the others always have a value, so\nthey are named or left out, never ``null``. Durations (``evidence_freshness.stale_after``,\n``unsure_hold_for``) take ISO-8601 (``P30D``) or ``{microseconds: N}``.\nA rule names a contract by its public or stored name."
       },
       "ClaimTypeLintWarning": {
         "properties": {
@@ -23912,7 +23827,10 @@
               "cruxible.claim_type.inverse_on_enum_or_boolean",
               "cruxible.claim_type.stale_eligible_never_current",
               "cruxible.claim_type.description_missing",
-              "cruxible.claim_type.subject_kind_undeclared"
+              "cruxible.claim_type.subject_kind_undeclared",
+              "cruxible.claim_type.field_restates_ledger",
+              "cruxible.claim_type.string_holds_prose",
+              "cruxible.claim_type.enum_members_name_things"
             ],
             "title": "Code"
           },
@@ -23957,6 +23875,17 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Replacement Rule Fragment"
+          },
+          "artifact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact"
           }
         },
         "additionalProperties": false,
@@ -24129,6 +24058,15 @@
             "type": "array",
             "title": "Dependents",
             "default": []
+          },
+          "accept": {
+            "type": "string",
+            "enum": [
+              "if_allowed",
+              "never"
+            ],
+            "title": "Accept",
+            "default": "if_allowed"
           }
         },
         "additionalProperties": false,
@@ -24314,6 +24252,23 @@
             "title": "Carry All",
             "description": "Carry every closure member dependents does not name to the successor, computed by the daemon (retired Claims included); dependents then names only exceptions.",
             "default": false
+          },
+          "retire_dependents": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "was-rescinded",
+                  "was-wrong",
+                  "superseded"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retire Dependents",
+            "description": "Retire every live Claim of the closure dependents does not name, with this reason, and carry the rest; what retiring a ClaimType (a retired successor) owes its dependents."
           }
         },
         "additionalProperties": false,
@@ -24348,6 +24303,22 @@
             "type": "boolean",
             "title": "Carry All",
             "default": false
+          },
+          "retire_dependents": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "was-rescinded",
+                  "was-wrong",
+                  "superseded"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retire Dependents"
           }
         },
         "additionalProperties": false,
@@ -24356,7 +24327,7 @@
           "successor"
         ],
         "title": "ClaimTypeSuccessionMember",
-        "description": "One ClaimType succession, its whole closure disposed, as one member.\n\nEvolving a committed vocabulary is one epistemic move -- \"I need this\ndistinction, and here is everything it changes\" -- so it is one member of\none change set, and it admits or refuses with the Claims that speak the new\nvocabulary rather than days after them.\n\n`successor` is a whole ClaimType that names its predecessor by identity and\npins its exact digest, which is what makes it a succession rather than the\ndefinition `ClaimTypeAuthoringPayload` carries. `dependents` is the exact\nreverse-pin closure of the predecessor over the staged tree -- the accepted\ntree as this set's definition members left it -- and a closure that is not\nexact refuses. Sibling Claims are not in it: members lower in dependency\norder, so a Claim of the succeeded predicate authored in this same set is\nlowered under the successor and lands as an ordinary member."
+        "description": "One ClaimType succession, its whole closure disposed, as one member.\n\nEvolving a committed vocabulary is one epistemic move -- \"I need this\ndistinction, and here is everything it changes\" -- so it is one member of\none change set, and it admits or refuses with the Claims that speak the new\nvocabulary rather than days after them.\n\n`successor` is a whole ClaimType that names its predecessor by identity and\npins its exact digest, which is what makes it a succession rather than the\ndefinition `ClaimTypeAuthoringPayload` carries. A retired successor retires\nthe ClaimType; its live Claims must then retire with it\n(`retire_dependents`). `dependents` is the exact reverse-pin closure of the\npredecessor over the staged tree -- the accepted tree as this set's\ndefinition members left it -- and a closure that is not exact refuses.\nSibling Claims are not in it: members lower in dependency order, so a Claim\nof the succeeded predicate authored in this same set is lowered under the\nsuccessor and lands as an ordinary member."
       },
       "ClaimVersionReference": {
         "properties": {
@@ -24825,6 +24796,28 @@
             "minimum": 0.0,
             "title": "Re Observed"
           },
+          "reobservations_refused": {
+            "additionalProperties": {
+              "type": "integer",
+              "maximum": 9007199254740991.0,
+              "minimum": 0.0
+            },
+            "propertyNames": {
+              "enum": [
+                "capture_not_admitted",
+                "claim_absent",
+                "claim_not_live",
+                "capture_already_cited",
+                "extraction_differs",
+                "absence_witness_unverified",
+                "content_not_cited",
+                "head_moved",
+                "observed_after_recording"
+              ]
+            },
+            "type": "object",
+            "title": "Reobservations Refused"
+          },
           "no_op": {
             "type": "integer",
             "maximum": 9007199254740991.0,
@@ -24896,7 +24889,7 @@
           "delivery"
         ],
         "title": "ClaimsRunSummary",
-        "description": "One claims terminal: what it wrote, kept, retired, surfaced and skipped.\n\n``written`` and ``revised`` count new and revising Claims, ``inverse_written``\nthe declared-inverse Claims (written or revising) apart from them, and\n``subjects_created`` the Subjects created by key. ``re_observed`` counts\nheld Claims a new Capture re-confirmed, ``no_op`` restatements that changed\nnothing at all. ``downgraded`` counts values written as the ClaimType's\nunknown member over incomplete input. ``surfaced`` counts held Claims a\nsource no longer contains that were reported instead of retired;\n``skipped`` counts the other findings, by kind (an item not written, or an\nincomplete source). ``delivery`` is how the change landed."
+        "description": "One claims terminal: what it wrote, kept, retired, surfaced and skipped.\n\n``written`` and ``revised`` count new and revising Claims, ``inverse_written``\nthe declared-inverse Claims (written or revising) apart from them, and\n``subjects_created`` the Subjects created by key. ``re_observed`` counts\nheld Claims a new Capture re-confirmed and whose re-observation was\nrecorded; ``reobservations_refused`` counts, by reason, the ones whose\nre-observation the record refused (the Claim is unchanged, but its content\nwas not observed again). ``no_op`` counts restatements that changed\nnothing at all. ``downgraded`` counts values written as the ClaimType's\nunknown member over incomplete input. ``surfaced`` counts held Claims a\nsource no longer contains that were reported instead of retired;\n``skipped`` counts the other findings, by kind (an item not written, or an\nincomplete source). ``delivery`` is how the change landed."
       },
       "ClaimsStep": {
         "properties": {
@@ -25336,23 +25329,6 @@
         "additionalProperties": false,
         "type": "object",
         "title": "CompilerUpgradeRequest"
-      },
-      "CompleteWhen": {
-        "properties": {
-          "count_at": {
-            "type": "string",
-            "maxLength": 512,
-            "minLength": 1,
-            "title": "Count At"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "count_at"
-        ],
-        "title": "CompleteWhen",
-        "description": "The extract is complete only when the count stated at ``count_at`` is the records read."
       },
       "CompleteWhenResult": {
         "properties": {
@@ -26112,6 +26088,25 @@
                 "type": "boolean"
               },
               {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreatedSubject"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
                 "items": {
                   "$ref": "#/components/schemas/CreateKeyPart"
                 },
@@ -26122,7 +26117,7 @@
               }
             ],
             "title": "Key",
-            "description": "One key value, or parts {\"predicate\", \"value\"}; none for a minted kind."
+            "description": "One value, {field: value}, or [{\"predicate\", \"value\"}]; none if minted."
           },
           "create_new": {
             "type": "boolean",
@@ -26135,6 +26130,61 @@
             "title": "Expect New",
             "description": "Refuse subject_exists if the key has a live holder.",
             "default": false
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normative",
+                  "observation",
+                  "environment_binding"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "The key Claims' role, when the key field permits more than one."
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SelfEvidence"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CaptureEvidence"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FileEvidence"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ContractEvidence"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SectionEvidence"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "capture": "#/components/schemas/CaptureEvidence",
+                    "contract": "#/components/schemas/ContractEvidence",
+                    "file": "#/components/schemas/FileEvidence",
+                    "section": "#/components/schemas/SectionEvidence",
+                    "self": "#/components/schemas/SelfEvidence"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence",
+            "description": "What the key Claims cite, as a set's evidence: a section (one this write appends: its text is the author's own words), a file, a Capture, or self. Default: the write's `because`."
           }
         },
         "additionalProperties": false,
@@ -26224,579 +26274,6 @@
         ],
         "title": "CronSchedule",
         "description": "Fire at each instant a standard five-field cron expression names, in UTC.\n\n``minute hour day-of-month month day-of-week``, always read as UTC: no host\ntimezone database enters an instant, and a schedule names no timezone. The\nTrigger law refuses an expression the grammar does not admit; see\n``cruxible_client.contracts.cron``."
-      },
-      "CurationAcceptFixedRequest": {
-        "properties": {
-          "tag": {
-            "type": "string",
-            "const": "playbill-curation-accept-fixed-request-v1",
-            "title": "Tag",
-            "default": "playbill-curation-accept-fixed-request-v1"
-          },
-          "item_id": {
-            "type": "string",
-            "title": "Item Id"
-          },
-          "expected_latest_event_digest": {
-            "type": "string",
-            "title": "Expected Latest Event Digest"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "accepted_proposal_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accepted Proposal Id"
-          },
-          "accepted_changeset_digest": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accepted Changeset Digest"
-          },
-          "accepted_generation": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Accepted Generation"
-          },
-          "attribution_refs": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Attribution Refs",
-            "default": []
-          },
-          "dry_run": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dry Run",
-            "description": "true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews)."
-          },
-          "at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[0-9a-f]{12,64}$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "At",
-            "description": "The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "item_id",
-          "expected_latest_event_digest",
-          "reason"
-        ],
-        "title": "CurationAcceptFixedRequest"
-      },
-      "CurationActionResult": {
-        "properties": {
-          "tag": {
-            "type": "string",
-            "const": "playbill-curation-action-result-v1",
-            "title": "Tag",
-            "default": "playbill-curation-action-result-v1"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "recorded",
-              "would_record"
-            ],
-            "title": "Status",
-            "default": "recorded"
-          },
-          "coordinate": {
-            "$ref": "#/components/schemas/AcceptedCoordinate"
-          },
-          "generation": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Generation"
-          },
-          "operational_head_digest": {
-            "type": "string",
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Operational Head Digest"
-          },
-          "item": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Item"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "coordinate",
-          "generation",
-          "operational_head_digest",
-          "item"
-        ],
-        "title": "CurationActionResult",
-        "description": "One attributed append-only curation lifecycle transition."
-      },
-      "CurationDetection": {
-        "properties": {
-          "state": {
-            "type": "string",
-            "enum": [
-              "current",
-              "behind",
-              "never_run"
-            ],
-            "title": "State"
-          },
-          "trigger": {
-            "type": "string",
-            "enum": [
-              "live",
-              "missing"
-            ],
-            "title": "Trigger"
-          },
-          "detected_through_generation": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Detected Through Generation"
-          },
-          "detected_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Detected At"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "state",
-          "trigger"
-        ],
-        "title": "CurationDetection",
-        "description": "When curation detection last ran and whether it has caught up with the head.\n\nDetection runs as the ``curation.detect`` internal action on accepted\ngenerations; ``trigger`` says whether a live Trigger fires it."
-      },
-      "CurationInactiveDetector": {
-        "properties": {
-          "pattern_kind": {
-            "type": "string",
-            "title": "Pattern Kind"
-          },
-          "reason": {
-            "type": "string",
-            "enum": [
-              "consumption_receipts_off",
-              "no_block_observations"
-            ],
-            "title": "Reason"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "pattern_kind",
-          "reason"
-        ],
-        "title": "CurationInactiveDetector",
-        "description": "A detector that cannot find anything on this instance, and why."
-      },
-      "CurationListRequest": {
-        "properties": {
-          "tag": {
-            "type": "string",
-            "const": "playbill-curation-list-request-v1",
-            "title": "Tag",
-            "default": "playbill-curation-list-request-v1"
-          },
-          "access_profile": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Access Profile"
-          },
-          "limit": {
-            "type": "integer",
-            "maximum": 200.0,
-            "minimum": 1.0,
-            "title": "Limit",
-            "default": 25
-          },
-          "cursor": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 4096
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cursor"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "access_profile"
-        ],
-        "title": "CurationListRequest"
-      },
-      "CurationListResult": {
-        "properties": {
-          "tag": {
-            "type": "string",
-            "const": "playbill-curation-list-result-v1",
-            "title": "Tag",
-            "default": "playbill-curation-list-result-v1"
-          },
-          "coordinate": {
-            "$ref": "#/components/schemas/AcceptedCoordinate"
-          },
-          "generation": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Generation"
-          },
-          "operational_head_digest": {
-            "type": "string",
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Operational Head Digest"
-          },
-          "items": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "detection": {
-            "$ref": "#/components/schemas/CurationDetection"
-          },
-          "detector_coverage": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Detector Coverage"
-          },
-          "inactive_detectors": {
-            "items": {
-              "$ref": "#/components/schemas/CurationInactiveDetector"
-            },
-            "type": "array",
-            "title": "Inactive Detectors"
-          },
-          "observation_coverage": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Observation Coverage"
-          },
-          "truncated": {
-            "type": "boolean",
-            "title": "Truncated",
-            "default": false
-          },
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Cursor"
-          },
-          "result_digest": {
-            "type": "string",
-            "pattern": "^sha256:[0-9a-f]{64}$",
-            "title": "Result Digest"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "coordinate",
-          "generation",
-          "operational_head_digest",
-          "detection",
-          "detector_coverage",
-          "result_digest"
-        ],
-        "title": "CurationListResult",
-        "description": "One page of the curation queue as detection last recorded it; a pure read."
-      },
-      "CurationOverruleRequest": {
-        "properties": {
-          "tag": {
-            "type": "string",
-            "const": "playbill-curation-overrule-request-v1",
-            "title": "Tag",
-            "default": "playbill-curation-overrule-request-v1"
-          },
-          "item_id": {
-            "type": "string",
-            "title": "Item Id"
-          },
-          "expected_latest_event_digest": {
-            "type": "string",
-            "title": "Expected Latest Event Digest"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "attribution_refs": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Attribution Refs",
-            "default": []
-          },
-          "dry_run": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dry Run",
-            "description": "true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews)."
-          },
-          "at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[0-9a-f]{12,64}$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "At",
-            "description": "The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "item_id",
-          "expected_latest_event_digest",
-          "reason"
-        ],
-        "title": "CurationOverruleRequest"
-      },
-      "CurationSuppressRequest": {
-        "properties": {
-          "tag": {
-            "type": "string",
-            "const": "playbill-curation-suppress-request-v1",
-            "title": "Tag",
-            "default": "playbill-curation-suppress-request-v1"
-          },
-          "item_id": {
-            "type": "string",
-            "title": "Item Id"
-          },
-          "expected_latest_event_digest": {
-            "type": "string",
-            "title": "Expected Latest Event Digest"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "scope": {
-            "type": "string",
-            "enum": [
-              "item",
-              "lineage"
-            ],
-            "title": "Scope"
-          },
-          "until_generation": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Until Generation"
-          },
-          "attribution_refs": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Attribution Refs",
-            "default": []
-          },
-          "dry_run": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dry Run",
-            "description": "true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews)."
-          },
-          "at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[0-9a-f]{12,64}$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "At",
-            "description": "The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "item_id",
-          "expected_latest_event_digest",
-          "reason",
-          "scope"
-        ],
-        "title": "CurationSuppressRequest"
-      },
-      "CurationUnsuppressRequest": {
-        "properties": {
-          "tag": {
-            "type": "string",
-            "const": "playbill-curation-unsuppress-request-v1",
-            "title": "Tag",
-            "default": "playbill-curation-unsuppress-request-v1"
-          },
-          "item_id": {
-            "type": "string",
-            "title": "Item Id"
-          },
-          "expected_latest_event_digest": {
-            "type": "string",
-            "title": "Expected Latest Event Digest"
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason"
-          },
-          "suppression_event_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Suppression Event Id"
-          },
-          "attribution_refs": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Attribution Refs",
-            "default": []
-          },
-          "dry_run": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dry Run",
-            "description": "true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews)."
-          },
-          "at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[0-9a-f]{12,64}$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "At",
-            "description": "The coordinate a preview answered with: its git oid, or for a change to operational state its state digest (either may be shortened to a unique prefix of 12+ hex characters). A commit carrying it refuses cruxible.preview.state_moved if that state moved since. Required to commit a change that cannot be undone."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "item_id",
-          "expected_latest_event_digest",
-          "reason"
-        ],
-        "title": "CurationUnsuppressRequest"
       },
       "DateTimeType": {
         "properties": {
@@ -28578,106 +28055,6 @@
         "title": "ExtractField",
         "description": "Where one field is read, and how its lexeme becomes a typed value.\n\n``at`` is a JSON Pointer relative to the record (or to the document, for a\nheader field), or a CSV column name. ``parse`` converts a text lexeme\n(``date``, ``datetime``, ``int``, ``decimal``, ``bool``); ``type`` states\nthe field's type where no row Contract does (keys and header fields);\n``canonicalize: claim_type`` matches an enum member case-insensitively.\n``presence`` overrides the row Contract's optionality. ``project`` reshapes\nthe parsed value: ``utc_date`` (``parse: datetime``) keeps its UTC calendar\nday; ``utc_start_of_day`` (``parse: date``) is that day at 00:00 UTC."
       },
-      "ExtractNode": {
-        "properties": {
-          "kind": {
-            "type": "string",
-            "const": "extract",
-            "title": "Kind",
-            "default": "extract"
-          },
-          "node_id": {
-            "type": "string",
-            "title": "Node Id"
-          },
-          "capture": {
-            "type": "string",
-            "title": "Capture"
-          },
-          "records": {
-            "type": "string",
-            "maxLength": 512,
-            "minLength": 1,
-            "title": "Records"
-          },
-          "complete_when": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CompleteWhen"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "key": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ExtractField"
-            },
-            "type": "object",
-            "title": "Key"
-          },
-          "duplicates": {
-            "type": "string",
-            "enum": [
-              "refuse_run",
-              "refuse_key",
-              "first"
-            ],
-            "title": "Duplicates",
-            "default": "refuse_key"
-          },
-          "only_keys": {
-            "title": "Only Keys"
-          },
-          "row": {
-            "$ref": "#/components/schemas/ContractRef"
-          },
-          "fields": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ExtractField"
-            },
-            "type": "object",
-            "maxProperties": 256,
-            "minProperties": 1,
-            "title": "Fields"
-          },
-          "header": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ExtractField"
-            },
-            "type": "object",
-            "title": "Header"
-          },
-          "as": {
-            "type": "string",
-            "title": "As"
-          },
-          "next": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "node_id",
-          "capture",
-          "records",
-          "row",
-          "fields",
-          "as"
-        ],
-        "title": "ExtractNode",
-        "description": "Read one Capture's records, typed, with per-field results and a completeness verdict."
-      },
       "ExtractRunSummary": {
         "properties": {
           "kind": {
@@ -28736,105 +28113,6 @@
         ],
         "title": "ExtractRunSummary",
         "description": "One extract: the records it read, and what its completeness rests on.\n\n``records`` counts every record read, ``invalid_records`` and\n``duplicates`` those among them that were invalid or a refused duplicate;\n``invalid_fields`` counts the invalid field results of valid records.\n``complete_when`` is the declared count check's result, when one is declared."
-      },
-      "ExtractStep": {
-        "properties": {
-          "id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id"
-          },
-          "next": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next"
-          },
-          "extract": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_]{0,127}$",
-            "title": "Extract"
-          },
-          "capture": {
-            "$ref": "#/components/schemas/Ref"
-          },
-          "records": {
-            "type": "string",
-            "title": "Records"
-          },
-          "row": {
-            "type": "string",
-            "title": "Row"
-          },
-          "fields": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ExtractField"
-            },
-            "type": "object",
-            "title": "Fields"
-          },
-          "key": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ExtractField"
-            },
-            "type": "object",
-            "title": "Key"
-          },
-          "header": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ExtractField"
-            },
-            "type": "object",
-            "title": "Header"
-          },
-          "complete_when": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CompleteWhen"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "duplicates": {
-            "type": "string",
-            "enum": [
-              "refuse_run",
-              "refuse_key",
-              "first"
-            ],
-            "title": "Duplicates",
-            "default": "refuse_key"
-          },
-          "only_keys": {
-            "$ref": "#/components/schemas/Template-Input"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "extract",
-          "capture",
-          "records",
-          "row",
-          "fields"
-        ],
-        "title": "ExtractStep",
-        "description": "Read one Capture's records, typed: ``capture`` references ``<call>.<capture field>``.\n\n``row`` is the Contract (``name@N``) whose fields the step reads; the rest\nare the extract node's declarations (records, key, fields, header,\ncomplete_when, duplicates, only_keys)."
       },
       "ExtractedBasis": {
         "properties": {
@@ -29179,7 +28457,7 @@
             "type": "string",
             "pattern": "^[^#]+#.+$",
             "title": "File",
-            "description": "PATH#ANCHOR: a catalogued file and text found once in it."
+            "description": "PATH#ANCHOR: a workspace file and text found once in it; the write catalogues the file if it is not yet."
           },
           "observation": {
             "anyOf": [
@@ -30087,6 +29365,65 @@
         "title": "GetBody",
         "description": "A byte range of one Document body; ``body_digest`` names the whole body."
       },
+      "GetCapabilityCard": {
+        "properties": {
+          "capability": {
+            "type": "string",
+            "title": "Capability"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "effect": {
+            "type": "string",
+            "title": "Effect"
+          },
+          "in": {
+            "type": "string",
+            "title": "In"
+          },
+          "out": {
+            "type": "string",
+            "title": "Out"
+          },
+          "predecessor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predecessor"
+          },
+          "next": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capability",
+          "version",
+          "description",
+          "effect",
+          "in",
+          "out"
+        ],
+        "title": "GetCapabilityCard",
+        "description": "One capability version: an immutable kind of call a Procedure slot names."
+      },
       "GetCaptureCard": {
         "properties": {
           "capture": {
@@ -30404,6 +29741,18 @@
             "title": "Status",
             "description": "admitted: the ClaimType's rule admits it and the verdict reads it; not_admitted: offered as evidence, refused by the rule; not_evidence: a copy the rule does not admit, which the verdict never reads."
           },
+          "byte_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Byte Length",
+            "description": "How many bytes the Capture holds, from its commitment (no body read); absent when it commits to no exact bytes or is withheld from this reader."
+          },
           "erased": {
             "anyOf": [
               {
@@ -30602,7 +29951,7 @@
             "type": "integer",
             "title": "Revision"
           },
-          "accepted": {
+          "proposed_at": {
             "anyOf": [
               {
                 "type": "string"
@@ -30611,7 +29960,7 @@
                 "type": "null"
               }
             ],
-            "title": "Accepted"
+            "title": "Proposed At"
           },
           "contenders": {
             "items": {
@@ -30809,6 +30158,26 @@
               }
             ],
             "title": "Kit"
+          },
+          "guidance": {
+            "items": {
+              "$ref": "#/components/schemas/GetGuidance"
+            },
+            "type": "array",
+            "title": "Guidance",
+            "default": []
+          },
+          "guidance_total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance Total"
           },
           "next": {
             "items": {
@@ -31019,6 +30388,26 @@
             "type": "integer",
             "title": "Revision"
           },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/GetDocumentLink"
+            },
+            "type": "array",
+            "title": "Links",
+            "default": []
+          },
+          "links_total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Links Total"
+          },
           "next": {
             "items": {
               "type": "string"
@@ -31039,6 +30428,26 @@
           "revision"
         ],
         "title": "GetDocumentCard"
+      },
+      "GetDocumentLink": {
+        "properties": {
+          "relation": {
+            "type": "string",
+            "title": "Relation"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "relation",
+          "target"
+        ],
+        "title": "GetDocumentLink",
+        "description": "One of a Document's own links: its relation and the identity it names."
       },
       "GetEndPairs": {
         "properties": {
@@ -31209,9 +30618,9 @@
             "pattern": "^[0-9a-f]{12}$",
             "title": "Git Oid"
           },
-          "accepted": {
+          "proposed_at": {
             "type": "string",
-            "title": "Accepted"
+            "title": "Proposed At"
           },
           "actor": {
             "anyOf": [
@@ -31286,7 +30695,7 @@
           "claim",
           "sequence",
           "git_oid",
-          "accepted"
+          "proposed_at"
         ],
         "title": "GetFieldChanged",
         "description": "A revision with a new value; ``before`` is the value it replaced."
@@ -31325,9 +30734,9 @@
             "pattern": "^[0-9a-f]{12}$",
             "title": "Git Oid"
           },
-          "accepted": {
+          "proposed_at": {
             "type": "string",
-            "title": "Accepted"
+            "title": "Proposed At"
           },
           "actor": {
             "anyOf": [
@@ -31413,7 +30822,7 @@
           "claim",
           "sequence",
           "git_oid",
-          "accepted",
+          "proposed_at",
           "replaced",
           "by"
         ],
@@ -31454,9 +30863,9 @@
             "pattern": "^[0-9a-f]{12}$",
             "title": "Git Oid"
           },
-          "accepted": {
+          "proposed_at": {
             "type": "string",
-            "title": "Accepted"
+            "title": "Proposed At"
           },
           "actor": {
             "anyOf": [
@@ -31528,7 +30937,7 @@
           "claim",
           "sequence",
           "git_oid",
-          "accepted"
+          "proposed_at"
         ],
         "title": "GetFieldReobserved",
         "description": "A revision with the same value on new backing (evidence refreshed)."
@@ -31567,9 +30976,9 @@
             "pattern": "^[0-9a-f]{12}$",
             "title": "Git Oid"
           },
-          "accepted": {
+          "proposed_at": {
             "type": "string",
-            "title": "Accepted"
+            "title": "Proposed At"
           },
           "actor": {
             "anyOf": [
@@ -31657,7 +31066,7 @@
           "claim",
           "sequence",
           "git_oid",
-          "accepted"
+          "proposed_at"
         ],
         "title": "GetFieldRetired",
         "description": "The Claim's retirement: the field no longer holds ``value``."
@@ -31696,9 +31105,9 @@
             "pattern": "^[0-9a-f]{12}$",
             "title": "Git Oid"
           },
-          "accepted": {
+          "proposed_at": {
             "type": "string",
-            "title": "Accepted"
+            "title": "Proposed At"
           },
           "actor": {
             "anyOf": [
@@ -31775,10 +31184,37 @@
           "claim",
           "sequence",
           "git_oid",
-          "accepted"
+          "proposed_at"
         ],
         "title": "GetFieldStated",
         "description": "A new Claim lineage: the field's first value, one more of a many-valued field,\nor (``contended``) a competing value beside a live one of a single-value field."
+      },
+      "GetGuidance": {
+        "properties": {
+          "document": {
+            "type": "string",
+            "title": "Document",
+            "description": "The guiding Document, as Document:<name>."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document"
+        ],
+        "title": "GetGuidance",
+        "description": "A governed Document linked ``guides`` a ClaimType or Procedure (D-R17)."
       },
       "GetHistory": {
         "properties": {
@@ -31922,6 +31358,17 @@
           "trigger": {
             "type": "string",
             "title": "Trigger"
+          },
+          "sched": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sched"
           },
           "triggers": {
             "items": {
@@ -32413,6 +31860,76 @@
         "title": "GetNone",
         "description": "One none in a field: a live inverse Claim saying the field holds nothing.\n\n``of`` is the unit it covers: absent for a one-valued field's whole slot,\nelse the value (a Subject as kind/id) or key value the field does not hold."
       },
+      "GetNoteCard": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "section": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Section",
+            "default": []
+          },
+          "about": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "About"
+          },
+          "capture": {
+            "type": "string",
+            "title": "Capture"
+          },
+          "lifecycle": {
+            "type": "string",
+            "title": "Lifecycle"
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note",
+          "about",
+          "capture",
+          "lifecycle"
+        ],
+        "title": "GetNoteCard",
+        "description": "One note: a workspace section linked ``about`` Subjects (never a Claim)."
+      },
       "GetPairEnd": {
         "properties": {
           "part": {
@@ -32502,6 +32019,37 @@
           "waiting_since"
         ],
         "title": "GetPendingInput"
+      },
+      "GetPendingProposal": {
+        "properties": {
+          "proposal": {
+            "type": "string",
+            "title": "Proposal",
+            "description": "The proposal's ID; get and proposal review read it."
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "The Subject's fields it writes."
+          },
+          "by": {
+            "type": "string",
+            "title": "By",
+            "description": "The principal who proposed it."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proposal",
+          "fields",
+          "by"
+        ],
+        "title": "GetPendingProposal",
+        "description": "An open proposal that would write fields of the Subject: not accepted state yet."
       },
       "GetPredictionWindow": {
         "properties": {
@@ -32660,6 +32208,26 @@
             "type": "array",
             "title": "Track Record",
             "default": []
+          },
+          "guidance": {
+            "items": {
+              "$ref": "#/components/schemas/GetGuidance"
+            },
+            "type": "array",
+            "title": "Guidance",
+            "default": []
+          },
+          "guidance_total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance Total"
           },
           "next": {
             "items": {
@@ -33075,6 +32643,50 @@
             ],
             "title": "Reason"
           },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          },
+          "closed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed By"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "closed_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed Reason"
+          },
           "actor": {
             "anyOf": [
               {
@@ -33291,7 +32903,7 @@
           },
           "operations": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/OrientOperation"
             },
             "type": "array",
             "title": "Operations",
@@ -33630,7 +33242,9 @@
               "procedure_runtime_policy",
               "provider",
               "contract",
-              "runbook"
+              "capability",
+              "runbook",
+              "note"
             ],
             "title": "Kind"
           },
@@ -33713,7 +33327,13 @@
                 "$ref": "#/components/schemas/GetContractCard"
               },
               {
+                "$ref": "#/components/schemas/GetCapabilityCard"
+              },
+              {
                 "$ref": "#/components/schemas/GetRunbookCard"
+              },
+              {
+                "$ref": "#/components/schemas/GetNoteCard"
               },
               {
                 "type": "null"
@@ -33917,9 +33537,9 @@
             "pattern": "^[0-9a-f]{12}$",
             "title": "Git Oid"
           },
-          "accepted": {
+          "proposed_at": {
             "type": "string",
-            "title": "Accepted"
+            "title": "Proposed At"
           },
           "actor": {
             "anyOf": [
@@ -34057,7 +33677,7 @@
           "revision",
           "sequence",
           "git_oid",
-          "accepted",
+          "proposed_at",
           "digest"
         ],
         "title": "GetRevision",
@@ -34547,6 +34167,14 @@
             "title": "Pairs",
             "default": []
           },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/GetPendingProposal"
+            },
+            "type": "array",
+            "title": "Pending",
+            "default": []
+          },
           "next": {
             "items": {
               "type": "string"
@@ -34690,7 +34318,7 @@
           "events"
         ],
         "title": "GetSubjectHistory",
-        "description": "A Subject's history: its shell's revisions, and one page of its field events.\n\n``revisions`` are the Subject shell's own (created, pins, retired), all of\nthem. ``events`` are its fields' changes, newest first, one page: each\nrevision of each Claim about the Subject, with what it did and why. Group\nthem by ``field`` for each field's value timeline."
+        "description": "A Subject's history: its shell's revisions, and one page of its field events.\n\n``revisions`` are the Subject shell's own (created, pins, retired), all of\nthem, or none when the read names a ``field``. ``events`` are its fields'\nchanges, newest first, one page: each revision of each Claim about the\nSubject, with what it did and why. Group them by ``field`` for each field's\nvalue timeline."
       },
       "GetSubjectKindCard": {
         "properties": {
@@ -34813,6 +34441,29 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Schedule"
+          },
+          "sched": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sched"
+          },
+          "next_fire": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Fire"
           },
           "target": {
             "type": "string",
@@ -36589,6 +36240,46 @@
         "title": "InboxStep",
         "description": "Post typed items to the Line inbox: ``inbox`` names the item Contract, ``name@N``.\n\n``for_each`` references a list the run produced (each element posts one\nitem, read with ``item`` references); ``fields`` make the item;\n``dedupe_key`` names the fields that are an item's inbox identity."
       },
+      "InitBaseKit": {
+        "properties": {
+          "kit_id": {
+            "type": "string",
+            "title": "Kit Id"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "proposed"
+            ],
+            "title": "Status"
+          },
+          "proposal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kit_id",
+          "version",
+          "status"
+        ],
+        "title": "InitBaseKit",
+        "description": "The base kit creation installs: ``accepted`` at once, or ``proposed`` under\nindependent approval, with the proposal that awaits a second approver."
+      },
       "InitRequest": {
         "properties": {
           "principals": {
@@ -36702,6 +36393,16 @@
                 "type": "null"
               }
             ]
+          },
+          "base_kit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InitBaseKit"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -36740,6 +36441,14 @@
               }
             ],
             "title": "Source"
+          },
+          "requires": {
+            "items": {
+              "$ref": "#/components/schemas/KitRequirementStatus"
+            },
+            "type": "array",
+            "title": "Requires",
+            "default": []
           },
           "drifted": {
             "items": {
@@ -36785,6 +36494,17 @@
               }
             ],
             "title": "Latest Available"
+          },
+          "latest_content_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Content Digest"
           },
           "update_check": {
             "type": "string",
@@ -37216,6 +36936,23 @@
         "title": "KeyType",
         "description": "A Subject key of one kind; core canonicalizes it with the kind's identity rule.\n\nThe value is the key: the bare value for a one-key kind, or a mapping of\nevery key part to its value for a composite one (canonically keyed by each\npart's last name under the kind; a conversion also reads full predicates).\nCore canonicalizes each part with its key ClaimType's canonical form and the\nSubjectKind's normalizer for it."
       },
+      "KeyTypeOverride": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "KeyTypeOverride",
+        "description": "The one override a node may make: a Subject key type for a plain-string key part."
+      },
       "KitAddRequest": {
         "properties": {
           "bundle": {
@@ -37560,6 +37297,11 @@
             ],
             "title": "Proposal Id"
           },
+          "proposal_open": {
+            "type": "boolean",
+            "title": "Proposal Open",
+            "default": false
+          },
           "approval_required": {
             "type": "boolean",
             "title": "Approval Required",
@@ -37609,6 +37351,14 @@
             },
             "type": "array",
             "title": "Providers",
+            "default": []
+          },
+          "requires": {
+            "items": {
+              "$ref": "#/components/schemas/KitRequirementStatus"
+            },
+            "type": "array",
+            "title": "Requires",
             "default": []
           },
           "plan": {
@@ -37722,6 +37472,17 @@
               }
             ],
             "title": "Automation Template Content"
+          },
+          "unchanged": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unchanged"
           }
         },
         "additionalProperties": false,
@@ -37866,6 +37627,7 @@
             "enum": [
               "overwrites_your_edit",
               "re_adds_retired",
+              "consumer_retired",
               "takes_over_outside_definition",
               "replaces_carried_definition",
               "release_dropped"
@@ -37916,6 +37678,14 @@
             },
             "type": "array",
             "title": "Owns"
+          },
+          "requires": {
+            "items": {
+              "$ref": "#/components/schemas/KitRequirement"
+            },
+            "type": "array",
+            "title": "Requires",
+            "default": []
           },
           "artifacts": {
             "items": {
@@ -38068,6 +37838,7 @@
                 "enum": [
                   "overwrites_your_edit",
                   "re_adds_retired",
+                  "consumer_retired",
                   "takes_over_outside_definition",
                   "replaces_carried_definition",
                   "release_dropped"
@@ -38314,7 +38085,8 @@
               "would_install",
               "awaiting_approval",
               "satisfied",
-              "blocked"
+              "blocked",
+              "kept_retired"
             ],
             "title": "Action"
           },
@@ -38401,6 +38173,62 @@
         ],
         "title": "KitRemoveRequest"
       },
+      "KitRequirement": {
+        "properties": {
+          "kit_id": {
+            "type": "string",
+            "title": "Kit Id"
+          },
+          "min_version": {
+            "type": "string",
+            "title": "Min Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kit_id",
+          "min_version"
+        ],
+        "title": "KitRequirement",
+        "description": "One kit this kit requires, at ``min_version`` (MAJOR.MINOR.PATCH) or later."
+      },
+      "KitRequirementStatus": {
+        "properties": {
+          "kit_id": {
+            "type": "string",
+            "title": "Kit Id"
+          },
+          "min_version": {
+            "type": "string",
+            "title": "Min Version"
+          },
+          "installed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed Version"
+          },
+          "met": {
+            "type": "boolean",
+            "title": "Met"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kit_id",
+          "min_version",
+          "met"
+        ],
+        "title": "KitRequirementStatus",
+        "description": "One kit an installed kit requires, and whether this instance meets it."
+      },
       "KitResumeStatus": {
         "properties": {
           "kit_id": {
@@ -38447,6 +38275,16 @@
             ],
             "title": "Proposal Id"
           },
+          "proposal_open": {
+            "type": "boolean",
+            "title": "Proposal Open",
+            "default": false
+          },
+          "proposal_awaiting_readmit": {
+            "type": "boolean",
+            "title": "Proposal Awaiting Readmit",
+            "default": false
+          },
           "detail": {
             "anyOf": [
               {
@@ -38468,6 +38306,17 @@
               }
             ],
             "title": "Source"
+          },
+          "content_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Digest"
           }
         },
         "additionalProperties": false,
@@ -38480,7 +38329,7 @@
           "recorded_at"
         ],
         "title": "KitResumeStatus",
-        "description": "A ``kit add`` that stopped at awaiting_providers and resumes on activation."
+        "description": "A ``kit add`` that stopped at awaiting_providers and resumes on activation, or\none that stopped at its proposal (creation's base kit under independent approval)."
       },
       "KitStatus": {
         "properties": {
@@ -38510,6 +38359,222 @@
         "additionalProperties": false,
         "type": "object",
         "title": "KitStatus"
+      },
+      "LayoutExtractNode": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "extract",
+            "title": "Kind",
+            "default": "extract"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "capture": {
+            "type": "string",
+            "title": "Capture"
+          },
+          "records": {
+            "type": "string",
+            "title": "Records"
+          },
+          "header": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Header",
+            "default": []
+          },
+          "key": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/KeyTypeOverride"
+            },
+            "type": "object",
+            "title": "Key"
+          },
+          "duplicates": {
+            "type": "string",
+            "enum": [
+              "refuse_run",
+              "refuse_key",
+              "first"
+            ],
+            "title": "Duplicates",
+            "default": "refuse_key"
+          },
+          "only_keys": {
+            "title": "Only Keys"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "as": {
+            "type": "string",
+            "title": "As"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node_id",
+          "capture",
+          "records",
+          "as"
+        ],
+        "title": "LayoutExtractNode",
+        "description": "Read one record set of a Capture through its kind's layout (stored node).\n\n``capture`` is ``$steps.<alias>.<field>`` as on today's node; ``records``\nnames a record set; ``header`` lists header fields, sorted. ``row`` is the\nrecord set's row Contract pin ``{name, version, digest}``, added when the\nProcedure is accepted (ruling L1; never authored): every later read takes that\nrow and only its fields, so a kind whose row grew does not change what the\naccepted Procedure extracts."
+      },
+      "LayoutExtractStep": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]{0,127}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          },
+          "extract": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,127}$",
+            "title": "Extract"
+          },
+          "capture": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "records": {
+            "type": "string",
+            "title": "Records"
+          },
+          "header": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Header",
+            "default": []
+          },
+          "key": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/KeyTypeOverride"
+            },
+            "type": "object",
+            "title": "Key"
+          },
+          "duplicates": {
+            "type": "string",
+            "enum": [
+              "refuse_run",
+              "refuse_key",
+              "first"
+            ],
+            "title": "Duplicates",
+            "default": "refuse_key"
+          },
+          "only_keys": {
+            "$ref": "#/components/schemas/Template-Input"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "extract",
+          "capture",
+          "records"
+        ],
+        "title": "LayoutExtractStep",
+        "description": "The authored spelling: ``extract: <id>``, ``capture`` references ``<call>.<field>``."
+      },
+      "LayoutRecordSet": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "At"
+          },
+          "key": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ExtractField"
+            },
+            "type": "object",
+            "maxProperties": 16,
+            "title": "Key"
+          },
+          "row": {
+            "$ref": "#/components/schemas/ContractRef"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ExtractField"
+            },
+            "type": "object",
+            "maxProperties": 256,
+            "minProperties": 1,
+            "title": "Fields"
+          },
+          "count_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "at",
+          "row",
+          "fields"
+        ],
+        "title": "LayoutRecordSet",
+        "description": "One named record set: where its records are, their key, row Contract and field rules.\n\n``count_at`` names a document field that states how many records the set\nholds; a read is complete only when it equals the records read."
       },
       "LedgerMirror": {
         "properties": {
@@ -39413,6 +39478,22 @@
           "label": {
             "type": "string",
             "title": "Label"
+          },
+          "permission_ceiling": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "read_only",
+                  "governed_write",
+                  "graph_write"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permission Ceiling"
           }
         },
         "additionalProperties": false,
@@ -39680,7 +39761,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Parameters",
-            "description": "The Procedure's input record, checked against its input contract at authoring."
+            "description": "The Procedure's params: values over its params defaults, checked against its params Contract at authoring."
           },
           "budgets": {
             "anyOf": [
@@ -39713,7 +39794,7 @@
           "procedure_name"
         ],
         "title": "LineInput",
-        "description": "One Line: a stable instantiation of an accepted or same-set Procedure.\n\nLowering pins the named Procedure's exact version and binds every slot to\none exact ``{build, operation}``: ``bindings`` names\n``provider[/build]#operation`` (or ``provider[/build]``) per slot, and a\nslot left out is fitted (exactly one live operation must serve its\nsignature). A Line runs when run explicitly (`line run`, one manual occurrence),\nor, once it is enabled (`line enable`), when a Trigger aimed at it fires; a\nTrigger aimed at a Line that is not enabled does nothing. Enabling needs\ngoverned write even for an observe-only Line. A Line that proposes or\nsettles also needs a live ProcedureMandate pinning this exact Line before it\ncan run or be enabled; an observe-only Line needs none."
+        "description": "One Line: a stable instantiation of an accepted or same-set Procedure.\n\nLowering pins the named Procedure's exact version and binds every slot to\none exact ``{build, operation}``: ``bindings`` names\n``provider[/build]#operation`` (or ``provider[/build]``) per slot, and a\nslot left out is fitted (exactly one live operation must serve its\ncapability). A Line runs when run explicitly (`line run`, one manual occurrence),\nor, once it is enabled (`line enable`), when a Trigger aimed at it fires; a\nTrigger aimed at a Line that is not enabled does nothing. Enabling needs\ngoverned write even for an observe-only Line. A Line that proposes or\nsettles also needs a live ProcedureMandate pinning this exact Line before it\ncan run or be enabled; an observe-only Line needs none."
       },
       "LineOpenProposalOutcome": {
         "properties": {
@@ -40881,6 +40962,16 @@
               }
             ]
           },
+          "layout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaptureLayout"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "body_access": {
             "type": "string",
             "enum": [
@@ -40908,7 +40999,7 @@
           "retention_erasure_policy"
         ],
         "title": "NamedCaptureContract",
-        "description": "The stored CaptureContract (format v4).\n\n``decoding`` is optional: it declares how the bytes decode for an\n``extract``, and a Procedure whose extract reads a CaptureContract without\nit is refused when it is accepted."
+        "description": "The stored CaptureContract (format v4).\n\n``decoding`` is optional: it declares how the bytes decode for an\n``extract``, and a Procedure whose extract reads a CaptureContract without\nit is refused when it is accepted. ``layout`` is optional too: the header\nfields and named record sets the kind's documents carry, which an extract\nnames. A kind without one renders exactly as before."
       },
       "NamedCaptureRetentionPolicy": {
         "properties": {
@@ -41076,6 +41167,7 @@
               "mandate_expiring",
               "consumer_stalled",
               "line_coverage_gap",
+              "trigger_instants_missed",
               "line_work_pending",
               "line_disabled_by_upgrade",
               "line_not_enabled",
@@ -41088,7 +41180,9 @@
               "prediction_settleable",
               "prediction_window_unbindable",
               "subject_kind_undeclared",
-              "kit_resume_blocked"
+              "kit_resume_blocked",
+              "vocabulary_file_behind",
+              "vocabulary_file_baseline_invalid"
             ],
             "title": "Reason"
           },
@@ -41236,6 +41330,7 @@
               "mandate_expiring",
               "consumer_stalled",
               "line_coverage_gap",
+              "trigger_instants_missed",
               "line_work_pending",
               "line_disabled_by_upgrade",
               "line_not_enabled",
@@ -41248,7 +41343,9 @@
               "prediction_settleable",
               "prediction_window_unbindable",
               "subject_kind_undeclared",
-              "kit_resume_blocked"
+              "kit_resume_blocked",
+              "vocabulary_file_behind",
+              "vocabulary_file_baseline_invalid"
             ],
             "title": "Reason"
           },
@@ -41387,9 +41484,12 @@
               "cruxible.line.enable",
               "cruxible.line.evaluate",
               "cruxible.line.dispatch",
+              "cruxible.runbook.run",
+              "cruxible.action.run",
               "cruxible.inbox.list",
               "cruxible.prediction.settle",
               "cruxible.kit.add",
+              "cruxible.vocabulary.export",
               "hand_edit"
             ],
             "title": "Operation"
@@ -41479,9 +41579,12 @@
               "cruxible.line.enable",
               "cruxible.line.evaluate",
               "cruxible.line.dispatch",
+              "cruxible.runbook.run",
+              "cruxible.action.run",
               "cruxible.inbox.list",
               "cruxible.prediction.settle",
               "cruxible.kit.add",
+              "cruxible.vocabulary.export",
               "hand_edit"
             ],
             "title": "Operation"
@@ -42116,6 +42219,44 @@
           "claim"
         ],
         "title": "ObservationSettlementEvidence"
+      },
+      "OperationSource": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 512,
+            "title": "Path"
+          },
+          "repository": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repository"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "OperationSource",
+        "description": "Where an operation's code is.\n\n``path`` is relative to the root of ``repository`` (or, for a local build\nwith no repository, to the provider's project directory). ``revision`` is\nthe full commit id the build was made from, and needs ``repository``."
       },
       "OrientActivityCaptureErased": {
         "properties": {
@@ -42889,6 +43030,12 @@
             "title": "Mandates",
             "default": 0
           },
+          "capabilities": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Capabilities",
+            "default": 0
+          },
           "runs": {
             "type": "integer",
             "minimum": 0.0,
@@ -42922,7 +43069,7 @@
           "operations"
         ],
         "title": "OrientArtifactCounts",
-        "description": "How many of each family exist; each operational family is its own section.\n\n``lines``, ``runbooks``, ``capture_contracts``, ``resolution_contracts`` and\n``mandates`` count live accepted artifacts, ``captures`` the Captures accepted Claims cite,\nand ``runs`` / ``running`` the Procedure runs admitted and still running."
+        "description": "How many of each family exist; each operational family is its own section.\n\n``lines``, ``runbooks``, ``capture_contracts``, ``resolution_contracts`` and\n``mandates`` count live accepted artifacts, ``capabilities`` the accepted\ncapability versions, ``captures`` the Captures accepted Claims cite,\nand ``runs`` / ``running`` the Procedure runs admitted and still running."
       },
       "OrientAttention": {
         "properties": {
@@ -42930,6 +43077,12 @@
             "type": "integer",
             "minimum": 0.0,
             "title": "Next Items"
+          },
+          "next_scope": {
+            "type": "string",
+            "const": "accepted_state",
+            "title": "Next Scope",
+            "default": "accepted_state"
           },
           "open_proposals": {
             "type": "integer",
@@ -42976,7 +43129,42 @@
           "open_proposals"
         ],
         "title": "OrientAttention",
-        "description": "What the ``next`` queue holds, and anything else the instance needs.\n\n``next_items`` counts the queue's problems and ``top`` names the first of\nthem; ``setup_items`` counts its setup rows apart (choices the operator\nowns, such as a Line accepted but not yet enabled), absent when none."
+        "description": "What the ``next`` queue holds, and anything else the instance needs.\n\n``next_items`` counts the queue's problems and ``top`` names the first of\nthem; ``setup_items`` counts its setup rows apart (choices the operator\nowns, such as a Line accepted but not yet enabled), absent when none.\nThese count accepted state only: rows about the caller's workspace (its\nfloor, sources, projection blocks, vocabulary file) need the workspace\nand appear in ``next``; orient reports the floor and the vocabulary file\nas status beside this (``floor``, ``vocabulary_file``), as it always has.\n``next_scope`` says so on every answer: ``next_items: 0`` is not an empty\n``next`` queue."
+      },
+      "OrientCapability": {
+        "properties": {
+          "capability": {
+            "type": "string",
+            "title": "Capability"
+          },
+          "effect": {
+            "type": "string",
+            "title": "Effect"
+          },
+          "in": {
+            "type": "string",
+            "title": "In"
+          },
+          "out": {
+            "type": "string",
+            "title": "Out"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capability",
+          "effect",
+          "in",
+          "out",
+          "description"
+        ],
+        "title": "OrientCapability",
+        "description": "One accepted capability version: a kind of call a Procedure slot names.\n\n``capability`` is ``<name>@<version>``; ``get(\"Capability:<name>@<version>\")``\nreads it. ``in`` and ``out`` are its request and result Contracts\n(``<name>@<version>``)."
       },
       "OrientCapture": {
         "properties": {
@@ -43253,10 +43441,10 @@
             "type": "string",
             "title": "Git Oid"
           },
-          "accepted_at": {
+          "proposed_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Accepted At"
+            "title": "Proposed At"
           },
           "changeset_digest": {
             "anyOf": [
@@ -43327,10 +43515,10 @@
         "required": [
           "sequence",
           "git_oid",
-          "accepted_at"
+          "proposed_at"
         ],
         "title": "OrientGeneration",
-        "description": "One accepted generation, newest first: what accepted it and how much it changed.\n\n``changeset_digest`` names the change-set record; ``proposal`` is the\nproposal whose admission it accepted (``get <proposal>`` reads its card and\nchanges), ``proposer`` the actor bound to it, and ``approvals`` the\napproving signers in record order. ``because`` is that admission's\nrationale, cut at 500 characters (``because_truncated``). ``members``\ncounts the change set's members; ``since(generation=sequence-1,\nat=<this generation>)`` lists them. Genesis (sequence 0) carries only its\nsequence, git oid and acceptance time. Pass ``sequence`` or ``git_oid`` as\n``at`` to read state as this generation left it."
+        "description": "One accepted generation, newest first: what accepted it and how much it changed.\n\n``changeset_digest`` names the change-set record; ``proposal`` is the\nproposal whose admission it accepted (``get <proposal>`` reads its card and\nchanges), ``proposer`` the actor bound to it, and ``approvals`` the\napproving signers in record order. ``because`` is that admission's\nrationale, cut at 500 characters (``because_truncated``). ``members``\ncounts the change set's members; ``since(generation=sequence-1,\nat=<this generation>)`` lists them. Genesis (sequence 0) carries only its\nsequence, git oid and time. ``proposed_at`` is when the change set was\nproposed (its candidate's timestamp); rows are ordered by ``sequence``, and\nthe instant of acceptance is not recorded. Pass ``sequence`` or ``git_oid``\nas ``at`` to read state as this generation left it."
       },
       "OrientGraph": {
         "properties": {
@@ -43731,6 +43919,20 @@
             "type": "string",
             "title": "Operation"
           },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "serves": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Serves"
+          },
+          "source": {
+            "$ref": "#/components/schemas/OperationSource"
+          },
           "input": {
             "type": "string",
             "title": "Input"
@@ -43748,12 +43950,25 @@
             ],
             "title": "Effect"
           },
+          "may_truncate": {
+            "type": "boolean",
+            "title": "May Truncate",
+            "default": false
+          },
           "refusals": {
             "items": {
               "type": "string"
             },
             "type": "array",
             "title": "Refusals",
+            "default": []
+          },
+          "absorbable": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Absorbable",
             "default": []
           },
           "signature_digest": {
@@ -43766,13 +43981,16 @@
         "required": [
           "build",
           "operation",
+          "description",
+          "serves",
+          "source",
           "input",
           "output",
           "effect",
           "signature_digest"
         ],
         "title": "OrientOperation",
-        "description": "One operation a live provider build serves: what a Line can bind a slot to.\n\n``input`` and ``output`` name its Contracts (``name@N``); a slot whose\nsignature is ``{in: input, out: output, effect}`` fits it. ``build`` is the\nexact build (``Provider:<name>/<build key>``); a Line binding names it as\n``<build>#<operation>``. ``refusals`` lists the typed refusal codes it may\nreturn. ``get(\"Provider:<build>\")`` reads the whole build."
+        "description": "One operation a live provider build serves: what a Line can bind a slot to.\n\n``description`` is the provider's own words for it; ``serves`` names the\ncapabilities it declares; ``source`` is where its code is (``path`` in\n``repository`` at ``revision``, when the build names them). ``input`` and\n``output`` name its own Contracts (``name@N``), copies the build carries.\n``build`` is the exact build (``Provider:<name>/<build key>``); a Line\nbinding names it as ``<build>#<operation>``. ``refusals`` lists the typed\nrefusal codes it may return, and ``absorbable`` those a Line rule with\n``on_unavailable: omit`` may absorb. ``may_truncate``: it may return a\ntruncated listing. ``get(\"Provider:<build>\")`` reads the whole build."
       },
       "OrientPin": {
         "properties": {
@@ -44225,10 +44443,10 @@
             "minimum": 0.0,
             "title": "Generation"
           },
-          "accepted_at": {
+          "proposed_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Accepted At"
+            "title": "Proposed At"
           },
           "evaluation_time": {
             "type": "string",
@@ -44262,6 +44480,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/OrientFloor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vocabulary_file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrientVocabularyFile"
               },
               {
                 "type": "null"
@@ -44312,6 +44540,18 @@
               }
             ]
           },
+          "attention_scope": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "head_only"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attention Scope"
+          },
           "kind_detail": {
             "anyOf": [
               {
@@ -44348,7 +44588,8 @@
                   "pins",
                   "activity",
                   "sources",
-                  "contracts"
+                  "contracts",
+                  "capabilities"
                 ]
               },
               {
@@ -44426,6 +44667,20 @@
               }
             ],
             "title": "Contracts"
+          },
+          "capabilities": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OrientCapability"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capabilities"
           },
           "queries": {
             "anyOf": [
@@ -44755,7 +45010,7 @@
           "instance",
           "coordinate",
           "generation",
-          "accepted_at",
+          "proposed_at",
           "evaluation_time"
         ],
         "title": "OrientResult",
@@ -45075,6 +45330,17 @@
               }
             ],
             "title": "Kit"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "additionalProperties": false,
@@ -45085,6 +45351,44 @@
         ],
         "title": "OrientSubjectKind",
         "description": "One live SubjectKind: how core names a new Subject of the kind.\n\n``rule`` is ``keys`` (named by its key ClaimTypes, in key order, ``unique``\nor ``hint``) or ``minted`` (core mints the id). A kind with no live\nSubjectKind has no row: no new Subject of it can be created. ``ends``\nlists a pair kind's Subject-valued key parts, in key order: a pair kind is\nkeyed by its ends. ``kit`` is the installed kit that owns the SubjectKind,\nabsent when no kit owns it."
+      },
+      "OrientVocabularyFile": {
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "current",
+              "behind",
+              "invalid"
+            ],
+            "title": "State"
+          },
+          "definitions_behind": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Definitions Behind",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "at",
+          "state"
+        ],
+        "title": "OrientVocabularyFile",
+        "description": "The workspace's vocabulary file against this answer's coordinate.\n\nOnly a client that sees the workspace (CLI, MCP, SDK) asks for it, naming the\ngeneration the file's header was exported at; the daemon counts the\nClaimTypes and SubjectKinds accepted since. ``invalid``: the header cannot be\nread, or names an export this instance does not hold."
       },
       "OrientYou": {
         "properties": {
@@ -46466,7 +46770,7 @@
                   "$ref": "#/components/schemas/CallNode"
                 },
                 {
-                  "$ref": "#/components/schemas/ExtractNode"
+                  "$ref": "#/components/schemas/LayoutExtractNode"
                 },
                 {
                   "$ref": "#/components/schemas/TransformNode"
@@ -46502,7 +46806,7 @@
                   "call": "#/components/schemas/CallNode",
                   "claims": "#/components/schemas/ClaimsNode",
                   "emit_capture": "#/components/schemas/CaptureEgressNode",
-                  "extract": "#/components/schemas/ExtractNode",
+                  "extract": "#/components/schemas/LayoutExtractNode",
                   "guard": "#/components/schemas/GuardNode",
                   "halt": "#/components/schemas/HaltNode",
                   "invoke": "#/components/schemas/InvokeNode",
@@ -46531,7 +46835,7 @@
           },
           "slots": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/ProcedureSlot"
+              "$ref": "#/components/schemas/CapabilitySlot"
             },
             "type": "object",
             "title": "Slots"
@@ -46571,7 +46875,7 @@
           "terminal_capability"
         ],
         "title": "ProcedureDefinition",
-        "description": "The one Procedure graph: explicit value joins and typed return paths.\n\nEvery dependency field names a governed identity; an execution plan\nresolves each to its exact pin at the run's accepted coordinate.\n``slots`` declares each provider-calling node's signature ``{in, out,\neffect}`` by name. The Procedure never names a provider; a Line binds every\nslot to one exact build and operation when it is accepted."
+        "description": "The one Procedure graph: explicit value joins and typed return paths.\n\nEvery dependency field names a governed identity; an execution plan\nresolves each to its exact pin at the run's accepted coordinate.\n``slots`` names, for each provider-calling node, the capability it needs\n(``{capability, may_truncate}``; its request and result Contracts and\neffect come from that capability). The Procedure never names a provider;\na Line binds every slot to one exact build and operation serving that\ncapability when it is accepted."
       },
       "ProcedureEgressCaptureEvidence": {
         "properties": {
@@ -48451,9 +48755,9 @@
         "properties": {
           "tag": {
             "type": "string",
-            "const": "cruxible-procedure-provider-binding-v4",
+            "const": "cruxible-procedure-provider-binding-v5",
             "title": "Tag",
-            "default": "cruxible-procedure-provider-binding-v4"
+            "default": "cruxible-procedure-provider-binding-v5"
           },
           "node_id": {
             "type": "string",
@@ -48462,6 +48766,24 @@
           "slot": {
             "type": "string",
             "title": "Slot"
+          },
+          "capability": {
+            "$ref": "#/components/schemas/CapabilityRef"
+          },
+          "fit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "identical",
+                  "structural"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fit"
           },
           "operation": {
             "type": "string",
@@ -48501,6 +48823,7 @@
         "required": [
           "node_id",
           "slot",
+          "capability",
           "operation",
           "operation_signature_digest",
           "provider_artifact_digest",
@@ -48509,7 +48832,7 @@
           "secret_binding_identity_digests"
         ],
         "title": "ProcedureProviderBinding",
-        "description": "What one slotted node binds at admission: its slot's exact build and operation.\n\nThe binding is the Line's (or, for a direct run, the request's ephemeral\nspec), never chosen at run time."
+        "description": "What one slotted node binds at admission: its slot's exact build and operation.\n\nThe binding is the Line's (or, for a direct run, the request's ephemeral\nspec), never chosen at run time. ``capability`` is the slot's capability\npin and ``fit`` how the operation fit it at admission; ``fit`` is omitted\nonly for a capability core's builtin serves (bound by name)."
       },
       "ProcedureReadiness": {
         "properties": {
@@ -50333,39 +50656,6 @@
         ],
         "title": "ProcedureSelectionDecision"
       },
-      "ProcedureSlot": {
-        "properties": {
-          "in": {
-            "$ref": "#/components/schemas/ContractRef"
-          },
-          "out": {
-            "$ref": "#/components/schemas/ContractRef"
-          },
-          "effect": {
-            "type": "string",
-            "enum": [
-              "pure",
-              "external_read",
-              "external_mutation"
-            ],
-            "title": "Effect"
-          },
-          "may_truncate": {
-            "type": "boolean",
-            "title": "May Truncate",
-            "default": false
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "in",
-          "out",
-          "effect"
-        ],
-        "title": "ProcedureSlot",
-        "description": "One binding point a Procedure declares: the signature its operation must serve."
-      },
       "ProcedureSourceCaptureAssociation": {
         "properties": {
           "tag": {
@@ -50582,11 +50872,11 @@
           },
           "slots": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/ProcedureSlot"
+              "$ref": "#/components/schemas/CapabilitySlot"
             },
             "type": "object",
             "title": "Slots",
-            "description": "Each slot's signature {in: name@N, out: name@N, effect}; a Line binds it."
+            "description": "Each slot's capability, {capability: name@N} (and may_truncate); a Line binds it to an operation that serves and fits it."
           },
           "steps": {
             "items": {
@@ -50598,7 +50888,7 @@
                   "$ref": "#/components/schemas/CallStep"
                 },
                 {
-                  "$ref": "#/components/schemas/ExtractStep"
+                  "$ref": "#/components/schemas/LayoutExtractStep"
                 },
                 {
                   "$ref": "#/components/schemas/ProjectStep"
@@ -51948,13 +52238,17 @@
                   },
                   {
                     "$ref": "#/components/schemas/AuthoringProposed"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AuthoringRefused"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "status",
                   "mapping": {
                     "landed": "#/components/schemas/AuthoringLanded",
-                    "proposed": "#/components/schemas/AuthoringProposed"
+                    "proposed": "#/components/schemas/AuthoringProposed",
+                    "refused": "#/components/schemas/AuthoringRefused"
                   }
                 }
               },
@@ -51963,6 +52257,14 @@
               }
             ],
             "title": "Outcome"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -52186,7 +52488,8 @@
                   "accepted",
                   "refused",
                   "withdrawn",
-                  "rejected"
+                  "rejected",
+                  "superseded"
                 ]
               },
               {
@@ -52231,6 +52534,50 @@
               }
             ],
             "title": "Accepted Generation"
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          },
+          "closed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed By"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "closed_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed Reason"
           }
         },
         "additionalProperties": false,
@@ -52326,6 +52673,28 @@
                 "type": "null"
               }
             ]
+          },
+          "reobservations_refused": {
+            "additionalProperties": {
+              "type": "integer",
+              "maximum": 9007199254740991.0,
+              "minimum": 0.0
+            },
+            "propertyNames": {
+              "enum": [
+                "capture_not_admitted",
+                "claim_absent",
+                "claim_not_live",
+                "capture_already_cited",
+                "extraction_differs",
+                "absence_witness_unverified",
+                "content_not_cited",
+                "head_moved",
+                "observed_after_recording"
+              ]
+            },
+            "type": "object",
+            "title": "Reobservations Refused"
           }
         },
         "additionalProperties": false,
@@ -52458,6 +52827,26 @@
           },
           "accepted_coordinate": {
             "$ref": "#/components/schemas/AcceptedCoordinate"
+          },
+          "reobservations_refused": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "capture_not_admitted",
+                "claim_absent",
+                "claim_not_live",
+                "capture_already_cited",
+                "extraction_differs",
+                "absence_witness_unverified",
+                "content_not_cited",
+                "head_moved",
+                "observed_after_recording"
+              ]
+            },
+            "type": "object",
+            "title": "Reobservations Refused"
           }
         },
         "additionalProperties": false,
@@ -52819,6 +53208,69 @@
                 "type": "null"
               }
             ]
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewChange"
+            },
+            "type": "array",
+            "title": "Changes",
+            "default": []
+          },
+          "change_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Change Count",
+            "default": 0
+          },
+          "changes_next": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changes Next"
+          },
+          "change_counts": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewChangeCount"
+            },
+            "type": "array",
+            "title": "Change Counts",
+            "default": []
+          },
+          "change_counts_truncated": {
+            "type": "boolean",
+            "title": "Change Counts Truncated",
+            "default": false
+          },
+          "definitions": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewDefinition"
+            },
+            "type": "array",
+            "title": "Definitions",
+            "default": []
+          },
+          "definition_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Definition Count",
+            "default": 0
+          },
+          "definitions_next": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definitions Next"
           },
           "counts": {
             "$ref": "#/components/schemas/ReviewSummaryCounts"
@@ -54421,6 +54873,14 @@
                 "type": "null"
               }
             ]
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -55285,7 +55745,10 @@
         "properties": {
           "artifact_format": {
             "type": "string",
-            "const": "cruxible-query-definition-v3",
+            "enum": [
+              "cruxible-query-definition-v3",
+              "cruxible-query-definition-v4"
+            ],
             "title": "Artifact Format",
             "default": "cruxible-query-definition-v3"
           },
@@ -55497,15 +55960,19 @@
             "default": "playbill-query-definition-authoring-payload-v1"
           },
           "query_definition": {
-            "anyOf": [
+            "oneOf": [
               {
                 "$ref": "#/components/schemas/QuerySpecInput"
               },
               {
-                "$ref": "#/components/schemas/QueryDefinitionSpec"
-              },
-              {
-                "$ref": "#/components/schemas/QueryDefinition"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/QueryDefinitionSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QueryDefinition"
+                  }
+                ]
               }
             ],
             "title": "Query Definition"
@@ -55526,15 +55993,19 @@
             "title": "Kind"
           },
           "query_definition": {
-            "anyOf": [
+            "oneOf": [
               {
                 "$ref": "#/components/schemas/QuerySpecInput"
               },
               {
-                "$ref": "#/components/schemas/QueryDefinitionSpec"
-              },
-              {
-                "$ref": "#/components/schemas/QueryDefinition"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/QueryDefinitionSpec"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QueryDefinition"
+                  }
+                ]
               }
             ],
             "title": "Query Definition"
@@ -55552,7 +56023,10 @@
         "properties": {
           "artifact_format": {
             "type": "string",
-            "const": "cruxible-query-definition-v3",
+            "enum": [
+              "cruxible-query-definition-v3",
+              "cruxible-query-definition-v4"
+            ],
             "title": "Artifact Format",
             "default": "cruxible-query-definition-v3"
           },
@@ -55927,7 +56401,10 @@
         "properties": {
           "tag": {
             "type": "string",
-            "const": "playbill-query-evaluation-time-ref-v1",
+            "enum": [
+              "playbill-query-evaluation-time-ref-v1",
+              "playbill-query-evaluation-time-ref-v2"
+            ],
             "title": "Tag",
             "default": "playbill-query-evaluation-time-ref-v1"
           },
@@ -55936,12 +56413,19 @@
             "const": "evaluation_time",
             "title": "Kind",
             "default": "evaluation_time"
+          },
+          "offset_seconds": {
+            "type": "integer",
+            "maximum": 3153600000.0,
+            "minimum": -3153600000.0,
+            "title": "Offset Seconds",
+            "default": 0
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "QueryEvaluationTimeRef",
-        "description": "The run's explicit evaluation time; never an implicit wall clock."
+        "description": "The run's explicit evaluation time, optionally shifted; never a wall clock.\n\n``offset_seconds`` is the fixed shift authored as ``now - 3d`` or\n``now + 12h``, held in whole seconds (UTC, no calendar units): ``now -\n72h`` and ``now - 3d`` are one offset, -259200. An unshifted ref is v1 and\nserializes exactly as before; a shifted one is v2, which only a\n``cruxible-query-definition-v4`` definition holds."
       },
       "QueryExecutionReceipt": {
         "properties": {
@@ -59078,6 +59562,18 @@
             "type": "string",
             "title": "Text"
           },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading",
+            "description": "Heading text; the line is built at its depth and text is the body."
+          },
           "expect": {
             "anyOf": [
               {
@@ -59863,6 +60359,419 @@
         ],
         "title": "ReturnFrom"
       },
+      "ReviewChange": {
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/ChangeOutcome"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewCitation"
+            },
+            "type": "array",
+            "title": "Citations",
+            "default": []
+          },
+          "citations_more": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Citations More",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "change"
+        ],
+        "title": "ReviewChange",
+        "description": "One proposed value change, in the write outcome's form, with what it cites.\n\n``change`` is a ``ChangeOutcome`` exactly as ``write`` answers one: op,\nSubject, field, before and after, the Claim and its candidate verdict.\n``role`` is the Claim's role; ``rationale`` the item's own reason, when a\nProcedure proposed it (the change set's ``rationale`` covers the rest)."
+      },
+      "ReviewChangeCount": {
+        "properties": {
+          "subject_kind": {
+            "type": "string",
+            "title": "Subject Kind"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "op": {
+            "type": "string",
+            "title": "Op"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject_kind",
+          "op",
+          "count"
+        ],
+        "title": "ReviewChangeCount",
+        "description": "How many of a proposal's value changes have this Subject kind, field and op."
+      },
+      "ReviewCitation": {
+        "properties": {
+          "capture": {
+            "type": "string",
+            "title": "Capture",
+            "description": "CAP-<12 hex>; get and read_capture accept it."
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "description": "independent, self_source (own words) or legacy."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "anchor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "text_truncated": {
+            "type": "boolean",
+            "title": "Text Truncated",
+            "default": false
+          },
+          "text_withheld": {
+            "type": "boolean",
+            "title": "Text Withheld",
+            "default": false
+          },
+          "erased": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GetCaptureErasure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unavailable": {
+            "type": "boolean",
+            "title": "Unavailable",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capture",
+          "origin"
+        ],
+        "title": "ReviewCitation",
+        "description": "One Capture a proposed Claim cites, where in it, and the text it cites.\n\n``source`` is the Capture's logical source (a catalogued file's name, a\nfeed); ``section`` and ``anchor`` locate a file citation. ``text`` is the\ncited bytes, cut at ``REVIEW_CITED_TEXT_MAX_CHARS`` (``text_truncated``).\nIt is absent when this reader may not read Capture bodies\n(``text_withheld``), when the body was erased (``erased``) or is missing or\ndamaged (``unavailable``), or when the Capture commits to no exact bytes."
+      },
+      "ReviewClaimTypeDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "claim-type",
+            "title": "Kind",
+            "default": "claim-type"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "cardinality": {
+            "type": "string",
+            "enum": [
+              "one",
+              "many"
+            ],
+            "title": "Cardinality"
+          },
+          "subject_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subject Kinds"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "default_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Role"
+          },
+          "evidence_requirement": {
+            "type": "string",
+            "title": "Evidence Requirement"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence",
+            "default": []
+          },
+          "description": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewSummaryValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "cardinality",
+          "subject_kinds",
+          "roles",
+          "evidence_requirement"
+        ],
+        "title": "ReviewClaimTypeDefinition",
+        "description": "A new field: what it holds and what may back it."
+      },
+      "ReviewDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "created",
+              "revised",
+              "retired"
+            ],
+            "title": "Action"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ReviewLineDefinition"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReviewMandateDefinition"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReviewRunbookDefinition"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReviewTriggerDefinition"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReviewClaimTypeDefinition"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReviewDocumentDefinition"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReviewNoteDefinition"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "claim-type": "#/components/schemas/ReviewClaimTypeDefinition",
+                    "document": "#/components/schemas/ReviewDocumentDefinition",
+                    "line": "#/components/schemas/ReviewLineDefinition",
+                    "note": "#/components/schemas/ReviewNoteDefinition",
+                    "procedure-mandate": "#/components/schemas/ReviewMandateDefinition",
+                    "runbook": "#/components/schemas/ReviewRunbookDefinition",
+                    "trigger": "#/components/schemas/ReviewTriggerDefinition"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewFieldChange"
+            },
+            "type": "array",
+            "title": "Changed",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "action"
+        ],
+        "title": "ReviewDefinition",
+        "description": "One proposed definition: its kind, name and action, and its typed fields.\n\n``detail`` is the definition as it would stand (Line, ProcedureMandate,\nRunbook, Trigger, Document, note; a ClaimType when created); other kinds,\nand retirements, carry none. ``changed`` lists a revision's changed fields."
+      },
+      "ReviewDocumentDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "document",
+            "title": "Kind",
+            "default": "document"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "document_kind": {
+            "type": "string",
+            "title": "Document Kind"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewLink"
+            },
+            "type": "array",
+            "title": "Links",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "document_kind"
+        ],
+        "title": "ReviewDocumentDefinition",
+        "description": "A Document as it would stand: its title and what it is linked to."
+      },
+      "ReviewFieldChange": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewSummaryValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewSummaryValue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "field"
+        ],
+        "title": "ReviewFieldChange",
+        "description": "One top-level field a revision changes: its value before and after."
+      },
       "ReviewGuidance": {
         "properties": {
           "definition": {
@@ -59894,6 +60803,255 @@
         ],
         "title": "ReviewGuidance",
         "description": "A governed Document that ``guides`` a ClaimType or Procedure this proposal touches."
+      },
+      "ReviewLineBinding": {
+        "properties": {
+          "slot": {
+            "type": "string",
+            "title": "Slot"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "operation": {
+            "type": "string",
+            "title": "Operation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "slot",
+          "provider",
+          "operation"
+        ],
+        "title": "ReviewLineBinding",
+        "description": "One Line slot: the provider build (``name/<12 hex>``) and operation it is bound to."
+      },
+      "ReviewLineDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "line",
+            "title": "Kind",
+            "default": "line"
+          },
+          "procedure": {
+            "type": "string",
+            "title": "Procedure"
+          },
+          "authority": {
+            "type": "string",
+            "title": "Authority"
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewLineBinding"
+            },
+            "type": "array",
+            "title": "Bindings",
+            "default": []
+          },
+          "parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ReviewSummaryValue"
+            },
+            "type": "object",
+            "title": "Parameters"
+          },
+          "acquisition": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Acquisition"
+          },
+          "budgets": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Budgets"
+          },
+          "inbox": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inbox",
+            "default": []
+          },
+          "trigger_input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Input"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "procedure",
+          "authority"
+        ],
+        "title": "ReviewLineDefinition"
+      },
+      "ReviewLink": {
+        "properties": {
+          "relation": {
+            "type": "string",
+            "title": "Relation"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "relation",
+          "target"
+        ],
+        "title": "ReviewLink"
+      },
+      "ReviewMandateDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "procedure-mandate",
+            "title": "Kind",
+            "default": "procedure-mandate"
+          },
+          "line": {
+            "type": "string",
+            "title": "Line"
+          },
+          "grants": {
+            "type": "string",
+            "enum": [
+              "propose",
+              "settle"
+            ],
+            "title": "Grants"
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid From"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "namespace": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Namespace",
+            "default": []
+          },
+          "scope": {
+            "items": {
+              "$ref": "#/components/schemas/MandateScope"
+            },
+            "type": "array",
+            "title": "Scope",
+            "default": []
+          },
+          "subjects": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "subject_creation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subject Creation",
+            "default": []
+          },
+          "suspended": {
+            "type": "boolean",
+            "title": "Suspended",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "line",
+          "grants",
+          "valid_from",
+          "expires_at"
+        ],
+        "title": "ReviewMandateDefinition"
+      },
+      "ReviewNoteDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "note",
+            "title": "Kind",
+            "default": "note"
+          },
+          "file": {
+            "type": "string",
+            "title": "File"
+          },
+          "section": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Section"
+          },
+          "about": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "About"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "file",
+          "section",
+          "about"
+        ],
+        "title": "ReviewNoteDefinition",
+        "description": "A note as it would stand: the section, and the Subjects it is about."
       },
       "ReviewRequest": {
         "properties": {
@@ -59960,6 +61118,23 @@
             ],
             "title": "Findings After"
           },
+          "changes_from": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Changes From",
+            "default": 0
+          },
+          "definitions_from": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Definitions From",
+            "default": 0
+          },
+          "groups": {
+            "type": "boolean",
+            "title": "Groups",
+            "default": true
+          },
           "include_body": {
             "anyOf": [
               {
@@ -60009,6 +61184,40 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ReviewRequest"
+      },
+      "ReviewRunbookDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "runbook",
+            "title": "Kind",
+            "default": "runbook"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "steps"
+        ],
+        "title": "ReviewRunbookDefinition"
       },
       "ReviewSummaryCounts": {
         "properties": {
@@ -60240,6 +61449,31 @@
           "value"
         ],
         "title": "ReviewSummaryValue"
+      },
+      "ReviewTriggerDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "trigger",
+            "title": "Kind",
+            "default": "trigger"
+          },
+          "schedule": {
+            "type": "string",
+            "title": "Schedule"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schedule",
+          "target"
+        ],
+        "title": "ReviewTriggerDefinition"
       },
       "ReviewWorkspaceObservation": {
         "properties": {
@@ -60590,7 +61824,7 @@
           "needs_attention"
         ],
         "title": "RunCounts",
-        "description": "What one Line run did, in counts: the line a reader checks before \"succeeded\".\n\n``status`` says the run finished; this says what it achieved. ``written``\ncounts new, revising and inverse Claims across the run's claims terminals;\n``settled`` and ``proposed`` split them by how each terminal delivered\n(``proposed`` includes a change still waiting on the Line's open proposal).\n``unchanged`` counts re-observed and no-op restatements, ``retired`` the\nretirements. ``refused`` counts the items not written (every finding but\nan incomplete source), with ``top_refusals`` naming the most frequent codes\namong the findings the run kept. ``inbox`` counts the items this run posted\nto its Line's inbox; when the inbox could not be read it is the count the\nrun's journaled ``post_inbox`` summaries prove, or ``None`` when they prove\nnone (findings routed to the inbox are not journaled). It splits into\n``inbox_new``, the postings that made a new item, and ``inbox_seen_again``,\nthe re-sightings of an item already there (which keep its status and\ndecision); both are ``None`` when the split is unknown (the inbox could\nnot be read, or the counts were recorded before the split existed).\n``inbox_unposted`` counts the items an inbox cap left out of this run's\nposts. ``complete`` is false when the run recorded incompleteness, with\n``incomplete_reasons`` naming each node and kind. ``needs_attention`` is\ntrue when the run was incomplete, refused an item, posted a new inbox item,\nleft items out under an inbox cap (they may be new: nothing posted them),\nor posted to the inbox without a known split: an unreadable count never\nreads as nothing new. A run whose posts were all re-sightings does not\nneed attention for them."
+        "description": "What one Line run did, in counts: the line a reader checks before \"succeeded\".\n\n``status`` says the run finished; this says what it achieved. ``written``\ncounts new, revising and inverse Claims across the run's claims terminals;\n``settled`` and ``proposed`` split them by how each terminal delivered\n(``proposed`` includes a change still waiting on the Line's open proposal).\n``unchanged`` counts re-observed and no-op restatements (a re-observation\nwhose record was refused included), ``retired`` the\nretirements. ``refused`` counts the items not written (every finding but\nan incomplete source), with ``top_refusals`` naming the most frequent codes\namong the findings the run kept. ``inbox`` counts the items this run posted\nto its Line's inbox; when the inbox could not be read it is the count the\nrun's journaled ``post_inbox`` summaries prove, or ``None`` when they prove\nnone (findings routed to the inbox are not journaled). It splits into\n``inbox_new``, the postings that made a new item, and ``inbox_seen_again``,\nthe re-sightings of an item already there (which keep its status and\ndecision); both are ``None`` when the split is unknown (the inbox could\nnot be read, or the counts were recorded before the split existed).\n``inbox_unposted`` counts the items an inbox cap left out of this run's\nposts. ``complete`` is false when the run recorded incompleteness, with\n``incomplete_reasons`` naming each node and kind. ``needs_attention`` is\ntrue when the run was incomplete, refused an item, posted a new inbox item,\nleft items out under an inbox cap (they may be new: nothing posted them),\nor posted to the inbox without a known split: an unreadable count never\nreads as nothing new. A run whose posts were all re-sightings does not\nneed attention for them."
       },
       "RunRefusalCount": {
         "properties": {
@@ -61024,6 +62258,17 @@
             "type": "string",
             "title": "Slot"
           },
+          "capability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capability"
+          },
           "signature_in": {
             "anyOf": [
               {
@@ -61095,7 +62340,7 @@
           "slot"
         ],
         "title": "RunbookPreviewCall",
-        "description": "One provider call: its slot's signature and the binding the Line pins."
+        "description": "One provider call: its slot's capability, the signature derived from it, and the\nbinding the Line pins."
       },
       "RunbookPreviewCascade": {
         "properties": {
@@ -61284,7 +62529,7 @@
                   "binding",
                   "path_grammar",
                   "git_metadata",
-                  "playbill_control",
+                  "cruxible_control",
                   "client_custody",
                   "managed_root",
                   "symlink",
@@ -61296,7 +62541,8 @@
                   "size_budget",
                   "workspace_unnamed",
                   "workspace_unknown",
-                  "glob_over_cap"
+                  "glob_over_cap",
+                  "glob_scan_budget"
                 ]
               },
               {
@@ -61375,6 +62621,17 @@
               }
             ],
             "title": "Max Files"
+          },
+          "request_max_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Max Bytes"
           }
         },
         "additionalProperties": false,
@@ -61837,12 +63094,11 @@
                 "type": "string",
                 "maxLength": 128,
                 "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
-                "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry, curation.detect.",
+                "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry.",
                 "examples": [
                   "floor.refresh",
                   "evidence.sweep",
-                  "prediction.anchor_retry",
-                  "curation.detect"
+                  "prediction.anchor_retry"
                 ]
               },
               {
@@ -64377,10 +65633,25 @@
           "source": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ExistingCaptureCitationSource"
-              },
-              {
-                "$ref": "#/components/schemas/SelfSourceBody"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/WorkingSelectionObservation"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SelfSourceBody"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ExistingCaptureCitationSource"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "tag",
+                  "mapping": {
+                    "playbill-existing-capture-citation-source-v1": "#/components/schemas/ExistingCaptureCitationSource",
+                    "playbill-self-source-body-v1": "#/components/schemas/SelfSourceBody",
+                    "playbill-working-selection-observation-v1": "#/components/schemas/WorkingSelectionObservation"
+                  }
+                }
               },
               {
                 "type": "null"
@@ -64402,6 +65673,16 @@
               }
             ],
             "title": "Citation Role"
+          },
+          "located_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkingSelectionObservation"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -64410,7 +65691,7 @@
           "subject_kind"
         ],
         "title": "SubjectCreationAuthoringPayload",
-        "description": "Create one Subject by its kind and key; core assigns its id (identity D1).\n\n``key`` holds the key parts of a keyed kind (each key ClaimType by predicate,\nor by its last name under the kind) and is empty for a minted kind. Lowering\ncanonicalizes each value by its key ClaimType's form and looks the key up: no\nlive Subject holds it -- create; exactly one -- resolve to it, creating\nnothing; several -- refuse (``key_ambiguous``). A creation writes the Subject\nunder the id core assigns (the readable rendering of the canonical key, or a\nminted id) with one key Claim per part, citing ``source`` (the rationale as\nthe author's own words when absent)."
+        "description": "Create one Subject by its kind and key; core assigns its id (identity D1).\n\n``key`` holds the key parts of a keyed kind (each key ClaimType by predicate,\nor by its last name under the kind) and is empty for a minted kind. Lowering\ncanonicalizes each value by its key ClaimType's form and looks the key up: no\nlive Subject holds it -- create; exactly one -- resolve to it, creating\nnothing; several -- refuse (``key_ambiguous``). A creation writes the Subject\nunder the id core assigns (the readable rendering of the canonical key, or a\nminted id) with one key Claim per part, citing ``source`` (the rationale as\nthe author's own words when absent). A cited existing section or file is a\nworking selection (``citation_role`` ``evidence``). ``located_at`` says\nwhere own words (a ``SelfSourceBody``) stand, as a Claim's does: each key\nClaim then cites one located own-words Capture. Omitted when unset."
       },
       "SubjectInput": {
         "properties": {
@@ -64651,6 +65932,17 @@
             "type": "boolean",
             "title": "Retire",
             "default": false
+          },
+          "predecessor_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predecessor Digest"
           }
         },
         "additionalProperties": false,
@@ -64749,6 +66041,18 @@
             "type": "boolean",
             "title": "Retire",
             "default": false
+          },
+          "predecessor_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predecessor Digest",
+            "description": "The digest of the accepted SubjectKind this succeeds, as you read it; the change refuses if the accepted one has moved since. Omit for a new kind."
           }
         },
         "additionalProperties": false,
@@ -65605,12 +66909,11 @@
                 "type": "string",
                 "maxLength": 128,
                 "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
-                "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry, curation.detect.",
+                "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry.",
                 "examples": [
                   "floor.refresh",
                   "evidence.sweep",
-                  "prediction.anchor_retry",
-                  "curation.detect"
+                  "prediction.anchor_retry"
                 ]
               },
               {
@@ -65737,12 +67040,11 @@
                 "type": "string",
                 "maxLength": 128,
                 "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
-                "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry, curation.detect.",
+                "description": "A registered internal action: floor.refresh, evidence.sweep, prediction.anchor_retry.",
                 "examples": [
                   "floor.refresh",
                   "evidence.sweep",
-                  "prediction.anchor_retry",
-                  "curation.detect"
+                  "prediction.anchor_retry"
                 ]
               },
               {
@@ -66561,6 +67863,7 @@
             "type": "string",
             "enum": [
               "accepted",
+              "unchanged",
               "awaiting_approval",
               "refused",
               "would_accept",
@@ -66583,6 +67886,14 @@
             },
             "type": "array",
             "title": "Docs",
+            "default": []
+          },
+          "catalogued": {
+            "items": {
+              "$ref": "#/components/schemas/CataloguedFile"
+            },
+            "type": "array",
+            "title": "Catalogued",
             "default": []
           },
           "doc_confirmations": {

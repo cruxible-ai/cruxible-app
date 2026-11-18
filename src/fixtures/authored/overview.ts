@@ -16,7 +16,7 @@ const BASE_ORIENT = {
   instance: "inst_fixture",
   coordinate: COORDINATE,
   generation: AT.generation,
-  accepted_at: ACCEPTED_AT,
+  proposed_at: ACCEPTED_AT,
   evaluation_time: NOW,
 };
 
@@ -36,7 +36,7 @@ function growthSample(sequence: number): RecordedFixture[] {
   const coordinate: AcceptedCoordinate = { ...COORDINATE, git_oid: sequence.toString(16).padStart(40, "e") };
   const share = (index: number) => (sequence < 4 + index * 2 ? 0 : Math.min(1, (sequence + 6) / (AT.generation + 6)));
   const held = KIND_ROWS.map((row, index) => ({ row: { ...row, subjects: Math.round(row.subjects * share(index)) }, share: share(index) })).filter(({ row }) => row.subjects > 0);
-  const base = { ...BASE_ORIENT, coordinate, generation: sequence, accepted_at: new Date(Date.parse("2026-10-17T09:00:00Z") + sequence * 3_600_000).toISOString() };
+  const base = { ...BASE_ORIENT, coordinate, generation: sequence, proposed_at: new Date(Date.parse("2026-10-17T09:00:00Z") + sequence * 3_600_000).toISOString() };
   return [
     defineFixture({
       method: "get",

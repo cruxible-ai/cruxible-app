@@ -258,6 +258,9 @@ export const REASONS: Record<NextReason, ReasonMeta> = {
   subject_kind_undeclared: { label: "Subject kind undeclared", family: "operations", fields: [f("kind", "Kind"), f("live_subjects", "Live Subjects", "count")] },
   // detail: the refusal, carried nowhere else
   kit_resume_blocked: { label: "Kit resume blocked", family: "operations", fields: [f("kit_id", "Kit"), f("version", "Version"), f("actor_id", "Actor"), f("recorded_at", "Recorded", "time"), prose("detail")] },
+  trigger_instants_missed: { label: "Scheduled instants missed", family: "operations", fields: [f("target", "Target"), f("count", "Missed", "count"), f("since", "Since", "time"), f("until", "Until", "time"), prose("detail")] },
+  vocabulary_file_behind: { label: "Vocabulary file behind", family: "operations", fields: [f("definitions_behind", "Behind", "count"), f("changed", "Changed", "list"), f("baseline", "Baseline"), prose("message", ["definitions_behind"])] },
+  vocabulary_file_baseline_invalid: { label: "Vocabulary file header invalid", family: "operations", fields: [f("cause", "Cause", "words"), f("baseline", "Baseline"), prose("message")] },
 };
 
 /** The Beliefs preset: the former contested, stale and drifted families. */

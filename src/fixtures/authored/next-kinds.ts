@@ -651,6 +651,32 @@ export const NEXT_KIND_ITEMS: NextItem[] = [
     related_identities: [],
     detail: { kit_id: "example-kit", version: "1.0.0", actor_id: "owner", recorded_at: "2026-10-19T09:00:00Z", detail: "actor_no_longer_authoring: owner cannot propose here: credential revoked" },
     repair: { operation: "cruxible.kit.add", target: "kit:example-kit", required_change: "resolve_the_refusal_then_add_the_kit_again", arguments: {}, command: "cruxible kit add example-kit", alternatives: [], operands_to_add: [] },
+  },  {
+    item_id: "k-trigger_instants_missed",
+    severity: "repair",
+    reason: "trigger_instants_missed",
+    subject_identity: "Trigger:security.advisory-hourly",
+    related_identities: ["Line:security.advisory-fixes"],
+    detail: { since: "2026-10-19T06:15:00Z", until: "2026-10-19T12:15:00Z", count: 2, target: "Line:security.advisory-fixes", detail: "Its scheduled instants fell due while no daemon ran; they are skipped, never run late." },
+    repair: { operation: "cruxible.line.dispatch", target: "Line:security.advisory-fixes", required_change: "dispatch_the_line_if_the_missed_work_is_still_wanted", arguments: {}, command: "cruxible line dispatch security.advisory-fixes", alternatives: [], operands_to_add: [] },
+  },
+  {
+    item_id: "k-vocabulary_file_behind",
+    severity: "warning",
+    reason: "vocabulary_file_behind",
+    subject_identity: ".cruxible/vocabulary.yaml",
+    related_identities: [],
+    detail: { baseline: "g40", definitions_behind: 2, changed: ["ClaimType:security.vulnerability.kev_listed"], message: "vocabulary file behind by 2 definition(s)" },
+    repair: { operation: "cruxible.vocabulary.export", target: ".cruxible/vocabulary.yaml", required_change: "export_the_vocabulary_then_merge_local_edits", arguments: {}, command: "cruxible vocabulary export", alternatives: [], operands_to_add: [] },
+  },
+  {
+    item_id: "k-vocabulary_file_baseline_invalid",
+    severity: "repair",
+    reason: "vocabulary_file_baseline_invalid",
+    subject_identity: ".cruxible/vocabulary.yaml",
+    related_identities: [],
+    detail: { baseline: null, cause: "unreadable", message: "the vocabulary file's header cannot be read" },
+    repair: { operation: "cruxible.vocabulary.export", target: ".cruxible/vocabulary.yaml", required_change: "restore_the_header_or_replace_the_file_with_accepted_state", arguments: { force: true }, command: "cruxible vocabulary export --force", alternatives: [], operands_to_add: [] },
   },
 ];
 

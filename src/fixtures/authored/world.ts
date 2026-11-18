@@ -278,7 +278,7 @@ const BASE_ORIENT = {
   instance: INSTANCE,
   coordinate: COORDINATE,
   generation: GENERATION,
-  accepted_at: ACCEPTED_AT,
+  proposed_at: ACCEPTED_AT,
   evaluation_time: NOW,
 };
 

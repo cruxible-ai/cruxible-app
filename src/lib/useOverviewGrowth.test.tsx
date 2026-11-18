@@ -43,7 +43,7 @@ describe("Overview growth: earlier generations", () => {
         const live = query.kind === "alpha" ? 7 : 3;
         return ok({ kind_detail: { kind: query.kind, predicates: [{ predicate: "demo.score", subject_kinds: ["alpha", "beta"], live_claims: live }] } });
       }
-      return ok({ accepted_at: "2026-11-10T00:00:00Z", kinds: [{ kind: "alpha", subjects: 2 }, { kind: "beta", subjects: 1 }], next_cursor: null });
+      return ok({ proposed_at: "2026-11-10T00:00:00Z", kinds: [{ kind: "alpha", subjects: 2 }, { kind: "beta", subjects: 1 }], next_cursor: null });
     });
     const { result } = renderHook(() => useGrowthPoints([1]), { wrapper: cache() });
     await waitFor(() => expect(result.current.pending).toBe(false));
@@ -58,7 +58,7 @@ describe("Overview growth: earlier generations", () => {
       if (path.endsWith("/head")) return ok({ coordinate: coordinate(1), generation: 1 });
       if (query.kind) return ok({ kind_detail: { kind: query.kind, predicates: [{ predicate: `${query.kind}.x`, live_claims: 1 }] } });
       if (query.cursor === "more") return ok({ kinds: [{ kind: "late", subjects: 1 }], next_cursor: null });
-      return ok({ accepted_at: "2026-11-10T00:00:00Z", kinds: [{ kind: "early", subjects: 1 }], next_cursor: "more" });
+      return ok({ proposed_at: "2026-11-10T00:00:00Z", kinds: [{ kind: "early", subjects: 1 }], next_cursor: "more" });
     });
     const { result } = renderHook(() => useGrowthPoints([1]), { wrapper: cache() });
     await waitFor(() => expect(result.current.pending).toBe(false));
@@ -69,7 +69,7 @@ describe("Overview growth: earlier generations", () => {
     state.get.mockImplementation((path: string, { params: { query } }: { params: { query: Query } }) => {
       if (path.endsWith("/head")) return ok({ coordinate: coordinate(1), generation: 1 });
       if (query.kind) return ok({ kind_detail: { kind: query.kind, predicates: [] } });
-      return ok({ accepted_at: "2026-11-10T00:00:00Z", kinds: [{ kind: "k", subjects: 1 }], next_cursor: "again" });
+      return ok({ proposed_at: "2026-11-10T00:00:00Z", kinds: [{ kind: "k", subjects: 1 }], next_cursor: "again" });
     });
     const { result } = renderHook(() => useGrowthPoints([1]), { wrapper: cache() });
     await waitFor(() => expect(result.current.pending).toBe(false));
@@ -99,7 +99,7 @@ describe("Overview growth: earlier generations", () => {
         if (query.kind === "k6") generationsOpen -= 1;
         return ok({ kind_detail: { kind: query.kind, predicates: [{ predicate: `${query.kind}.x`, live_claims: 1 }] } });
       }
-      return ok({ accepted_at: "2026-11-10T00:00:00Z", kinds: Array.from({ length: 7 }, (_, i) => ({ kind: `k${i}`, subjects: 1 })), next_cursor: null });
+      return ok({ proposed_at: "2026-11-10T00:00:00Z", kinds: Array.from({ length: 7 }, (_, i) => ({ kind: `k${i}`, subjects: 1 })), next_cursor: null });
     });
     const { result } = renderHook(() => useGrowthPoints([1, 2, 3, 4, 5]), { wrapper: cache() });
     await waitFor(() => expect(result.current.pending).toBe(false), { timeout: 4000 });
@@ -138,7 +138,7 @@ function daemon(delay = 10) {
       if (done === 6) track.activeGenerations -= 1;
       return ok({ kind_detail: { predicates: [{ predicate: "demo.score", live_claims: 1 }] } });
     }
-    return ok({ accepted_at: "2026-11-10T00:00:00Z", kinds: Array.from({ length: 6 }, (_, i) => ({ kind: `kind${i}`, subjects: 1 })), next_cursor: null });
+    return ok({ proposed_at: "2026-11-10T00:00:00Z", kinds: Array.from({ length: 6 }, (_, i) => ({ kind: `kind${i}`, subjects: 1 })), next_cursor: null });
   });
   return track;
 }
@@ -249,7 +249,7 @@ function heldDaemon({ failFirstKind = false, failHead = null as number | null } 
         track.completed.set(seq, (track.completed.get(seq) ?? 0) + 1);
       }
     }
-    return ok({ accepted_at: "2026-11-10T00:00:00Z", kinds: Array.from({ length: 6 }, (_, i) => ({ kind: `kind${i}`, subjects: 1 })), next_cursor: null });
+    return ok({ proposed_at: "2026-11-10T00:00:00Z", kinds: Array.from({ length: 6 }, (_, i) => ({ kind: `kind${i}`, subjects: 1 })), next_cursor: null });
   });
   return track;
 }

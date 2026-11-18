@@ -48,17 +48,10 @@ export default defineFixture({
             },
             "slots": {
               "fetch": {
-                "in": {
-                  "name": "web.fetch.request",
-                  "version": 1,
-                  "digest": "sha256:1f4eefbeef292080ab075e22d068a4e45f6b01170802f2ca470daa2329444137"
-                },
-                "out": {
-                  "name": "web.fetch.result",
-                  "version": 1,
-                  "digest": "sha256:94f256cdc9f9dfb45d8ac2a55e5aaf40bdb64757cbbf21703baeb8bd8d03062f"
-                },
-                "effect": "external_read"
+                "capability": {
+                  "name": "web.fetch",
+                  "version": 1
+                }
               }
             },
             "steps": [
@@ -103,44 +96,15 @@ export default defineFixture({
                     "capture"
                   ]
                 },
-                "records": "/vulnerabilities/*",
-                "row": "security.kev-record@1",
-                "fields": {
-                  "date_added": {
-                    "at": "dateAdded",
-                    "parse": "date"
-                  },
-                  "due_date": {
-                    "at": "dueDate",
-                    "parse": "date",
-                    "presence": "optional"
-                  },
-                  "listed_from": {
-                    "at": "dateAdded",
-                    "project": "utc_start_of_day",
-                    "parse": "date"
-                  },
-                  "ransomware_use": {
-                    "at": "knownRansomwareCampaignUse",
-                    "canonicalize": "claim_type",
-                    "presence": "optional"
-                  }
-                },
+                "records": "vulnerabilities",
                 "key": {
                   "cve_id": {
-                    "at": "cveID",
                     "type": "key_part<security.vulnerability:cve_id>"
                   }
                 },
-                "header": {
-                  "catalog_version": {
-                    "at": "/catalogVersion",
-                    "presence": "required"
-                  }
-                },
-                "complete_when": {
-                  "count_at": "/count"
-                }
+                "header": [
+                  "catalog_version"
+                ]
               },
               {
                 "id": "write",

@@ -1,7 +1,7 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
 import type { Schemas } from "../api/schemas.ts";
 import { term } from "./vocabulary.ts";
-import { hostOf, stepAlias, templateRef, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
+import { capabilityRef, capabilityText, contractPin, hostOf, stepAlias, templateRef, type CapabilityCard, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
 import { captureInputs, createdKinds, isDerive, operationOf, stateReads, valueTarget, type Grades, type ListField, type ListOutcome } from "./template.ts";
 
 /**
@@ -134,6 +134,8 @@ export interface StepWordsContext {
   grades?: Grades | null | undefined;
   /** Slot -> the list-of-Captures fields of its out Contract. */
   lists?: ReadonlyMap<string, readonly ListField[]> | undefined;
+  /** Slot -> the card of the capability it names (its Contracts and effect). */
+  capabilities?: ReadonlyMap<string, CapabilityCard> | undefined;
   /** A call output (`step.output`) -> the origins the Line allows it to fetch from. */
   origins?: Record<string, string[]> | undefined;
   /** The highest authority the Line lets its claims steps write with. */
@@ -182,13 +184,14 @@ function callInput(step: Extract<ProcedureStep, { call: string }>, ctx: StepWord
 }
 
 type ExtractStep = Extract<ProcedureStep, { extract: string }>;
-type ExtractField = { at: string; presence?: string | null };
-/** An extract's payload paths: distinct `at`s, in declared order. */
-const ats = (fields: Record<string, ExtractField> | undefined) => [...new Set(Object.values(fields ?? {}).map((f) => f.at))];
 
+/**
+ * An extract reads one named record set of its Capture's layout (declared on
+ * the CaptureContract, where the paths, row Contract and fields live): the
+ * step itself names the set, the key fields and the header fields it takes.
+ */
 function extractShape(step: ExtractStep) {
-  const keys = ats(step.key);
-  return { keys, fields: ats(step.fields).filter((at) => !keys.includes(at)), countAt: step.complete_when?.count_at ?? null };
+  return { keys: Object.keys(step.key ?? {}), header: step.header ?? [] };
 }
 
 /** The steps a step reads from (by output name), in authored order: its `$ref: step` references. */
@@ -229,11 +232,9 @@ export function stepBrief(spec: ProcedureSpec, index: number, ctx: StepWordsCont
   }
   if ("extract" in step) {
     const { keys } = extractShape(step);
-    const n = Object.keys(step.fields ?? {}).length;
     return joined([
-      [code(pointerText(step.records), step.records)],
+      [code(pointerText(step.records), `record set ${step.records}`)],
       keys.length ? [{ text: "key " }, ...list(keys.map((k) => code(k)))] : [],
-      n ? [{ text: plural(n, "field", "fields"), title: Object.keys(step.fields ?? {}).join(", ") }] : [],
     ]);
   }
   if ("claims" in step) {
@@ -299,9 +300,13 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
   if ("call" in step) {
     const op = operationOf(spec, step, ctx);
     const slot = spec.slots?.[step.slot];
+    const card = ctx.capabilities?.get(step.slot);
     const effect = op.effect ? [{ text: op.effect.replaceAll("_", " ") }] : null;
-    const request = slot?.in ? [contractRefPart(slot.in, "Request")] : null;
-    const result = slot?.out ? [contractRefPart(slot.out, "Result")] : null;
+    const capability = slot ? [{ text: capabilityText(slot), code: true, ref: capabilityRef(slot), title: `Capability ${capabilityText(slot)}` }] : null;
+    const requestPin = contractPin(card?.in);
+    const resultPin = contractPin(card?.out);
+    const request = requestPin ? [contractRefPart(requestPin, "Request")] : null;
+    const result = resultPin ? [contractRefPart(resultPin, "Result")] : null;
     const build = op.build ? [{ text: op.build.split("/")[0]!, ref: `Provider:${op.build}`, title: op.build }] : null;
     const inputs = captureInputs(spec, index);
     const reads = list([...new Set(inputs.flatMap((c) => (c.kind ? [c.kind] : [])))].map(kindFullPart));
@@ -311,6 +316,7 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
       add("Operation", op.name ? [code(op.name, op.signature ?? undefined)] : null);
       add("Effect", effect);
       add("Slot", [code(step.slot, op.signature ?? undefined)]);
+      add("Capability", capability);
       add("Request", request);
       add("Result", result);
       add("Build", build);
@@ -348,6 +354,7 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
       add("List", listWords(listsOf(step, ctx)));
       section("Provider");
       add("Slot", [code(step.slot)]);
+      add("Capability", capability);
       add("Effect", effect);
       add("Operation", op.name ? [code(op.name)] : null);
       add("Request", request);
@@ -369,18 +376,13 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
     if (step.claim_type) add("ClaimType", [claimTypePart(step.claim_type)]);
     if (step.all) add("At most", [{ text: count(step.all) }]);
   } else if ("extract" in step) {
-    const { keys, countAt } = extractShape(step);
+    const { keys, header } = extractShape(step);
     section("Records");
     add("From", refText(step.capture));
-    add("Per", [code(step.records)]);
+    add("Record set", [code(step.records, "A record set of the Capture's layout (its CaptureContract)")]);
     add("Key", list(keys.map((k) => code(k))));
-    add("Count", countAt ? [code(countAt)] : null);
-    add("Header", list(ats(step.header).map((h) => code(h))));
-    add("Row", [{ text: shortName(step.row), ref: `Contract:${step.row}`, title: `Contract ${step.row}` }]);
-    section("Fields");
-    for (const [name, field] of Object.entries(step.fields ?? {}) as [string, ExtractField][]) {
-      add(name, [code(field.at), ...(field.presence === "optional" ? [{ text: " · optional" }] : [])], { name: true });
-    }
+    add("Header", list(header.map((h) => code(h))));
+    add("Duplicates", step.duplicates ? [{ text: step.duplicates.replaceAll("_", " ") }] : null);
   } else if ("claims" in step) {
     section("Writes on");
     add("Subject", [kindPart(step.subject.kind)]);
@@ -389,16 +391,14 @@ export function stepSections(spec: ProcedureSpec, index: number, ctx: StepWordsC
     add("For each", refText(step.for_each));
     add("Within", refText(step.subject.within));
     add("Expect", refText(step.expect));
-    // Each ClaimType with what fills it, traced to the payload: template value -> extract field -> its path.
-    const extractFields = extractFieldsOf(spec, step.for_each);
+    // Each ClaimType with what fills it: the record field it takes (its path is in the CaptureContract's layout).
     const fromItem = (value: unknown): Part[] | null => {
       const ref = templateRef(value);
       if (ref?.$ref !== "item") return null;
       const path = ref.path ?? [];
       const field = path[0] === "fields" ? path[1] : path[0] === "key" ? path[1] : undefined;
       if (typeof field !== "string") return null;
-      const at = extractFields.get(field);
-      return [code(at ?? field)];
+      return [code(field)];
     };
     const fixed = (value: unknown): Part[] => {
       const target = valueTarget(value);
@@ -613,18 +613,3 @@ export function runChangedWords(nodes: readonly Schemas["GetRunNode"][] | null |
   return words.length > 0 ? words.join(" · ") : "no change";
 }
 
-/** The extract a claims step iterates (its for_each names `$steps.<extract>.records`): field name -> payload path. */
-function extractFieldsOf(spec: ProcedureSpec, forEach: unknown): Map<string, string> {
-  const ref = templateRef(forEach);
-  const out = new Map<string, string>();
-  if (ref?.$ref !== "step" || !ref.step) return out;
-  const extract = spec.steps.find((step, i) => "extract" in step && stepAlias(step, i) === ref.step);
-  if (!extract || !("extract" in extract)) return out;
-  for (const [name, field] of Object.entries((extract as { fields?: Record<string, { at?: string }> }).fields ?? {})) {
-    if (field?.at) out.set(name, field.at);
-  }
-  for (const [name, key] of Object.entries((extract as { key?: Record<string, { at?: string }> }).key ?? {})) {
-    if (key?.at && !out.has(name)) out.set(name, key.at);
-  }
-  return out;
-}

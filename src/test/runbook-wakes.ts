@@ -19,7 +19,7 @@ export const RUNBOOK_WAKES: RecordedFixture[] = [
       instance: "inst_fixture",
       coordinate: COORDINATE,
       generation: AT.generation,
-      accepted_at: "2026-10-19T09:30:00Z",
+      proposed_at: "2026-10-19T09:30:00Z",
       evaluation_time: NOW,
       section: "runbooks",
       runbooks: [{ runbook: "Runbook:demo.maintain", lifecycle: "live", steps: 1, triggers_total: 1, last_run: null }],

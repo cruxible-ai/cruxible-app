@@ -323,7 +323,7 @@ function claimSet(subject: string) {
               revision: spec.revision - i,
               sequence: 40 - i * 7,
               git_oid: (40 - i * 7).toString(16).padStart(12, "0"),
-              accepted: `2026-10-${String(19 - i).padStart(2, "0")}T09:30:00Z`,
+              proposed_at: `2026-10-${String(19 - i).padStart(2, "0")}T09:30:00Z`,
               actor: i === 0 ? "triage-agent" : "kev-sync",
               approved_by: i === 0 ? ["release-owner"] : [],
               value: spec.value as Schemas["ShownValue"],
@@ -357,37 +357,37 @@ function historyFixture(subject: string) {
             ? [
                 {
                   change: "stated", field: "status", predicate: "security.assessment.status", claim: clm(0xa3),
-                  sequence: 41, git_oid: "000000000029", accepted: "2026-10-19T09:00:00Z", actor: "release-owner",
+                  sequence: 41, git_oid: "000000000029", proposed_at: "2026-10-19T09:00:00Z", actor: "release-owner",
                   value: "not_affected", contended: true,
                   reason: { kind: "change_set", text: "Vendor advisory says rel-1 never shipped the build.", proposal: "sha256:" + "6".repeat(64) },
                 },
                 {
                   change: "changed", field: "status", predicate: "security.assessment.status", claim: clm(0xa2),
-                  sequence: 40, git_oid: "000000000028", accepted: "2026-10-18T22:15:00Z", actor: "triage-agent",
+                  sequence: 40, git_oid: "000000000028", proposed_at: "2026-10-18T22:15:00Z", actor: "triage-agent",
                   approved_by: ["release-owner"], before: "under_investigation", value: "affected",
                   reason: { kind: "procedure_item", reason: "OSV range match", proposal: "sha256:" + "7".repeat(64), procedure: "Procedure:security.kev-triage", run: "run-7", terminal: "settled" },
                 },
                 {
                   change: "stated", field: "release", predicate: "security.assessment.release", claim: clm(0xa1),
-                  sequence: 33, git_oid: "000000000021", accepted: "2026-10-17T10:00:00Z", actor: "sbom-import",
+                  sequence: 33, git_oid: "000000000021", proposed_at: "2026-10-17T10:00:00Z", actor: "sbom-import",
                   value: "security.release/rel-1",
                 },
               ]
             : [
                 {
                   change: "reobserved", field: "kev_listed", predicate: "security.vulnerability.kev_listed", claim: clm(0xb2),
-                  sequence: 38, git_oid: "000000000026", accepted: "2026-10-18T06:00:00Z", actor: "kev-sync", value: true,
+                  sequence: 38, git_oid: "000000000026", proposed_at: "2026-10-18T06:00:00Z", actor: "kev-sync", value: true,
                 },
                 // A direct run's change set: the key's reason is core's proposal text, which only restates the run.
                 {
                   change: "stated", field: "kev_listed", predicate: "security.vulnerability.kev_listed", claim: clm(0xb2),
-                  sequence: 30, git_oid: "00000000001e", accepted: "2026-10-16T06:00:00Z", actor: "kev-sync", approved_by: ["kev-sync"],
+                  sequence: 30, git_oid: "00000000001e", proposed_at: "2026-10-16T06:00:00Z", actor: "kev-sync", approved_by: ["kev-sync"],
                   value: true,
                   reason: { kind: "procedure_item", reason: "CISA's KEV catalog lists CVE-2024-3094.", proposal: "sha256:" + "8".repeat(64), procedure: "Procedure:security.kev-backfill", run: DIRECT_RUN, terminal: "propose" },
                 },
                 {
                   change: "stated", field: "cve_id", predicate: "security.vulnerability.cve_id", claim: clm(0xb1),
-                  sequence: 30, git_oid: "00000000001e", accepted: "2026-10-16T06:00:00Z", actor: "kev-sync", approved_by: ["kev-sync"],
+                  sequence: 30, git_oid: "00000000001e", proposed_at: "2026-10-16T06:00:00Z", actor: "kev-sync", approved_by: ["kev-sync"],
                   value: "CVE-2024-3094",
                   reason: {
                     kind: "change_set",
@@ -445,7 +445,7 @@ const runAuthors = [
         kind: "revisions",
         revisions: [
           {
-            revision: 2, sequence: 45, git_oid: "00000000002d", accepted: "2026-10-19T08:00:00Z", actor: "release-owner",
+            revision: 2, sequence: 45, git_oid: "00000000002d", proposed_at: "2026-10-19T08:00:00Z", actor: "release-owner",
             digest: "sha256:" + "9".repeat(12),
           },
         ],
@@ -500,7 +500,7 @@ export default [
         events: [
           {
             change: "stated", field: "vulnerability", predicate: "security.assessment.vulnerability", claim: clm(0xa4),
-            sequence: 33, git_oid: "000000000021", accepted: "2026-10-17T10:00:00Z", actor: "sbom-import",
+            sequence: 33, git_oid: "000000000021", proposed_at: "2026-10-17T10:00:00Z", actor: "sbom-import",
             value: "security.vulnerability/cve-2024-3094",
           },
         ],

@@ -30,7 +30,7 @@ export default defineFixture({
           "revision": 1,
           "sequence": 20,
           "git_oid": "2419b8847316",
-          "accepted": "2026-11-07T22:22:24.799862Z",
+          "proposed_at": "2026-11-07T22:22:24.799862Z",
           "actor": "owner",
           "approved_by": [],
           "lifecycle": "live",

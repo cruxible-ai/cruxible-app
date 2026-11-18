@@ -22,7 +22,7 @@ const event = (field: string, reason: NonNullable<SubjectHistoryEvent["reason"]>
   claim: `CLM-${field}`,
   sequence,
   git_oid: "0".repeat(12),
-  accepted: "2026-10-31T15:30:00Z",
+  proposed_at: "2026-10-31T15:30:00Z",
   actor: "robertmalone",
   approved_by: ["robertmalone"],
   reason,

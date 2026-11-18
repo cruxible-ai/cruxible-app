@@ -28,9 +28,12 @@ export const REPAIR_DOORS: Record<NextRepair["operation"], { cli: string; mcp: s
   "cruxible.line.enable": { cli: "line enable", mcp: "cruxible_line_enable" },
   "cruxible.line.evaluate": { cli: "line evaluate", mcp: "cruxible_line_evaluate" },
   "cruxible.line.dispatch": { cli: "line dispatch", mcp: "cruxible_line_dispatch" },
+  "cruxible.runbook.run": { cli: "runbook run", mcp: "cruxible_runbook_run" },
+  "cruxible.action.run": { cli: "action run", mcp: "cruxible_action_run" },
   "cruxible.inbox.list": { cli: "inbox list", mcp: "cruxible_inbox_list" },
   "cruxible.prediction.settle": { cli: "prediction settle", mcp: "cruxible_prediction_settle" },
   "cruxible.kit.add": { cli: "kit add", mcp: "cruxible_kit_add" },
+  "cruxible.vocabulary.export": { cli: "vocabulary export", mcp: "cruxible_vocabulary_export" },
   hand_edit: null,
 };
 

@@ -492,9 +492,13 @@ export default defineFixture({
       "selection_decision_digest": "sha256:d653587f4e524d3ded85dfd20629426166695b4f98465f6d16a358165bfb60d4",
       "resolved_provider_bindings": [
         {
-          "tag": "cruxible-procedure-provider-binding-v4",
+          "tag": "cruxible-procedure-provider-binding-v5",
           "node_id": "scores_api",
           "slot": "fetch",
+          "capability": {
+            "name": "web.fetch",
+            "version": 1
+          },
           "operation": "web.fetch",
           "operation_signature_digest": "sha256:97d85d6cf99e7e0e0452a6efee67c3381ed731e11dd103197b672366011de4ea",
           "provider_artifact_digest": "sha256:540436f6a8e9f50181328bdb4c58e36c56e7c0403cc6c5f20501596d06e53a72",

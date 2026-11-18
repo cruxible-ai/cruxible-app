@@ -14,7 +14,7 @@ import { captureHandle } from "@/lib/next-reasons";
 import { contractName } from "@/lib/ontology";
 import { callOutputs, listFields, listOutcome, type ListMember } from "@/lib/template";
 import { MemberStatus, memberHover } from "@/components/ListMembers";
-import { stepAlias, type ProcedureSpec } from "@/lib/definitions";
+import { capabilityRef, contractPin, stepAlias, type ProcedureSpec } from "@/lib/definitions";
 
 type CaptureCard = Schemas["GetCaptureCard"];
 
@@ -159,8 +159,8 @@ function callOf(run: Schemas["GetProcedureRunCard"] | null, digest: string): Cal
  * coordinate's projection (`useCardAt`, `useRetainedAt`): a read past the
  * window would rebuild it, O(instance + history), on a routine page visit.
  * Reads: the run state, the coordinate's generation and the latest head
- * (GET /head), then the Procedure card and the slot's out Contract card
- * there. Past the window, or any of them unread: no fields (unclassified).
+ * (GET /head), then the Procedure card, the capability its slot names and
+ * that capability's out Contract card there. Past the window, or any of them unread: no fields (unclassified).
  */
 function useCallFields(runId: string | null, run: Schemas["GetProcedureRunCard"] | null, call: Call | null, digest: string) {
   const needed = call !== null && !listOutcome(call.node)?.members.some((m) => m.capture === digest) && (call.summary.capture_digests ?? []).length > 1;
@@ -170,7 +170,9 @@ function useCallFields(runId: string | null, run: Schemas["GetProcedureRunCard"]
   const spec = cardOf(procedure.read.data, "procedure")?.authored ?? null;
   const index = spec && call ? spec.steps.findIndex((step, i) => "call" in step && stepAlias(step, i) === call.node.node) : -1;
   const step = index >= 0 ? (spec!.steps[index] as Extract<ProcedureSpec["steps"][number], { call: string }>) : null;
-  const out = step ? spec!.slots?.[step.slot]?.out : undefined;
+  const slot = step ? spec!.slots?.[step.slot] : undefined;
+  const capability = useCardAt(slot ? capabilityRef(slot) : null, bound);
+  const out = contractPin(cardOf(capability.read.data, "capability")?.out);
   const contract = useCardAt(out ? `Contract:${out.name}@${out.version}` : null, bound);
   const contractCard = cardOf(contract.read.data, "contract");
   if (!needed) return { fields: null, isPending: false };
@@ -180,6 +182,7 @@ function useCallFields(runId: string | null, run: Schemas["GetProcedureRunCard"]
   if (!bound) return { fields: null, isPending: false };
   if (waiting(procedure)) return { fields: null, isPending: true };
   if (!step) return { fields: null, isPending: false };
+  if (slot && waiting(capability)) return { fields: null, isPending: true };
   if (out && waiting(contract)) return { fields: null, isPending: true };
   if (!contractCard) return { fields: null, isPending: false };
   return { fields: { captures: Object.keys(step.captures ?? {}), lists: listFields(contractCard).map((f) => f.field) }, isPending: false };

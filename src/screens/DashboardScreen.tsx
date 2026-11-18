@@ -55,8 +55,8 @@ export function DashboardScreen() {
             <Fact label="Generation">
               <span className="font-mono">{o.generation}</span>
             </Fact>
-            <Fact label="Accepted" title={o.accepted_at}>
-              {formatDateTime(o.accepted_at)} <span className="text-zinc-500">({formatRelative(o.accepted_at)})</span>
+            <Fact label="Proposed" title={o.proposed_at}>
+              {formatDateTime(o.proposed_at)} <span className="text-zinc-500">({formatRelative(o.proposed_at)})</span>
             </Fact>
             {o.floor && (
               <Fact label="Floor">

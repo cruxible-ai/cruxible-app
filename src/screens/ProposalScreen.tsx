@@ -295,6 +295,26 @@ function ProposalFacts({
           {formatDateTime(proposal.admitted_at)}
         </Fact>
       )}
+      {proposal?.closed_at && (
+        <Fact label="Closed" title={proposal.closed_at}>
+          {formatDateTime(proposal.closed_at)}
+        </Fact>
+      )}
+      {proposal?.closed_by && (
+        <Fact label="Closed by">
+          <span className="font-mono">{proposal.closed_by}</span>
+        </Fact>
+      )}
+      {proposal?.superseded_by && (
+        <Fact label="Superseded by">
+          <RefLink value={proposal.superseded_by} short />
+        </Fact>
+      )}
+      {proposal?.closed_reason && (
+        <Fact label="Close reason">
+          <LongText text={proposal.closed_reason} lines={3} />
+        </Fact>
+      )}
       {hasReason(reason) && (
         <Fact label="Why in review">
           <WhyInReview reason={reason} />

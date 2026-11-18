@@ -44,7 +44,7 @@ export default defineFixture({
           "verdict": "supported",
           "status": "accepted",
           "revision": 1,
-          "accepted": "2026-11-07T22:22:24.799862Z",
+          "proposed_at": "2026-11-07T22:22:24.799862Z",
           "contenders": [],
           "flags": [],
           "next": [

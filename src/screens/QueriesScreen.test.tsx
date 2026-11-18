@@ -47,7 +47,7 @@ describe("Queries", () => {
                 tag: "playbill-orient-v1",
                 instance: "inst_fixture",
                 generation: 42,
-                accepted_at: "2026-10-19T09:30:00Z",
+                proposed_at: "2026-10-19T09:30:00Z",
                 evaluation_time: "2026-10-19T12:00:00Z",
                 section: "queries",
                 queries: [],

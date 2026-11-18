@@ -51,17 +51,10 @@ export default defineFixture({
             },
             "slots": {
               "fetch": {
-                "in": {
-                  "name": "web.fetch.request",
-                  "version": 1,
-                  "digest": "sha256:1f4eefbeef292080ab075e22d068a4e45f6b01170802f2ca470daa2329444137"
-                },
-                "out": {
-                  "name": "web.fetch.result",
-                  "version": 1,
-                  "digest": "sha256:94f256cdc9f9dfb45d8ac2a55e5aaf40bdb64757cbbf21703baeb8bd8d03062f"
-                },
-                "effect": "external_read"
+                "capability": {
+                  "name": "web.fetch",
+                  "version": 1
+                }
               }
             },
             "steps": [
@@ -110,30 +103,11 @@ export default defineFixture({
                     "capture"
                   ]
                 },
-                "records": "/data/*",
-                "row": "security.epss-row@1",
-                "fields": {
-                  "date": {
-                    "at": "date",
-                    "parse": "date"
-                  },
-                  "percentile": {
-                    "at": "percentile",
-                    "parse": "decimal"
-                  },
-                  "score": {
-                    "at": "epss",
-                    "parse": "decimal"
-                  }
-                },
+                "records": "data",
                 "key": {
                   "cve_id": {
-                    "at": "cve",
                     "type": "key_part<security.vulnerability:cve_id>"
                   }
-                },
-                "complete_when": {
-                  "count_at": "/total"
                 },
                 "only_keys": {
                   "$ref": "step",
@@ -264,17 +238,10 @@ export default defineFixture({
             },
             "slots": {
               "fetch": {
-                "in": {
-                  "name": "web.fetch.request",
-                  "version": 1,
-                  "digest": "sha256:1f4eefbeef292080ab075e22d068a4e45f6b01170802f2ca470daa2329444137"
-                },
-                "out": {
-                  "name": "web.fetch.result",
-                  "version": 1,
-                  "digest": "sha256:94f256cdc9f9dfb45d8ac2a55e5aaf40bdb64757cbbf21703baeb8bd8d03062f"
-                },
-                "effect": "external_read"
+                "capability": {
+                  "name": "web.fetch",
+                  "version": 1
+                }
               }
             },
             "steps": [
@@ -319,44 +286,15 @@ export default defineFixture({
                     "capture"
                   ]
                 },
-                "records": "/vulnerabilities/*",
-                "row": "security.kev-record@1",
-                "fields": {
-                  "date_added": {
-                    "at": "dateAdded",
-                    "parse": "date"
-                  },
-                  "due_date": {
-                    "at": "dueDate",
-                    "parse": "date",
-                    "presence": "optional"
-                  },
-                  "listed_from": {
-                    "at": "dateAdded",
-                    "project": "utc_start_of_day",
-                    "parse": "date"
-                  },
-                  "ransomware_use": {
-                    "at": "knownRansomwareCampaignUse",
-                    "canonicalize": "claim_type",
-                    "presence": "optional"
-                  }
-                },
+                "records": "vulnerabilities",
                 "key": {
                   "cve_id": {
-                    "at": "cveID",
                     "type": "key_part<security.vulnerability:cve_id>"
                   }
                 },
-                "header": {
-                  "catalog_version": {
-                    "at": "/catalogVersion",
-                    "presence": "required"
-                  }
-                },
-                "complete_when": {
-                  "count_at": "/count"
-                }
+                "header": [
+                  "catalog_version"
+                ]
               },
               {
                 "id": "write",
@@ -506,30 +444,16 @@ export default defineFixture({
             },
             "slots": {
               "match": {
-                "in": {
-                  "name": "osv.match.request",
-                  "version": 1,
-                  "digest": "sha256:af7b4623f7d4681722e0a3764152080ffbeadac82f9b643fefd1dbd76b2df8af"
-                },
-                "out": {
-                  "name": "osv.match.result",
-                  "version": 1,
-                  "digest": "sha256:8dc8e9b5d54e859ff24e5110ebdb1c3c0327f4e9b13a995aae156c7e9c2858e4"
-                },
-                "effect": "pure"
+                "capability": {
+                  "name": "osv.match",
+                  "version": 1
+                }
               },
               "query": {
-                "in": {
-                  "name": "osv.query.request",
-                  "version": 1,
-                  "digest": "sha256:6f410ed449bdf9a724f7daf8df15adbd1ccff56fc45f010e6677ef3f77c0dab5"
-                },
-                "out": {
-                  "name": "osv.query.result",
-                  "version": 1,
-                  "digest": "sha256:5cba02d44b4ae86b0bfb011df645080051c5399087a3714b15bc8ed240fcec6d"
-                },
-                "effect": "external_read"
+                "capability": {
+                  "name": "osv.query",
+                  "version": 1
+                }
               }
             },
             "steps": [
@@ -601,32 +525,18 @@ export default defineFixture({
                     "document"
                   ]
                 },
-                "records": "/affected/*",
-                "row": "security.osv-affected@1",
-                "fields": {
-                  "osv_id": {
-                    "at": "osv_id"
-                  }
-                },
+                "records": "affected",
                 "key": {
                   "cve_id": {
-                    "at": "cve_id",
                     "type": "key_part<security.vulnerability:cve_id>"
                   },
                   "purl": {
-                    "at": "purl",
                     "type": "key_part<security.component:purl>"
                   }
                 },
-                "header": {
-                  "queried": {
-                    "at": "/queried",
-                    "type": "list<string{max_len: 256}>{max_items: 20000}"
-                  }
-                },
-                "complete_when": {
-                  "count_at": "/count"
-                }
+                "header": [
+                  "queried"
+                ]
               },
               {
                 "id": "write",
@@ -735,30 +645,16 @@ export default defineFixture({
             },
             "slots": {
               "derive": {
-                "in": {
-                  "name": "sbom.components.request",
-                  "version": 1,
-                  "digest": "sha256:5c622fc01dfabd8c7bd71842eeddb10d54255951a2105bab3ca28160fb5811ba"
-                },
-                "out": {
-                  "name": "sbom.components.result",
-                  "version": 1,
-                  "digest": "sha256:4fa2f7cb4d5f000a30abe573f4026c570558d84a3831410417331b5e7ddc6c60"
-                },
-                "effect": "pure"
+                "capability": {
+                  "name": "sbom.components",
+                  "version": 1
+                }
               },
               "read": {
-                "in": {
-                  "name": "workspace.file.request",
-                  "version": 1,
-                  "digest": "sha256:d9c33d4ac151700c89f5391b66adf73c6e6cddfc199670cd4cb9dc01651f7240"
-                },
-                "out": {
-                  "name": "workspace.file.result",
-                  "version": 1,
-                  "digest": "sha256:fe3980a054beed0610045a28a27fbb50c0bad89e91fb5059a76667e34e169dd8"
-                },
-                "effect": "pure"
+                "capability": {
+                  "name": "workspace.file",
+                  "version": 1
+                }
               }
             },
             "steps": [
@@ -830,40 +726,15 @@ export default defineFixture({
                     "document"
                   ]
                 },
-                "records": "/components/*",
-                "row": "security.sbom-component@1",
-                "fields": {
-                  "name": {
-                    "at": "name",
-                    "presence": "optional"
-                  },
-                  "named_by": {
-                    "at": "named_by"
-                  },
-                  "scope": {
-                    "at": "scope",
-                    "canonicalize": "claim_type"
-                  },
-                  "warning": {
-                    "at": "warning",
-                    "presence": "optional"
-                  }
-                },
+                "records": "components",
                 "key": {
                   "purl": {
-                    "at": "purl",
                     "type": "key_part<security.component:purl>"
                   }
                 },
-                "header": {
-                  "inventory": {
-                    "at": "/inventory",
-                    "type": "string{min_len: 1, max_len: 256}"
-                  }
-                },
-                "complete_when": {
-                  "count_at": "/count"
-                }
+                "header": [
+                  "inventory"
+                ]
               },
               {
                 "id": "write",

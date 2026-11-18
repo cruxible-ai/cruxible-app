@@ -48,30 +48,16 @@ export default defineFixture({
             },
             "slots": {
               "derive": {
-                "in": {
-                  "name": "sbom.components.request",
-                  "version": 1,
-                  "digest": "sha256:5c622fc01dfabd8c7bd71842eeddb10d54255951a2105bab3ca28160fb5811ba"
-                },
-                "out": {
-                  "name": "sbom.components.result",
-                  "version": 1,
-                  "digest": "sha256:4fa2f7cb4d5f000a30abe573f4026c570558d84a3831410417331b5e7ddc6c60"
-                },
-                "effect": "pure"
+                "capability": {
+                  "name": "sbom.components",
+                  "version": 1
+                }
               },
               "read": {
-                "in": {
-                  "name": "workspace.file.request",
-                  "version": 1,
-                  "digest": "sha256:d9c33d4ac151700c89f5391b66adf73c6e6cddfc199670cd4cb9dc01651f7240"
-                },
-                "out": {
-                  "name": "workspace.file.result",
-                  "version": 1,
-                  "digest": "sha256:fe3980a054beed0610045a28a27fbb50c0bad89e91fb5059a76667e34e169dd8"
-                },
-                "effect": "pure"
+                "capability": {
+                  "name": "workspace.file",
+                  "version": 1
+                }
               }
             },
             "steps": [
@@ -143,40 +129,15 @@ export default defineFixture({
                     "document"
                   ]
                 },
-                "records": "/components/*",
-                "row": "security.sbom-component@1",
-                "fields": {
-                  "name": {
-                    "at": "name",
-                    "presence": "optional"
-                  },
-                  "named_by": {
-                    "at": "named_by"
-                  },
-                  "scope": {
-                    "at": "scope",
-                    "canonicalize": "claim_type"
-                  },
-                  "warning": {
-                    "at": "warning",
-                    "presence": "optional"
-                  }
-                },
+                "records": "components",
                 "key": {
                   "purl": {
-                    "at": "purl",
                     "type": "key_part<security.component:purl>"
                   }
                 },
-                "header": {
-                  "inventory": {
-                    "at": "/inventory",
-                    "type": "string{min_len: 1, max_len: 256}"
-                  }
-                },
-                "complete_when": {
-                  "count_at": "/count"
-                }
+                "header": [
+                  "inventory"
+                ]
               },
               {
                 "id": "write",

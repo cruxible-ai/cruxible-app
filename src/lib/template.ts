@@ -1,6 +1,6 @@
 // Relative .ts imports, like definitions.ts: pure, so tests and Node can load it.
 import type { Schemas } from "../api/schemas.ts";
-import { stepAlias, templateRef, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
+import { capabilityText, stepAlias, templateRef, type CapabilityCard, type ProcedureSpec, type ProcedureStep } from "./definitions.ts";
 import { collectRefs } from "./procedure-graph.ts";
 
 /**
@@ -13,8 +13,8 @@ import { collectRefs } from "./procedure-graph.ts";
  * - a `transform` of kind filter or dedupe is FILTER;
  * - a `call` is a DERIVE when its input takes a Capture (a reference to a
  *   capture field of another call) and the CaptureKind it commits is graded
- *   `derived` (or, with the grades unread, its slot declares `effect: pure`);
- *   any other call is a FETCH.
+ *   `derived` (with the grades unread, taking a Capture is enough); any other
+ *   call is a FETCH.
  *
  * Any other kind (guard, select, invoke, emit, halt, project, other
  * transforms: refused at authoring since D-R37 h1, still in older runs and
@@ -86,14 +86,15 @@ export function stateReads(spec: ProcedureSpec, index: number): { step: string; 
   return out;
 }
 
-/** Whether a call is a derive: it takes a Capture and commits a derived CaptureKind (its slot's purity when grades are unread). */
+/** Whether a call is a derive: it takes a Capture and commits a derived CaptureKind (any Capture-taking call when grades are unread). */
 export function isDerive(spec: ProcedureSpec, index: number, grades?: Grades | null): boolean {
   const step = spec.steps[index];
   if (!step || !("call" in step)) return false;
   if (captureInputs(spec, index).length === 0) return false;
   const kinds = Object.values(step.captures ?? {});
   if (grades && kinds.some((kind) => grades.has(kind))) return kinds.some((kind) => grades.get(kind) === "derived");
-  return spec.slots?.[step.slot]?.effect === "pure";
+  // A slot names a capability, not its effect; a call that takes a Capture is a derive.
+  return true;
 }
 
 /** A step's template stage; null for a kind outside the template (rendered generically). */
@@ -123,15 +124,21 @@ export interface Operation {
 export function operationOf(
   spec: ProcedureSpec,
   step: CallStep,
-  line?: { bindings?: Record<string, string> | undefined; operations?: Record<string, string> | undefined } | null,
+  line?: {
+    bindings?: Record<string, string> | undefined;
+    operations?: Record<string, string> | undefined;
+    /** Slot -> the card of the capability it names, where read. */
+    capabilities?: ReadonlyMap<string, CapabilityCard> | undefined;
+  } | null,
 ): Operation {
   const slot = spec.slots?.[step.slot];
+  const card = line?.capabilities?.get(step.slot);
   return {
     slot: step.slot,
     name: line?.operations?.[step.slot] ?? null,
     build: line?.bindings?.[step.slot] ?? null,
-    signature: slot ? `${slot.in.name}@${slot.in.version} → ${slot.out.name}@${slot.out.version}` : null,
-    effect: slot?.effect ?? null,
+    signature: slot ? (card ? `${capabilityText(slot)}: ${card.in} → ${card.out}` : capabilityText(slot)) : null,
+    effect: card?.effect ?? null,
   };
 }
 

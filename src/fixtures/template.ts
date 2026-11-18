@@ -82,11 +82,21 @@ const ADVISORY_CT = "security.vulnerability.advisory";
 
 // -- definitions ----------------------------------------------------------------------
 
-const slot = (input: string, output: string, effect: Schemas["ProcedureSlot"]["effect"]): Schemas["ProcedureSlot"] => ({
-  in: { name: input, version: 1 },
-  out: { name: output, version: 1 },
+type CapabilityCard = Schemas["GetCapabilityCard"];
+/** A capability version a slot names: its Contracts in and out, and its effect. */
+const capability = (name: string, input: string, output: string, effect: string, version = 1): CapabilityCard => ({
+  capability: name,
+  version,
+  description: `${name} v${version}`,
   effect,
+  in: `${input}@1`,
+  out: `${output}@${version}`,
 });
+const slot = (card: CapabilityCard): Schemas["CapabilitySlot"] => ({ capability: { name: card.capability, version: card.version } });
+const PAGES_CAPABILITY = capability("web.fetch.pages", "web.fetch.pages.request", "web.fetch.pages.result", "external_read");
+const NARROW_CAPABILITY = capability("security.advisory-narrow", "security.advisory-narrow.request", "security.advisory-narrow.result", "pure");
+const FIXES_CAPABILITY = capability("security.advisory-fixes", "security.advisory-fixes.request", "security.advisory-fixes.result", "pure");
+const capabilityResult = (card: CapabilityCard) => result(`Capability:${card.capability}@${card.version}`, "capability", { card });
 const step = (name: string, ...path: string[]) => ({ $ref: "step" as const, step: name, path });
 const item = (...path: string[]) => ({ $ref: "item" as const, path });
 const param = (name: string) => ({ $ref: "param" as const, path: [name] });
@@ -96,9 +106,9 @@ export const TEMPLATE_SPEC: Spec = {
   description: "Read the vendor's advisory pages, narrow them to the watched CVEs and record the releases that fix each.",
   params: { url: { type: { kind: "string" } }, logical_source: { type: { kind: "string" } } },
   slots: {
-    pages: slot("web.fetch.pages.request", "web.fetch.pages.result", "external_read"),
-    narrow: slot("security.advisory-narrow.request", "security.advisory-narrow.result", "pure"),
-    fixes: slot("security.advisory-fixes.request", "security.advisory-fixes.result", "pure"),
+    pages: slot(PAGES_CAPABILITY),
+    narrow: slot(NARROW_CAPABILITY),
+    fixes: slot(FIXES_CAPABILITY),
   },
   steps: [
     { read: "watched", query: "security.kev_exposure" },
@@ -108,10 +118,7 @@ export const TEMPLATE_SPEC: Spec = {
     {
       extract: "entries",
       capture: step("fixes", "capture"),
-      records: "/fixes/*",
-      row: "security.advisory-fix@1",
-      key: { cve_id: { at: "cve" } },
-      fields: { fixed_in: { at: "fixed" }, advisory: { at: "advisory" } },
+      records: "fixes",
     },
     {
       id: "write",
@@ -129,10 +136,10 @@ export const TEMPLATE_SPEC: Spec = {
 const FOLLOWUP_SPEC: Spec = {
   procedure: FOLLOWUP_PROCEDURE,
   description: "Post each newly fixed CVE for an owner to schedule the upgrade.",
-  slots: { read: slot("cruxible.capture.read.request", "security.advisory-fixes.result", "external_read") },
+  slots: { read: slot(capability("cruxible.capture.read", "cruxible.capture.read.request", "security.advisory-fixes.result", "external_read")) },
   steps: [
     { call: "fixes", slot: "read", input: {}, captures: { capture: FIXES_KIND } },
-    { extract: "rows", capture: step("fixes", "capture"), records: "/fixes/*", row: "security.advisory-fix@1", key: { cve_id: { at: "cve" } }, fields: { fixed_in: { at: "fixed" } } },
+    { extract: "rows", capture: step("fixes", "capture"), records: "fixes" },
     { inbox: "upgrade", for_each: step("rows", "records"), fields: { cve: item("key", "cve_id"), fixed_in: item("fields", "fixed_in") } },
   ],
 };
@@ -339,7 +346,11 @@ const LINES: RecordedFixture[] = [
     },
   }),
   batch(["Trigger:security.advisory-hourly"], [result("Trigger:security.advisory-hourly", "trigger", { card: { trigger: "Trigger:security.advisory-hourly", lifecycle: "live", schedule: { kind: "cron", cron: "15 */6 * * *" }, target: `Line:${TEMPLATE_LINE}` } })]),
-  // The slots' out Contracts: the pages fetch returns a list of Captures.
+  // The capabilities the slots name, then their out Contracts: the pages fetch returns a list of Captures.
+  batch(
+    ["Capability:security.advisory-fixes@1", "Capability:security.advisory-narrow@1", "Capability:web.fetch.pages@1"],
+    [capabilityResult(FIXES_CAPABILITY), capabilityResult(NARROW_CAPABILITY), capabilityResult(PAGES_CAPABILITY)],
+  ),
   batch(
     ["Contract:security.advisory-fixes.result@1", "Contract:security.advisory-narrow.result@1", "Contract:web.fetch.pages.result@1"],
     [
@@ -739,7 +750,7 @@ const ORIENT_BASE = {
   instance: "inst_fixture",
   coordinate: COORDINATE,
   generation: AT.generation,
-  accepted_at: "2026-10-19T09:30:00Z",
+  proposed_at: "2026-10-19T09:30:00Z",
   evaluation_time: NOW,
 };
 
@@ -1043,10 +1054,13 @@ export const BODY = D("6e");
 export const HEADERS = D("6f");
 const HEADERS_KIND = "security.advisory-headers";
 
+const PAIR_CAPABILITY = capability("web.fetch.pair", "web.fetch.request", "web.fetch.pair.result", "external_read");
+/** The capability's next version: the same call returns one list field (its out Contract version 2). */
+const PAIR_LIST_CAPABILITY = capability("web.fetch.pair", "web.fetch.request", "web.fetch.pair.result", "external_read", 2);
 const PAIR_SPEC: Spec = {
   procedure: PAIR_PROCEDURE,
   description: "Fetch the vendor's advisory index and keep its response headers.",
-  slots: { fetch: slot("web.fetch.request", "web.fetch.pair.result", "external_read") },
+  slots: { fetch: slot(PAIR_CAPABILITY) },
   steps: [{ call: "index", slot: "fetch", input: { url: PAGE_URL(1) }, captures: { body: PAGE_KIND, headers: HEADERS_KIND } }],
 };
 const PAIR_RUN_CARD: Schemas["GetProcedureRunCard"] = {
@@ -1066,7 +1080,7 @@ const PAIR_CAPTURES: CaptureSpec[] = [
 /** The Procedure revised: the same call now returns one list field (pages), its out Contract version 2. */
 const PAIR_LIST_SPEC: Spec = {
   ...PAIR_SPEC,
-  slots: { fetch: { ...slot("web.fetch.request", "web.fetch.pair.result", "external_read"), out: { name: "web.fetch.pair.result", version: 2 } } },
+  slots: { fetch: slot(PAIR_LIST_CAPABILITY) },
   steps: [{ call: "index", slot: "fetch", input: { url: PAGE_URL(1) }, captures: { pages: PAGE_KIND } }],
 };
 
@@ -1080,13 +1094,17 @@ const batchAt = (coordinate: Schemas["AcceptedCoordinate"], ref: string, kind: G
   });
 
 const pairDefinitions = (coordinate: Schemas["AcceptedCoordinate"], spec: Spec): RecordedFixture[] => {
-  const out = spec.slots!.fetch!.out;
+  const named = spec.slots!.fetch!.capability;
+  const card = named.version === 1 ? PAIR_CAPABILITY : PAIR_LIST_CAPABILITY;
+  const [outName, outVersion] = card.out.split("@") as [string, string];
+  const out = { name: outName, version: Number(outVersion) };
   const fields =
     out.version === 1
       ? [{ name: "body", type: "capture<*>" }, { name: "headers", type: "capture<*>" }]
       : [{ name: "pages", type: "list<capture<*>>{max_items: 20}" }];
   return [
     batchAt(coordinate, `Procedure:${PAIR_PROCEDURE}`, "procedure", procedureCard(spec)),
+    batchAt(coordinate, `Capability:${card.capability}@${card.version}`, "capability", card),
     batchAt(coordinate, `Contract:${out.name}@${out.version}`, "contract", { contract: out.name, version: out.version, fields }),
   ];
 };

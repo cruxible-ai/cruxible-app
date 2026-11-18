@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as R
 import { Link } from "react-router-dom";
 import { Handle, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { ArrowRightLeft, ArrowUpDown, SlidersHorizontal } from "lucide-react";
-import { useCaptureContracts, useGetBatch, useInstanceId } from "@/api/hooks";
+import { useCaptureContracts, useGetBatch, useInstanceId, useSlotCapabilities } from "@/api/hooks";
 import { cardOf } from "@/api/schemas";
 import { SignalDot } from "@/components/Chip";
 import { LoadState } from "@/components/Panel";
@@ -10,7 +10,7 @@ import { CONTROL_CLASS, GraphCanvas, type GraphSelection } from "@/components/gr
 import type { RoutedEdgeData } from "@/components/graph/RoutedEdge";
 import { useAtLink } from "@/lib/at";
 import { parseRef, refRoute } from "@/lib/cruxible-ref";
-import { stepAlias, stepView, templateRef, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
+import { contractPin, stepAlias, stepView, templateRef, type CapabilityCard, type LineDefinition, type ProcedureSpec, type StepView } from "@/lib/definitions";
 import { buildProcedureGraph, edgeLabel, INPUT_NODE, lineage, type StepRole } from "@/lib/procedure-graph";
 import type { RunMarks, StepMark } from "@/lib/run-marks";
 import { bytesWords, flowWords, partsText, queryShape, shortName, stepBrief, stepSections, summaryWords, type DetailSection, type Part, type QueryShape } from "@/lib/step-words";
@@ -616,7 +616,7 @@ export function ProcedureGraph({
 
   const queries = useQueryShapes(spec);
   const grades = useGrades();
-  const { lists, ins, outs } = useSlotContracts(spec);
+  const { lists, ins, outs, capabilities } = useSlotContracts(spec);
   // On a Line page: the Lines (or direct entry) upstream of its reads, and the Lines downstream of its writes.
   const lineName = definition?.line ?? null;
   const dependencies = useLineDependencies(lineName !== null);
@@ -641,10 +641,11 @@ export function ProcedureGraph({
       operations: definition?.operations,
       grades,
       lists,
+      capabilities,
       origins: definition?.origins,
       maxAuthority: line ? definition?.maxAuthority : null,
     }),
-    [definition, line, queries, grades, lists],
+    [definition, line, queries, grades, lists, capabilities],
   );
   const fontsLoaded = useFontsLoaded();
   const display = useMemo(() => {
@@ -1010,19 +1011,27 @@ function useGrades(): ReadonlyMap<string, string> | null {
 type ContractCard = NonNullable<ReturnType<typeof cardOf<"contract">>>;
 
 /**
- * The call slots' Contracts: one get-batch of their out Contracts (the
+ * The call slots' Contracts, through the capability each slot names (one
+ * get-batch of the capabilities): one get-batch of their out Contracts (the
  * list-of-Captures fields, a result's description) and one of their in
  * Contracts (what each request field means). Empty maps while they load or
  * when a read fails: the nodes draw without these rows.
  */
-function useSlotContracts(spec: ProcedureSpec): { lists: ReadonlyMap<string, readonly ListField[]>; ins: ReadonlyMap<string, ContractCard>; outs: ReadonlyMap<string, ContractCard> } {
+function useSlotContracts(spec: ProcedureSpec): {
+  lists: ReadonlyMap<string, readonly ListField[]>;
+  ins: ReadonlyMap<string, ContractCard>;
+  outs: ReadonlyMap<string, ContractCard>;
+  capabilities: ReadonlyMap<string, CapabilityCard>;
+} {
+  const capabilities = useSlotCapabilities(spec);
   const slots = useMemo(() => [...new Set(spec.steps.flatMap((step) => ("call" in step ? [step.slot] : [])))].sort(), [spec]);
+  const pinOf = useCallback((slot: string, side: "in" | "out") => contractPin(capabilities.get(slot)?.[side]), [capabilities]);
   const refsOf = useCallback(
     (side: "in" | "out") => [...new Set(slots.flatMap((slot) => {
-      const ref = spec.slots?.[slot]?.[side];
+      const ref = pinOf(slot, side);
       return ref ? [`Contract:${ref.name}@${ref.version}`] : [];
     }))].sort(),
-    [slots, spec],
+    [slots, pinOf],
   );
   const outRefs = useMemo(() => refsOf("out"), [refsOf]);
   const inRefs = useMemo(() => refsOf("in"), [refsOf]);
@@ -1033,7 +1042,7 @@ function useSlotContracts(spec: ProcedureSpec): { lists: ReadonlyMap<string, rea
     const bySlot = (side: "in" | "out", refs: string[], results: typeof outReads.results) => {
       const out = new Map<string, ContractCard>();
       for (const slot of slots) {
-        const ref = spec.slots?.[slot]?.[side];
+        const ref = pinOf(slot, side);
         const i = ref ? refs.indexOf(`Contract:${ref.name}@${ref.version}`) : -1;
         const card = i >= 0 ? cardOf(results[i], "contract") : null;
         if (card) out.set(slot, card);
@@ -1046,9 +1055,9 @@ function useSlotContracts(spec: ProcedureSpec): { lists: ReadonlyMap<string, rea
       const fields = listFields(card);
       if (fields.length) lists.set(slot, fields);
     }
-    return { lists, ins: bySlot("in", inRefs, inReads.results), outs };
+    return { lists, ins: bySlot("in", inRefs, inReads.results), outs, capabilities };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
-  }, [slots, outRefs, inRefs, key]);
+  }, [slots, outRefs, inRefs, key, pinOf, capabilities]);
 }
 
 /**

@@ -30,7 +30,7 @@ export default defineFixture({
           "revision": 1,
           "sequence": 17,
           "git_oid": "395f0a9e96f0",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "lifecycle": "live",
@@ -52,7 +52,7 @@ export default defineFixture({
           "claim": "CLM-1817b5bf41dbacad208487b99a2a275d",
           "sequence": 19,
           "git_oid": "2d033ee7b7af",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "reason": {
@@ -72,7 +72,7 @@ export default defineFixture({
           "claim": "CLM-c79e9d236b888bada73738d2f0dc0e1d",
           "sequence": 19,
           "git_oid": "2d033ee7b7af",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "reason": {
@@ -92,7 +92,7 @@ export default defineFixture({
           "claim": "CLM-df2e21236111d6da62b2da4022a65fdb",
           "sequence": 19,
           "git_oid": "2d033ee7b7af",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "reason": {
@@ -112,7 +112,7 @@ export default defineFixture({
           "claim": "CLM-0c497ce6493bc6eea94579dbc0e294fa",
           "sequence": 18,
           "git_oid": "031174cb01c3",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "reason": {
@@ -132,7 +132,7 @@ export default defineFixture({
           "claim": "CLM-2383f94f7b8c2128e24ea365a8f1e736",
           "sequence": 18,
           "git_oid": "031174cb01c3",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "reason": {
@@ -152,7 +152,7 @@ export default defineFixture({
           "claim": "CLM-7d0e73b0e07c961fb1024d98d258f43a",
           "sequence": 18,
           "git_oid": "031174cb01c3",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "reason": {
@@ -172,7 +172,7 @@ export default defineFixture({
           "claim": "CLM-bed7e93c75f3e67bc9a0431a4d3725b7",
           "sequence": 18,
           "git_oid": "031174cb01c3",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "reason": {
@@ -192,7 +192,7 @@ export default defineFixture({
           "claim": "CLM-9eff1367310e902cdc436efb18e64336",
           "sequence": 17,
           "git_oid": "395f0a9e96f0",
-          "accepted": "2026-11-07T18:00:00.000000Z",
+          "proposed_at": "2026-11-07T18:00:00.000000Z",
           "actor": "owner",
           "approved_by": [],
           "reason": {

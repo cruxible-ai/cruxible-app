@@ -45,7 +45,7 @@ export default defineFixture({
           "verdict": "supported",
           "status": "conflicted",
           "revision": 1,
-          "accepted": "2026-11-07T22:22:25.229631Z",
+          "proposed_at": "2026-11-07T22:22:25.229631Z",
           "contenders": [
             {
               "claim": "CLM-453b457d0b9ce1afd675c2f914ed8a69",
@@ -89,7 +89,7 @@ export default defineFixture({
           "verdict": "supported",
           "status": "conflicted",
           "revision": 1,
-          "accepted": "2026-11-07T22:22:25.432116Z",
+          "proposed_at": "2026-11-07T22:22:25.432116Z",
           "contenders": [
             {
               "claim": "CLM-3da109f05a7fad21f8831270af0299db",

@@ -145,7 +145,7 @@ function predicates(kind: string, subjects: number, counts: boolean): OrientPred
 
 // -- definitions: Procedures, Lines, sources ------------------------------------------
 
-const FETCH = { in: { name: "web.fetch.request", version: 1 }, out: { name: "web.fetch.result", version: 1 }, effect: "external_read" as const };
+const FETCH = { capability: { name: "web.fetch", version: 1 } };
 const item = (...path: string[]) => ({ $ref: "item" as const, path });
 const step = (name: string, ...path: string[]) => ({ $ref: "step" as const, step: name, path });
 
@@ -259,7 +259,7 @@ const BASE = (sequence: number) => ({
   instance: INSTANCE,
   coordinate: coordinateAt(sequence),
   generation: sequence,
-  accepted_at: acceptedAt(sequence),
+  proposed_at: acceptedAt(sequence),
   evaluation_time: HEAD_AT,
 });
 
@@ -435,7 +435,7 @@ const fixtures: RecordedFixture[] = [
       section: "generations",
       generations: Array.from({ length: LEDGER_PAGE }, (_, i) => {
         const sequence = LARGE_HEAD - i;
-        return { sequence, git_oid: coordinateAt(sequence).git_oid, accepted_at: acceptedAt(sequence), proposer: "platform-owner", because: because(sequence), members: 12 + (sequence % 9) * 5 };
+        return { sequence, git_oid: coordinateAt(sequence).git_oid, proposed_at: acceptedAt(sequence), proposer: "platform-owner", because: because(sequence), members: 12 + (sequence % 9) * 5 };
       }),
       next_cursor: "g-large-2",
     },

@@ -7,7 +7,7 @@ const edgesOf = (spec: ProcedureSpec) =>
     .edges.map((e) => `${e.kind} ${e.source}->${e.target} ${e.fields.join(",")}`.trim())
     .sort();
 
-const FETCH_SLOT: ProcedureSlot = { in: { name: "web.fetch.request", version: 1 }, out: { name: "web.fetch.result", version: 1 }, effect: "external_read" };
+const FETCH_SLOT: ProcedureSlot = { capability: { name: "web.fetch", version: 1 } };
 const param = (name: string) => ({ $ref: "param" as const, path: [name] });
 const input = (...path: string[]) => ({ $ref: "input" as const, path });
 const step = (name: string, ...path: string[]) => ({ $ref: "step" as const, step: name, path });
@@ -29,11 +29,8 @@ const KEV_TRIAGE: ProcedureSpec = {
     {
       extract: "entries",
       capture: step("catalog", "capture"),
-      records: "/vulnerabilities/*",
-      row: "security.kev-record@1",
-      fields: { date_added: { at: "dateAdded", parse: "date" } },
-      key: { cve_id: { at: "cveID" } },
-      header: { catalog_version: { at: "/catalogVersion" } },
+      records: "vulnerabilities",
+      header: ["catalog_version"],
     },
     { id: "listed", guard: { op: "present", of: step("entries", "records") }, else: { halt: "no_change", id: "nochange" } },
     {

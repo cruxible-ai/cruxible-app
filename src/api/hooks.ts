@@ -50,10 +50,12 @@ import { useSettings } from "@/lib/settings";
 import { walkNeighborhood, type IncomingReader } from "@/lib/neighborhood";
 import { ontologyKinds } from "@/lib/type-graph";
 import {
+  capabilityRef,
   logicalSources,
   readLineEnvelope,
   retentions,
   sourceSteps,
+  type CapabilityCard,
   type LandingTrigger,
   type ProcedureSpec,
 } from "@/lib/definitions";
@@ -645,6 +647,28 @@ export function useGetBatch(refs: string[], detail: "summary" | "proof" = "summa
       results: results.flatMap((r) => r.data?.results ?? []),
     }),
   });
+}
+
+/**
+ * The capability each call slot of a Procedure names, read once per version
+ * (one get-batch): slot -> its card (Contracts in and out, effect). Empty
+ * while it loads or when a read fails; a capability version never changes.
+ */
+export function useSlotCapabilities(spec: ProcedureSpec | null | undefined): ReadonlyMap<string, CapabilityCard> {
+  const slots = useMemo(() => Object.entries(spec?.slots ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)), [spec]);
+  const refs = useMemo(() => [...new Set(slots.map(([, slot]) => capabilityRef(slot)))].sort(), [slots]);
+  const reads = useGetBatch(refs);
+  const key = JSON.stringify(reads.results.map((r) => { const card = cardOf(r, "capability"); return card ? `${card.capability}@${card.version}` : null; }));
+  return useMemo(() => {
+    const out = new Map<string, CapabilityCard>();
+    for (const [name, slot] of slots) {
+      const i = refs.indexOf(capabilityRef(slot));
+      const card = i >= 0 ? cardOf(reads.results[i], "capability") : null;
+      if (card) out.set(name, card);
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by what the reads returned
+  }, [slots, refs, key]);
 }
 
 /** One compact/spec/name query page at the page coordinate. */

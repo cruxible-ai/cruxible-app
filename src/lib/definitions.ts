@@ -19,7 +19,9 @@ import { createdKinds } from "./template.ts";
 
 export type ProcedureSpec = Schemas["ProcedureSpec"];
 export type ProcedureStep = ProcedureSpec["steps"][number];
-export type ProcedureSlot = Schemas["ProcedureSlot"];
+/** A slot names the capability version its call serves; the capability states the Contracts and effect. */
+export type ProcedureSlot = Schemas["CapabilitySlot"];
+export type CapabilityCard = Schemas["GetCapabilityCard"];
 export type ContractRef = Schemas["ContractRef"];
 export type TemplateRef = Schemas["Ref"];
 
@@ -60,6 +62,18 @@ export function templateRef(value: unknown): TemplateRef | null {
 
 /** `name@N` of a Contract ref. */
 export const contractRefText = (ref: ContractRef) => `${ref.name}@${ref.version}`;
+
+/** `name@N` of the capability a slot names. */
+export const capabilityText = (slot: ProcedureSlot) => `${slot.capability.name}@${slot.capability.version}`;
+
+/** The get ref of the capability a slot names (`Capability:web.fetch@1`). */
+export const capabilityRef = (slot: ProcedureSlot) => `Capability:${capabilityText(slot)}`;
+
+/** A `name@N` Contract pin as a capability card states its `in` and `out`, parsed; null otherwise. */
+export function contractPin(text: string | null | undefined): ContractRef | null {
+  const match = text ? /^(.+)@(\d+)$/.exec(text) : null;
+  return match ? { name: match[1]!, version: Number(match[2]) } : null;
+}
 
 /** A call's logical source: a literal, a Line parameter, or a run input field. */
 export type LogicalSourceRef = { literal: string } | { param: string } | { input: string };
@@ -200,7 +214,7 @@ export interface SourceStep {
   /** The call's name (what a Line's trigger_input names); null for an emit. */
   alias: string | null;
   contract: string;
-  /** The Contract the call's slot takes in (`web.fetch.request`); null for an emit. */
+  /** The capability the call's slot names (`web.fetch`); null for an emit. */
   slotIn: string | null;
   logicalSource: LogicalSourceRef | null;
   /** The URL the call fetches (its input's `url`), for where a source comes from. */
@@ -216,7 +230,7 @@ export function sourceSteps(procedure: string, spec: ProcedureSpec): SourceStep[
   const out: SourceStep[] = [];
   for (const step of spec.steps) {
     if ("call" in step) {
-      const slotIn = spec.slots?.[step.slot]?.in.name ?? null;
+      const slotIn = spec.slots?.[step.slot]?.capability.name ?? null;
       for (const contract of Object.values(step.captures ?? {})) {
         out.push({
           procedure,
@@ -303,7 +317,7 @@ export interface Retention {
   emitted: boolean;
   /** The parameter or input field a run is given its logical source by. */
   given: string | null;
-  /** The Contract the capturing call's slot takes in (null for an emit). */
+  /** The capability the capturing call's slot names (null for an emit). */
   slotIn: string | null;
   /** The URL the call fetches, when its input names one (literally or through a Line parameter). */
   url: string | null;
@@ -445,7 +459,7 @@ export function lineGist(description: string | null | undefined): string | null 
   return gist(verb ? verb[1] : description);
 }
 
-/** How a source arrives, from the Contract its capturing call's slot takes in. */
+/** How a source arrives, from the capability its capturing call's slot names. */
 export function arrivalWords(step: { slotIn: string | null; emitted: boolean } | null): string | null {
   if (!step) return null;
   if (step.emitted) return "Run output";

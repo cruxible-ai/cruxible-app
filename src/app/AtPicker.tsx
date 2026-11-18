@@ -295,8 +295,8 @@ function GenerationOption({ row, selected, onPick }: { row: Generation; selected
     >
       <div className="flex items-baseline gap-2">
         <span className="w-10 shrink-0 font-mono text-zinc-100">g{row.sequence}</span>
-        <span className="text-zinc-500" title={row.accepted_at}>
-          {formatWhen(row.accepted_at)}
+        <span className="text-zinc-500" title={row.proposed_at}>
+          {formatWhen(row.proposed_at)}
         </span>
         <span className="ml-auto text-zinc-500">
           {row.members} {row.members === 1 ? "change" : "changes"}

@@ -25,7 +25,7 @@ const ledger = (generations: Schemas["OrientGeneration"][]) =>
       instance: "inst_fixture",
       coordinate: COORDINATE,
       generation: AT.generation,
-      accepted_at: "2026-10-19T09:30:00Z",
+      proposed_at: "2026-10-19T09:30:00Z",
       evaluation_time: NOW,
       section: "generations",
       generations,
@@ -44,7 +44,7 @@ describe("Ledger", () => {
     // the shared table: one row per generation, newest first, naming author and approvers
     const table = within(main.getByRole("table", { name: "Generations" }));
     expect(table.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(
-      expect.arrayContaining(["Generation", "Accepted", "Author", "Description", "Changes", "Commit", "Proposal"]),
+      expect.arrayContaining(["Generation", "Proposed", "Author", "Description", "Changes", "Commit", "Proposal"]),
     );
     const bodyRows = table.getAllByRole("row").filter((row) => row.closest("tbody"));
     expect(bodyRows[0]).toContainElement(g42);
@@ -77,7 +77,7 @@ describe("Ledger", () => {
   }
 
   it("expands a definition-only generation to its definitions, by kind, from the summary review alone", async () => {
-    renderApp("/i/inst_fixture/ledger", [...AUTHORED, ledger([{ sequence: 5, git_oid: "5".repeat(40), accepted_at: "2026-10-19T09:00:00Z", proposal: DEFINITIONS, proposer: "kit-author", members: 1 }])]);
+    renderApp("/i/inst_fixture/ledger", [...AUTHORED, ledger([{ sequence: 5, git_oid: "5".repeat(40), proposed_at: "2026-10-19T09:00:00Z", proposal: DEFINITIONS, proposer: "kit-author", members: 1 }])]);
     const reads = reviewReads(); // after renderApp: its handlers go first
     const main = within(await screen.findByRole("main"));
     fireEvent.click(await main.findByRole("button", { name: "Expand generation 5" }));
@@ -128,7 +128,7 @@ describe("Ledger: a rationale read once", () => {
     const because = [...full].slice(0, 500).join("");
     renderApp(
       "/i/inst_fixture/ledger",
-      [...AUTHORED, ledger([{ sequence: 7, git_oid: "7".repeat(40), accepted_at: "2026-10-19T09:00:00Z", proposal, proposer: "kit-author", members: 1, because, because_truncated: because !== full }])],
+      [...AUTHORED, ledger([{ sequence: 7, git_oid: "7".repeat(40), proposed_at: "2026-10-19T09:00:00Z", proposal, proposer: "kit-author", members: 1, because, because_truncated: because !== full }])],
       {
         handlers: [
           http.post(`${TEST_BASE}/api/v1/:instance/proposals/:proposal/review`, async ({ request }) => {

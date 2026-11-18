@@ -596,9 +596,13 @@ export default defineFixture({
       "selection_decision_digest": "sha256:05f7186850394b63d981d0ec4683b01294c56d43cf6b32d725bb986745f663a4",
       "resolved_provider_bindings": [
         {
-          "tag": "cruxible-procedure-provider-binding-v4",
+          "tag": "cruxible-procedure-provider-binding-v5",
           "node_id": "matched",
           "slot": "match",
+          "capability": {
+            "name": "osv.match",
+            "version": 1
+          },
           "operation": "osv.match",
           "operation_signature_digest": "sha256:9b0301175272ac0b13e4830af42cbe5e8b73b0c0e28c91919d76e0601b8b5c65",
           "provider_artifact_digest": "sha256:45084b75aed259e23245b697f6d57e2c69c671a608d72b6373f5631af2d42728",
@@ -607,9 +611,13 @@ export default defineFixture({
           "secret_binding_identity_digests": []
         },
         {
-          "tag": "cruxible-procedure-provider-binding-v4",
+          "tag": "cruxible-procedure-provider-binding-v5",
           "node_id": "osv",
           "slot": "query",
+          "capability": {
+            "name": "osv.query",
+            "version": 1
+          },
           "operation": "osv.query",
           "operation_signature_digest": "sha256:9afd61cbf04c0fc4753c9d2b3624a51a89223cb1bd390f90efadba978ad900c1",
           "provider_artifact_digest": "sha256:45084b75aed259e23245b697f6d57e2c69c671a608d72b6373f5631af2d42728",

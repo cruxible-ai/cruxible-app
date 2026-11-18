@@ -198,7 +198,7 @@ export default [
       instance: "inst_fixture",
       coordinate: COORDINATE,
       generation: AT.generation,
-      accepted_at: "2026-10-19T09:30:00Z",
+      proposed_at: "2026-10-19T09:30:00Z",
       evaluation_time: NOW,
       section: "capture_contracts",
       capture_contracts: [
@@ -216,7 +216,7 @@ export default [
       instance: "inst_fixture",
       coordinate: COORDINATE,
       generation: AT.generation,
-      accepted_at: "2026-10-19T09:30:00Z",
+      proposed_at: "2026-10-19T09:30:00Z",
       evaluation_time: NOW,
       section: "pins",
       pins: PINS,

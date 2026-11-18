@@ -109,3 +109,30 @@ describe("Proposal page: definitions", () => {
     expect(panel.getByText("None")).toBeInTheDocument();
   });
 });
+
+describe("Proposal page: a closed proposal", () => {
+  it("names who closed a rejected proposal, when, and the reason given", async () => {
+    const id = "sha256:" + "a".repeat(64);
+    type Batch = { results: { ref: string; card: object }[] };
+    const fixture = AUTHORED.find((f) => f.path.endsWith("/get-batch") && (f.response as Batch).results?.[0]?.ref === `Proposal:${id}`)!;
+    const response = fixture.response as Batch;
+    const closed = {
+      ...fixture,
+      response: {
+        ...response,
+        results: [
+          {
+            ...response.results[0]!,
+            card: { ...response.results[0]!.card, status: "settled", reason: "rejected", closed_by: "security-lead", closed_at: "2026-10-19T11:00:00Z", closed_reason: "OSV range does not cover rel-1." },
+          },
+        ],
+      },
+    };
+    renderApp(page(id), [...AUTHORED, closed]);
+    const main = within(await screen.findByRole("main"));
+    expect(await main.findByText("Closed by")).toBeInTheDocument();
+    expect(main.getByText("security-lead")).toBeInTheDocument();
+    expect(main.getByText("Closed")).toBeInTheDocument();
+    expect(main.getByText("OSV range does not cover rel-1.")).toBeInTheDocument();
+  });
+});

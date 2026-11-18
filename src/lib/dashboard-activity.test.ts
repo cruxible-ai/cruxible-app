@@ -78,7 +78,7 @@ describe("compactRows", () => {
     const [generation, capture] = rows.slice(2);
     expect(generation).toMatchObject({
       kind: "generation",
-      generation: { sequence: 8, accepted_at: "2026-11-03T00:58:40Z", proposer: "pilot-owner", because: "Adopt the KEV and EPSS Lines.", members: 8 },
+      generation: { sequence: 8, proposed_at: "2026-11-03T00:58:40Z", proposer: "pilot-owner", because: "Adopt the KEV and EPSS Lines.", members: 8 },
     });
     expect(capture).toMatchObject({ kind: "event", row: { what: "landed evidence from cisa.kev.catalog" } });
   });

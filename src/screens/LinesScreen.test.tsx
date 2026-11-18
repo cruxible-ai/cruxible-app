@@ -198,7 +198,7 @@ describe("Runbooks on the Lines page", () => {
             instance: "inst_fixture",
             coordinate: COORDINATE,
             generation: AT.generation,
-            accepted_at: "2026-10-19T09:30:00Z",
+            proposed_at: "2026-10-19T09:30:00Z",
             evaluation_time: NOW,
             section: "runbooks",
             runbooks: [{ runbook: `Runbook:rb.${String(page).padStart(2, "0")}`, lifecycle: "live", steps: 2, triggers_total: 0 }],

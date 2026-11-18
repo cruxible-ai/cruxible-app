@@ -407,9 +407,13 @@ export default defineFixture({
       "selection_decision_digest": "sha256:c00f7df528df732ace6da84f5c10680fbc00476d8b50b6667799b9c02b432716",
       "resolved_provider_bindings": [
         {
-          "tag": "cruxible-procedure-provider-binding-v4",
+          "tag": "cruxible-procedure-provider-binding-v5",
           "node_id": "derived",
           "slot": "derive",
+          "capability": {
+            "name": "sbom.components",
+            "version": 1
+          },
           "operation": "sbom.components",
           "operation_signature_digest": "sha256:c36457ecb886370a37fd8956ed99aaa6e07ece3d1c2310333d82a035f5fa0117",
           "provider_artifact_digest": "sha256:45084b75aed259e23245b697f6d57e2c69c671a608d72b6373f5631af2d42728",
@@ -418,9 +422,13 @@ export default defineFixture({
           "secret_binding_identity_digests": []
         },
         {
-          "tag": "cruxible-procedure-provider-binding-v4",
+          "tag": "cruxible-procedure-provider-binding-v5",
           "node_id": "sbom",
           "slot": "read",
+          "capability": {
+            "name": "workspace.file",
+            "version": 1
+          },
           "operation": "workspace.file",
           "operation_signature_digest": "sha256:949991e75506cdc59a6f1bae70a369fd555dcccc448b5ee951914d0a2b1e48f2",
           "provider_artifact_digest": "sha256:e78137f1a9a3078828a661580dc05b7a91764bff489b34512ef6298202be5bd0",

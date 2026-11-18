@@ -3,7 +3,7 @@ import type { Schemas } from "@/api/schemas";
 import type { ProcedureSlot, ProcedureSpec } from "./definitions";
 import { bytesWords, flowWords, partsText, pointerText, queryShape, runChangedWords, shortName, stepBrief, stepSections, summaryWords, type RunSummary } from "./step-words";
 
-const FETCH_SLOT: ProcedureSlot = { in: { name: "web.fetch.request", version: 1 }, out: { name: "web.fetch.result", version: 1 }, effect: "external_read" };
+const FETCH_SLOT: ProcedureSlot = { capability: { name: "web.fetch", version: 1 } };
 const param = (name: string) => ({ $ref: "param" as const, path: [name] });
 const step = (name: string, ...path: string[]) => ({ $ref: "step" as const, step: name, path });
 const item = (...path: string[]) => ({ $ref: "item" as const, path });
@@ -23,17 +23,9 @@ const KEV: ProcedureSpec = {
     {
       extract: "entries",
       capture: step("catalog", "capture"),
-      records: "/vulnerabilities/*",
-      row: "security.kev-record@1",
-      fields: {
-        date_added: { at: "dateAdded", parse: "date" },
-        due_date: { at: "dueDate", parse: "date", presence: "optional" },
-        listed_from: { at: "dateAdded", project: "utc_start_of_day", parse: "date" },
-        ransomware_use: { at: "knownRansomwareCampaignUse", canonicalize: "claim_type", presence: "optional" },
-      },
-      key: { cve_id: { at: "cveID", type: "key_part<security.vulnerability:cve_id>" } },
-      header: { catalog_version: { at: "/catalogVersion", presence: "required" } },
-      complete_when: { count_at: "/count" },
+      records: "vulnerabilities",
+      key: { cve_id: { type: "key_part<security.vulnerability:cve_id>" } },
+      header: ["catalog_version"],
     },
     {
       id: "write",
@@ -76,6 +68,10 @@ const ROW = {
   ],
 } as unknown as Schemas["GetContractCard"];
 
+/** The capability the fetch slot names, as get serves it. */
+const CAPABILITIES = new Map([
+  ["fetch", { capability: "web.fetch", version: 1, description: "Fetch one URL.", effect: "external_read", in: "web.fetch.request@1", out: "web.fetch.result@1" }],
+]);
 const brief = (index: number, ctx: Parameters<typeof stepBrief>[2] = {}) => partsText(stepBrief(KEV, index, ctx));
 const QUERIES = new Map([["security.watched_vulnerabilities", queryShape(QUERY, ROW)!]]);
 
@@ -87,7 +83,7 @@ describe("step labels", () => {
     expect(brief(0, { triggerInput: "catalog" })).toBe("landing · JSON");
     expect(brief(1)).toBe("watched_vulnerabilities");
     expect(stepBrief(KEV, 1)[0]!.ref).toBe("QueryDefinition:security.watched_vulnerabilities");
-    expect(brief(2)).toBe("/vulnerabilities/* · key cveID · 4 fields");
+    expect(brief(2)).toBe("vulnerabilities · key cve_id");
     expect(brief(3)).toBe("4 ClaimTypes → vulnerability");
     expect(stepBrief(KEV, 3).at(-1)!.ref).toBe("SubjectKind:security.vulnerability");
   });
@@ -95,7 +91,7 @@ describe("step labels", () => {
 
   it("the side panel: every field of a step in titled groups", () => {
     const sections = (i: number) =>
-      stepSections(KEV, i, { parameters: PARAMETERS, queries: QUERIES, bindings: { fetch: "cruxible-provider-web/abc" } }).map((s) => [
+      stepSections(KEV, i, { parameters: PARAMETERS, queries: QUERIES, bindings: { fetch: "cruxible-provider-web/abc" }, capabilities: CAPABILITIES }).map((s) => [
         s.title,
         s.rows.map((r) => `${r.label}: ${partsText(r.value)}`),
       ]);
@@ -103,38 +99,45 @@ describe("step labels", () => {
     expect(sections(0)).toEqual([
       ["Fetches", ["Source: cisa.gov", "Format: JSON"]],
       ["Returns", ["CaptureKind: security.kev-catalog"]],
-      ["Provider", ["Slot: fetch", "Effect: external read", "Request: web.fetch.request@1", "Result: web.fetch.result@1", "Build: cruxible-provider-web"]],
+      ["Provider", ["Slot: fetch", "Capability: web.fetch@1", "Effect: external read", "Request: web.fetch.request@1", "Result: web.fetch.result@1", "Build: cruxible-provider-web"]],
     ]);
-    const provider = stepSections(KEV, 0).find((s) => s.title === "Provider")!;
+    const provider = stepSections(KEV, 0, { capabilities: CAPABILITIES }).find((s) => s.title === "Provider")!;
+    expect(provider.rows.find((r) => r.label === "Capability")!.value[0]!.ref).toBe("Capability:web.fetch@1");
     expect(provider.rows.find((r) => r.label === "Request")!.value[0]!.ref).toBe("Contract:web.fetch.request@1");
+    // the capability unread: the slot and the capability it names, no Contracts or effect
+    expect(stepSections(KEV, 0).find((s) => s.title === "Provider")!.rows.map((r) => r.label)).toEqual(["Slot", "Capability"]);
     expect(sections(1)).toEqual([
       ["Reads", ["Query: watched_vulnerabilities", "From: vulnerability", "Row: watched-vulnerability"]],
       ["Fields", ["cve_id: string"]],
     ]);
     expect(sections(2)).toEqual([
-      ["Records", ["From: catalog.capture", "Per: /vulnerabilities/*", "Key: cveID", "Count: /count", "Header: /catalogVersion", "Row: kev-record"]],
-      ["Fields", ["date_added: dateAdded", "due_date: dueDate · optional", "listed_from: dateAdded", "ransomware_use: knownRansomwareCampaignUse · optional"]],
+      ["Records", ["From: catalog.capture", "Record set: vulnerabilities", "Key: cve_id", "Header: catalog_version"]],
     ]);
     expect(sections(3)).toEqual([
       ["Writes on", ["Subject: vulnerability", "For each: entries.records", "Within: watched.rows", "Expect: watched.rows"]],
-      ["ClaimTypes", ["listed_in: cisa-kev (fixed)", "kev_date_added: dateAdded", "kev_due_date: dueDate", "kev_ransomware_use: knownRansomwareCampaignUse"]],
+      ["ClaimTypes", ["listed_in: cisa-kev (fixed)", "kev_date_added: date_added", "kev_due_date: due_date", "kev_ransomware_use: ransomware_use"]],
     ]);
   });
 
   it("a derive: its node names the operation alone; its panel the effect, full Contract names and versions, and the kinds it reads and commits", () => {
     const spec = {
       procedure: "p",
-      slots: { fetch: FETCH_SLOT, narrow: { in: { name: "sbom.components.request", version: 1 }, out: { name: "sbom.components.result", version: 1 }, effect: "pure" } },
+      slots: { fetch: FETCH_SLOT, narrow: { capability: { name: "sbom.components", version: 1 } } },
       steps: [
         { call: "sbom", slot: "fetch", input: {}, captures: { capture: "security.cyclonedx-sbom" } },
         { call: "derived", slot: "narrow", input: { source: step("sbom", "capture") }, captures: { document: "security.sbom-components" } },
       ],
     } as unknown as ProcedureSpec;
-    const ctx = { operations: { narrow: "sbom.components" } };
+    const ctx = {
+      operations: { narrow: "sbom.components" },
+      capabilities: new Map([
+        ["narrow", { capability: "sbom.components", version: 1, description: "", effect: "pure", in: "sbom.components.request@1", out: "sbom.components.result@1" }],
+      ]),
+    };
     expect(partsText(stepBrief(spec, 1, ctx))).toBe("sbom.components");
     const rows = stepSections(spec, 1, ctx).map((s) => [s.title, s.rows.map((r) => `${r.label}: ${partsText(r.value)}`)]);
     expect(rows).toEqual([
-      ["Derive", ["Operation: sbom.components", "Effect: pure", "Slot: narrow", "Request: sbom.components.request@1", "Result: sbom.components.result@1"]],
+      ["Derive", ["Operation: sbom.components", "Effect: pure", "Slot: narrow", "Capability: sbom.components@1", "Request: sbom.components.request@1", "Result: sbom.components.result@1"]],
       ["Inputs", ["CaptureKinds: security.cyclonedx-sbom", "Captures: sbom.capture"]],
       ["Output", ["CaptureKind: security.sbom-components", "Grade: derived"]],
     ]);
@@ -142,14 +145,14 @@ describe("step labels", () => {
     expect(inputs.rows[0]!.value[0]!.ref).toBe("CaptureContract:security.cyclonedx-sbom");
   });
 
-  it("the claims panel traces each ClaimType to its payload field and says what happens when it goes missing", () => {
+  it("the claims panel names the record field each ClaimType takes and says what happens when it goes missing", () => {
     const index = KEV.steps.findIndex((step) => "claims" in step);
     const claims = stepSections(KEV, index, { parameters: PARAMETERS, queries: QUERIES }).find((section) => section.title === "ClaimTypes")!;
     expect(claims.columns?.map((c) => c.header)).toEqual(["From", "If missing"]);
     const cells = claims.cells!.map((row) => row.map((cell) => cell.map((part) => part.text).join("")));
-    expect(cells[0]).toEqual(["cisa-kev (fixed) · since dateAdded", 'record "not listed"']);
-    expect(cells[1]).toEqual(["dateAdded", "retire"]);
-    expect(cells[3]).toEqual(["knownRansomwareCampaignUse", "flag for review"]);
+    expect(cells[0]).toEqual(["cisa-kev (fixed) · since listed_from", 'record "not listed"']);
+    expect(cells[1]).toEqual(["date_added", "retire"]);
+    expect(cells[3]).toEqual(["ransomware_use", "flag for review"]);
   });
 
   it("the other kinds: one short label", () => {

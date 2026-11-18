@@ -859,8 +859,8 @@ function RevisionLine({ revision, shown }: { revision: GetRevision; shown: strin
         {revision.value !== undefined && <ShownValue value={revision.value} />}
         {revision.actor && <span className="font-mono text-zinc-400">{revision.actor}</span>}
         {(revision.approved_by?.length ?? 0) > 0 && <span className="text-zinc-500">approved by {revision.approved_by!.join(", ")}</span>}
-        <span className="text-zinc-500" title={revision.accepted}>
-          {formatWhen(revision.accepted)}
+        <span className="text-zinc-500" title={revision.proposed_at}>
+          {formatWhen(revision.proposed_at)}
         </span>
         <ReasonSource reason={revision.reason} />
       </div>
@@ -886,7 +886,7 @@ function FieldProvenance({ event, siblings, isKey }: { event: SubjectHistoryEven
       <div className="flex flex-wrap items-baseline gap-x-1.5">
         <span>since</span>
         <GenerationLink sequence={event.sequence} />
-        <span title={event.accepted}>· {formatWhen(event.accepted)}</span>
+        <span title={event.proposed_at}>· {formatWhen(event.proposed_at)}</span>
         {line ? (
           <>
             <span>·</span>
@@ -973,8 +973,8 @@ function ChangeSummary({ events }: { events: SubjectHistoryEvent[] }) {
     <div className="flex flex-wrap items-baseline gap-x-2 text-zinc-400">
       <GenerationLink sequence={head.sequence} />
       <Dot />
-      <span className="text-zinc-500" title={head.accepted}>
-        {formatWhen(head.accepted)}
+      <span className="text-zinc-500" title={head.proposed_at}>
+        {formatWhen(head.proposed_at)}
       </span>
       <Dot />
       {line ? (
@@ -1014,8 +1014,8 @@ function ChangeSet({ events, keys }: { events: SubjectHistoryEvent[]; keys: Read
           <HeaderLabel>Generation</HeaderLabel>
           <GenerationLink sequence={head.sequence} />
           <Dot />
-          <span className="text-zinc-500" title={head.accepted}>
-            {formatWhen(head.accepted)}
+          <span className="text-zinc-500" title={head.proposed_at}>
+            {formatWhen(head.proposed_at)}
           </span>
           <Dot />
           <ChangeAuthor source={source} sequence={head.sequence} actor={head.actor ?? null} approvers={head.approved_by ?? []} />

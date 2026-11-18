@@ -154,7 +154,7 @@ function Snapshot({ o }: { o: OrientResult }) {
         title: `${lineName(row.line)}: ${row.authority}`,
       })),
     },
-    { label: "Generations", value: o.generation, to: "/ledger", title: "Accepted generations: the Ledger", note: `latest ${formatRelative(o.accepted_at)}` },
+    { label: "Generations", value: o.generation, to: "/ledger", title: "Accepted generations: the Ledger", note: `latest ${formatRelative(o.proposed_at)}` },
   ];
 
   // -- what it knows --------------------------------------------------------------------
@@ -214,8 +214,8 @@ function Snapshot({ o }: { o: OrientResult }) {
     if (details.isPending) return null;
     const byKind = new Map<string, number>();
     for (const [kind, detail] of detailOf) if (detail.subjects > 0) byKind.set(kind, liveClaims(detail.predicates));
-    return [...growth.points.filter((p): p is GrowthPoint => p !== null), { sequence: head, acceptedAt: o.accepted_at, byKind }];
-  }, [growth.points, details.isPending, detailOf, head, o.accepted_at]);
+    return [...growth.points.filter((p): p is GrowthPoint => p !== null), { sequence: head, acceptedAt: o.proposed_at, byKind }];
+  }, [growth.points, details.isPending, detailOf, head, o.proposed_at]);
   const markers = useMemo(() => growthMarkers(generations.data?.generations ?? [], lo, head), [generations.data, lo, head]);
 
   return (

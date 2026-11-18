@@ -1,14 +1,14 @@
 import { localCronWords } from "@/lib/schedule";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useInstanceId } from "@/api/hooks";
+import { useInstanceId, useSlotCapabilities } from "@/api/hooks";
 import { Panel } from "@/components/Panel";
 import { RefLink } from "@/components/RefLink";
 import { DataTable, type Column } from "@/components/DataTable";
 import { FieldList, type FieldItem } from "@/components/FieldList";
 import { useAtLink } from "@/lib/at";
 import {
-  contractRefText,
+  capabilityText,
   hostOf,
   logicalSourceText,
   procedureSlots,
@@ -100,32 +100,39 @@ export function ProcedureDefinition({
     rows.current.get(selectedStep)?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }, [selectedStep]);
   const slots = procedureSlots(spec);
+  const capabilities = useSlotCapabilities(spec);
   const slotColumns = useMemo<Column<Slot>[]>(
     () => [
       {
         id: "slot",
         header: "Slot",
-        title: "A slot is a Provider seat a call goes through: a Contract in, a Contract out",
+        title: "A slot is a Provider seat a call goes through: it names a capability, a Contract in and a Contract out",
         className: "font-mono text-zinc-200",
         cell: (row) => row.slot,
       },
       {
+        id: "capability",
+        header: "Capability",
+        title: "The capability version the slot names",
+        cell: (row) => <span className="font-mono text-[12px] text-zinc-300">{capabilityText(row)}</span>,
+      },
+      {
         id: "in",
         header: "Takes",
-        title: "The Contract the slot's Provider is given",
-        cell: (row) => <span className="font-mono text-[12px] text-zinc-300">{contractRefText(row.in)}</span>,
+        title: "The Contract the slot's Provider is given (the capability's request)",
+        cell: (row) => <span className="font-mono text-[12px] text-zinc-300">{capabilities.get(row.slot)?.in ?? "—"}</span>,
       },
       {
         id: "out",
         header: "Gives",
-        title: "The Contract the slot's Provider returns",
-        cell: (row) => <span className="font-mono text-[12px] text-zinc-300">{contractRefText(row.out)}</span>,
+        title: "The Contract the slot's Provider returns (the capability's result)",
+        cell: (row) => <span className="font-mono text-[12px] text-zinc-300">{capabilities.get(row.slot)?.out ?? "—"}</span>,
       },
       {
         id: "effect",
         header: "Effect",
         className: "text-[12px] text-zinc-400",
-        cell: (row) => row.effect.replaceAll("_", " "),
+        cell: (row) => capabilities.get(row.slot)?.effect.replaceAll("_", " ") ?? "—",
       },
       {
         id: "binds",
@@ -144,7 +151,7 @@ export function ProcedureDefinition({
         },
       },
     ],
-    [line],
+    [line, capabilities],
   );
   const steps = spec.steps.map(stepView);
   const inputs = Object.entries(spec.input ?? {});

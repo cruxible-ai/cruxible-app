@@ -124,5 +124,5 @@ async function readGeneration(client: ApiClient, instanceId: string, sequence: n
   const details = await pooled(held, KIND_READS_IN_FLIGHT, (k) => orient({ kind: k.kind }));
   const byKind = new Map<string, number>();
   details.forEach((result, i) => byKind.set(held[i]!.kind, liveClaims(result.kind_detail?.predicates ?? [])));
-  return { sequence, acceptedAt: first.accepted_at, byKind };
+  return { sequence, acceptedAt: first.proposed_at, byKind };
 }

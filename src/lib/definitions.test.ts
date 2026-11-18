@@ -17,18 +17,14 @@ import {
 } from "./definitions";
 
 // Shapes as cruxible-core d6ed45bc0 serves them (the Claim-authority core).
-const slot = (input: string, output: string, effect: ProcedureSlot["effect"]): ProcedureSlot => ({
-  in: { name: input, version: 1 },
-  out: { name: output, version: 1 },
-  effect,
-});
+const slot = (capability: string): ProcedureSlot => ({ capability: { name: capability, version: 1 } });
 const param = (name: string) => ({ $ref: "param" as const, path: [name] });
 const step = (name: string, ...path: string[]) => ({ $ref: "step" as const, step: name, path });
 const item = (...path: string[]) => ({ $ref: "item" as const, path });
 
 const FETCH: ProcedureSpec = {
   procedure: "sec.fetch-observed",
-  slots: { fetch: slot("web.fetch.request", "web.fetch.result", "external_read") },
+  slots: { fetch: slot("web.fetch") },
   steps: [
     { call: "fetch", slot: "fetch", input: { logical_source: param("logical_source"), url: param("url") }, captures: { capture: "sec.fetched-v1" } },
     { emit: "sec.observation-output-v1", input: step("fetch"), result: step("fetch") },
@@ -36,17 +32,14 @@ const FETCH: ProcedureSpec = {
 };
 const TRIAGE: ProcedureSpec = {
   procedure: "sec.kev-triage",
-  slots: { parse: slot("sec.kev-catalog.request", "sec.kev-catalog.result", "pure"), catalog: slot("web.fetch.request", "web.fetch.result", "external_read") },
+  slots: { parse: slot("sec.kev-catalog"), catalog: slot("web.fetch") },
   steps: [
     { call: "catalog", slot: "catalog", input: { logical_source: "cisa.kev.catalog" }, captures: { capture: "sec.fetched-v1" } },
     { read: "watched", query: "sec.watched_vulnerabilities" },
     {
       extract: "entries",
       capture: step("catalog", "capture"),
-      records: "/vulnerabilities/*",
-      row: "sec.kev-record@1",
-      fields: { date_added: { at: "dateAdded" } },
-      key: { cve_id: { at: "cveID" } },
+      records: "vulnerabilities",
     },
     { id: "changed", guard: { op: "present", of: step("entries", "records") }, else: { halt: "no_change" } },
     {
@@ -63,12 +56,12 @@ const TRIAGE: ProcedureSpec = {
 };
 const SBOM: ProcedureSpec = {
   procedure: "sec.sbom-acquire",
-  slots: { sbom: slot("workspace.file.request", "workspace.file.result", "external_read") },
+  slots: { sbom: slot("workspace.file") },
   steps: [{ call: "sbom", slot: "sbom", input: { logical_source: "cyclonedx.sbom" }, captures: { capture: "sec.file-v1" } }],
 };
 const EPSS: ProcedureSpec = {
   procedure: "sec.epss-acquire",
-  slots: { epss: slot("sec.epss-daily.request", "sec.epss-daily.result", "external_read") },
+  slots: { epss: slot("sec.epss-daily") },
   steps: [{ call: "epss", slot: "epss", input: {}, captures: { capture: "sec.fetched-v1" } }],
 };
 
@@ -129,10 +122,10 @@ describe("definitions", () => {
     expect(stepView(FETCH.steps[1]!, 1)).toMatchObject({ id: "step_2", kind: "emit", contracts: ["sec.observation-output-v1"] });
   });
 
-  it("lists slots by name with the Contracts each takes and gives", () => {
-    expect(procedureSlots(TRIAGE).map((s) => [s.slot, s.in.name, s.out.name, s.effect])).toEqual([
-      ["catalog", "web.fetch.request", "web.fetch.result", "external_read"],
-      ["parse", "sec.kev-catalog.request", "sec.kev-catalog.result", "pure"],
+  it("lists slots by name with the capability each names", () => {
+    expect(procedureSlots(TRIAGE).map((s) => [s.slot, s.capability.name, s.capability.version])).toEqual([
+      ["catalog", "web.fetch", 1],
+      ["parse", "sec.kev-catalog", 1],
     ]);
   });
 
@@ -147,7 +140,7 @@ describe("definitions", () => {
       // the call names no logical source: none here
       { contract: "sec.fetched-v1", source: null, procedure: "sec.epss-acquire", line: null, emitted: false, given: null },
     ]);
-    expect(all[0]!.slotIn).toBe("web.fetch.request");
+    expect(all[0]!.slotIn).toBe("web.fetch");
     // the URL it fetches, resolved through the Line's parameters
     expect(all[0]!.url).toBe("https://x");
     // A Procedure no Line runs is given its logical source at the direct run.

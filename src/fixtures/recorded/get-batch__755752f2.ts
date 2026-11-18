@@ -48,30 +48,16 @@ export default defineFixture({
             },
             "slots": {
               "match": {
-                "in": {
-                  "name": "osv.match.request",
-                  "version": 1,
-                  "digest": "sha256:af7b4623f7d4681722e0a3764152080ffbeadac82f9b643fefd1dbd76b2df8af"
-                },
-                "out": {
-                  "name": "osv.match.result",
-                  "version": 1,
-                  "digest": "sha256:8dc8e9b5d54e859ff24e5110ebdb1c3c0327f4e9b13a995aae156c7e9c2858e4"
-                },
-                "effect": "pure"
+                "capability": {
+                  "name": "osv.match",
+                  "version": 1
+                }
               },
               "query": {
-                "in": {
-                  "name": "osv.query.request",
-                  "version": 1,
-                  "digest": "sha256:6f410ed449bdf9a724f7daf8df15adbd1ccff56fc45f010e6677ef3f77c0dab5"
-                },
-                "out": {
-                  "name": "osv.query.result",
-                  "version": 1,
-                  "digest": "sha256:5cba02d44b4ae86b0bfb011df645080051c5399087a3714b15bc8ed240fcec6d"
-                },
-                "effect": "external_read"
+                "capability": {
+                  "name": "osv.query",
+                  "version": 1
+                }
               }
             },
             "steps": [
@@ -143,32 +129,18 @@ export default defineFixture({
                     "document"
                   ]
                 },
-                "records": "/affected/*",
-                "row": "security.osv-affected@1",
-                "fields": {
-                  "osv_id": {
-                    "at": "osv_id"
-                  }
-                },
+                "records": "affected",
                 "key": {
                   "cve_id": {
-                    "at": "cve_id",
                     "type": "key_part<security.vulnerability:cve_id>"
                   },
                   "purl": {
-                    "at": "purl",
                     "type": "key_part<security.component:purl>"
                   }
                 },
-                "header": {
-                  "queried": {
-                    "at": "/queried",
-                    "type": "list<string{max_len: 256}>{max_items: 20000}"
-                  }
-                },
-                "complete_when": {
-                  "count_at": "/count"
-                }
+                "header": [
+                  "queried"
+                ]
               },
               {
                 "id": "write",

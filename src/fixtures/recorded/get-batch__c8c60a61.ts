@@ -48,17 +48,10 @@ export default defineFixture({
             },
             "slots": {
               "fetch": {
-                "in": {
-                  "name": "web.fetch.request",
-                  "version": 1,
-                  "digest": "sha256:1f4eefbeef292080ab075e22d068a4e45f6b01170802f2ca470daa2329444137"
-                },
-                "out": {
-                  "name": "web.fetch.result",
-                  "version": 1,
-                  "digest": "sha256:94f256cdc9f9dfb45d8ac2a55e5aaf40bdb64757cbbf21703baeb8bd8d03062f"
-                },
-                "effect": "external_read"
+                "capability": {
+                  "name": "web.fetch",
+                  "version": 1
+                }
               }
             },
             "steps": [
@@ -107,30 +100,11 @@ export default defineFixture({
                     "capture"
                   ]
                 },
-                "records": "/data/*",
-                "row": "security.epss-row@1",
-                "fields": {
-                  "date": {
-                    "at": "date",
-                    "parse": "date"
-                  },
-                  "percentile": {
-                    "at": "percentile",
-                    "parse": "decimal"
-                  },
-                  "score": {
-                    "at": "epss",
-                    "parse": "decimal"
-                  }
-                },
+                "records": "data",
                 "key": {
                   "cve_id": {
-                    "at": "cve",
                     "type": "key_part<security.vulnerability:cve_id>"
                   }
-                },
-                "complete_when": {
-                  "count_at": "/total"
                 },
                 "only_keys": {
                   "$ref": "step",

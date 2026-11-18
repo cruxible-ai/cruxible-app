@@ -45,7 +45,7 @@ export type CompactRow = RunRow | GenerationRow | { kind: "event"; key: string; 
 const asGeneration = (e: GenerationAccepted): Schemas["OrientGeneration"] => ({
   sequence: e.sequence,
   git_oid: e.git_oid,
-  accepted_at: e.at,
+  proposed_at: e.at,
   proposal: e.proposal ?? null,
   proposer: e.proposer ?? null,
   approvals: e.approvals ?? [],

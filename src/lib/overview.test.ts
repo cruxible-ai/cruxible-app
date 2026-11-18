@@ -222,7 +222,7 @@ describe("growth", () => {
   const generation = (sequence: number, because: string | null): Schemas["OrientGeneration"] => ({
     sequence,
     git_oid: String(sequence).repeat(40).slice(0, 40),
-    accepted_at: `2026-11-03T00:00:${String(sequence).padStart(2, "0")}Z`,
+    proposed_at: `2026-11-03T00:00:${String(sequence).padStart(2, "0")}Z`,
     because,
     members: sequence,
   });
@@ -236,10 +236,10 @@ describe("growth", () => {
       generation(0, null),
     ];
     expect(growthMarkers(rows, 4, 10)).toEqual([
-      { kind: "kit", sequence: 9, acceptedAt: rows[1]!.accepted_at, words: "Upgrade kit security from 1.2.0 to 1.3.0", members: 9 },
-      { kind: "run", sequence: 10, acceptedAt: rows[0]!.accepted_at, procedure: "security.epss-triage", run: "RUN-8a5d", members: 10 },
+      { kind: "kit", sequence: 9, acceptedAt: rows[1]!.proposed_at, words: "Upgrade kit security from 1.2.0 to 1.3.0", members: 9 },
+      { kind: "run", sequence: 10, acceptedAt: rows[0]!.proposed_at, procedure: "security.epss-triage", run: "RUN-8a5d", members: 10 },
     ]);
-    expect(firstAccepted(rows)).toBe(rows[4]!.accepted_at);
+    expect(firstAccepted(rows)).toBe(rows[4]!.proposed_at);
     expect(firstAccepted(rows.slice(0, 3))).toBeNull();
   });
 });

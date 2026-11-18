@@ -1,5 +1,5 @@
 {
-  "core_commit": "e762307a5e6843ca47c5fca3a061910780c642df",
-  "core_version": "0.5.1",
-  "sdk_contract_snapshot_digest": "sha256:e4545b50528613fdfff63f10e5b5826e5f932d55b59a60d13115ea8098cfe4a8"
+  "core_commit": "af53eb0be14ef49bd398c1ba78c0d81375f9d70d",
+  "core_version": "0.5.0",
+  "sdk_contract_snapshot_digest": "sha256:5efac0c0274944813ace777b1c4c21d06b0dc3bfa5e2c17a800977fa180b9e49"
 }
