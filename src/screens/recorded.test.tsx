@@ -275,7 +275,7 @@ describe("recorded reference world", () => {
     const m = await main();
     // versions: the daemon answers the build the console is pinned to
     const versions = within(await m.findByRole("table", { name: "Versions" }, SLOW));
-    expect(versions.getAllByText("0.5.0")).toHaveLength(2);
+    expect(versions.getAllByText("0.5.1")).toHaveLength(2);
     expect(versions.getAllByText("Same")).toHaveLength(2);
     expect(versions.queryByText("Differs")).toBeNull();
     // the host

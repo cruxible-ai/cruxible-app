@@ -29763,6 +29763,24 @@
               }
             ],
             "description": "Present when the Capture's retained body was erased: its bytes are gone, so the verdict reads this evidence as no longer replayable."
+          },
+          "passage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passage",
+            "description": "The bytes of this Capture the Claim maps (its cited spans), as proposal review shows them; absent when it maps none, the body is withheld, erased or unavailable."
+          },
+          "passage_truncated": {
+            "type": "boolean",
+            "title": "Passage Truncated",
+            "description": "The passage was cut at the review's cited-text limit.",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -41530,7 +41548,8 @@
               "enum": [
                 "because",
                 "file",
-                "capture"
+                "capture",
+                "value"
               ]
             },
             "type": "array",
@@ -56508,7 +56527,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "contains": {
             "type": "string",
@@ -56533,7 +56552,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "eq": {
             "anyOf": [
@@ -56566,7 +56585,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "exists": {
             "type": "boolean",
@@ -56589,7 +56608,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "gt": {
             "anyOf": [
@@ -56621,7 +56640,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "gte": {
             "anyOf": [
@@ -56653,7 +56672,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "in": {
             "items": {
@@ -56691,7 +56710,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "lt": {
             "anyOf": [
@@ -56723,7 +56742,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "lte": {
             "anyOf": [
@@ -56755,7 +56774,7 @@
             "maxLength": 256,
             "minLength": 1,
             "title": "Field",
-            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow."
+            "description": "Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow."
           },
           "ne": {
             "anyOf": [
@@ -57878,7 +57897,7 @@
             "type": "array",
             "maxItems": 8,
             "title": "Order By",
-            "description": "Fields to order by; prefix - for descending.",
+            "description": "Fields to order by; prefix - for descending. -last_changed (first) lists the most recently changed Subjects first.",
             "default": []
           },
           "status": {

@@ -8849,6 +8849,17 @@ export interface components {
             byte_length?: number | null;
             /** @description Present when the Capture's retained body was erased: its bytes are gone, so the verdict reads this evidence as no longer replayable. */
             erased?: components["schemas"]["GetCaptureErasure"] | null;
+            /**
+             * Passage
+             * @description The bytes of this Capture the Claim maps (its cited spans), as proposal review shows them; absent when it maps none, the body is withheld, erased or unavailable.
+             */
+            passage?: string | null;
+            /**
+             * Passage Truncated
+             * @description The passage was cut at the review's cited-text limit.
+             * @default false
+             */
+            passage_truncated?: boolean;
         };
         /**
          * GetCaptureReducer
@@ -13737,7 +13748,7 @@ export interface components {
              * Operands To Add
              * @default []
              */
-            operands_to_add?: ("because" | "file" | "capture")[];
+            operands_to_add?: ("because" | "file" | "capture" | "value")[];
         };
         /**
          * NextRepairRequirement
@@ -20091,7 +20102,7 @@ export interface components {
         QueryFilterContains: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** Contains */
@@ -20104,7 +20115,7 @@ export interface components {
         QueryFilterEq: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** Eq */
@@ -20117,7 +20128,7 @@ export interface components {
         QueryFilterExists: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** Exists */
@@ -20127,7 +20138,7 @@ export interface components {
         QueryFilterGt: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** Gt */
@@ -20137,7 +20148,7 @@ export interface components {
         QueryFilterGte: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** Gte */
@@ -20150,7 +20161,7 @@ export interface components {
         QueryFilterIn: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** In */
@@ -20160,7 +20171,7 @@ export interface components {
         QueryFilterLt: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** Lt */
@@ -20170,7 +20181,7 @@ export interface components {
         QueryFilterLte: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** Lte */
@@ -20183,7 +20194,7 @@ export interface components {
         QueryFilterNe: {
             /**
              * Field
-             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, or alias.field after follow.
+             * @description Predicate (short, e.g. adoption_state, or qualified), subject_id, last_changed, or alias.field after follow.
              */
             field: string;
             /** Ne */
@@ -20680,7 +20691,7 @@ export interface components {
             follow?: components["schemas"]["QueryFollow"][];
             /**
              * Order By
-             * @description Fields to order by; prefix - for descending.
+             * @description Fields to order by; prefix - for descending. -last_changed (first) lists the most recently changed Subjects first.
              * @default []
              */
             order_by?: string[];
