@@ -2267,6 +2267,8 @@ export interface components {
              * @default false
              */
             expect_absent?: boolean;
+            /** Based On */
+            based_on?: string[] | null;
         };
         /** AggregateSpec */
         AggregateSpec: {
@@ -4748,7 +4750,7 @@ export interface components {
         };
         /**
          * CarriedLineV1
-         * @description A same-identity Line successor; exact-version enablement never transfers.
+         * @description A same-identity Line successor over a Procedure successor; its enablement stops.
          */
         CarriedLineV1: {
             /**
@@ -4783,7 +4785,13 @@ export interface components {
         };
         /**
          * CarriedMandateV1
-         * @description A same-name propose successor pinning its Line's successor; settle fields removed.
+         * @description A same-name successor pinning its Line's successor.
+         *
+         *     Propose-only, settle fields removed (``demotion`` says why a settle grant
+         *     lost settle); or, for an observation-only settle grant across a pure,
+         *     non-widening provider build move, the same grant with its terms unchanged
+         *     (``new_grant`` settle, ``retained_scope`` its ClaimTypes), and an enabled
+         *     Line stays enabled on its successor (``carries_line_enablement``).
          */
         CarriedMandateV1: {
             /**
@@ -4817,9 +4825,9 @@ export interface components {
             /**
              * New Grant
              * @default propose
-             * @constant
+             * @enum {string}
              */
-            new_grant?: "propose";
+            new_grant?: "propose" | "settle";
             /** Loses Settle */
             loses_settle: boolean;
             /**
@@ -4827,6 +4835,18 @@ export interface components {
              * @default false
              */
             subject_creation_namespace_limitation?: boolean;
+            /** Demotion */
+            demotion?: ("compiler_revision" | "procedure_changed" | "kit_change" | "line_changed" | "capability_changed" | "effect_widened" | "endpoints_widened" | "may_truncate_widened" | "judgment_claim_type" | "subject_creation" | "condition_coupling" | "mandate_terms_changed") | null;
+            /**
+             * Retained Scope
+             * @default []
+             */
+            retained_scope?: string[];
+            /**
+             * Carries Line Enablement
+             * @default false
+             */
+            carries_line_enablement?: boolean;
         };
         /** CasObjectResult */
         CasObjectResult: {
@@ -5273,6 +5293,8 @@ export interface components {
              */
             replaces_citations?: string[];
             procedure_evidence?: components["schemas"]["ClaimEvidenceReceipt"] | null;
+            /** Based On */
+            based_on?: string[] | null;
         };
         /** ClaimBackingsRequest */
         ClaimBackingsRequest: {
@@ -7930,7 +7952,15 @@ export interface components {
             /** Claim Type */
             claim_type: string;
         };
-        /** EnumType */
+        /**
+         * EnumType
+         * @description A closed set of string members.
+         *
+         *     ``ordered`` (compiler revision 74) declares the members in ascending rank:
+         *     the first is lowest, the last highest. Queries then compare and order the
+         *     stored member strings by that rank; values are never remapped. Unordered,
+         *     the field is omitted from the canonical bytes, so existing digests hold.
+         */
         EnumType: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -7939,6 +7969,11 @@ export interface components {
             kind: "enum";
             /** Members */
             members: string[];
+            /**
+             * Ordered
+             * @default false
+             */
+            ordered?: boolean;
         };
         /**
          * ErrorResponse
@@ -9777,6 +9812,53 @@ export interface components {
             next?: string[];
         };
         /**
+         * GetNoteLink
+         * @description A note about a Subject, as a pointer to its section: never the section's prose.
+         *
+         *     ``cruxible section FILE#Heading/Path`` (FILE the path the catalog maps
+         *     ``file`` to) reads the section itself.
+         */
+        GetNoteLink: {
+            /**
+             * Note
+             * @description NOTE-<32 hex>; get reads its card.
+             */
+            note: string;
+            /** File */
+            file?: string | null;
+            /** Section */
+            section?: string[] | null;
+            /**
+             * Cited Digest
+             * @description The section's bytes when linked.
+             */
+            cited_digest?: string | null;
+            /**
+             * Drift
+             * @description Has the section moved since it was linked?
+             */
+            drift?: ("changed_since_cited" | "unchanged" | "unknown") | null;
+        };
+        /**
+         * GetNotes
+         * @description ``detail="notes"``: one page of the notes about a Subject, as section pointers.
+         */
+        GetNotes: {
+            /**
+             * Target
+             * @description The Subject (kind/id).
+             */
+            target: string;
+            /** Notes */
+            notes: components["schemas"]["GetNoteLink"][];
+            withheld?: components["schemas"]["BodyRestricted"] | null;
+            /**
+             * Next
+             * @default []
+             */
+            next?: string[];
+        };
+        /**
          * GetPairEnd
          * @description One end of a pair Subject: the key part that names it and the Subject it names.
          */
@@ -10240,7 +10322,7 @@ export interface components {
              * @default summary
              * @enum {string}
              */
-            detail?: "summary" | "evidence" | "why" | "history" | "incoming" | "pairs" | "runs" | "backlinks" | "proof" | "body";
+            detail?: "summary" | "evidence" | "why" | "history" | "incoming" | "pairs" | "runs" | "backlinks" | "notes" | "proof" | "body";
             range?: components["schemas"]["ByteRange"] | null;
             /** At */
             at?: components["schemas"]["AcceptedCoordinate"] | string | null;
@@ -10317,7 +10399,7 @@ export interface components {
              * Detail
              * @enum {string}
              */
-            detail: "summary" | "evidence" | "why" | "history" | "incoming" | "pairs" | "runs" | "backlinks" | "proof" | "body";
+            detail: "summary" | "evidence" | "why" | "history" | "incoming" | "pairs" | "runs" | "backlinks" | "notes" | "proof" | "body";
             /** Card */
             card?: components["schemas"]["GetClaimCard"] | components["schemas"]["GetSubjectCard"] | components["schemas"]["GetClaimTypeCard"] | components["schemas"]["GetDocumentCard"] | components["schemas"]["GetProcedureCard"] | components["schemas"]["GetQueryCard"] | components["schemas"]["GetCaptureContractCard"] | components["schemas"]["GetTriggerCard"] | components["schemas"]["GetSubjectKindCard"] | components["schemas"]["GetProposalCard"] | components["schemas"]["GetLineCard"] | components["schemas"]["GetCaptureCard"] | components["schemas"]["GetResolutionContractCard"] | components["schemas"]["GetMandateCard"] | components["schemas"]["GetProcedureRunCard"] | components["schemas"]["GetPrincipalCard"] | components["schemas"]["GetApprovalPolicyCard"] | components["schemas"]["GetProcedureRuntimePolicyCard"] | components["schemas"]["GetProviderCard"] | components["schemas"]["GetContractCard"] | components["schemas"]["GetCapabilityCard"] | components["schemas"]["GetRunbookCard"] | components["schemas"]["GetNoteCard"] | null;
             evidence?: components["schemas"]["GetEvidence"] | null;
@@ -10327,6 +10409,7 @@ export interface components {
             pairs?: components["schemas"]["GetPairs"] | null;
             runs?: components["schemas"]["GetLineRuns"] | null;
             backlinks?: components["schemas"]["GetBacklinks"] | null;
+            notes?: components["schemas"]["GetNotes"] | null;
             body?: components["schemas"]["GetBody"] | null;
             /** Why */
             why?: {
@@ -10596,6 +10679,13 @@ export interface components {
              * @default []
              */
             pending?: components["schemas"]["GetPendingProposal"][];
+            /**
+             * Notes
+             * @default []
+             */
+            notes?: components["schemas"]["GetNoteLink"][];
+            /** Notes Total */
+            notes_total?: number | null;
             /**
              * Next
              * @default []
@@ -15205,6 +15295,7 @@ export interface components {
             /** Retention Generations */
             retention_generations?: number | null;
             floor?: components["schemas"]["OrientFloor"] | null;
+            workspace_files?: components["schemas"]["OrientWorkspaceFiles"] | null;
             vocabulary_file?: components["schemas"]["OrientVocabularyFile"] | null;
             you?: components["schemas"]["OrientYou"] | null;
             /** Kinds */
@@ -15438,6 +15529,21 @@ export interface components {
              * @default 0
              */
             definitions_behind?: number;
+        };
+        /**
+         * OrientWorkspaceFiles
+         * @description The workspace's catalogued files (files.yaml), by path: what notes and
+         *     section citations point into, and what ``cruxible section FILE#Heading`` reads.
+         *
+         *     Only a client that sees the workspace (CLI, MCP, SDK) fills this in, on the
+         *     default map; a daemon answer never carries it. ``paths`` are the first
+         *     ``ORIENT_WORKSPACE_FILES`` in byte order; ``total`` counts them all.
+         */
+        OrientWorkspaceFiles: {
+            /** Total */
+            total: number;
+            /** Paths */
+            paths: string[];
         };
         /**
          * OrientYou
@@ -16338,6 +16444,10 @@ export interface components {
         /**
          * ProcedureMandateAuthoringPayload
          * @description Decision-only grant input; lowering owns every exact digest it pins.
+         *
+         *     The validity window is exactly one of ``expires_at`` or ``expires`` (a
+         *     span such as ``90d``); ``valid_from`` omitted is the intent's timestamp.
+         *     Lowering stores both as concrete UTC instants.
          */
         ProcedureMandateAuthoringPayload: {
             /**
@@ -16354,23 +16464,27 @@ export interface components {
              * @enum {string}
              */
             grants: "propose" | "settle";
-            /** Namespace */
-            namespace: string[];
             /**
-             * Valid From
-             * Format: date-time
+             * Namespace
+             * @default []
              */
-            valid_from: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
+            namespace?: string[];
+            /** Valid From */
+            valid_from?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Expires */
+            expires?: string | null;
             /**
              * Scope
              * @default []
              */
-            scope?: components["schemas"]["MandateScopeAuthoring"][];
+            scope?: components["schemas"]["MandateScopeAuthoring"][] | "observations";
+            /**
+             * Include Derived
+             * @default false
+             */
+            include_derived?: boolean;
             /** Subject Scope */
             subject_scope?: components["schemas"]["SemanticAddress"][] | null;
             /** Subjects */
@@ -16405,6 +16519,13 @@ export interface components {
          *     condition query (which may bind ``$target.value`` and ``$target.before``);
          *     lowering pins every exact digest. ``subjects: expected`` limits the grant
          *     to Subjects the Line's claims templates fence with ``within``.
+         *
+         *     ``scope: observations`` is one settle grant over the observations the Line
+         *     writes: lowering pins every ClaimType of the Procedure's claims templates
+         *     (each must permit only the observation role), with creates and revises on
+         *     ``extracted`` and ``measured`` (plus ``derived`` with ``include_derived``)
+         *     and the absence changes its ``when_absent`` templates make; the namespace
+         *     defaults to ``claims``.
          */
         ProcedureMandateInput: {
             /**
@@ -16427,23 +16548,31 @@ export interface components {
              * @enum {string}
              */
             grants: "propose" | "settle";
-            /** Namespace */
-            namespace: string[];
+            /**
+             * Namespace
+             * @default []
+             */
+            namespace?: string[];
             /**
              * Valid From
-             * Format: date-time
+             * @description Give exactly one of expires_at (an instant) or expires (a span: 36h, 90d, 12w, 1y, P90D). valid_from defaults to the intent's time; expires counts from valid_from.
              */
-            valid_from: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
+            valid_from?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Expires */
+            expires?: string | null;
             /**
              * Scope
              * @default []
              */
-            scope?: components["schemas"]["MandateScopeAuthoring"][];
+            scope?: components["schemas"]["MandateScopeAuthoring"][] | "observations";
+            /**
+             * Include Derived
+             * @description scope: observations only: also settle values on basis derived.
+             * @default false
+             */
+            include_derived?: boolean;
             /** Subject Scope */
             subject_scope?: components["schemas"]["SemanticAddress"][] | null;
             /** Subjects */
@@ -19123,6 +19252,16 @@ export interface components {
              */
             reverify?: boolean;
             /**
+             * Move
+             * @default false
+             */
+            move?: boolean;
+            /**
+             * Move Only
+             * @default []
+             */
+            move_only?: string[];
+            /**
              * Dry Run
              * @description true: run every check up to the commit and write nothing, answering with a would_* status; false: commit. Omitted: this operation's default (a change derived across several artifacts, or one that cannot be undone, previews).
              */
@@ -19175,6 +19314,21 @@ export interface components {
             coordinate?: components["schemas"]["AcceptedCoordinate"] | null;
             /** Build */
             build?: string | null;
+            /**
+             * Moved
+             * @default []
+             */
+            moved?: components["schemas"]["ProviderRepinV1"][];
+            /**
+             * Automation Carries
+             * @default []
+             */
+            automation_carries?: (components["schemas"]["CarriedLineV1"] | components["schemas"]["CarriedMandateV1"])[];
+            /**
+             * Stops
+             * @default []
+             */
+            stops?: components["schemas"]["StoppedAutomationV1"][];
         };
         /**
          * ProviderInvocationCaptureEvidence
@@ -21762,8 +21916,9 @@ export interface components {
          * @description One proposed definition: its kind, name and action, and its typed fields.
          *
          *     ``detail`` is the definition as it would stand (Line, ProcedureMandate,
-         *     Runbook, Trigger, Document, note; a ClaimType when created); other kinds,
-         *     and retirements, carry none. ``changed`` lists a revision's changed fields.
+         *     Runbook, Trigger, Document, note, Provider; a ClaimType when created);
+         *     other kinds, and retirements (but a Provider's), carry none. ``changed``
+         *     lists a revision's changed fields.
          */
         ReviewDefinition: {
             /** Kind */
@@ -21776,7 +21931,7 @@ export interface components {
              */
             action: "created" | "revised" | "retired";
             /** Detail */
-            detail?: (components["schemas"]["ReviewLineDefinition"] | components["schemas"]["ReviewMandateDefinition"] | components["schemas"]["ReviewRunbookDefinition"] | components["schemas"]["ReviewTriggerDefinition"] | components["schemas"]["ReviewClaimTypeDefinition"] | components["schemas"]["ReviewDocumentDefinition"] | components["schemas"]["ReviewNoteDefinition"]) | null;
+            detail?: (components["schemas"]["ReviewLineDefinition"] | components["schemas"]["ReviewMandateDefinition"] | components["schemas"]["ReviewRunbookDefinition"] | components["schemas"]["ReviewTriggerDefinition"] | components["schemas"]["ReviewClaimTypeDefinition"] | components["schemas"]["ReviewDocumentDefinition"] | components["schemas"]["ReviewNoteDefinition"] | components["schemas"]["ReviewProviderDefinition"]) | null;
             /**
              * Changed
              * @default []
@@ -21931,6 +22086,8 @@ export interface components {
              * @default false
              */
             suspended?: boolean;
+            /** Carry */
+            carry?: string | null;
         };
         /**
          * ReviewNoteDefinition
@@ -21948,6 +22105,81 @@ export interface components {
             section: string[];
             /** About */
             about: string[];
+        };
+        /**
+         * ReviewProviderDefinition
+         * @description A Provider build as it would stand: the package it runs and what it serves.
+         *
+         *     ``package``, ``version`` and ``materialization`` are absent for a signing
+         *     identity with no package runtime.
+         */
+        ReviewProviderDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "provider";
+            /** Provider */
+            provider: string;
+            /** Build */
+            build?: string | null;
+            /** Control Domain */
+            control_domain: string;
+            /** Package */
+            package?: string | null;
+            /** Version */
+            version?: string | null;
+            /** Materialization */
+            materialization?: ("registry" | "local") | null;
+            /**
+             * Capture Contracts
+             * @default []
+             */
+            capture_contracts?: string[];
+            /**
+             * Operations
+             * @default []
+             */
+            operations?: components["schemas"]["ReviewProviderOperation"][];
+        };
+        /**
+         * ReviewProviderOperation
+         * @description One operation a provider build declares: what it serves and how it runs.
+         *
+         *     ``in`` and ``out`` are Contract refs (``name@N``). ``declared_endpoints``
+         *     and ``requires_extras`` are the manifest row of the operation's entrypoint.
+         */
+        ReviewProviderOperation: {
+            /** Name */
+            name: string;
+            /**
+             * Effect
+             * @enum {string}
+             */
+            effect: "pure" | "external_read" | "external_mutation";
+            /** Serves */
+            serves: string[];
+            /** In */
+            in: string;
+            /** Out */
+            out: string;
+            /**
+             * May Truncate
+             * @default false
+             */
+            may_truncate?: boolean;
+            /** Entrypoint */
+            entrypoint: string;
+            /**
+             * Declared Endpoints
+             * @default []
+             */
+            declared_endpoints?: string[];
+            /**
+             * Requires Extras
+             * @default []
+             */
+            requires_extras?: string[];
         };
         /** ReviewRequest */
         ReviewRequest: {
@@ -23256,6 +23488,8 @@ export interface components {
              * @description Compare-and-set: the value(s) you read, [] for none; else slot_changed.
              */
             expect?: boolean | number | string | (boolean | number | string)[] | null;
+            /** Based On */
+            based_on?: string[] | null;
         };
         /** SetRequest */
         SetRequest: {
@@ -23325,6 +23559,8 @@ export interface components {
              * @description Compare-and-set: the value(s) you read, [] for none; else slot_changed.
              */
             expect?: boolean | number | string | (boolean | number | string)[] | null;
+            /** Based On */
+            based_on?: string[] | null;
         };
         /**
          * SettleRequest

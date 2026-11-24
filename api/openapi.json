@@ -13750,6 +13750,20 @@
             "title": "Expect Absent",
             "description": "Refuse value_already_present if the value is live.",
             "default": false
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
           }
         },
         "additionalProperties": false,
@@ -19822,7 +19836,7 @@
           "old_artifact_digest"
         ],
         "title": "CarriedLineV1",
-        "description": "A same-identity Line successor; exact-version enablement never transfers."
+        "description": "A same-identity Line successor over a Procedure successor; its enablement stops."
       },
       "CarriedMandateV1": {
         "properties": {
@@ -19889,7 +19903,10 @@
           },
           "new_grant": {
             "type": "string",
-            "const": "propose",
+            "enum": [
+              "propose",
+              "settle"
+            ],
             "title": "New Grant",
             "default": "propose"
           },
@@ -19900,6 +19917,44 @@
           "subject_creation_namespace_limitation": {
             "type": "boolean",
             "title": "Subject Creation Namespace Limitation",
+            "default": false
+          },
+          "demotion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "compiler_revision",
+                  "procedure_changed",
+                  "kit_change",
+                  "line_changed",
+                  "capability_changed",
+                  "effect_widened",
+                  "endpoints_widened",
+                  "may_truncate_widened",
+                  "judgment_claim_type",
+                  "subject_creation",
+                  "condition_coupling",
+                  "mandate_terms_changed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demotion"
+          },
+          "retained_scope": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Retained Scope",
+            "default": []
+          },
+          "carries_line_enablement": {
+            "type": "boolean",
+            "title": "Carries Line Enablement",
             "default": false
           }
         },
@@ -19914,7 +19969,7 @@
           "loses_settle"
         ],
         "title": "CarriedMandateV1",
-        "description": "A same-name propose successor pinning its Line's successor; settle fields removed."
+        "description": "A same-name successor pinning its Line's successor.\n\nPropose-only, settle fields removed (``demotion`` says why a settle grant\nlost settle); or, for an observation-only settle grant across a pure,\nnon-widening provider build move, the same grant with its terms unchanged\n(``new_grant`` settle, ``retained_scope`` its ClaimTypes), and an enabled\nLine stays enabled on its successor (``carries_line_enablement``)."
       },
       "CasObjectResult": {
         "properties": {
@@ -21101,6 +21156,20 @@
                 "type": "null"
               }
             ]
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
           }
         },
         "additionalProperties": false,
@@ -27654,6 +27723,11 @@
             "maxItems": 1024,
             "minItems": 1,
             "title": "Members"
+          },
+          "ordered": {
+            "type": "boolean",
+            "title": "Ordered",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -27661,7 +27735,8 @@
         "required": [
           "members"
         ],
-        "title": "EnumType"
+        "title": "EnumType",
+        "description": "A closed set of string members.\n\n``ordered`` (compiler revision 74) declares the members in ascending rank:\nthe first is lowest, the last highest. Queries then compare and order the\nstored member strings by that rank; values are never remapped. Unordered,\nthe field is omitted from the canonical bytes, so existing digests hold."
       },
       "ErrorResponse": {
         "properties": {
@@ -31948,6 +32023,118 @@
         "title": "GetNoteCard",
         "description": "One note: a workspace section linked ``about`` Subjects (never a Claim)."
       },
+      "GetNoteLink": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "NOTE-<32 hex>; get reads its card."
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "cited_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cited Digest",
+            "description": "The section's bytes when linked."
+          },
+          "drift": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "changed_since_cited",
+                  "unchanged",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drift",
+            "description": "Has the section moved since it was linked?"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "title": "GetNoteLink",
+        "description": "A note about a Subject, as a pointer to its section: never the section's prose.\n\n``cruxible section FILE#Heading/Path`` (FILE the path the catalog maps\n``file`` to) reads the section itself."
+      },
+      "GetNotes": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "The Subject (kind/id)."
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/GetNoteLink"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "withheld": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyRestricted"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target",
+          "notes"
+        ],
+        "title": "GetNotes",
+        "description": "``detail=\"notes\"``: one page of the notes about a Subject, as section pointers."
+      },
       "GetPairEnd": {
         "properties": {
           "part": {
@@ -33050,6 +33237,7 @@
               "pairs",
               "runs",
               "backlinks",
+              "notes",
               "proof",
               "body"
             ],
@@ -33277,6 +33465,7 @@
               "pairs",
               "runs",
               "backlinks",
+              "notes",
               "proof",
               "body"
             ],
@@ -33428,6 +33617,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/GetBacklinks"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GetNotes"
               },
               {
                 "type": "null"
@@ -34192,6 +34391,26 @@
             "type": "array",
             "title": "Pending",
             "default": []
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/GetNoteLink"
+            },
+            "type": "array",
+            "title": "Notes",
+            "default": []
+          },
+          "notes_total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes Total"
           },
           "next": {
             "items": {
@@ -44505,6 +44724,16 @@
               }
             ]
           },
+          "workspace_files": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrientWorkspaceFiles"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "vocabulary_file": {
             "anyOf": [
               {
@@ -45408,6 +45637,30 @@
         ],
         "title": "OrientVocabularyFile",
         "description": "The workspace's vocabulary file against this answer's coordinate.\n\nOnly a client that sees the workspace (CLI, MCP, SDK) asks for it, naming the\ngeneration the file's header was exported at; the daemon counts the\nClaimTypes and SubjectKinds accepted since. ``invalid``: the header cannot be\nread, or names an export this instance does not hold."
+      },
+      "OrientWorkspaceFiles": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Paths"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "total",
+          "paths"
+        ],
+        "title": "OrientWorkspaceFiles",
+        "description": "The workspace's catalogued files (files.yaml), by path: what notes and\nsection citations point into, and what ``cruxible section FILE#Heading`` reads.\n\nOnly a client that sees the workspace (CLI, MCP, SDK) fills this in, on the\ndefault map; a daemon answer never carries it. ``paths`` are the first\n``ORIENT_WORKSPACE_FILES`` in byte order; ``total`` counts them all."
       },
       "OrientYou": {
         "properties": {
@@ -47352,25 +47605,64 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Namespace"
+            "title": "Namespace",
+            "default": []
           },
           "valid_from": {
-            "type": "string",
-            "format": "date-time",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Valid From"
           },
           "expires_at": {
-            "type": "string",
-            "format": "date-time",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Expires At"
           },
+          "expires": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
           "scope": {
-            "items": {
-              "$ref": "#/components/schemas/MandateScopeAuthoring"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MandateScopeAuthoring"
+                },
+                "type": "array"
+              },
+              {
+                "type": "string",
+                "const": "observations"
+              }
+            ],
             "title": "Scope",
             "default": []
+          },
+          "include_derived": {
+            "type": "boolean",
+            "title": "Include Derived",
+            "default": false
           },
           "subject_scope": {
             "anyOf": [
@@ -47432,13 +47724,10 @@
         "required": [
           "name",
           "line_name",
-          "grants",
-          "namespace",
-          "valid_from",
-          "expires_at"
+          "grants"
         ],
         "title": "ProcedureMandateAuthoringPayload",
-        "description": "Decision-only grant input; lowering owns every exact digest it pins."
+        "description": "Decision-only grant input; lowering owns every exact digest it pins.\n\nThe validity window is exactly one of ``expires_at`` or ``expires`` (a\nspan such as ``90d``); ``valid_from`` omitted is the intent's timestamp.\nLowering stores both as concrete UTC instants."
       },
       "ProcedureMandateInput": {
         "properties": {
@@ -47474,25 +47763,66 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Namespace"
+            "title": "Namespace",
+            "default": []
           },
           "valid_from": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Valid From"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From",
+            "description": "Give exactly one of expires_at (an instant) or expires (a span: 36h, 90d, 12w, 1y, P90D). valid_from defaults to the intent's time; expires counts from valid_from."
           },
           "expires_at": {
-            "type": "string",
-            "format": "date-time",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Expires At"
           },
+          "expires": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
           "scope": {
-            "items": {
-              "$ref": "#/components/schemas/MandateScopeAuthoring"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MandateScopeAuthoring"
+                },
+                "type": "array"
+              },
+              {
+                "type": "string",
+                "const": "observations"
+              }
+            ],
             "title": "Scope",
             "default": []
+          },
+          "include_derived": {
+            "type": "boolean",
+            "title": "Include Derived",
+            "description": "scope: observations only: also settle values on basis derived.",
+            "default": false
           },
           "subject_scope": {
             "anyOf": [
@@ -47556,13 +47886,10 @@
           "kind",
           "name",
           "line_name",
-          "grants",
-          "namespace",
-          "valid_from",
-          "expires_at"
+          "grants"
         ],
         "title": "ProcedureMandateInput",
-        "description": "A propose grant, or a settle grant with its Claim scope and condition query.\n\n``line_name`` names the Line the grant authorizes (accepted, or defined in\nthe same set); lowering pins its exact digest, so changing the Line's\nProcedure version, parameters or bindings renews the grant. ``grants`` is\nthe verb the mandate delegates. A settle grant names the ClaimTypes (by\npredicate), per change kind the evidence bases that settle, an optional\n``value: {from, to}`` for enum and bool ClaimTypes, and an optional accepted\ncondition query (which may bind ``$target.value`` and ``$target.before``);\nlowering pins every exact digest. ``subjects: expected`` limits the grant\nto Subjects the Line's claims templates fence with ``within``."
+        "description": "A propose grant, or a settle grant with its Claim scope and condition query.\n\n``line_name`` names the Line the grant authorizes (accepted, or defined in\nthe same set); lowering pins its exact digest, so changing the Line's\nProcedure version, parameters or bindings renews the grant. ``grants`` is\nthe verb the mandate delegates. A settle grant names the ClaimTypes (by\npredicate), per change kind the evidence bases that settle, an optional\n``value: {from, to}`` for enum and bool ClaimTypes, and an optional accepted\ncondition query (which may bind ``$target.value`` and ``$target.before``);\nlowering pins every exact digest. ``subjects: expected`` limits the grant\nto Subjects the Line's claims templates fence with ``within``.\n\n``scope: observations`` is one settle grant over the observations the Line\nwrites: lowering pins every ClaimType of the Procedure's claims templates\n(each must permit only the observation role), with creates and revises on\n``extracted`` and ``measured`` (plus ``derived`` with ``include_derived``)\nand the absence changes its ``when_absent`` templates make; the namespace\ndefaults to ``claims``."
       },
       "ProcedureMeasureRequest": {
         "properties": {
@@ -54200,6 +54527,19 @@
             "title": "Reverify",
             "default": false
           },
+          "move": {
+            "type": "boolean",
+            "title": "Move",
+            "default": false
+          },
+          "move_only": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Move Only",
+            "default": []
+          },
           "dry_run": {
             "anyOf": [
               {
@@ -54350,6 +54690,44 @@
               }
             ],
             "title": "Build"
+          },
+          "moved": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderRepinV1"
+            },
+            "type": "array",
+            "title": "Moved",
+            "default": []
+          },
+          "automation_carries": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CarriedLineV1"
+                },
+                {
+                  "$ref": "#/components/schemas/CarriedMandateV1"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "line": "#/components/schemas/CarriedLineV1",
+                  "mandate": "#/components/schemas/CarriedMandateV1"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Automation Carries",
+            "default": []
+          },
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/StoppedAutomationV1"
+            },
+            "type": "array",
+            "title": "Stops",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -60682,6 +61060,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/ReviewNoteDefinition"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReviewProviderDefinition"
                   }
                 ],
                 "discriminator": {
@@ -60692,6 +61073,7 @@
                     "line": "#/components/schemas/ReviewLineDefinition",
                     "note": "#/components/schemas/ReviewNoteDefinition",
                     "procedure-mandate": "#/components/schemas/ReviewMandateDefinition",
+                    "provider": "#/components/schemas/ReviewProviderDefinition",
                     "runbook": "#/components/schemas/ReviewRunbookDefinition",
                     "trigger": "#/components/schemas/ReviewTriggerDefinition"
                   }
@@ -60720,7 +61102,7 @@
           "action"
         ],
         "title": "ReviewDefinition",
-        "description": "One proposed definition: its kind, name and action, and its typed fields.\n\n``detail`` is the definition as it would stand (Line, ProcedureMandate,\nRunbook, Trigger, Document, note; a ClaimType when created); other kinds,\nand retirements, carry none. ``changed`` lists a revision's changed fields."
+        "description": "One proposed definition: its kind, name and action, and its typed fields.\n\n``detail`` is the definition as it would stand (Line, ProcedureMandate,\nRunbook, Trigger, Document, note, Provider; a ClaimType when created);\nother kinds, and retirements (but a Provider's), carry none. ``changed``\nlists a revision's changed fields."
       },
       "ReviewDocumentDefinition": {
         "properties": {
@@ -61023,6 +61405,17 @@
             "type": "boolean",
             "title": "Suspended",
             "default": false
+          },
+          "carry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carry"
           }
         },
         "additionalProperties": false,
@@ -61071,6 +61464,165 @@
         ],
         "title": "ReviewNoteDefinition",
         "description": "A note as it would stand: the section, and the Subjects it is about."
+      },
+      "ReviewProviderDefinition": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "provider",
+            "title": "Kind",
+            "default": "provider"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "build": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build"
+          },
+          "control_domain": {
+            "type": "string",
+            "title": "Control Domain"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "materialization": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "registry",
+                  "local"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materialization"
+          },
+          "capture_contracts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capture Contracts",
+            "default": []
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewProviderOperation"
+            },
+            "type": "array",
+            "title": "Operations",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "control_domain"
+        ],
+        "title": "ReviewProviderDefinition",
+        "description": "A Provider build as it would stand: the package it runs and what it serves.\n\n``package``, ``version`` and ``materialization`` are absent for a signing\nidentity with no package runtime."
+      },
+      "ReviewProviderOperation": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "pure",
+              "external_read",
+              "external_mutation"
+            ],
+            "title": "Effect"
+          },
+          "serves": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Serves"
+          },
+          "in": {
+            "type": "string",
+            "title": "In"
+          },
+          "out": {
+            "type": "string",
+            "title": "Out"
+          },
+          "may_truncate": {
+            "type": "boolean",
+            "title": "May Truncate",
+            "default": false
+          },
+          "entrypoint": {
+            "type": "string",
+            "title": "Entrypoint"
+          },
+          "declared_endpoints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Declared Endpoints",
+            "default": []
+          },
+          "requires_extras": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requires Extras",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "effect",
+          "serves",
+          "in",
+          "out",
+          "entrypoint"
+        ],
+        "title": "ReviewProviderOperation",
+        "description": "One operation a provider build declares: what it serves and how it runs.\n\n``in`` and ``out`` are Contract refs (``name@N``). ``declared_endpoints``\nand ``requires_extras`` are the manifest row of the operation's entrypoint."
       },
       "ReviewRequest": {
         "properties": {
@@ -64291,6 +64843,20 @@
             ],
             "title": "Expect",
             "description": "Compare-and-set: the value(s) you read, [] for none; else slot_changed."
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
           }
         },
         "additionalProperties": false,
@@ -64482,6 +65048,20 @@
             ],
             "title": "Expect",
             "description": "Compare-and-set: the value(s) you read, [] for none; else slot_changed."
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On"
           }
         },
         "additionalProperties": false,
