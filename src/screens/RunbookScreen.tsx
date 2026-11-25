@@ -354,6 +354,7 @@ function Kinds({ names }: { names: readonly string[] }) {
 const PROBLEM_WORD: Record<Schemas["RunbookOrderProblem"]["kind"], string> = {
   reads_later_write: "Reads what a later step writes",
   reads_unwritten: "Reads what nothing writes",
+  reads_unbound_write: "Reads what an unbound step writes",
 };
 
 const PROBLEM_COLUMNS: Column<Schemas["RunbookOrderProblem"]>[] = [

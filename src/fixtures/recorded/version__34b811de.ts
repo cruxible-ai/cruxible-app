@@ -7,7 +7,7 @@ export default defineFixture({
   "path": "/version",
   "response": {
     "version": "0.6.0",
-    "sdk_contract_snapshot_digest": "sha256:4d44094a49b4f4db4f91122034d3bc9f1cce36ffbb6c8fde9381a4926145ba58",
+    "sdk_contract_snapshot_digest": "sha256:52f69a111d8ff3ee06cbdc2714546aa9512369b56f9722ab9cf39088ddacf02f",
     "boot_id": "boot-159256ef345b43f2862ee39c3a6ce558"
   }
 });

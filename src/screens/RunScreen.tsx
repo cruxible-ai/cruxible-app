@@ -221,6 +221,8 @@ const COMPLETENESS_WORD: Record<Schemas["CompletenessReason"]["kind"], string> =
   may_truncate: "May truncate",
   control_incomplete: "Control incomplete",
   upstream_incomplete: "Upstream incomplete",
+  glob_enumeration: "Glob enumeration",
+  expect_unknown: "Expected Subjects unknown",
 };
 
 const COMPLETENESS_COLUMNS: Column<Schemas["CompletenessReason"]>[] = [

@@ -4987,6 +4987,17 @@ export interface components {
              * @description An about change: the Subjects the note links after it ([] = retired).
              */
             about?: string[] | null;
+            /**
+             * Role
+             * @description The role the write named.
+             */
+            role?: ("normative" | "observation" | "environment_binding") | null;
+            /**
+             * Based On
+             * @description Claims the value rests on, by ID.
+             * @default []
+             */
+            based_on?: string[];
         };
         /** ChangeSetAuthoringPayload */
         ChangeSetAuthoringPayload: {
@@ -6638,6 +6649,11 @@ export interface components {
              * @default false
              */
             source_incomplete?: boolean;
+            /**
+             * Incomplete Reasons
+             * @default []
+             */
+            incomplete_reasons?: components["schemas"]["CompletenessReason"][];
             /** Key */
             key?: {
                 [key: string]: components["schemas"]["JsonValue"];
@@ -6927,7 +6943,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "incomplete_input" | "count_mismatch" | "invalid_record" | "duplicate_key" | "invalid_field" | "unknown_predicate" | "may_truncate" | "control_incomplete" | "upstream_incomplete";
+            kind: "incomplete_input" | "count_mismatch" | "invalid_record" | "duplicate_key" | "invalid_field" | "unknown_predicate" | "may_truncate" | "control_incomplete" | "upstream_incomplete" | "glob_enumeration" | "expect_unknown";
             /**
              * Inputs
              * @default []
@@ -10650,7 +10666,17 @@ export interface components {
              * Availability
              * @enum {string}
              */
-            availability: "available" | "line_missing" | "line_retired" | "line_takes_event" | "action_unregistered";
+            availability: "available" | "line_missing" | "line_retired" | "line_takes_event" | "procedure_missing" | "procedure_retired" | "no_lines_bound" | "action_unregistered";
+            /**
+             * Lines
+             * @default []
+             */
+            lines?: string[];
+            /**
+             * Excluded Lines
+             * @default []
+             */
+            excluded_lines?: string[];
         };
         /** GetSubjectCard */
         GetSubjectCard: {
@@ -11635,6 +11661,8 @@ export interface components {
             content_digest: string;
             /** Source */
             source?: string | null;
+            /** Bundle Digest */
+            bundle_digest?: string | null;
             /**
              * Requires
              * @default []
@@ -11987,6 +12015,21 @@ export interface components {
              */
             providers?: components["schemas"]["KitBuildProvider"][];
             automation_template?: components["schemas"]["KitAutomationTemplate"] | null;
+            /**
+             * Recipes
+             * @default []
+             */
+            recipes?: components["schemas"]["KitRecipeSpec"][];
+            /**
+             * Scripts
+             * @default []
+             */
+            scripts?: components["schemas"]["KitScriptSpec"][];
+            /**
+             * Files
+             * @default []
+             */
+            files?: components["schemas"]["KitFileBytes"][];
         };
         /** KitBuildResult */
         KitBuildResult: {
@@ -12141,7 +12184,7 @@ export interface components {
              * Role
              * @enum {string}
              */
-            role: "readme" | "reference" | "example" | "skill";
+            role: "readme" | "reference" | "example" | "skill" | "recipe" | "script";
         };
         /** KitFileBytes */
         KitFileBytes: {
@@ -12226,6 +12269,16 @@ export interface components {
             files?: components["schemas"]["KitFile"][];
             /** Automation Template */
             automation_template?: string | null;
+            /**
+             * Recipes
+             * @default []
+             */
+            recipes?: components["schemas"]["KitRecipeSpec"][];
+            /**
+             * Scripts
+             * @default []
+             */
+            scripts?: components["schemas"]["KitScriptSpec"][];
         };
         /**
          * KitOwnershipConflictRefusal
@@ -12396,6 +12449,65 @@ export interface components {
             /** Detail */
             detail?: string | null;
         };
+        /**
+         * KitRecipeParamSpec
+         * @description One parameter of a kit recipe: its type, whether it is required, its default.
+         *
+         *     ``kit adopt --param NAME=VALUE`` sets it; the recipe file names it as
+         *     ``{{NAME}}`` inside a JSON string value. A string that is exactly
+         *     ``"{{NAME}}"`` takes the typed value (an integer or boolean stays one);
+         *     embedded in a longer string it is spelled as text (``true``/``false``).
+         */
+        KitRecipeParamSpec: {
+            /**
+             * Type
+             * @default string
+             * @enum {string}
+             */
+            type?: "string" | "integer" | "boolean" | "enum";
+            /** Description */
+            description: string;
+            /**
+             * Required
+             * @default false
+             */
+            required?: boolean;
+            /** Default */
+            default?: string | number | boolean | null;
+            /** Pattern */
+            pattern?: string | null;
+            /**
+             * Values
+             * @default []
+             */
+            values?: string[];
+            /** Example */
+            example?: string | number | boolean | null;
+        };
+        /**
+         * KitRecipeSpec
+         * @description One recipe a kit declares: a parameterized change set at ``path`` (a
+         *     ``recipe`` file of the kit) that ``kit adopt KIT:NAME`` renders and submits
+         *     as the adopter's own governed change. ``default`` is what ``kit adopt KIT``
+         *     selects. Inert, like every kit file: never installed by ``kit add``.
+         */
+        KitRecipeSpec: {
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** Description */
+            description: string;
+            /** Params */
+            params?: {
+                [key: string]: components["schemas"]["KitRecipeParamSpec"];
+            };
+            /**
+             * Depends On
+             * @default []
+             */
+            depends_on?: string[];
+        };
         /** KitRemoveRequest */
         KitRemoveRequest: {
             /** Kit Id */
@@ -12477,6 +12589,25 @@ export interface components {
             source?: string | null;
             /** Content Digest */
             content_digest?: string | null;
+        };
+        /**
+         * KitScriptSpec
+         * @description One script a kit declares: Python at ``path`` (a ``script`` file of the
+         *     kit) that ``kit run KIT:NAME`` verifies against the installed release and runs
+         *     client-side with the ``cruxible python`` environment, never in the daemon.
+         */
+        KitScriptSpec: {
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** Description */
+            description: string;
+            /**
+             * Mode
+             * @constant
+             */
+            mode: "read_only";
         };
         /** KitStatus */
         KitStatus: {
@@ -17901,6 +18032,25 @@ export interface components {
             annotations?: components["schemas"]["JsonValue"];
         };
         /**
+         * ProcedureTarget
+         * @description Fan-out step: run each live Line of this Procedure, in Line-name order.
+         *
+         *     The Lines are read at the head when the step is reached. A Line that takes
+         *     an event is left out (``cruxible.runbook.line_takes_event``); with no Line
+         *     left the step is skipped (``cruxible.runbook.no_lines_bound``). Each Line
+         *     runs as a Line step does (``LineTarget``): in a Trigger-fired run a Line not
+         *     enabled stops the Runbook with ``not_enabled``, as a Line step's would; a
+         *     manual run runs it under the caller's authority.
+         */
+        ProcedureTarget: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "procedure";
+            procedure: components["schemas"]["ArtifactNameRef"];
+        };
+        /**
          * ProcedureTerminalEgress
          * @description What one terminal node of a run did, reconstructed from its journal.
          *
@@ -21793,6 +21943,24 @@ export interface components {
             id?: string;
         };
         /**
+         * ReviewBasedOn
+         * @description A Claim a proposed value was judged from (a ``based_on`` pin), and what it is about.
+         *
+         *     ``subject`` and ``field`` name the pinned Claim's Subject and field when its
+         *     version is readable in the candidate's tree; ``claim`` alone otherwise.
+         */
+        ReviewBasedOn: {
+            /**
+             * Claim
+             * @description CLM-<32 hex>; get accepts it.
+             */
+            claim: string;
+            /** Subject */
+            subject?: string | null;
+            /** Field */
+            field?: string | null;
+        };
+        /**
          * ReviewChange
          * @description One proposed value change, in the write outcome's form, with what it cites.
          *
@@ -21800,6 +21968,8 @@ export interface components {
          *     Subject, field, before and after, the Claim and its candidate verdict.
          *     ``role`` is the Claim's role; ``rationale`` the item's own reason, when a
          *     Procedure proposed it (the change set's ``rationale`` covers the rest).
+         *     ``based_on`` lists the Claims the value was judged from, which a reviewer
+         *     checks it against.
          */
         ReviewChange: {
             change: components["schemas"]["ChangeOutcome"];
@@ -21817,6 +21987,11 @@ export interface components {
              * @default 0
              */
             citations_more?: number;
+            /**
+             * Based On
+             * @default []
+             */
+            based_on?: components["schemas"]["ReviewBasedOn"][];
         };
         /**
          * ReviewChangeCount
@@ -22577,11 +22752,12 @@ export interface components {
         };
         /**
          * RunbookAuthoringPayload
-         * @description One Runbook decision (D-R36): an ordered list of Lines and internal actions.
+         * @description One Runbook decision (D-R36): an ordered list of Lines, Procedures and internal actions.
          *
          *     No branching, no parameters of its own and no new action kinds: each Line
          *     step runs as that Line's manual occurrence, on its own parameters and
-         *     authority. ``retire`` retires the accepted Runbook (``steps`` then unused).
+         *     authority; a Procedure step runs every live Line of that Procedure, in
+         *     Line-name order. ``retire`` retires the accepted Runbook (``steps`` then unused).
          */
         RunbookAuthoringPayload: {
             /**
@@ -22629,7 +22805,7 @@ export interface components {
             description?: string | null;
             /**
              * Steps
-             * @description In run order: {line: <Line name>} or {action: <internal action>}.
+             * @description In run order: {line: <Line name>}, {procedure: <Procedure name>} or {action: <internal action>}.
              * @default []
              */
             steps?: components["schemas"]["RunbookStepAuthoring"][];
@@ -22648,7 +22824,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "reads_later_write" | "reads_unwritten";
+            kind: "reads_later_write" | "reads_unwritten" | "reads_unbound_write";
             /** Step */
             step: number;
             /** Claim Type */
@@ -22903,12 +23079,16 @@ export interface components {
             /** Step */
             step: number;
             /** Target */
-            target: components["schemas"]["LineTarget"] | components["schemas"]["ActionTarget"];
+            target: components["schemas"]["LineTarget"] | components["schemas"]["ActionTarget"] | components["schemas"]["ProcedureTarget"];
             /**
              * Unavailable
              * @default false
              */
             unavailable?: boolean;
+            /** From Procedure */
+            from_procedure?: string | null;
+            /** Excluded */
+            excluded?: "cruxible.runbook.line_takes_event" | null;
             /** Procedure */
             procedure?: string | null;
             /**
@@ -23053,13 +23233,15 @@ export interface components {
         };
         /**
          * RunbookStepAuthoring
-         * @description One Runbook step: exactly one of an accepted Line (by name) or a registered action.
+         * @description One Runbook step: exactly one of an accepted Line, a registered action, or a Procedure.
          */
         RunbookStepAuthoring: {
             /** Line */
             line?: string | null;
             /** Action */
             action?: string | null;
+            /** Procedure */
+            procedure?: string | null;
         };
         /**
          * RunbookStepOutcome
@@ -23075,12 +23257,12 @@ export interface components {
             /** Step */
             step: number;
             /** Target */
-            target: components["schemas"]["LineTarget"] | components["schemas"]["ActionTarget"];
+            target: components["schemas"]["LineTarget"] | components["schemas"]["ActionTarget"] | components["schemas"]["ProcedureTarget"];
             /**
              * Status
              * @enum {string}
              */
-            status: "succeeded" | "proposed" | "failed" | "not_enabled" | "unavailable" | "fired" | "not_run";
+            status: "succeeded" | "proposed" | "failed" | "not_enabled" | "unavailable" | "fired" | "skipped" | "not_run";
             /** Run Id */
             run_id?: string | null;
             /** Run Status */
@@ -23097,6 +23279,8 @@ export interface components {
             /** Message */
             message?: string | null;
             counts?: components["schemas"]["RunCounts"] | null;
+            /** From Procedure */
+            from_procedure?: string | null;
         };
         /** RuntimeCredentialBootstrapResult */
         RuntimeCredentialBootstrapResult: {
@@ -27579,7 +27763,10 @@ export interface operations {
     };
     kit_status_api_v1__instance_id__kits_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Only this installed kit, its receipt read directly (no resume rows). */
+                kit_id?: string | null;
+            };
             header?: never;
             path: {
                 instance_id: string;

@@ -3059,6 +3059,25 @@
               "type": "string",
               "title": "Instance Id"
             }
+          },
+          {
+            "name": "kit_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this installed kit, its receipt read directly (no resume rows).",
+              "title": "Kit Id"
+            },
+            "description": "Only this installed kit, its receipt read directly (no resume rows)."
           }
         ],
         "responses": {
@@ -20292,6 +20311,32 @@
             ],
             "title": "About",
             "description": "An about change: the Subjects the note links after it ([] = retired)."
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "normative",
+                  "observation",
+                  "environment_binding"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role",
+            "description": "The role the write named."
+          },
+          "based_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Based On",
+            "description": "Claims the value rests on, by ID.",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -24645,6 +24690,15 @@
             "title": "Source Incomplete",
             "default": false
           },
+          "incomplete_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/CompletenessReason"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Incomplete Reasons",
+            "default": []
+          },
           "key": {
             "anyOf": [
               {
@@ -25453,7 +25507,9 @@
               "unknown_predicate",
               "may_truncate",
               "control_incomplete",
-              "upstream_incomplete"
+              "upstream_incomplete",
+              "glob_enumeration",
+              "expect_unknown"
             ],
             "title": "Kind"
           },
@@ -34328,9 +34384,28 @@
               "line_missing",
               "line_retired",
               "line_takes_event",
+              "procedure_missing",
+              "procedure_retired",
+              "no_lines_bound",
               "action_unregistered"
             ],
             "title": "Availability"
+          },
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lines",
+            "default": []
+          },
+          "excluded_lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Excluded Lines",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -36679,6 +36754,17 @@
             ],
             "title": "Source"
           },
+          "bundle_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Digest"
+          },
           "requires": {
             "items": {
               "$ref": "#/components/schemas/KitRequirementStatus"
@@ -37404,6 +37490,30 @@
                 "type": "null"
               }
             ]
+          },
+          "recipes": {
+            "items": {
+              "$ref": "#/components/schemas/KitRecipeSpec"
+            },
+            "type": "array",
+            "title": "Recipes",
+            "default": []
+          },
+          "scripts": {
+            "items": {
+              "$ref": "#/components/schemas/KitScriptSpec"
+            },
+            "type": "array",
+            "title": "Scripts",
+            "default": []
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/KitFileBytes"
+            },
+            "type": "array",
+            "title": "Files",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -37768,7 +37878,9 @@
               "readme",
               "reference",
               "example",
-              "skill"
+              "skill",
+              "recipe",
+              "script"
             ],
             "title": "Role"
           }
@@ -37967,6 +38079,22 @@
               }
             ],
             "title": "Automation Template"
+          },
+          "recipes": {
+            "items": {
+              "$ref": "#/components/schemas/KitRecipeSpec"
+            },
+            "type": "array",
+            "title": "Recipes",
+            "default": []
+          },
+          "scripts": {
+            "items": {
+              "$ref": "#/components/schemas/KitScriptSpec"
+            },
+            "type": "array",
+            "title": "Scripts",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -38371,6 +38499,130 @@
         ],
         "title": "KitProviderStep"
       },
+      "KitRecipeParamSpec": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "integer",
+              "boolean",
+              "enum"
+            ],
+            "title": "Type",
+            "default": "string"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          },
+          "default": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Values",
+            "default": []
+          },
+          "example": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "title": "KitRecipeParamSpec",
+        "description": "One parameter of a kit recipe: its type, whether it is required, its default.\n\n``kit adopt --param NAME=VALUE`` sets it; the recipe file names it as\n``{{NAME}}`` inside a JSON string value. A string that is exactly\n``\"{{NAME}}\"`` takes the typed value (an integer or boolean stays one);\nembedded in a longer string it is spelled as text (``true``/``false``)."
+      },
+      "KitRecipeSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/KitRecipeParamSpec"
+            },
+            "type": "object",
+            "title": "Params"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Depends On",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "description"
+        ],
+        "title": "KitRecipeSpec",
+        "description": "One recipe a kit declares: a parameterized change set at ``path`` (a\n``recipe`` file of the kit) that ``kit adopt KIT:NAME`` renders and submits\nas the adopter's own governed change. ``default`` is what ``kit adopt KIT``\nselects. Inert, like every kit file: never installed by ``kit add``."
+      },
       "KitRemoveRequest": {
         "properties": {
           "kit_id": {
@@ -38567,6 +38819,37 @@
         ],
         "title": "KitResumeStatus",
         "description": "A ``kit add`` that stopped at awaiting_providers and resumes on activation, or\none that stopped at its proposal (creation's base kit under independent approval)."
+      },
+      "KitScriptSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "mode": {
+            "type": "string",
+            "const": "read_only",
+            "title": "Mode"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "description",
+          "mode"
+        ],
+        "title": "KitScriptSpec",
+        "description": "One script a kit declares: Python at ``path`` (a ``script`` file of the\nkit) that ``kit run KIT:NAME`` verifies against the installed release and runs\nclient-side with the ``cruxible python`` environment, never in the daemon."
       },
       "KitStatus": {
         "properties": {
@@ -51339,6 +51622,26 @@
         ],
         "title": "ProcedureSpec"
       },
+      "ProcedureTarget": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "procedure",
+            "title": "Kind",
+            "default": "procedure"
+          },
+          "procedure": {
+            "$ref": "#/components/schemas/ArtifactNameRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "procedure"
+        ],
+        "title": "ProcedureTarget",
+        "description": "Fan-out step: run each live Line of this Procedure, in Line-name order.\n\nThe Lines are read at the head when the step is reached. A Line that takes\nan event is left out (``cruxible.runbook.line_takes_event``); with no Line\nleft the step is skipped (``cruxible.runbook.no_lines_bound``). Each Line\nruns as a Line step does (``LineTarget``): in a Trigger-fired run a Line not\nenabled stops the Runbook with ``not_enabled``, as a Line step's would; a\nmanual run runs it under the caller's authority."
+      },
       "ProcedureTerminalEgress": {
         "properties": {
           "tag": {
@@ -60756,6 +61059,44 @@
         ],
         "title": "ReturnFrom"
       },
+      "ReviewBasedOn": {
+        "properties": {
+          "claim": {
+            "type": "string",
+            "title": "Claim",
+            "description": "CLM-<32 hex>; get accepts it."
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim"
+        ],
+        "title": "ReviewBasedOn",
+        "description": "A Claim a proposed value was judged from (a ``based_on`` pin), and what it is about.\n\n``subject`` and ``field`` name the pinned Claim's Subject and field when its\nversion is readable in the candidate's tree; ``claim`` alone otherwise."
+      },
       "ReviewChange": {
         "properties": {
           "change": {
@@ -60796,6 +61137,14 @@
             "minimum": 0.0,
             "title": "Citations More",
             "default": 0
+          },
+          "based_on": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewBasedOn"
+            },
+            "type": "array",
+            "title": "Based On",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -60804,7 +61153,7 @@
           "change"
         ],
         "title": "ReviewChange",
-        "description": "One proposed value change, in the write outcome's form, with what it cites.\n\n``change`` is a ``ChangeOutcome`` exactly as ``write`` answers one: op,\nSubject, field, before and after, the Claim and its candidate verdict.\n``role`` is the Claim's role; ``rationale`` the item's own reason, when a\nProcedure proposed it (the change set's ``rationale`` covers the rest)."
+        "description": "One proposed value change, in the write outcome's form, with what it cites.\n\n``change`` is a ``ChangeOutcome`` exactly as ``write`` answers one: op,\nSubject, field, before and after, the Claim and its candidate verdict.\n``role`` is the Claim's role; ``rationale`` the item's own reason, when a\nProcedure proposed it (the change set's ``rationale`` covers the rest).\n``based_on`` lists the Claims the value was judged from, which a reviewer\nchecks it against."
       },
       "ReviewChangeCount": {
         "properties": {
@@ -62521,7 +62870,7 @@
           "name"
         ],
         "title": "RunbookAuthoringPayload",
-        "description": "One Runbook decision (D-R36): an ordered list of Lines and internal actions.\n\nNo branching, no parameters of its own and no new action kinds: each Line\nstep runs as that Line's manual occurrence, on its own parameters and\nauthority. ``retire`` retires the accepted Runbook (``steps`` then unused)."
+        "description": "One Runbook decision (D-R36): an ordered list of Lines, Procedures and internal actions.\n\nNo branching, no parameters of its own and no new action kinds: each Line\nstep runs as that Line's manual occurrence, on its own parameters and\nauthority; a Procedure step runs every live Line of that Procedure, in\nLine-name order. ``retire`` retires the accepted Runbook (``steps`` then unused)."
       },
       "RunbookInput": {
         "properties": {
@@ -62552,7 +62901,7 @@
             },
             "type": "array",
             "title": "Steps",
-            "description": "In run order: {line: <Line name>} or {action: <internal action>}.",
+            "description": "In run order: {line: <Line name>}, {procedure: <Procedure name>} or {action: <internal action>}.",
             "default": []
           },
           "retire": {
@@ -62576,7 +62925,8 @@
             "type": "string",
             "enum": [
               "reads_later_write",
-              "reads_unwritten"
+              "reads_unwritten",
+              "reads_unbound_write"
             ],
             "title": "Kind"
           },
@@ -63279,6 +63629,9 @@
               },
               {
                 "$ref": "#/components/schemas/ActionTarget"
+              },
+              {
+                "$ref": "#/components/schemas/ProcedureTarget"
               }
             ],
             "title": "Target",
@@ -63286,7 +63639,8 @@
               "propertyName": "kind",
               "mapping": {
                 "action": "#/components/schemas/ActionTarget",
-                "line": "#/components/schemas/LineTarget"
+                "line": "#/components/schemas/LineTarget",
+                "procedure": "#/components/schemas/ProcedureTarget"
               }
             }
           },
@@ -63294,6 +63648,29 @@
             "type": "boolean",
             "title": "Unavailable",
             "default": false
+          },
+          "from_procedure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Procedure"
+          },
+          "excluded": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "cruxible.runbook.line_takes_event"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excluded"
           },
           "procedure": {
             "anyOf": [
@@ -63677,12 +64054,23 @@
               }
             ],
             "title": "Action"
+          },
+          "procedure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "RunbookStepAuthoring",
-        "description": "One Runbook step: exactly one of an accepted Line (by name) or a registered action."
+        "description": "One Runbook step: exactly one of an accepted Line, a registered action, or a Procedure."
       },
       "RunbookStepOutcome": {
         "properties": {
@@ -63704,6 +64092,9 @@
               },
               {
                 "$ref": "#/components/schemas/ActionTarget"
+              },
+              {
+                "$ref": "#/components/schemas/ProcedureTarget"
               }
             ],
             "title": "Target",
@@ -63711,7 +64102,8 @@
               "propertyName": "kind",
               "mapping": {
                 "action": "#/components/schemas/ActionTarget",
-                "line": "#/components/schemas/LineTarget"
+                "line": "#/components/schemas/LineTarget",
+                "procedure": "#/components/schemas/ProcedureTarget"
               }
             }
           },
@@ -63724,6 +64116,7 @@
               "not_enabled",
               "unavailable",
               "fired",
+              "skipped",
               "not_run"
             ],
             "title": "Status"
@@ -63800,6 +64193,17 @@
                 "type": "null"
               }
             ]
+          },
+          "from_procedure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Procedure"
           }
         },
         "additionalProperties": false,
